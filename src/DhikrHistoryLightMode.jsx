@@ -51,9 +51,9 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
         </div>
 
         {/* 3. TODAY'S RECITATIONS HERO CARD (ROUNDED-3XL WITH SOFT SHADOW) */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Today's Recitations</span>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Today's Recitations</span>
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/70">
               <CheckCircle2 className="w-3 h-3 text-teal-500"/>
               Surpassed Goal
@@ -69,17 +69,17 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
 
           {/* 3-Column Metrics Grid */}
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
-            <div className="p-2.5 rounded-2xl text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-2.5 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">Sessions</span>
               <span className="text-sm font-bold text-slate-900 mt-0.5 block">8</span>
               <span className="text-[10px] text-slate-500 block">Target 6</span>
             </div>
-            <div className="p-2.5 rounded-2xl text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-2.5 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">Active Streak</span>
               <span className="text-sm font-bold text-slate-900 mt-0.5 block">14d 🔥</span>
               <span className="text-[10px] text-slate-500 block">Personal best</span>
             </div>
-            <div className="p-2.5 rounded-2xl text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-2.5 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">Goal Met</span>
               <span className="text-sm font-bold text-teal-600 mt-0.5 block">125%</span>
               <span className="text-[10px] text-slate-500 block">1,000 baseline</span>
@@ -112,7 +112,7 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
         {/* 5. TIMELINE CARDS (ROUNDED-3XL WITH SOFT SHADOWS) */}
         
         {/* Card 1 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-teal-600"/>
@@ -142,7 +142,7 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
         </div>
 
         {/* Card 2 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-teal-600"/>
@@ -172,7 +172,7 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
         </div>
 
         {/* Card 3 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-indigo-600"/>
@@ -207,7 +207,7 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
         </div>
 
         {/* Card 4 (FULL UNTRUNCATED TEXT) */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-teal-600"/>
@@ -240,13 +240,13 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
 
         {/* Timeline Divider */}
         <div className="text-center my-4">
-          <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60">
+          <span className="text-[10px] font-bold tracking-widest text-slate-600 uppercase bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60">
             Yesterday • Oct 23
           </span>
         </div>
 
         {/* Card 5 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-indigo-600"/>
@@ -278,7 +278,7 @@ export default function DhikrHistoryLightMode({ setActiveTab }) {
         </div>
 
         {/* Quote Card */}
-        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-8 h-8 rounded-full bg-white text-indigo-600 flex items-center justify-center shadow-2xs">
             <Quote className="w-4 h-4"/>
           </div>

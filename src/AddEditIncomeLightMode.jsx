@@ -38,7 +38,7 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
 </button>
 </div>
 {/*  Hero Amount Card (Glassmorphic)  */}
-<div className="relative overflow-hidden rounded-3xl p-5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative overflow-hidden rounded-3xl p-5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Subtle Ambient Glow Orbs  */}
 <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-primary-fixed/40 blur-2xl pointer-events-none"></div>
 <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-tertiary-fixed/30 blur-xl pointer-events-none"></div>
@@ -80,32 +80,32 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
 </div>
 {/*  Category Pill Horizontal Ribbon  */}
 <div className="grid grid-cols-2 gap-3.5 pt-1" id="sources-container">
-<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-indigo-700 transition-all text-sm font-medium active:scale-95 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-source="Salary" type="button">
+<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-indigo-700 transition-all text-sm font-medium active:scale-95 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-source="Salary" type="button">
   <div className="flex items-center gap-3">
     <span className="material-symbols-outlined text-[20px]" style={{fontVariationSettings: '"FILL" 1'}}>work</span>
     <span>Salary</span>
   </div>
   <span className="material-symbols-outlined text-[16px]">check_circle</span>
 </button>
-<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-source="Freelance" type="button">
+<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-source="Freelance" type="button">
   <div className="flex items-center gap-3">
     <span className="material-symbols-outlined text-[20px]">laptop_mac</span>
     <span>Freelance</span>
   </div>
 </button>
-<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-source="Business" type="button">
+<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-source="Business" type="button">
   <div className="flex items-center gap-3">
     <span className="material-symbols-outlined text-[20px]">storefront</span>
     <span>Business</span>
   </div>
 </button>
-<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-source="Bonus" type="button">
+<button className="source-card p-3 pl-4 flex items-center justify-between rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-source="Bonus" type="button">
   <div className="flex items-center gap-3">
     <span className="material-symbols-outlined text-[20px]">featured_seasonal_and_gifts</span>
     <span>Bonus</span>
   </div>
 </button>
-<button className="source-card col-span-2 p-3 px-4 flex items-center justify-center rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-source="Other" type="button">
+<button className="source-card col-span-2 p-3 px-4 flex items-center justify-center rounded-2xl text-slate-700 transition-all text-sm font-medium active:scale-95 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-source="Other" type="button">
   <div className="flex items-center gap-3">
     <span className="material-symbols-outlined text-[20px]">more_horiz</span>
     <span>Other</span>
@@ -114,11 +114,11 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Income Details Form Card  */}
-<div className="rounded-3xl p-5 space-y-space-md bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 space-y-space-md bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Payer / Company Field  */}
 <div className="space-y-1">
 <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="payer-input">Source Title / Payer Name</label>
-<div className="flex items-center gap-3.5 px-space-md py-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-center gap-3.5 px-space-md py-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="material-symbols-outlined text-primary text-[20px]">domain</span>
 <input aria-label="Source Title or Payer Name" className="w-full bg-transparent font-body-lg text-body-lg text-on-surface focus:outline-none" id="payer-input" type="text" value="TechCorp Global Ltd."/>
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">edit</span>
@@ -127,7 +127,7 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
 {/*  Date & Deposit Frequency Field  */}
 <div className="space-y-1">
 <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="schedule-trigger">Deposit Schedule &amp; Recurrence</label>
-<div className="flex items-center justify-between px-space-md py-2.5 rounded-2xl cursor-pointer transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" id="schedule-trigger">
+<div className="flex items-center justify-between px-space-md py-2.5 rounded-2xl cursor-pointer transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" id="schedule-trigger">
 <div className="flex items-center gap-space-sm min-w-0">
 <span className="material-symbols-outlined text-secondary text-[20px]">event_repeat</span>
 <div className="flex flex-col min-w-0">
@@ -144,13 +144,13 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
     <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="memo-input">Notes &amp; Memo</label>
     <span className="font-label-sm text-label-sm text-on-surface-variant/70">72 / 140</span>
   </div>
-  <div className="px-space-md py-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="px-space-md py-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <textarea aria-label="Notes and Memo" className="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder-on-surface-variant/50 focus:outline-none resize-none" id="memo-input" rows="2">Monthly senior design lead compensation &amp; quarterly milestone recognition</textarea>
   </div>
 </div>
 </div>
 {/*  Realtime Projection Micro-Card  */}
-<div className="p-space-md rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="p-space-md rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-space-sm">
 <div className="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary">
 <span className="material-symbols-outlined text-[18px]">trending_up</span>

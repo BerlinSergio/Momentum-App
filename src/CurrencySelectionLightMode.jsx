@@ -23,7 +23,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
         </div>
       </div><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-28">
 {/*  Active Currency Highlight Card  */}
-<section className="w-full rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<section className="w-full rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
   <div className="flex items-start justify-between">
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white text-xl shadow-md">
@@ -43,7 +43,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
       Active Default
     </span>
   </div>
-  <div className="flex items-start gap-3 p-3.5 rounded-2xl text-xs text-slate-600 leading-relaxed bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="flex items-start gap-3 p-3.5 rounded-2xl text-xs text-slate-600 leading-relaxed bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <span className="material-symbols-outlined text-[16px] text-indigo-600 flex-shrink-0 mt-0.5">account_balance_wallet</span>
     <span>All financial logs, expense budgets, and Zakat quotas calculate in this currency.</span>
   </div>
@@ -73,13 +73,13 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 </div>
 </section>
 {/*  Currency List  */}
-<section className="rounded-3xl p-4 mb-5 space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<section className="rounded-3xl p-4 mb-5 space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between px-space-xs py-1">
 <span className="font-label-md text-label-md text-outline uppercase tracking-wider">Available Currencies</span>
 <span className="font-label-sm text-label-sm text-outline">11 Currencies</span>
 </div>
 {/*  Item: AFN (Active)  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="AFN">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="AFN">
   <div className="flex items-center gap-3">
     <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-sm">؋</div>
     <div className="flex flex-col">
@@ -95,7 +95,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
   </div>
 </div>
 {/*  Item: USD  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="USD">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="USD">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           $
@@ -111,7 +111,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: EUR  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="EUR">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="EUR">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           €
@@ -127,7 +127,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: GBP  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="GBP">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="GBP">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           £
@@ -143,7 +143,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: AED  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="AED">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="AED">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           د.إ
@@ -159,7 +159,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: SAR  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="SAR">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="SAR">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           ﷼
@@ -175,7 +175,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: QAR  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="QAR">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="QAR">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           ر.ق
@@ -191,7 +191,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: TRY  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="TRY">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="TRY">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           ₺
@@ -207,7 +207,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: PKR  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="PKR">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="PKR">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           ₨
@@ -223,7 +223,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: CAD  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="CAD">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="CAD">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           $
@@ -239,7 +239,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 <div className="radio-slot w-5 h-5 rounded-full border-2 border-slate-200 shrink-0"></div>
 </div>
 {/*  Item: JPY  */}
-<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-code="JPY">
+<div className="currency-row relative rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-code="JPY">
 <div className="flex items-center gap-space-md min-w-0">
 <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold flex items-center justify-center shrink-0">
           ¥
@@ -256,7 +256,7 @@ export default function CurrencySelectionLightMode({ setActiveTab }) {
 </div>
 </section>
 {/*  Preferences Card  */}
-<section className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<section className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
   <div className="flex items-center gap-2 mb-2">
     <span className="material-symbols-outlined text-[16px] text-indigo-600">tune</span>
     <h3 className="text-sm font-bold text-slate-900">Display Preferences</h3>

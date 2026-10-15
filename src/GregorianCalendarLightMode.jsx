@@ -26,7 +26,7 @@ export default function GregorianCalendarLightMode({ setActiveTab }) {
       <main className="flex-1 flex flex-col w-full pb-[120px] bg-transparent relative z-10">
         
         {/* MAIN CALENDAR CONTAINER */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <button className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700">
@@ -95,7 +95,7 @@ export default function GregorianCalendarLightMode({ setActiveTab }) {
         </div>
 
         {/* SELECTED DAY & EVENTS CONTAINER */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex flex-col gap-1.5 mb-2">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 leading-tight">Saturday, October 24, 2026</h3>
@@ -104,7 +104,7 @@ export default function GregorianCalendarLightMode({ setActiveTab }) {
             <p className="text-xs font-normal text-slate-500">Day 297 of 365 • Week 43 • 68 days remaining in 2026</p>
           </div>
 
-          <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
                 <Banknote className="w-4 h-4"/>
@@ -120,7 +120,7 @@ export default function GregorianCalendarLightMode({ setActiveTab }) {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
                 <Briefcase className="w-4 h-4"/>
@@ -136,7 +136,7 @@ export default function GregorianCalendarLightMode({ setActiveTab }) {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0">
                 <Heart className="w-4 h-4"/>

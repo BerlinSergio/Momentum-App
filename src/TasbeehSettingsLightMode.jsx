@@ -32,7 +32,7 @@ export default function TasbeehSettingsLightMode({ setActiveTab }) {
       </div>
 
         {/* Counter Behavior Card */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
               <SlidersHorizontal className="w-5 h-5"/>
@@ -90,13 +90,13 @@ export default function TasbeehSettingsLightMode({ setActiveTab }) {
 
         {/* Completion Ritual Preview Card */}
         <div className="flex items-center justify-between px-5 mb-2.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">COMPLETION RITUAL PREVIEW</span>
+          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">COMPLETION RITUAL PREVIEW</span>
           <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
             <Eye className="w-3.5 h-3.5"/>Live Preview
           </button>
         </div>
 
-        <div className="block mx-5 mb-6 p-6 rounded-3xl text-center space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-6 p-6 rounded-3xl text-center space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold bg-violet-50 border border-violet-200/80 text-violet-700 shadow-sm">
             <CheckCircle2 className="w-3.5 h-3.5 text-violet-600"/>
             <Sparkles className="w-3.5 h-3.5 text-amber-500"/>

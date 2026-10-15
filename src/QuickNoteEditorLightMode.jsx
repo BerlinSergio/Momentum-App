@@ -64,7 +64,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
       </div>
 
       {/* MAIN QUICK NOTE CARD */}
-      <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         {/* Title Row */}
         <div className="flex items-center justify-between">
           <input 
@@ -91,7 +91,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
         <p className="text-sm font-normal text-slate-700 leading-relaxed pt-1">Pick up fresh figs, organic honey, and cardamom pods from the local market before Asr prayer. Remind Uncle Tariq about arriving at 6:30 PM. Prepare the outdoor seating with warm lanterns.</p>
         
         {/* Embedded Audio Player Card */}
-        <div className="p-3.5 rounded-2xl flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <button className="w-10 h-10 rounded-full bg-violet-600 text-white flex items-center justify-center shadow-sm hover:bg-violet-700 transition-colors flex-shrink-0">
               <Play className="w-4 h-4 fill-white ml-0.5"/>
@@ -147,7 +147,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
       </div>
 
       {/* REMINDER SETTING CARD */}
-      <div className="block mx-5 mb-4 p-4 rounded-3xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-4 p-4 rounded-3xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0 shadow-2xs">
             <Bell className="w-5 h-5"/>

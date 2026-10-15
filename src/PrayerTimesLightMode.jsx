@@ -38,7 +38,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       </div>
 
       {/* Location & Dual Calendar Strip */}
-      <div className="block mx-5 my-3 p-4 rounded-3xl space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 my-3 p-4 rounded-3xl space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-indigo-600"/>
@@ -60,7 +60,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       </div>
 
       {/* Next Prayer Hero Card */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 relative overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 relative overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100/80">
             <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
@@ -82,7 +82,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           </div>
         </div>
         
-        <div className="rounded-2xl p-3 flex items-center justify-around text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-2xl p-3 flex items-center justify-around text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex flex-col items-center">
             <div className="w-12 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
               <span className="text-xl font-bold text-slate-900">02</span>
@@ -112,13 +112,13 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       </div>
 
       {/* Canonical Prayers List Container */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Canonical Prayers</h3>
           <span className="text-xs font-medium text-slate-400">5 Obligatory</span>
         </div>
         
-        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
               <Sparkles className="w-5 h-5"/>
@@ -137,7 +137,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3 pl-1">
             <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
               <Sparkles className="w-5 h-5"/>
@@ -157,7 +157,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
               <Sparkles className="w-5 h-5"/>
@@ -175,7 +175,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
               <Sparkles className="w-5 h-5"/>
@@ -193,7 +193,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
               <Sparkles className="w-5 h-5"/>
@@ -213,17 +213,17 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       </div>
 
       {/* Sun & Twilight Reference */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="grid grid-cols-3 gap-2.5 text-center">
-          <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-semibold text-slate-500 leading-tight">Sunrise / Shuruq</span>
             <span className="text-xs font-bold text-slate-900 mt-1">06:31 AM</span>
           </div>
-          <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-semibold text-slate-500 leading-tight">Midnight / Nisf</span>
             <span className="text-xs font-bold text-slate-900 mt-1">12:14 AM</span>
           </div>
-          <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex flex-col items-center p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-semibold text-slate-500 leading-tight">Tahajjud Third</span>
             <span className="text-xs font-bold text-slate-900 mt-1">03:45 AM</span>
           </div>
@@ -231,7 +231,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       </div>
 
       {/* Daily Spiritual Contemplation Card */}
-      <div className="block mx-5 mb-28 p-5 rounded-3xl space-y-2.5 text-slate-200 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-28 p-5 rounded-3xl space-y-2.5 text-slate-200 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <p className="text-sm font-medium text-slate-800 italic leading-relaxed">
           "Guard strictly your habit of prayers, especially the middle prayer, and stand before Allah in profound devotion."
         </p>

@@ -41,7 +41,7 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
 </button>
 </div>
 {/*  Hero Amount Card (Glassmorphic)  */}
-<div className="w-full rounded-2xl p-5 relative overflow-hidden flex flex-col items-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="w-full rounded-2xl p-5 relative overflow-hidden flex flex-col items-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="absolute -right-8 -top-8 w-28 h-28 bg-indigo-100/40 rounded-full blur-2xl pointer-events-none"></div>
 <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-sky-100/40 rounded-full blur-2xl pointer-events-none"></div>
 <div className="flex items-center justify-between w-full mb-3 relative z-10">
@@ -76,7 +76,7 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Category Selector Bento Container  */}
-<div className="w-full rounded-2xl p-5 space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="w-full rounded-2xl p-5 space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-baseline justify-between">
 <div>
 <h2 className="font-headline-sm text-headline-sm text-slate-900 tracking-tight">Category</h2>
@@ -145,12 +145,12 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Transaction Details Card  */}
-<div className="w-full rounded-2xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="w-full rounded-2xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <h2 className="font-headline-sm text-headline-sm text-slate-900 tracking-tight">Transaction Details</h2>
 {/*  Date & Time Row  */}
 <div className="flex flex-col space-y-1">
 <label className="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider">Date &amp; Time</label>
-<div className="flex items-center justify-between p-3 rounded-2xl transition-colors cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-center justify-between p-3 rounded-2xl transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-2.5">
 <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
 <span className="material-symbols-outlined text-[18px]">calendar_today</span>
@@ -171,7 +171,7 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
 <label className="font-label-sm text-label-sm text-slate-500 uppercase tracking-wider">Notes &amp; Receipt</label>
 <span className="font-label-sm text-label-sm text-slate-400" id="char-counter">44 / 140</span>
 </div>
-<div className="p-3 rounded-2xl focus-within:border-indigo-400 focus-within:bg-white transition-colors flex flex-col gap-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="p-3 rounded-2xl focus-within:border-indigo-400 focus-within:bg-white transition-colors flex flex-col gap-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <textarea className="w-full font-body-md text-body-md text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none resize-none" id="note-input" maxlength="140" placeholder="Add an optional note..." rows="2">Weekly fresh produce, oats, and almond milk</textarea>
 <div className="flex items-center gap-2 pt-1 border-t border-slate-200/80">
 <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200/80 hover:bg-slate-200 text-slate-700 font-label-sm text-label-sm transition-colors" type="button">

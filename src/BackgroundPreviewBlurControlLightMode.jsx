@@ -25,7 +25,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
         </div>
       </div><main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface"><div className="flex flex-col w-full pb-8 select-none">
 {/*  Interactive Background Canvas Wrapper  */}
-<div className="relative w-full overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative w-full overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Simulated Immersive Wallpaper Layer  */}
 <div className="absolute inset-0 bg-cover bg-center transition-all duration-300 ease-out transform scale-105" data-alt="A tranquil minimalist sunrise over calm ocean water with soft pastel peach, lavender, ethereal cyan atmospheric sky, silky gradient light, serene and meditative fine art photography." id="wallpaper-surface" style={{backgroundImage: `url('${currentWallpaper?.url || 'https://picsum.photos/seed/serene-dawn/720/1280'}')`, filter: `blur(${blurLevel}px)`}}>
 </div>
@@ -52,7 +52,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
 <p className="font-label-md text-label-md text-on-surface">Good morning, Aisha <span className="text-outline mx-1">•</span> <span className="text-tertiary font-semibold">Fajr in 12m</span></p>
 </div>
 {/*  Mock Card 1: Daily Task Widget  */}
-<div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-sm shrink-0">
 <span className="material-symbols-outlined text-on-primary text-[16px]">check</span>
@@ -67,7 +67,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
 <span className="px-2 py-1 rounded-full bg-surface-container text-on-primary-fixed-variant font-label-sm text-label-sm shrink-0">Priority</span>
 </div>
 {/*  Mock Card 2: Prayer Times Card with Serene Motifs  */}
-<div className="p-4 rounded-2xl relative overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="p-4 rounded-2xl relative overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="absolute -right-3 -bottom-3 opacity-15 pointer-events-none text-secondary">
 <span className="material-symbols-outlined text-[72px]">mosque</span>
 </div>
@@ -111,14 +111,14 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
 </div>
 </div>
 {/*  Blur Control Floating Panel  */}
-<div className="w-full flex flex-col rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="w-full flex flex-col rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Header of Controller Card  */}
 <div className="flex items-center justify-between mb-2">
 <h2 className="text-base font-bold text-slate-800">Background Blur Intensity</h2>
 <span className="px-3.5 py-1 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-bold tracking-tight shadow-sm">{blurLevel} px</span>
 </div>
 {/*  Active Blur Description Callout  */}
-<div className="px-3.5 py-2 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="px-3.5 py-2 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-2">
 <span className="material-symbols-outlined text-primary text-[20px]">recommend</span>
 <span className="font-body-md text-body-md text-on-surface font-medium" id="blur-status-label">{blurLevel <= 8 ? 'Subtle Depth (Minimal)' : blurLevel <= 20 ? 'Soft Focus (Recommended)' : 'Deep Focus (Maximum)'}</span>
@@ -157,7 +157,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
 {/*  Secondary Preferences / Toggles  */}
 <div className="flex flex-col gap-3 pt-2">
 {/*  Sync with Dark Mode Toggle  */}
-<label className="flex items-center justify-between p-3.5 rounded-2xl cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<label className="flex items-center justify-between p-3.5 rounded-2xl cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-3">
 <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
 <span className="material-symbols-outlined text-[18px]">sync_alt</span>
@@ -170,7 +170,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
 <input checked="" className="w-5 h-5 rounded accent-primary cursor-pointer" type="checkbox"/>
 </label>
 {/*  Soft Dim Toggle  */}
-<label className="flex items-center justify-between p-3.5 rounded-2xl cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<label className="flex items-center justify-between p-3.5 rounded-2xl cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-3">
 <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface">
 <span className="material-symbols-outlined text-[18px]">brightness_medium</span>

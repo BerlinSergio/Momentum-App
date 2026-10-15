@@ -45,7 +45,7 @@ export default function SplashScreenLightMode() {
       {/* STANDARDIZED PROGRESS CARD & UPDATED VERSION FOOTER */}
       <div className="w-full max-w-xs space-y-4 pb-2">
         {/* Progress Card (Rounded-3xl with Soft Shadow) */}
-        <div className="p-4 rounded-3xl space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-4 rounded-3xl space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">

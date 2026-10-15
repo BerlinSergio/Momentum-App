@@ -50,7 +50,7 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
       </div>
 
       {/* NOTE TITLE & METADATA CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight outline-none focus:text-indigo-600 transition-colors cursor-text" contentEditable="true" suppressContentEditableWarning={true}>
           Q4 Strategic Reflection & Habit Synthesis
         </h2>
@@ -99,7 +99,7 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
       </div>
 
       {/* QUARTERLY MILESTONES CHECKLIST */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quarterly Milestones</h3>
         <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer group">
           <input type="checkbox" className="hidden peer" defaultChecked />
@@ -136,7 +136,7 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
       </div>
 
       {/* ATTACHMENTS & MEDIA CAROUSEL */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between pb-2">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <ImageIcon className="w-4 h-4 text-slate-400" />
@@ -150,7 +150,7 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
         
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-none snap-x scroll-smooth">
           {/* Attachment 1 */}
-          <div className="snap-start min-w-[150px] p-3.5 rounded-2xl transition-all flex flex-col gap-2 relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="snap-start min-w-[150px] p-3.5 rounded-2xl transition-all flex flex-col gap-2 relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="relative h-24 w-full overflow-hidden rounded-xl bg-slate-200">
               <img className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeoilMROxN5rslAxq5_gp_GsUHOhySI_czZCoT5pSTWonQcVm_-CXwO1y6MGMtSqaAXW7q2_EBl3BY1OPXZWiphvRjtrfw4uhTQZneGTMKN_19ltajDp8_IZNEqDXuRYBJgVnBX8GUdKwEt2p8FpO3epeqPLEzOzMmLYlWIqrDlyqgXOWmaJ8LRLxLqCJrhP1TmSBeZCjT7Rww6AdnUdSsGsdxw--lB6RTPhLCZMRdQouCia2YbsQ" alt="Dawn" />
               <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white font-semibold text-[9px]">
@@ -164,7 +164,7 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
           </div>
           
           {/* Attachment 2 */}
-          <div className="snap-start min-w-[150px] p-3.5 rounded-2xl transition-all flex flex-col gap-2 relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="snap-start min-w-[150px] p-3.5 rounded-2xl transition-all flex flex-col gap-2 relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="relative h-24 w-full overflow-hidden rounded-xl bg-slate-200">
               <img className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyIv9-i3XKKs1okzhg6U6RLVRrWcJaxlaZ9HiwjElhA_5ehlDJ4M7KROpK8D0D_1lJP2vxvISs3lwrU8e_LXJ89kxodLxqsskAIQ2BGZg-bp5c4euhv34WAP1qOKh68OeauGa0M_BcpwHxZvv22eWCLTPpYTY3NPSsst5EaNTwOnHHVgsIC7ZeI8NIOKQ3NpsbvlTl_CikPVqRjPpWhWYtcSgmt6Sf-HKREON-1nTg6urtpPUceJw" alt="MindMap" />
               <span className="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white font-semibold text-[9px]">
@@ -178,7 +178,7 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
           </div>
           
           {/* Attachment 3: Voice Note */}
-          <div className="snap-start min-w-[150px] p-3.5 rounded-2xl transition-all flex flex-col justify-between relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="snap-start min-w-[150px] p-3.5 rounded-2xl transition-all flex flex-col justify-between relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0">
                 <Mic className="w-3.5 h-3.5" />

@@ -39,7 +39,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
   </div>
 
   {/* Card 1: Routine Name & Sphere/Category Container */}
-  <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="font-medium text-slate-800 text-sm" htmlFor="routine-name">Routine Name</label>
@@ -47,7 +47,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
           <span className="material-symbols-outlined text-[14px]">auto_awesome</span> Smart Suggest
         </span>
       </div>
-      <div className="text-slate-900 placeholder-slate-400 rounded-2xl px-4 py-3 flex items-center gap-3 focus-within:shadow-[0_0_0_2px_rgba(99,102,241,0.4)] transition-all bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="text-slate-900 placeholder-slate-400 rounded-2xl px-4 py-3 flex items-center gap-3 focus-within:shadow-[0_0_0_2px_rgba(99,102,241,0.4)] transition-all bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="material-symbols-outlined text-indigo-600 text-[20px] pointer-events-none shrink-0">menu_book</span>
         <input className="flex-1 bg-transparent border-none text-slate-900 placeholder-slate-400 focus:outline-none text-base" id="routine-name" type="text" defaultValue="Evening Reading &amp; Quran Reflection"/>
       </div>
@@ -73,7 +73,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
   </div>
 
   {/* Card 2: 2-Column Split Card for Target Time & Duration */}
-  <div className="rounded-3xl p-5 grid grid-cols-2 divide-x divide-slate-200/80 gap-4 divide-slate-800 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="rounded-3xl p-5 grid grid-cols-2 divide-x divide-slate-200/80 gap-4 divide-slate-800 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <div className="flex flex-col justify-between">
       <div className="flex items-center justify-between text-indigo-600 text-xs font-semibold">
         <span>TARGET TIME</span>
@@ -105,13 +105,13 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
   </div>
 
   {/* Card 3: Cadence & Repeat Container */}
-  <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <div className="flex items-center justify-between">
       <label className="font-medium text-slate-800 text-sm">Cadence &amp; Repeat</label>
       <span className="text-xs text-indigo-600 font-medium">3 active days / week</span>
     </div>
     
-    <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
       <button className="py-2 rounded-lg text-slate-500 text-xs font-medium hover:bg-slate-100 transition-colors" type="button">Every Day</button>
       <button className="py-2 rounded-lg text-slate-500 text-xs font-medium hover:bg-slate-100 transition-colors" type="button">Mon &ndash; Fri</button>
       <button className="py-2 rounded-lg bg-white text-indigo-700 text-xs font-semibold shadow-sm border border-slate-200/80" type="button">Custom Days</button>
@@ -145,7 +145,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
   </div>
 
   {/* Card 4: Alert & Awareness */}
-  <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <div className="flex items-center justify-between">
       <label className="font-medium text-slate-800 text-sm">Alert &amp; Awareness</label>
       <span className="text-xs text-amber-600 flex items-center gap-1 font-medium">
@@ -153,7 +153,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
       </span>
     </div>
 
-    <div className="rounded-2xl p-4 flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="rounded-2xl p-4 flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center">
           <span className="material-symbols-outlined text-[20px]">notifications_active</span>
@@ -171,7 +171,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
     <div className="grid grid-cols-2 gap-3 pt-1">
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-slate-500 pl-1">Notify Timing</span>
-        <div className="text-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between text-sm bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="text-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between text-sm bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <span className="flex items-center gap-1.5 truncate">
             <span className="material-symbols-outlined text-[16px] text-indigo-600">schedule</span>
             At start (08:30 PM)
@@ -181,7 +181,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-medium text-slate-500 pl-1">Auditory Cue</span>
-        <div className="text-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between text-sm bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="text-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between text-sm bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <span className="flex items-center gap-1.5 truncate">
             <span className="material-symbols-outlined text-[16px] text-indigo-600">music_note</span>
             Serenity Bell
@@ -193,7 +193,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
   </div>
 
   {/* Card 5: Mindful Intent & Notes */}
-  <div className="rounded-3xl p-5 space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="rounded-3xl p-5 space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <div className="flex items-center justify-between">
       <label className="font-medium text-slate-800 text-sm" htmlFor="routine-notes">Mindful Intent &amp; Notes</label>
       <span className="text-xs text-slate-500 font-medium">Optional</span>
@@ -207,7 +207,7 @@ export default function AddEditRoutineLightMode({ setActiveTab }) {
   </div>
 
   {/* Card 6: Streak Protected Widget */}
-  <div className="rounded-2xl p-4 mb-4 flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+  <div className="rounded-2xl p-4 mb-4 flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-600 flex items-center justify-center shrink-0">
         <span className="material-symbols-outlined text-[20px]">verified_user</span>

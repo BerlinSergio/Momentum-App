@@ -26,7 +26,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
       </div>
 
       {/* Mindful Sanctuary Banner */}
-      <div className="block mx-5 my-3 p-4 rounded-3xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 my-3 p-4 rounded-3xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div>
           <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
@@ -45,7 +45,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
 
       {/* 2. SEARCH BAR & HORIZONTAL FILTER CHIPS */}
       <div className="flex items-center gap-2 px-5 mb-3">
-        <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <Search className="w-4 h-4 text-slate-400"/>
           <input type="text" placeholder="Search notes, tags, or voice memos..." className="w-full bg-transparent text-xs font-normal text-slate-900 focus:outline-none placeholder-slate-400"/>
         </div>
@@ -81,7 +81,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
         </button>
       </div>
 
-      <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-semibold">#Spiritual</span>
@@ -98,7 +98,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 mx-5 mb-6">
-        <div className="p-3.5 rounded-2xl space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">#Daily</span>
           <h4 className="text-xs font-semibold text-slate-900">Friday Gathering</h4>
           <div className="flex flex-col gap-1 text-[11px] font-normal text-slate-500">
@@ -111,7 +111,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
             <span className="text-[10px] font-bold text-teal-600">3/4 Done</span>
           </div>
         </div>
-        <div className="p-3.5 rounded-2xl space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">#Work</span>
           <h4 className="text-xs font-semibold text-slate-900">Audio Sync</h4>
           <p className="text-[11px] font-normal text-slate-500 line-clamp-3">Add offline prayer audio sync for travel mode. Check background sync...</p>
@@ -132,7 +132,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
         <span className="text-xs font-medium text-slate-400">6 Total</span>
       </div>
 
-      <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-2">
           <span className="px-2 py-0.5 rounded-md bg-violet-50 text-violet-600 text-[10px] font-semibold">Personal Growth</span>
           <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">📌 Pinned</span>
@@ -140,7 +140,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
         <h4 className="text-sm font-semibold text-slate-900">Q4 Strategic Reflection & Habit Synthesis</h4>
         <p className="text-xs font-normal text-slate-500 line-clamp-2">Looking back at the past quarter's personal momentum, spiritual consistency, and health target...</p>
         <div className="flex gap-2">
-          <div className="flex-1 h-12 rounded-xl flex items-center px-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex-1 h-12 rounded-xl flex items-center px-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
              <Mic className="w-4 h-4 text-indigo-500 mr-2"/>
              <span className="text-[10px] font-semibold text-slate-600">Voice Note</span>
           </div>
@@ -154,7 +154,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
         </div>
       </div>
 
-      <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-2">
           <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 text-[10px] font-semibold">Spiritual Study</span>
         </div>
@@ -174,7 +174,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
         </div>
       </div>
 
-      <div className="block mx-5 mb-6 p-4 rounded-2xl transition-all space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-6 p-4 rounded-2xl transition-all space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-2">
           <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-semibold">Finance</span>
         </div>
@@ -191,8 +191,8 @@ export default function NotesMainLightMode({ setActiveTab }) {
       </div>
 
       {/* 5. STANDARDIZED ARCHIVE EMPTY STATE CONTAINER */}
-      <div className="block mx-5 mb-28 p-6 rounded-3xl text-center space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
-        <div className="block w-12 h-12 rounded-2xl text-indigo-600 flex items-center justify-center mx-auto text-indigo-400 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-28 p-6 rounded-3xl text-center space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="block w-12 h-12 rounded-2xl text-indigo-600 flex items-center justify-center mx-auto text-indigo-400 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <FolderArchive className="w-6 h-6"/>
         </div>
         <div>

@@ -48,7 +48,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
         </section>
 
         {/* IDENTITY & ACCOUNT CARD */}
-        <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-indigo-600" />
@@ -59,7 +59,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-500">Full Name</label>
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="flex items-center gap-3 p-3.5 rounded-2xl text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <User className="w-4 h-4 text-slate-400 flex-shrink-0" />
               <input type="text" defaultValue="Aisha Rahmani" className="bg-transparent text-sm font-medium text-slate-900 w-full focus:outline-none" />
             </div>
@@ -70,7 +70,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
               <label className="text-xs font-semibold text-slate-500">Email Address</label>
               <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />Verified</span>
             </div>
-            <div className="flex items-center justify-between gap-2 p-3.5 rounded-2xl text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="flex items-center justify-between gap-2 p-3.5 rounded-2xl text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <span className="text-sm font-medium text-slate-900 truncate">aisha.rahmani@example.com</span>
@@ -81,7 +81,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
         </div>
 
         {/* REGIONAL SETTINGS CARD */}
-        <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-indigo-600" />
@@ -92,7 +92,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-500">Primary Currency</label>
-            <div className="rounded-2xl p-3.5 flex items-center justify-between text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="rounded-2xl p-3.5 flex items-center justify-between text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <select className="bg-transparent text-sm font-medium text-slate-900 w-full focus:outline-none appearance-none">
                 <option className="bg-white text-slate-900">AFN / ؋ (Afghan Afghani)</option>
               </select>
@@ -102,7 +102,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-500">Timezone</label>
-            <div className="rounded-2xl p-3.5 flex items-center justify-between text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="rounded-2xl p-3.5 flex items-center justify-between text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <select className="bg-transparent text-sm font-medium text-slate-900 w-full focus:outline-none appearance-none">
                 <option className="bg-white text-slate-900">Asia/Kabul (UTC+4:30)</option>
               </select>
@@ -115,7 +115,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-500">City & Country</label>
-            <div className="rounded-2xl p-3.5 space-y-2 text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="rounded-2xl p-3.5 space-y-2 text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <input type="text" defaultValue="Kabul, Afghanistan" className="bg-transparent text-sm font-medium text-slate-900 w-full focus:outline-none" />
               <div className="flex items-start gap-2 pt-2 border-t border-slate-200/80">
                 <div className="flex flex-col">
@@ -128,7 +128,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
         </div>
 
         {/* SPIRITUAL ROUTINE CONTEXT CARD */}
-        <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <Sun className="w-4 h-4 text-indigo-600" />
@@ -139,7 +139,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-500">Calculation Convention</label>
-            <div className="rounded-2xl p-3.5 flex items-center justify-between cursor-pointer text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="rounded-2xl p-3.5 flex items-center justify-between cursor-pointer text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-slate-900">Univ. of Islamic Sciences, Karachi</span>
                 <span className="text-[11px] text-slate-500">Fajr: 18.0°, Isha: 18.0° (Hanafi Asr ratio: 2x shadow)</span>
@@ -149,7 +149,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-500">Calendar Synchronization</label>
-            <div className="rounded-2xl p-3.5 flex items-center justify-between text-slate-900 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="rounded-2xl p-3.5 flex items-center justify-between text-slate-900 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-slate-900">Hijri Shamsi (Solar Calendar)</span>
                 <span className="text-[11px] text-slate-500">Afghan national astronomical solar reckoning</span>
@@ -162,7 +162,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
         </div>
 
         {/* ENCRYPTED CLOUD SYNC STRIP */}
-        <div className="rounded-2xl p-4 mb-6 flex items-center justify-between relative z-10 text-slate-700 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-2xl p-4 mb-6 flex items-center justify-between relative z-10 text-slate-700 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <Cloud className="w-5 h-5 text-indigo-600"/>
             <span className="text-xs font-bold text-slate-900">Cloud Sync Encrypted</span>

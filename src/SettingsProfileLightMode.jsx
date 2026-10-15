@@ -26,7 +26,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* PROFILE HERO CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl text-center space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl text-center space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="relative w-20 h-20 mx-auto">
           <div className="w-20 h-20 rounded-full overflow-hidden ring-4 ring-indigo-50 shadow-sm bg-indigo-100 flex items-center justify-center text-indigo-500 font-bold text-xl">
             <img src="/avatar.jpg" alt="Aisha" className="w-full h-full object-cover" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
@@ -70,7 +70,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* REGIONAL PREFERENCES CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Regional Preferences</h3>
           <span className="text-xs font-semibold text-teal-600">Sync Active</span>
@@ -112,7 +112,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* ATMOSPHERE & VISUALS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Atmosphere & Visuals</h3>
           <span className="text-xs font-semibold text-violet-600">Serenity v2</span>
@@ -160,7 +160,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* SECURITY & SANCTUARY CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Security & Sanctuary</h3>
           <span className="text-xs font-semibold text-teal-600 flex items-center gap-1">
@@ -168,7 +168,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
           </span>
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4"/>
@@ -207,7 +207,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* MINDFUL NOTIFICATIONS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mindful Notifications</h3>
           <span className="text-xs font-semibold text-indigo-600">All Active</span>
@@ -260,14 +260,14 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* DATA & RESILIENCE CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Data & Resilience</h3>
           <span className="text-xs font-medium text-slate-400">Cloud Active</span>
         </div>
 
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between p-3 rounded-2xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex items-center justify-between p-3 rounded-2xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Cloud className="w-4 h-4"/>
@@ -316,7 +316,7 @@ export default function SettingsProfileLightMode({ setActiveTab }) {
       </div>
 
       {/* ABOUT MOMENTUM & UPDATED VERSION CARD */}
-      <div className="block mx-5 mb-28 p-6 rounded-3xl text-center space-y-3 relative overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-28 p-6 rounded-3xl text-center space-y-3 relative overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <img 
           src="/logo.png" 
           alt="Momentum Logo" 

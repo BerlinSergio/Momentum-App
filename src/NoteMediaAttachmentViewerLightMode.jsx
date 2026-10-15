@@ -32,7 +32,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab }) {
       </div>
 
       {/* 2. MEDIA VIEWER & ASSET INFO BANNER */}
-      <div className="block mx-5 my-3 p-4 rounded-3xl space-y-3 text-white bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 my-3 p-4 rounded-3xl space-y-3 text-white bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-700 flex-shrink-0">
@@ -84,7 +84,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab }) {
       </div>
 
       {/* 4. MAIN PHOTO PREVIEW CONTAINER */}
-      <div className="block mx-5 mb-5 rounded-3xl overflow-hidden relative group h-80 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 rounded-3xl overflow-hidden relative group h-80 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <img className="w-full h-full object-cover" alt="Dawn Sky" src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=600"/>
         
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent pointer-events-none"></div>
@@ -174,7 +174,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab }) {
       </div>
 
       {/* 6. VIDEO ATTACHMENT PLAYER CARD */}
-      <div className="block mx-5 mb-5 p-4 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
@@ -201,7 +201,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab }) {
                </button>
              </div>
              <div className="flex flex-col gap-1.5 w-full">
-               <div className="w-full bg-white/30 h-1.5 rounded-full overflow-hidden flex items-center">
+               <div className="w-full bg-white/70 h-1.5 rounded-full overflow-hidden flex items-center">
                  <div className="bg-indigo-500 h-full w-[45%] rounded-full"></div>
                </div>
                <div className="flex items-center justify-between text-white text-[10px] font-semibold drop-shadow-md">
@@ -217,24 +217,24 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab }) {
       </div>
 
       {/* 7. ASSET PROPERTIES & CAPTION CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-900">Asset Properties</h2>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl p-3 space-y-0.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="rounded-2xl p-3 space-y-0.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500">Resolution</span>
             <div className="text-xs font-semibold text-slate-900">3840 × 2160 (4K)</div>
           </div>
-          <div className="rounded-2xl p-3 space-y-0.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="rounded-2xl p-3 space-y-0.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500">File Size</span>
             <div className="text-xs font-semibold text-slate-900">3.2 MB (JPEG)</div>
           </div>
-          <div className="rounded-2xl p-3 space-y-0.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="rounded-2xl p-3 space-y-0.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500">Color Space</span>
             <div className="text-xs font-semibold text-slate-900">Display P3 Wide</div>
           </div>
-          <div className="rounded-2xl p-3 space-y-0.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="rounded-2xl p-3 space-y-0.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500">Storage State</span>
             <div className="text-xs font-semibold text-indigo-600 flex items-center gap-1">
               <Cloud className="w-3 h-3"/>

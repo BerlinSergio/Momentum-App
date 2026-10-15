@@ -32,16 +32,16 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
         </div>
 
         {/* STANDARDIZED SETUP CONFIGURATION CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           
           {/* SECTION A: YOUR NAME ROW */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center flex-shrink-0">
                 <User className="w-4 h-4"/>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Name</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Your Name</span>
                 <p className="text-sm font-semibold text-slate-900 mt-0.5">Aisha Mohammed</p>
               </div>
             </div>
@@ -52,14 +52,14 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
           </div>
 
           {/* SECTION B: PREFERRED CURRENCY SELECTOR */}
-          <div className="p-4 rounded-2xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-4 rounded-2xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-violet-100/70 text-violet-700 font-bold text-sm flex items-center justify-center flex-shrink-0">
                   ؋
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Preferred Currency</span>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Preferred Currency</span>
                   <h3 className="text-sm font-semibold text-slate-900 mt-0.5">Afghan Afghani</h3>
                   <span className="text-[11px] font-normal text-slate-500">Default Base Currency (؋ AFN)</span>
                 </div>
@@ -85,13 +85,13 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
           </div>
 
           {/* SECTION C: PRAYER & CALENDAR TIMEZONE */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-100/70 text-amber-700 flex items-center justify-center flex-shrink-0">
                 <Compass className="w-4 h-4"/>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Prayer & Calendar Timezone</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Prayer & Calendar Timezone</span>
                 <p className="text-sm font-semibold text-slate-900 mt-0.5">Asia/Kabul</p>
                 <span className="text-[11px] font-normal text-slate-500">Afghanistan Time (UTC +04:30)</span>
               </div>
@@ -100,14 +100,14 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
           </div>
 
           {/* SECTION D: CURRENT CITY & DETECTION */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-rose-100/70 text-rose-600 flex items-center justify-center flex-shrink-0">
                 <MapPin className="w-4 h-4"/>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current City</span>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Current City</span>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 border border-teal-200/80 text-teal-700">
                     Auto-detected
                   </span>

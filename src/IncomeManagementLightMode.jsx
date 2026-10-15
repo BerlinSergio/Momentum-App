@@ -48,7 +48,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
 
       <div className="px-5 space-y-6">
         {/* Financial Summary Banner Card */}
-        <section className="relative w-full rounded-3xl p-5 overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <section className="relative w-full rounded-3xl p-5 overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           {/* Ambient luminous gradients */}
           <div className="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-indigo-50 blur-2xl pointer-events-none"></div>
           <div className="absolute -left-12 -bottom-12 w-44 h-44 rounded-full bg-emerald-50 blur-2xl pointer-events-none"></div>
@@ -72,7 +72,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
 
             {/* Breakdown Sub-metrics */}
             <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="rounded-2xl p-3 flex flex-col bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="rounded-2xl p-3 flex flex-col bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
                   <span className="text-xs font-medium text-slate-500">Active Income</span>
@@ -81,7 +81,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                 <span className="text-xs font-medium text-slate-500 mt-0.5">80.6% of total</span>
               </div>
               
-              <div className="rounded-2xl p-3 flex flex-col bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="rounded-2xl p-3 flex flex-col bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   <span className="text-xs font-medium text-slate-500">Passive & Other</span>
@@ -92,7 +92,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
             </div>
 
             {/* Next Expected Deposit Widget */}
-            <div className="flex items-center justify-between rounded-2xl px-3.5 py-3 mt-1 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="flex items-center justify-between rounded-2xl px-3.5 py-3 mt-1 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                   <CalendarClock className="w-5 h-5 text-indigo-600" />
@@ -162,12 +162,12 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
         {/* Detailed Income Feed */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">This Month • October 2026</span>
+            <span className="text-xs font-bold text-slate-600 tracking-wider uppercase">This Month • October 2026</span>
             <span className="text-xs font-semibold text-slate-500">4 Transactions</span>
           </div>
 
           {/* Item 1: TechCorp Salary */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
@@ -203,7 +203,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
           </div>
 
           {/* Item 2: Mobile App UI Design */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-fuchsia-50 border border-fuchsia-100 flex items-center justify-center shrink-0">
@@ -239,7 +239,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
           </div>
 
           {/* Item 3: E-commerce Store Royalty */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
@@ -275,7 +275,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
           </div>
 
           {/* Item 4: Q3 Performance Incentive */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0">
@@ -312,7 +312,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
         </section>
 
         {/* Ambient Inspiration Quote Pill */}
-        <div className="w-full rounded-3xl p-5 flex items-center gap-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="w-full rounded-3xl p-5 flex items-center gap-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center shrink-0">
             <Leaf className="w-5 h-5 text-teal-600" />
           </div>

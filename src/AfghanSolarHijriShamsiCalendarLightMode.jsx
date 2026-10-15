@@ -23,7 +23,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
         </div>
       </div><main className="flex flex-col relative w-full pb-safe min-h-screen bg-surface px-margin"><div className="flex flex-col w-full pb-28 space-y-4">
 {/*  Subtle Atmospheric Backdrop Glow  */}
-<div className="relative w-full rounded-2xl p-space-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative w-full rounded-2xl p-space-lg overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="absolute -top-12 -right-12 w-48 h-48 bg-primary-fixed-dim/40 rounded-full blur-3xl pointer-events-none"></div>
 <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-secondary-fixed/50 rounded-full blur-3xl pointer-events-none"></div>
 {/*  Seasonal & Cultural Top Banner  */}
@@ -62,31 +62,31 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
 </div>
 {/*  Solar Calendar Grid (30 Days)  */}
 {/*  Solar Calendar Grid (30 Days)  */}
-<div className="rounded-3xl p-5 mb-4 flex flex-col bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-4 flex flex-col bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Afghan Weekday Headers: Saturday (Shanbeh) through Friday (Jom'eh)  */}
 <div className="grid grid-cols-7 gap-1 text-center mb-2 pb-1">
 <div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-400 uppercase">Sh</span>
+<span className="text-xs font-normal text-slate-600 uppercase">Sh</span>
 <span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">شنبه</span>
 </div>
 <div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-400 uppercase">Yak</span>
+<span className="text-xs font-normal text-slate-600 uppercase">Yak</span>
 <span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">یکشنبه</span>
 </div>
 <div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-400 uppercase">Do</span>
+<span className="text-xs font-normal text-slate-600 uppercase">Do</span>
 <span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">دوشنبه</span>
 </div>
 <div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-400 uppercase">Seh</span>
+<span className="text-xs font-normal text-slate-600 uppercase">Seh</span>
 <span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">سه‌شنبه</span>
 </div>
 <div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-400 uppercase">Ch</span>
+<span className="text-xs font-normal text-slate-600 uppercase">Ch</span>
 <span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">چهارشنبه</span>
 </div>
 <div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-400 uppercase">Panj</span>
+<span className="text-xs font-normal text-slate-600 uppercase">Panj</span>
 <span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">پنج‌شنبه</span>
 </div>
 {/*  Friday Weekend Highlight  */}
@@ -98,32 +98,32 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
 {/*  Calendar 30-Day Grid Layout (1405 SH Aqrab starts Friday: offset 6)  */}
 <div className="grid grid-cols-7 gap-1">
 {/*  Trailing previous month spacers (Hamal/Mizan tail)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">25</span>
         <span className="text-[10px] leading-tight opacity-90">17</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">26</span>
         <span className="text-[10px] leading-tight opacity-90">18</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">27</span>
         <span className="text-[10px] leading-tight opacity-90">19</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">28</span>
         <span className="text-[10px] leading-tight opacity-90">20</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">29</span>
         <span className="text-[10px] leading-tight opacity-90">21</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">30</span>
         <span className="text-[10px] leading-tight opacity-90">22</span>
         <span className="text-[9px] opacity-60"></span>
@@ -146,7 +146,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
 </div>
 </div>
 {/*  Day 3 (Sunday - UN Day)  */}
-<div className="min-h-[58px] p-1.5 rounded-xl flex flex-col justify-between relative cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1.5 rounded-xl flex flex-col justify-between relative cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <span className="font-headline-sm text-headline-sm text-on-surface">۳</span>
 <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -305,32 +305,32 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
         <span className="text-[9px] opacity-60 text-slate-400">11</span>
       </div>
 {/*  Spacers for next month (Qaws / Sagittarius)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">1</span>
         <span className="text-[10px] leading-tight opacity-90">22</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">2</span>
         <span className="text-[10px] leading-tight opacity-90">23</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">3</span>
         <span className="text-[10px] leading-tight opacity-90">24</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">4</span>
         <span className="text-[10px] leading-tight opacity-90">25</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">5</span>
         <span className="text-[10px] leading-tight opacity-90">26</span>
         <span className="text-[9px] opacity-60"></span>
       </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <span className="text-xs font-bold font-mono">6</span>
         <span className="text-[10px] leading-tight opacity-90">27</span>
         <span className="text-[9px] opacity-60"></span>
@@ -340,7 +340,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
 
 
 {/*  Selected Date Details: 2 Aqrab 1405 SH  */}
-<div className="rounded-3xl p-5 mb-4 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-4 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Header of Selected Date  */}
 <div className="flex items-start justify-between">
 <div>
@@ -370,7 +370,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
 </div>
 
 {/* Cultural & National Occasions Ahead */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="space-y-2 pt-1">
 <div className="flex items-center justify-between">
 <span className="text-base font-bold tracking-tight text-slate-900">Afghan Solar Highlights</span>
@@ -422,7 +422,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }
 </div>
 
 {/* Scheduled Routines for 2 Aqrab */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="space-y-2 pt-2">
 <div className="flex items-center justify-between">
 <span className="text-base font-bold tracking-tight text-slate-900">Daily Schedule (امروز)</span>

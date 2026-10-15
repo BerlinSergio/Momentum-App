@@ -31,7 +31,7 @@ export default function IslamicHijriCalendarLightMode({ setActiveTab }) {
       </div>
 
       {/* MAIN HIJRI CALENDAR CONTAINER */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         {/* Month Selector & Cross-Calendar Sync */}
         <div className="flex items-center justify-between">
           <button className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700">
@@ -120,7 +120,7 @@ export default function IslamicHijriCalendarLightMode({ setActiveTab }) {
       </div>
 
       {/* SELECTED HIJRI DAY & EVENTS CONTAINER */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         {/* Day Header & Solar/CE Equivalence */}
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-slate-900 leading-tight">
@@ -136,7 +136,7 @@ export default function IslamicHijriCalendarLightMode({ setActiveTab }) {
 
         {/* Standardized rounded-2xl Hijri Event Tiles */}
         {/* Tile 1 */}
-        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
               <Sun className="w-4 h-4"/>
@@ -153,7 +153,7 @@ export default function IslamicHijriCalendarLightMode({ setActiveTab }) {
         </div>
 
         {/* Tile 2 */}
-        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
               <BookOpen className="w-4 h-4"/>
@@ -170,7 +170,7 @@ export default function IslamicHijriCalendarLightMode({ setActiveTab }) {
         </div>
 
         {/* Tile 3 */}
-        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
               <Heart className="w-4 h-4"/>

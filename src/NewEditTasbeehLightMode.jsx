@@ -45,7 +45,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       </div>
 
       {/* DHIKR TITLE & ENHANCED ARABIC SCRIPT BOX */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
@@ -53,7 +53,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
             </label>
             <span className="text-[11px] font-normal text-slate-400">Primary Name</span>
           </div>
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <input 
               type="text" 
               defaultValue="Astaghfirullah wa Atubu Ilayh" 
@@ -64,7 +64,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
         </div>
 
         {/* Elegant Arabic Script Preview Box (Light Mode) */}
-        <div className="relative overflow-hidden rounded-2xl p-6 text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="relative overflow-hidden rounded-2xl p-6 text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           
           {/* Symmetrical Islamic Radial Glow */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-200/35 via-transparent to-transparent pointer-events-none"></div>
@@ -140,12 +140,12 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       </div>
 
       {/* TRANSLITERATION & MEANING CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-slate-700">Transliteration & Meaning</label>
           <span className="text-[11px] font-normal text-slate-400">Optional</span>
         </div>
-        <div className="p-3.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <p className="text-xs font-normal text-slate-700 leading-relaxed">
             I seek forgiveness of Allah and repent to Him.
           </p>
@@ -153,7 +153,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       </div>
 
       {/* TARGET COUNT & STEPPER CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-700">Target Count</span>
           <span className="text-xs font-bold text-indigo-600">100 cycles</span>
@@ -170,7 +170,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
         </div>
 
         {/* Stepper Block */}
-        <div className="p-4 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="p-4 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <button className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center shadow-xs hover:bg-slate-50 transition-colors">
             <Minus className="w-4 h-4"/>
           </button>
@@ -185,7 +185,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       </div>
 
       {/* DAILY GOAL & REMINDER CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         {/* Daily Goal Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
           </label>
         </div>
 
-        <div className="flex items-center gap-2 p-1 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center gap-2 p-1 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <button className="flex-1 py-1.5 rounded-lg bg-white shadow-sm text-xs font-semibold text-indigo-600">
             Daily Practice
           </button>
@@ -231,7 +231,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
           </label>
         </div>
 
-        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <span className="text-xs font-semibold text-slate-600">Preferred Window</span>
           <span className="text-xs font-bold text-slate-900">After Asr (5:15 PM)</span>
         </div>

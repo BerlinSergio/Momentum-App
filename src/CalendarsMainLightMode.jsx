@@ -42,7 +42,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Harmonize civil, spiritual, and solar rhythms seamlessly</p>
 </div>
 {/*  Triple-Date Hero Glass Card  */}
-<div className="relative rounded-2xl p-space-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative rounded-2xl p-space-lg overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Top Decorative Aura Bar  */}
 <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
 <div className="flex items-center justify-between mb-3">
@@ -58,7 +58,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 {/*  Dates Stack  */}
 <div className="space-y-3 mt-1">
 {/*  Gregorian  */}
-<div className="flex items-center justify-between p-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-center justify-between p-2.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-2.5">
 <div className="w-7 h-7 rounded-lg bg-primary-fixed flex items-center justify-center text-on-primary-fixed">
 <span className="material-symbols-outlined text-[17px]">event</span>
@@ -71,7 +71,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <span className="font-label-sm text-label-sm text-primary font-semibold px-2 py-0.5 rounded-md bg-primary-fixed/50">Primary</span>
 </div>
 {/*  Islamic / Hijri  */}
-<div className="flex items-center justify-between p-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-center justify-between p-2.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-2.5">
 <div className="w-7 h-7 rounded-lg bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
 <span className="material-symbols-outlined text-[17px]">bedtime</span>
@@ -84,7 +84,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <span className="font-label-sm text-label-sm text-secondary font-medium px-2 py-0.5 rounded-md bg-secondary-fixed/50">Gibbous 96%</span>
 </div>
 {/*  Solar / Afghan Shamsi  */}
-<div className="flex items-center justify-between p-2.5 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-center justify-between p-2.5 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center gap-2.5">
 <div className="w-7 h-7 rounded-lg bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
 <span className="material-symbols-outlined text-[17px]">wb_sunny</span>
@@ -106,7 +106,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <span className="font-label-sm text-label-sm text-on-surface-variant">Tap to enter system</span>
 </div>
 {/*  Card 1: Gregorian  */}
-<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" role="button" tabIndex={0}>
+<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" role="button" tabIndex={0}>
 <div className="flex items-center gap-3">
 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
 <span className="material-symbols-outlined text-[24px]">calendar_month</span>
@@ -126,7 +126,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 2: Islamic Hijri  */}
-<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" role="button" tabIndex={0}>
+<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" role="button" tabIndex={0}>
 <div className="flex items-center gap-3">
 <div className="w-11 h-11 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
 <span className="material-symbols-outlined text-[24px]">nights_stay</span>
@@ -146,7 +146,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 3: Afghan Solar  */}
-<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" role="button" tabIndex={0}>
+<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" role="button" tabIndex={0}>
 <div className="flex items-center gap-3">
 <div className="w-11 h-11 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors">
 <span className="material-symbols-outlined text-[24px]">filter_vintage</span>
@@ -167,7 +167,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Integrated Multi-Calendar Week Strip  */}
-<div className="rounded-3xl p-5 mb-5 space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  View Switcher & Month Navigation  */}
 <div className="flex items-center justify-between pb-1">
 <div className="flex items-center gap-1">
@@ -189,7 +189,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 {/*  Synchronized 7-Day Matrix  */}
 <div className="grid grid-cols-7 gap-1 text-center">
 {/*  Day 1: Wed 21  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">Wed</span>
 <span className="font-headline-sm text-headline-sm text-on-surface mt-0.5">21</span>
 <div className="flex items-center justify-center gap-0.5 mt-1">
@@ -199,7 +199,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Day 2: Thu 22  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">Thu</span>
 <span className="font-headline-sm text-headline-sm text-on-surface mt-0.5">22</span>
 <div className="flex items-center justify-center gap-0.5 mt-1">
@@ -231,7 +231,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <span className="w-1.5 h-1.5 rounded-full bg-tertiary-fixed mt-1"></span>
 </div>
 {/*  Day 5: Sun 25  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">Sun</span>
 <span className="font-headline-sm text-headline-sm text-on-surface mt-0.5">25</span>
 <div className="flex items-center justify-center gap-0.5 mt-1">
@@ -241,7 +241,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Day 6: Mon 26  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">Mon</span>
 <span className="font-headline-sm text-headline-sm text-on-surface mt-0.5">26</span>
 <div className="flex items-center justify-center gap-0.5 mt-1">
@@ -252,7 +252,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <span className="w-1 h-1 rounded-full bg-primary mt-1"></span>
 </div>
 {/*  Day 7: Tue 27  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">Tue</span>
 <span className="font-headline-sm text-headline-sm text-on-surface mt-0.5">27</span>
 <div className="flex items-center justify-center gap-0.5 mt-1">
@@ -284,7 +284,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 {/*  Timeline Items List  */}
 <div className="space-y-2">
 {/*  Item 1: Fajr Prayer  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex flex-col items-center pt-0.5 min-w-[54px]">
 <span className="font-label-sm text-label-sm font-bold text-on-surface">05:12</span>
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">AM</span>
@@ -302,7 +302,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Item 2: Gregorian Work Event  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex flex-col items-center pt-0.5 min-w-[54px]">
 <span className="font-label-sm text-label-sm font-bold text-on-surface">10:00</span>
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">AM</span>
@@ -320,7 +320,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Item 3: Dhuhr Prayer  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex flex-col items-center pt-0.5 min-w-[54px]">
 <span className="font-label-sm text-label-sm font-bold text-on-surface">01:05</span>
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">PM</span>
@@ -338,7 +338,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Item 4: Solar Seasonal Event  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex flex-col items-center pt-0.5 min-w-[54px]">
 <span className="font-label-sm text-label-sm font-bold text-on-surface">03:30</span>
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">PM</span>
@@ -356,7 +356,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Item 5: Isha Prayer & Study  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start gap-3 p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex flex-col items-center pt-0.5 min-w-[54px]">
 <span className="font-label-sm text-label-sm font-bold text-on-surface">07:15</span>
 <span className="font-label-sm text-[10px] text-on-surface-variant uppercase">PM</span>
@@ -376,7 +376,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Micro-Reflection Quote Pill  */}
-<div className="rounded-2xl p-4 flex items-center gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-2xl p-4 flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary shadow-xs shrink-0">
 <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
 </div>

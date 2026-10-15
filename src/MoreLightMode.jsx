@@ -31,7 +31,7 @@ export default function MoreLightMode({ setActiveTab }) {
       </p>
 
       {/* Profile Hero Card */}
-      <div className="block mx-5 mb-6 p-5 rounded-3xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-6 p-5 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-indigo-500/30">
@@ -50,15 +50,15 @@ export default function MoreLightMode({ setActiveTab }) {
           </button>
         </div>
         <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-base font-bold text-indigo-600">142</span>
             <span className="text-xs font-normal text-slate-500">Adhkar</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-base font-bold text-teal-600">96%</span>
             <span className="text-xs font-normal text-slate-500">Punctual</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-base font-bold text-rose-500">18 d</span>
             <span className="text-xs font-normal text-slate-500">Reflection</span>
           </div>
@@ -73,7 +73,7 @@ export default function MoreLightMode({ setActiveTab }) {
 
       <div className="mx-5 mb-6 space-y-3">
         {/* Income & Cashflow */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <TrendingUp className="w-6 h-6" />
@@ -90,7 +90,7 @@ export default function MoreLightMode({ setActiveTab }) {
         </div>
 
         {/* Prayer Times & Qibla */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
               <Moon className="w-6 h-6" />
@@ -110,7 +110,7 @@ export default function MoreLightMode({ setActiveTab }) {
         </div>
 
         {/* Digital Tasbeeh & Dhikr */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
               <Repeat className="w-6 h-6" />
@@ -124,7 +124,7 @@ export default function MoreLightMode({ setActiveTab }) {
         </div>
 
         {/* Notes & Reflections */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <PenLine className="w-6 h-6" />
@@ -138,7 +138,7 @@ export default function MoreLightMode({ setActiveTab }) {
         </div>
 
         {/* Calendars & Hijri Dates */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <Calendar className="w-6 h-6" />
@@ -155,7 +155,7 @@ export default function MoreLightMode({ setActiveTab }) {
         </div>
 
         {/* Settings & Preferences */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center">
               <Settings className="w-6 h-6" />
@@ -170,7 +170,7 @@ export default function MoreLightMode({ setActiveTab }) {
       </div>
 
       {/* Daily Radiance Card */}
-      <div className="block mx-5 mb-5 relative overflow-hidden rounded-3xl p-5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 relative overflow-hidden rounded-3xl p-5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <Quote className="absolute -right-4 -bottom-4 w-24 h-24 text-indigo-500/10 rotate-12" />
         <div className="relative z-10 flex flex-col space-y-3">
           <div className="flex items-center justify-between">

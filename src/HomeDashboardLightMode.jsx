@@ -45,7 +45,7 @@ export default function HomeDashboardLightMode() {
         </div>
 
         {/* FINANCIAL HEALTH HERO CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Wallet className="w-4 h-4 text-indigo-600" />
@@ -55,17 +55,17 @@ export default function HomeDashboardLightMode() {
           </div>
           
           <div className="grid grid-cols-3 gap-2.5 pt-1">
-            <div className="p-3 rounded-2xl text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <span className="text-[11px] font-medium text-slate-500 block">Income</span>
               <p className="text-base font-bold text-slate-900 mt-0.5">$6,200</p>
               <span className="text-[10px] font-semibold text-emerald-600 inline-flex items-center gap-0.5 mt-0.5">↗ +8.4%</span>
             </div>
-            <div className="p-3 rounded-2xl text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <span className="text-[11px] font-medium text-slate-500 block">Expenses</span>
               <p className="text-base font-bold text-slate-900 mt-0.5">$3,450</p>
               <span className="text-[10px] font-medium text-slate-500 inline-flex items-center gap-0.5 mt-0.5">✔ Safe limit</span>
             </div>
-            <div className="p-3 rounded-2xl text-center bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <span className="text-[11px] font-medium text-indigo-700 block">Saved</span>
               <p className="text-base font-bold text-indigo-700 mt-0.5">+$2,750</p>
               <span className="text-[10px] font-semibold text-indigo-600 inline-flex items-center gap-0.5 mt-0.5">44.3%</span>
@@ -85,26 +85,26 @@ export default function HomeDashboardLightMode() {
 
         {/* QUICK ACTIONS GRID */}
         <div className="grid grid-cols-4 gap-3 mx-5 mb-5">
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <CreditCard className="w-5 h-5 text-indigo-600" />
             <span className="text-xs font-semibold text-slate-700">Log Cost</span>
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <CheckSquare className="w-5 h-5 text-violet-600" />
             <span className="text-xs font-semibold text-slate-700">Add Task</span>
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <Moon className="w-5 h-5 text-teal-600" />
             <span className="text-xs font-semibold text-slate-700">Prayers</span>
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <span className="text-xs font-semibold text-slate-700">Reflect</span>
           </button>
         </div>
 
         {/* ROUTINE & PRAYER CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl relative overflow-hidden space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl relative overflow-hidden space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-600" />
@@ -113,7 +113,7 @@ export default function HomeDashboardLightMode() {
             <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Edit</button>
           </div>
 
-          <div className="p-3.5 rounded-2xl flex items-center justify-between relative z-10 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between relative z-10 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100/80">
                 <Sun className="w-4 h-4"/>
@@ -163,35 +163,35 @@ export default function HomeDashboardLightMode() {
             {/* The 5 Prayer Time Columns (Semi-transparent / clear backdrop so mosque is visible behind) */}
             <div className="grid grid-cols-5 gap-2 relative z-10 text-center">
               {/* Fajr */}
-              <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <span className="text-[10px] text-slate-500 font-medium block">Fajr</span>
                 <p className="text-xs font-bold text-slate-800 mt-0.5">5:12 AM</p>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mx-auto mt-1"/>
               </div>
 
               {/* Dhuhr (Active) */}
-              <div className="p-2.5 rounded-2xl text-indigo-700 ring-1 ring-indigo-300 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="p-2.5 rounded-2xl text-indigo-700 ring-1 ring-indigo-300 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <span className="text-[10px] font-semibold text-indigo-600 block">Dhuhr</span>
                 <p className="text-xs font-bold text-indigo-700 mt-0.5">1:05 PM</p>
                 <Clock className="w-3.5 h-3.5 text-indigo-600 mx-auto mt-1"/>
               </div>
 
               {/* Asr */}
-              <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <span className="text-[10px] text-slate-500 font-medium block">Asr</span>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">4:28 PM</p>
                 <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
               </div>
 
               {/* Maghrib */}
-              <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <span className="text-[10px] text-slate-500 font-medium block">Maghrib</span>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">6:42 PM</p>
                 <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
               </div>
 
               {/* Isha */}
-              <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
                 <span className="text-[10px] text-slate-500 font-medium block">Isha</span>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">8:05 PM</p>
                 <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
@@ -201,7 +201,7 @@ export default function HomeDashboardLightMode() {
         </div>
 
         {/* TODAY'S TASKS */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-indigo-600" />
@@ -214,7 +214,7 @@ export default function HomeDashboardLightMode() {
           </div>
 
           <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
                   <Check className="w-3 h-3" />
@@ -227,7 +227,7 @@ export default function HomeDashboardLightMode() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-transparent group-hover:border-indigo-400 transition-all shrink-0">
                   <Check className="w-3 h-3" />
@@ -240,7 +240,7 @@ export default function HomeDashboardLightMode() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-transparent group-hover:border-indigo-400 transition-all shrink-0">
                   <Check className="w-3 h-3" />
@@ -256,7 +256,7 @@ export default function HomeDashboardLightMode() {
         </div>
 
         {/* MINDFUL STREAK BANNER */}
-        <div className="block mx-5 mb-28 p-4 rounded-3xl flex items-start gap-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-28 p-4 rounded-3xl flex items-start gap-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-600 shrink-0 shadow-sm border border-slate-200/60">
             <Sparkles className="w-5 h-5" />
           </div>

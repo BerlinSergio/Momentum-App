@@ -39,7 +39,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
           </div>
         </div>
 
-        <div className="block mx-5 mb-5 p-5 rounded-3xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1 flex-1">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 border border-amber-200/80 text-amber-700 shadow-sm mb-1 whitespace-nowrap">
@@ -61,7 +61,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-sm font-black text-slate-900 leading-none">67%</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Today</span>
+                <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">Today</span>
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
         </div>
 
         {/* Item 1 */}
-        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button aria-label="Toggle routine" className="w-6 h-6 rounded-full bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-600 shadow-sm flex-shrink-0 mt-0.5 transition-transform" type="button">
               <CheckCircle2 className="w-4 h-4" />
@@ -105,7 +105,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
         </div>
 
         {/* Item 2 */}
-        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button aria-label="Toggle routine" className="w-6 h-6 rounded-full bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-600 shadow-sm flex-shrink-0 mt-0.5 transition-transform" type="button">
               <CheckCircle2 className="w-4 h-4" />
@@ -131,7 +131,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
         </div>
 
         {/* Item 3 */}
-        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button aria-label="Toggle routine" className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center flex-shrink-0 mt-0.5 transition-transform" type="button"></button>
             <div className="flex-1 min-w-0">
@@ -155,7 +155,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
         </div>
 
         {/* Item 4 */}
-        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button aria-label="Toggle routine" className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center flex-shrink-0 mt-0.5 transition-transform" type="button"></button>
             <div className="flex-1 min-w-0">
@@ -175,7 +175,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
         </div>
 
         {/* Item 5 */}
-        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button aria-label="Toggle routine" className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center flex-shrink-0 mt-0.5 transition-transform" type="button"></button>
             <div className="flex-1 min-w-0">
@@ -199,7 +199,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
         </div>
 
         {/* Item 6 */}
-        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 opacity-50 hover:opacity-100 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-3xl transition-all flex items-center justify-between gap-3 opacity-50 hover:opacity-100 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <button aria-label="Toggle routine" className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center flex-shrink-0 mt-0.5 transition-transform" type="button"></button>
             <div className="flex-1 min-w-0">
@@ -218,7 +218,7 @@ export default function DailyRoutineLightMode({ setActiveTab }) {
           </div>
         </div>
 
-        <div className="block mx-5 my-5 p-4 rounded-3xl flex items-start gap-3.5 text-slate-800 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 my-5 p-4 rounded-3xl flex items-start gap-3.5 text-slate-800 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 mt-0.5">
             <Sparkles className="w-5 h-5 text-indigo-600"/>
           </div>

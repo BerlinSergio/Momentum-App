@@ -42,14 +42,14 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
   <form className="flex flex-col gap-5" id="task-edit-form">
     
     {/* Card: Basic Info */}
-    <div className="rounded-3xl p-5 space-y-5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="rounded-3xl p-5 space-y-5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
       {/* Task Title Field */}
       <div className="flex flex-col">
         <label className="text-sm font-semibold tracking-wide text-slate-900 flex items-center justify-between mb-2.5" htmlFor="task-title">
           <span>Task Title</span>
           <span className="text-xs text-slate-500 font-medium tracking-normal">Required</span>
         </label>
-        <div className="text-slate-900 placeholder-slate-400 rounded-2xl px-4 py-3 flex items-center justify-between focus-within:border-indigo-500 transition-all bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="text-slate-900 placeholder-slate-400 rounded-2xl px-4 py-3 flex items-center justify-between focus-within:border-indigo-500 transition-all bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <input className="flex-1 bg-transparent border-none text-slate-900 placeholder-slate-400 focus:outline-none text-sm" id="task-title" type="text" defaultValue="Review Q4 product roadmap &amp; quarterly OKRs" />
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200/80">
             <button aria-label="Clear Title" className="btn-secondary" type="button">
@@ -88,7 +88,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
       {/* Priority Level */}
       <div className="flex flex-col">
         <label className="text-sm font-semibold tracking-wide text-slate-900 flex items-center justify-between mb-2.5">Priority Level</label>
-        <div className="grid grid-cols-4 p-1 rounded-2xl gap-1 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" role="radiogroup">
+        <div className="grid grid-cols-4 p-1 rounded-2xl gap-1 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" role="radiogroup">
           <button aria-checked="false" className="rounded-2xl py-2 text-sm text-slate-500 hover:bg-slate-100 transition-colors font-medium" role="radio" type="button">Low</button>
           <button aria-checked="false" className="rounded-2xl py-2 text-sm text-slate-500 hover:bg-slate-100 transition-colors font-medium" role="radio" type="button">Medium</button>
           <button aria-checked="true" className="rounded-2xl py-2 text-sm font-semibold bg-indigo-600 text-white shadow-md flex items-center justify-center gap-1" role="radio" type="button">
@@ -101,11 +101,11 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
     </div>
 
     {/* Card: Schedule Container */}
-    <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
       <label className="text-sm font-semibold tracking-wide text-slate-900 flex items-center justify-between mb-2.5">Date &amp; Duration</label>
       
       <div className="grid grid-cols-3 gap-2.5">
-        <div className="rounded-2xl p-3 flex flex-col items-start gap-1 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-2xl p-3 flex flex-col items-start gap-1 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
           </div>
@@ -113,7 +113,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
           <span className="text-xs font-semibold text-slate-800 whitespace-nowrap">Oct 24, 2026</span>
         </div>
 
-        <div className="rounded-2xl p-3 flex flex-col items-start gap-1 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-2xl p-3 flex flex-col items-start gap-1 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-8 h-8 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center">
             <span className="material-symbols-outlined text-[16px]">schedule</span>
           </div>
@@ -121,7 +121,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
           <span className="text-xs font-semibold text-slate-800 whitespace-nowrap">11:00 AM</span>
         </div>
 
-        <div className="rounded-2xl p-3 flex flex-col items-start gap-1 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="rounded-2xl p-3 flex flex-col items-start gap-1 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <span className="material-symbols-outlined text-[16px]">timelapse</span>
           </div>
@@ -132,8 +132,8 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
     </div>
 
     {/* Card: Alerts */}
-    <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
             <span className="material-symbols-outlined text-[20px]">notifications_active</span>
@@ -149,7 +149,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
         </button>
       </div>
 
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-slate-800">Persistent Alert</span>
           <span className="text-xs text-slate-500 mt-0.5">Keep alert visible until checked</span>
@@ -161,7 +161,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
     </div>
 
     {/* Card: Description & Notes Field */}
-    <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
       <label className="text-sm font-semibold tracking-wide text-slate-900 flex items-center justify-between mb-2.5" htmlFor="task-desc">
         <span>Description &amp; Notes</span>
         <span className="text-xs text-slate-500 font-medium tracking-normal">84 / 200</span>
@@ -170,7 +170,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
     </div>
 
     {/* Card: Sub-tasks Section */}
-    <div className="rounded-3xl p-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+    <div className="rounded-3xl p-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
       <div className="text-sm font-semibold tracking-wide text-slate-900 flex items-center justify-between mb-2.5">
         <span>Sub-tasks (2)</span>
         <button className="btn-primary" type="button">
@@ -181,7 +181,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
       
       <div className="flex flex-col gap-2">
         {/* Step 1 */}
-        <div className="flex items-center justify-between p-3 rounded-2xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-3 rounded-2xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <label className="flex items-center gap-3 flex-1 cursor-pointer">
             <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
               <span className="material-symbols-outlined text-[14px] font-bold">check</span>
@@ -194,7 +194,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
         </div>
         
         {/* Step 2 */}
-        <div className="flex items-center justify-between p-3 rounded-2xl transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="flex items-center justify-between p-3 rounded-2xl transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <label className="flex items-center gap-3 flex-1 cursor-pointer">
             <span className="w-5 h-5 rounded-full bg-white border border-slate-300 shrink-0 flex items-center justify-center"></span>
             <span className="text-sm text-slate-800 select-none">Send recap email</span>

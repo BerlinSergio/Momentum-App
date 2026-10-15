@@ -23,7 +23,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
         </div>
       </div><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-28 space-y-4">
 {/*  Active Selection Hero Display  */}
-<section className="relative w-full rounded-3xl p-5 mb-5 overflow-hidden transition-all duration-300 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<section className="relative w-full rounded-3xl p-5 mb-5 overflow-hidden transition-all duration-300 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-gradient-to-br from-primary-fixed/60 via-secondary-fixed/40 to-transparent blur-2xl pointer-events-none"></div>
 <div className="relative z-10 flex flex-col space-y-3">
 <div className="flex items-center justify-between">
@@ -55,7 +55,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="font-body-sm text-body-sm font-medium">1,791m MSL</span>
 </div>
 </div>
-<div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <span className="material-symbols-outlined text-primary text-[18px] mt-0.5">verified</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
           Accurate elevation and coordinate geocoding ensures exact astronomical solar angle calculations for prayer and fasting schedules.
@@ -73,7 +73,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 </button>
 </div>
 {/*  GPS Button  */}
-<button className="w-full flex items-center justify-between p-4 mb-4 rounded-2xl text-left transition-all bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" id="gpsLocateBtn">
+<button className="w-full flex items-center justify-between p-4 mb-4 rounded-2xl text-left transition-all bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" id="gpsLocateBtn">
 <div className="flex items-center gap-3">
 <div className="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
 <span className="material-symbols-outlined text-[22px]">my_location</span>
@@ -94,9 +94,9 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <button className="region-filter px-3.5 py-1.5 rounded-full font-label-md text-label-md flex-shrink-0 bg-surface-container-lowest/80 text-on-surface hover:bg-surface-container shadow-sm transition-colors" data-region="global">Europe &amp; Americas</button>
 </div>
 {/*  Dynamic Scannable City List  */}
-<section className="rounded-3xl p-4 mb-5 space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" id="cityList">
+<section className="rounded-3xl p-4 mb-5 space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" id="cityList">
 {/*  Kabul (Selected Item)  */}
-<div className="city-item w-full rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition-transform bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="34.5553° N, 69.2075° E" data-country="Afghanistan" data-elevation="1,791m" data-name="Kabul" data-region="afghanistan">
+<div className="city-item w-full rounded-2xl p-3.5 flex items-center justify-between cursor-pointer transition-transform bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="34.5553° N, 69.2075° E" data-country="Afghanistan" data-elevation="1,791m" data-name="Kabul" data-region="afghanistan">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center text-primary flex-shrink-0 shadow-[0_0_16px_rgba(42,73,223,0.28)]">
 <span className="material-symbols-outlined text-[20px]" style={{fontVariationSettings: '"FILL" 1'}}>check</span>
@@ -114,7 +114,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Herat  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="34.3529° N, 62.2040° E" data-country="Afghanistan" data-elevation="920m" data-name="Herat" data-region="afghanistan">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="34.3529° N, 62.2040° E" data-country="Afghanistan" data-elevation="920m" data-name="Herat" data-region="afghanistan">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">near_me</span>
@@ -127,7 +127,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Mazar-i-Sharif  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="36.7061° N, 67.1108° E" data-country="Afghanistan" data-elevation="380m" data-name="Mazar-i-Sharif" data-region="afghanistan">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="36.7061° N, 67.1108° E" data-country="Afghanistan" data-elevation="380m" data-name="Mazar-i-Sharif" data-region="afghanistan">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">near_me</span>
@@ -140,7 +140,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Kandahar  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="31.6289° N, 65.7372° E" data-country="Afghanistan" data-elevation="1,010m" data-name="Kandahar" data-region="afghanistan">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="31.6289° N, 65.7372° E" data-country="Afghanistan" data-elevation="1,010m" data-name="Kandahar" data-region="afghanistan">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">near_me</span>
@@ -153,7 +153,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Jalalabad  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="34.4265° N, 70.4515° E" data-country="Afghanistan" data-elevation="575m" data-name="Jalalabad" data-region="afghanistan">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="34.4265° N, 70.4515° E" data-country="Afghanistan" data-elevation="575m" data-name="Jalalabad" data-region="afghanistan">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">near_me</span>
@@ -166,7 +166,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Makkah  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="21.3891° N, 39.8579° E" data-country="Saudi Arabia" data-elevation="277m" data-name="Makkah" data-region="islamic">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="21.3891° N, 39.8579° E" data-country="Saudi Arabia" data-elevation="277m" data-name="Makkah" data-region="islamic">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">mosque</span>
@@ -182,7 +182,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Madinah  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="24.5247° N, 39.5692° E" data-country="Saudi Arabia" data-elevation="608m" data-name="Madinah" data-region="islamic">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="24.5247° N, 39.5692° E" data-country="Saudi Arabia" data-elevation="608m" data-name="Madinah" data-region="islamic">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">mosque</span>
@@ -198,7 +198,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Istanbul  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="41.0082° N, 28.9784° E" data-country="Turkey" data-elevation="40m" data-name="Istanbul" data-region="regional">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="41.0082° N, 28.9784° E" data-country="Turkey" data-elevation="40m" data-name="Istanbul" data-region="regional">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">apartment</span>
@@ -211,7 +211,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Dubai  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="25.2048° N, 55.2708° E" data-country="United Arab Emirates" data-elevation="11m" data-name="Dubai" data-region="regional">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="25.2048° N, 55.2708° E" data-country="United Arab Emirates" data-elevation="11m" data-name="Dubai" data-region="regional">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">apartment</span>
@@ -224,7 +224,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  London  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="51.5072° N, 0.1276° W" data-country="United Kingdom" data-elevation="25m" data-name="London" data-region="global">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="51.5072° N, 0.1276° W" data-country="United Kingdom" data-elevation="25m" data-name="London" data-region="global">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">public</span>
@@ -237,7 +237,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
 </div>
 {/*  Toronto  */}
-<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" data-coords="43.6532° N, 79.3832° W" data-country="Canada" data-elevation="76m" data-name="Toronto" data-region="global">
+<div className="city-item w-full rounded-2xl p-3.5 transition-all flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" data-coords="43.6532° N, 79.3832° W" data-country="Canada" data-elevation="76m" data-name="Toronto" data-region="global">
 <div className="flex items-center gap-3 min-w-0">
 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant flex-shrink-0">
 <span className="material-symbols-outlined text-[20px]">public</span>
@@ -251,7 +251,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 </div>
 </section>
 {/*  Manual Coordinates Entry Accordion  */}
-<section className="rounded-3xl p-4 mb-5 space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<section className="rounded-3xl p-4 mb-5 space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <button className="w-full flex items-center justify-between text-left group" id="toggleManualFormBtn">
 <div className="flex items-center gap-2 text-primary font-headline-sm text-headline-sm">
 <span className="material-symbols-outlined text-[20px]">tune</span>

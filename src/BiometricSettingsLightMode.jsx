@@ -23,7 +23,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
         </div>
       </div><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-28 space-y-4">
 {/*  Hero Hardware Badge  */}
-<div className="relative overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-gradient-to-br from-primary-fixed via-tertiary-fixed/30 to-transparent blur-2xl pointer-events-none"></div>
 <div className="relative z-10 flex flex-col items-center text-center">
 {/*  Dual Biometric Iconic Glyph with Ambient Glow  */}
@@ -44,7 +44,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Master Switch Card  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between gap-space-md">
 <div className="flex flex-col min-w-0 pr-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-semibold truncate">Enable Biometric Authentication</span>
@@ -61,7 +61,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Educational & Security Philosophy Card  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center space-x-2">
 <span className="material-symbols-outlined text-[20px] text-secondary">shield_with_heart</span>
 <h3 className="font-headline-sm text-headline-sm text-on-surface">Zero-Knowledge Architecture</h3>
@@ -73,7 +73,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
 </div>
 <div className="flex-1">
 <h4 className="text-sm font-bold text-slate-800">Zero-Knowledge Biometrics</h4>
-<p className="text-xs text-slate-500 leading-relaxed mt-0.5">Momentum never reads, stores, or transmits your biometric data. Verification is handled strictly inside your hardware Secure Element.</p>
+<p className="text-xs text-slate-700 leading-relaxed mt-0.5">Momentum never reads, stores, or transmits your biometric data. Verification is handled strictly inside your hardware Secure Element.</p>
 </div>
 </div>
 <div className="flex items-start gap-3.5 py-2">
@@ -82,13 +82,13 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
 </div>
 <div className="flex-1">
 <h4 className="text-sm font-bold text-slate-800">Seamless Harmony</h4>
-<p className="text-xs text-slate-500 leading-relaxed mt-0.5">Bypass manual entry while keeping your spiritual reflections and private finances impenetrable.</p>
+<p className="text-xs text-slate-700 leading-relaxed mt-0.5">Bypass manual entry while keeping your spiritual reflections and private finances impenetrable.</p>
 </div>
 </div>
 </div>
 </div>
 {/*  Fallback to PIN Configuration  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <div className="flex items-center space-x-2">
 <span className="material-symbols-outlined text-[20px] text-primary">pin</span>
@@ -110,7 +110,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
 </button>
 </div>
 {/*  Selective Biometric Gates  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <h3 className="font-headline-sm text-headline-sm text-on-surface">Selective Biometric Gates</h3>
 <span className="font-label-sm text-label-sm text-on-surface-variant">4 Checkpoints</span>

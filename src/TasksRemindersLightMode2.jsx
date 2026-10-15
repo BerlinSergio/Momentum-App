@@ -58,7 +58,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Daily Momentum Hero Card */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-start justify-between">
             <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 mb-1">
@@ -125,7 +125,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Card 1 */}
-        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Circle className="w-5 h-5 text-slate-300"/>
@@ -141,7 +141,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Card 2 */}
-        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2 relative overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2 relative overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-violet-50/50 rounded-full blur-2xl pointer-events-none"></div>
           <div className="flex items-center justify-between relative">
             <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Card 3 (Segmented Progress) */}
-        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Droplet className="w-5 h-5 text-teal-500"/>
@@ -183,7 +183,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Card 4 */}
-        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-3 p-4 rounded-2xl transition-colors space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Circle className="w-5 h-5 text-slate-300"/>
@@ -199,7 +199,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Upcoming Days Section */}
-        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-indigo-600"/>
@@ -207,7 +207,7 @@ export default function TasksRemindersLightMode2() {
             </div>
             <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">View Week</button>
           </div>
-          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-600">
                 <span className="text-[9px] font-bold uppercase">Tue</span>
@@ -220,7 +220,7 @@ export default function TasksRemindersLightMode2() {
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400"/>
           </div>
-          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-600">
                 <span className="text-[9px] font-bold uppercase">Wed</span>
@@ -236,7 +236,7 @@ export default function TasksRemindersLightMode2() {
         </div>
 
         {/* Completed Earlier Accordion Card */}
-        <div className="block mx-5 mb-32 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-32 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between pb-2 border-t-0 border-slate-100 cursor-pointer">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center">

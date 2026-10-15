@@ -38,7 +38,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Hero Card: Current Active Background  */}
-<div className="relative w-full rounded-3xl p-5 mb-5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative w-full rounded-3xl p-5 mb-5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full h-44 rounded-[1.25rem] overflow-hidden shadow-inner">
 <img className="w-full h-full object-cover" data-alt="Breathtaking ethereal morning horizon with pastel blush, lavender, and celestial golden light reflecting across calm stillness, minimalist aesthetic, subtle soft gradients, 8k resolution, serene digital art." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7HG8IgbMiz06B3avmxyKaP61rI0qTZkJK5Yg-6pHMhNs92nuiimuhbX6S_Cj7R99Pr9zn--xjCe20Q6wSB62x1AuK1eof0JZS3E7D4HUMlnsQqSJEadazcxFYm0pcBCZMcqPj74Te_33eLmVXCpnWPMDCAAWGq8jQwplt4lrX9o5jnLGYo6HQZ1wPWS6vYASjLBMiSNItlZgVGvmWQ_-MxHIEeNT_BGd5AwAOn98XoQXh3E0osxk"/>
 <div className="absolute inset-0 bg-gradient-to-t from-on-background/70 via-on-background/20 to-transparent"></div>
@@ -107,7 +107,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
     </button>
 </div>
 {/*  Dynamic Pairing Concept Note  */}
-<div className="relative overflow-hidden rounded-3xl p-5 mb-5 flex items-start gap-space-md bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative overflow-hidden rounded-3xl p-5 mb-5 flex items-start gap-space-md bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="w-10 h-10 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center shrink-0 mt-0.5">
 <span className="material-symbols-outlined text-[20px]">routine</span>
 </div>
@@ -132,16 +132,16 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 {/*  2-Column Curated Wallpapers Grid  */}
 <div className="grid grid-cols-2 gap-space-md">
 {/*  Card 01  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Gentle pastel dawn with soft pink clouds floating across tranquil turquoise-blue morning sky, minimalist meditation atmosphere, serene aesthetic lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5uWpBFhLtJE_CzLc_rXDSzmK-rCsEuKskS2uxZxnHCMDNP_uDUq472xsEWbbU4H0fiSoXwXWAIOrvuqWUBFaHP0fHVckaQ-zA7E3NIrjexIXqpj5Tp91DfMysvz6cEMGAtN27M7enEq8FUs9DUDcF8cJt8EzbYoDACXYxWQF9hQmWRz4XnNyplhjecryCuFGaif4b-909zydTdjzH6eJxH2tmHglJb0h7daR2wgcfXPu3pXqg8Zw"/>
 {/*  Dual light/dark badge  */}
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
 {/*  Favorite Toggle  */}
-<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
+<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
 <span className="material-symbols-outlined text-[14px]">favorite</span>
 </button>
 </div>
@@ -152,14 +152,14 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 02  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Majestic mountains during peaceful mist sunrise, soft blue fog blankets mountain valley, peaceful solitary vista with gentle pastel warmth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBR36Q5ekCwBTAgQLo1hD3sFG_nWzh8M6DfnIrM9nLlKTkMdVNuOlIHIdj3ezECvlylkESROmXPRheO_kBUoM-7Zy9Y4ZGYHqFeK3X7_Jxx9aCQaVCQ6fcKOmIDo0Jy-aG5HN2l1R4wdkzbDdHVlEYXN_jS40mfGFYh8LKG37uWH3dT-bQyiqR1OMuWfh1vcffWSMQkS7da372FIn3ABnlBsIqnXlUG2IngK4UtdFrYnsAS4gxGv4k"/>
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
-<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
+<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
 <span className="material-symbols-outlined text-[14px]">favorite</span>
 </button>
 </div>
@@ -170,10 +170,10 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 03  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Silhouette of an elegant historic minaret rising gently against glowing golden-apricot dawn sky, peaceful Islamic architectural serenity with clean lines and soft haze." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3SEuILWtH31ONeTC67HJeg-_bcuA_E4rdgIVbSgqbt5Hi32lNLr_M4i9RPE_oE36VreO-5sTGFy9HpAf8eN3k9iCPVoaQtquE0cPJBQtKBCVeuKVkaheE8Wa-kT8f1tsxDYLFqHCh2aZuFx82odqtm_ZIfqebg3dS3GGNDbXgOC7QuRpjhwWfhgrj9kNRE57KsImmnCCCYxsaOGtpTrhXaQ-A3Q78rimGwyYoC1NQ0s5RYOpMxns"/>
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
@@ -188,7 +188,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 04 (SELECTED)  */}
-<div className="group relative flex flex-col rounded-2xl p-2 transition-all duration-200 scale-[1.02] bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="group relative flex flex-col rounded-2xl p-2 transition-all duration-200 scale-[1.02] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Serene horizon view at break of dawn, soft gradient violet and light cerulean colors melting into light amber glow, pure tranquility for contemplation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSIeDNP5E9rhEHW88x8487AsrAZFYz3_ZpBAGZg4eny-WrozvXPerDq3BCO_HqGAhm3lOB2z6yjLMb2sMRwvjG68M2S8D-Nz5C9cYcbUSyxj4KFolDg3ZxBRLbb9D324iE4sLC7v3v3fHbZ10KmtPXdlxqk_ZWBqNB74QXghvqUVixmgVDjQp_gTy0i4ZmL1yxxX04u5WxuYELraI74RH0D57tAbDPJ42qLCeN98Le3CCMMpxNZK8"/>
 {/*  Selection Ring Overlay  */}
@@ -215,14 +215,14 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 05  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Emerald green tropical palm fronds with morning dewdrops, backlit by soft ethereal luminous sunbeams, calming natural refuge aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8aqO9jh6ZJDbnN9PUNWUQFEBMCBAVbklsueoQcBfMYO_Ef38AUXVyZRNnh8685mlJKyasRyKCSgMUx8NyZTo63w7y0dK02-CZ3tig5ah5QZie_XisecQ9C0HWFvCdaneU8e6al8xYFbMjt9hUtN7o7qwM59CsytUdQvlv9GjlnW-MkP7RUo8uPaCWz8uTk4ZqbOVZazwKYvHbJBZJWmzN5BPTFP0l5JdBUNvtZkpoXFYkFiE5QUU"/>
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
-<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
+<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
 <span className="material-symbols-outlined text-[14px]">favorite</span>
 </button>
 </div>
@@ -233,14 +233,14 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 06  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Abstract flowing translucent fluid ribbon in pastel lavender, iris violet, and light magenta tones against clean daylight background, soft curved reflections." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjCj_-xHxA20QDSYA7zT_ltMiTfPvj8ymbX8fiib9vCdMw2bys8AAwF9GE5H29dRfAXnrPX_Vs68T5b7slJAFJ4OYo_NTbvpizsGUNVNEftjRTbKUQhzQJ6nzZaQY5Ta1Do-fxulYzDfm0pe9pvjMPjJqiT_fVCA4OOApPpt-SW93hT7PREct5d_cbsRmJL-JCU1fDKlTZrI3dk7xOPen0hS3ega6UwQ_tajUwAGpDjPkLNq1DyXQ"/>
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
-<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
+<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
 <span className="material-symbols-outlined text-[14px]">favorite</span>
 </button>
 </div>
@@ -251,14 +251,14 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 07  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Subtle Arabesque geometric mandala embossed on iridescent ivory silk canvas, soft diffuse ambient illumination, elegant serene Islamic heritage motif." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZbEL5rwDoqcr4TX7uTEF2VR9y5p6gs6Yjqied-IMhkW4Z0-cpzIFVTvhyZQbFXEqcQB6IfNNSbW8itN8nTTru7xZP_ob2v6vpVcm8VA4cZnmViXw-tyMXPT2jkbeiLgl4ut2sPVEjmgIy2Tcmv6j8FpZgVBtCQS7ZQiOKJNJs51PRPhjXOdqanj2hv451NmJ3IRV3Q0kQ9WY_u7G8JnD3wj2DS7FvBvpHhn6fp1JA7AicK79bhpo"/>
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
-<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
+<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
 <span className="material-symbols-outlined text-[14px]">favorite</span>
 </button>
 </div>
@@ -269,14 +269,14 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 08  */}
-<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-3 transition-all flex flex-col justify-between group relative bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3">
 <img className="w-full h-full object-cover" data-alt="Snowcapped mountain peak touching high celestial blue atmosphere with soft crystal cloud wisps, pristine clarity, zen morning illumination." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG7tatWBHPK8mrtUFS5MYZx9TF2QQM5AzjB8TSwk_qWRQ6BGvlUbravdzjbhoQtlkOtrnSBOP7KiGZpeDRtygmAHAQ6TKK9gdmtoNvMJQu21HNInoiDMIh4yDQ5kDDoOjsxMJsO3vZz9p_WNItktetaOKMvqU7r9iuQNgwBq2SNcZtVuZdGAqx4xfEYko3Mu3An13dNY7r8c_YF5M7FkYAOPRVVVrSnyuDbm8gINiNqj98TkJlS0E"/>
-<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white text-[11px] flex items-center gap-1 shadow-sm">
+<div className="absolute top-2.5 left-2.5 px-2 py-1 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white text-[11px] flex items-center gap-1 shadow-sm">
 <span className="material-symbols-outlined text-[13px] text-amber-300">wb_sunny</span>
 <span className="material-symbols-outlined text-[13px] text-indigo-300">bedtime</span>
 </div>
-<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
+<button className="absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-md border border-white/80 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm">
 <span className="material-symbols-outlined text-[14px]">favorite</span>
 </button>
 </div>

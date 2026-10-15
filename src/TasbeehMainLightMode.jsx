@@ -30,7 +30,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
 
         {/* Current Dhikr Card */}
-        <div className="block mx-5 my-3 p-5 rounded-3xl space-y-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 my-3 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-700">
@@ -65,13 +65,13 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
 
         {/* Daily Dedication / Goal Pill Card */}
-        <div className="block mx-5 mb-4 p-3.5 rounded-2xl flex items-center justify-between bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-4 p-3.5 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0">
               <Award className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Daily Dedication</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Daily Dedication</span>
               <span className="text-xs font-bold text-slate-900"><strong className="text-sm font-bold">428</strong> counts</span>
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
 
         {/* Center Circular Counter Hero Section */}
-        <div className="block mx-5 mb-5 p-6 rounded-3xl flex flex-col items-center space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-6 rounded-3xl flex flex-col items-center space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="relative w-52 h-52 mx-auto flex items-center justify-center">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
               <circle
@@ -117,7 +117,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               </defs>
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+              <span className="text-[10px] font-bold text-slate-600 tracking-widest uppercase">
                 COUNTER
               </span>
               <span className="text-5xl font-extrabold text-slate-900 tracking-tight my-0.5">
@@ -145,7 +145,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
           </div>
 
           <button className="w-full py-5 px-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white shadow-lg shadow-indigo-600/35 flex items-center justify-center gap-3 transition-all active:scale-[0.98] select-none mt-4">
-            <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+            <div className="w-9 h-9 rounded-2xl bg-white/70 backdrop-blur-md flex items-center justify-center">
               <Pointer className="w-5 h-5 text-white stroke-[2.2]" />
             </div>
             <div className="text-left">
@@ -156,9 +156,9 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
 
         {/* Target Selector Row */}
-        <div className="block mx-5 mb-4 p-4 rounded-3xl space-y-2.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-4 p-4 rounded-3xl space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Target</span>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Select Target</span>
             <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Standard Tasbeeh</button>
           </div>
           <div className="grid grid-cols-5 gap-2">
@@ -187,7 +187,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
 
         {/* Mindful Consistency Hadith Card */}
-        <div className="block mx-5 p-4 rounded-3xl flex items-start gap-3 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 p-4 rounded-3xl flex items-start gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="w-8 h-8 rounded-xl bg-white text-teal-600 flex items-center justify-center flex-shrink-0 shadow-sm">
             <Lightbulb className="w-4 h-4" />
           </div>

@@ -53,14 +53,14 @@ export default function TasksRemindersLightMode1() {
         </div>
 
         {/* Daily Completion Hero Card */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <CheckCircle2 className="w-5 h-5"/>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Daily Completion</span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Daily Completion</span>
                 <span className="text-base font-bold text-slate-900">8 of 12 Completed</span>
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function TasksRemindersLightMode1() {
 
         <div className="px-5 space-y-3 mb-6">
           {/* Task 1 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between opacity-80 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between opacity-80 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-indigo-500" />
               <div>
@@ -121,7 +121,7 @@ export default function TasksRemindersLightMode1() {
           </div>
 
           {/* Task 2 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <Circle className="w-5 h-5 text-violet-500" />
               <div>
@@ -138,7 +138,7 @@ export default function TasksRemindersLightMode1() {
           </div>
 
           {/* Task 3 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors relative overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors relative overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <Circle className="w-5 h-5 text-teal-500" />
               <div>
@@ -155,7 +155,7 @@ export default function TasksRemindersLightMode1() {
           </div>
 
           {/* Task 4 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <Droplet className="w-5 h-5 text-cyan-500" />
               <div>
@@ -172,7 +172,7 @@ export default function TasksRemindersLightMode1() {
           </div>
 
           {/* Task 5 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <Circle className="w-5 h-5 text-slate-500" />
               <div>
@@ -190,13 +190,13 @@ export default function TasksRemindersLightMode1() {
         </div>
 
         {/* Upcoming Days Section */}
-        <div className="block mx-5 p-5 rounded-3xl space-y-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+        <div className="block mx-5 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Upcoming Days</h3>
             <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">View Week</button>
           </div>
 
-          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-slate-100 text-slate-600">
                 <span className="text-[8px] font-bold uppercase">Tue</span>
@@ -210,7 +210,7 @@ export default function TasksRemindersLightMode1() {
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </div>
 
-          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-slate-100 text-slate-600">
                 <span className="text-[8px] font-bold uppercase">Wed</span>

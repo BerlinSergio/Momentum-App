@@ -31,7 +31,7 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* MASTER NOTIFICATION TOGGLE CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl flex items-center justify-between gap-4 text-white bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl flex items-center justify-between gap-4 text-white bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs flex-shrink-0">
             <Bell className="w-5 h-5"/>
@@ -50,7 +50,7 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* PRAYER & ADHAN ALERTS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
@@ -78,28 +78,28 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
           <p className="text-[11px] font-normal text-slate-500">Prepare your mind and ablutions peacefully before entry time.</p>
 
           <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div>
                 <p className="text-xs font-bold text-indigo-900">Exact (0m)</p>
                 <span className="text-[10px] font-medium text-indigo-600">At adhan</span>
               </div>
               <CheckCircle2 className="w-4 h-4 text-indigo-600"/>
             </div>
-            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div>
                 <p className="text-xs font-semibold text-slate-800">5m before</p>
                 <span className="text-[10px] font-normal text-slate-500">Gentle buzz</span>
               </div>
               <div className="w-4 h-4 rounded-full border border-slate-300"></div>
             </div>
-            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div>
                 <p className="text-xs font-semibold text-slate-800">10m before</p>
                 <span className="text-[10px] font-normal text-slate-500">Ablution prep</span>
               </div>
               <div className="w-4 h-4 rounded-full border border-slate-300"></div>
             </div>
-            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="p-3 rounded-2xl flex items-center justify-between cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <div>
                 <p className="text-xs font-semibold text-slate-800">15m before</p>
                 <span className="text-[10px] font-normal text-slate-500">Early pause</span>
@@ -110,27 +110,27 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
         </div>
 
         <div className="grid grid-cols-5 gap-1.5 pt-1 text-center">
-          <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-2 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500 block">Fajr</span>
             <span className="text-xs font-bold text-indigo-600 mt-0.5 block">05:12</span>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mx-auto mt-1 block"></span>
           </div>
-          <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-2 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500 block">Dhuhr</span>
             <span className="text-xs font-bold text-indigo-600 mt-0.5 block">12:30</span>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mx-auto mt-1 block"></span>
           </div>
-          <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-2 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500 block">Asr</span>
             <span className="text-xs font-bold text-indigo-600 mt-0.5 block">15:45</span>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mx-auto mt-1 block"></span>
           </div>
-          <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-2 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500 block">Maghrib</span>
             <span className="text-xs font-bold text-indigo-600 mt-0.5 block">18:18</span>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mx-auto mt-1 block"></span>
           </div>
-          <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+          <div className="p-2 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
             <span className="text-[10px] font-medium text-slate-500 block">Isha</span>
             <span className="text-xs font-bold text-indigo-600 mt-0.5 block">19:42</span>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mx-auto mt-1 block"></span>
@@ -139,7 +139,7 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* TASKS & HABIT REMINDERS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-indigo-600"/>
           <h3 className="text-xs font-bold text-slate-900">Tasks & Habit Reminders</h3>
@@ -182,7 +182,7 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* MINDFULNESS & ROUTINES CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-teal-600"/>
           <h3 className="text-xs font-bold text-slate-900">Mindfulness & Routines</h3>
@@ -236,7 +236,7 @@ export default function NotificationsSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* ZEN FOCUS / DO NOT DISTURB CARD */}
-      <div className="block mx-5 mb-6 p-5 rounded-3xl flex items-center justify-between gap-3.5 text-white bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-6 p-5 rounded-3xl flex items-center justify-between gap-3.5 text-white bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-2xl bg-white border border-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 shadow-2xs">
             <Moon className="w-5 h-5"/>

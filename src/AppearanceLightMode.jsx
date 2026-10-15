@@ -35,7 +35,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
     </button>
 </div>
 {/*  Live Mini Mockup Preview Box  */}
-<div className="relative w-full overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="relative w-full overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <div className="flex items-center gap-space-xs">
 <span className="flex h-2.5 w-2.5 rounded-full bg-tertiary"></span>
@@ -94,14 +94,14 @@ export default function AppearanceLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Primary Theme Mode Selection (3 Cards)  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <h2 className="font-headline-md text-headline-md text-on-surface">Display Theme</h2>
 <span className="font-label-sm text-label-sm text-on-surface-variant">Atmosphere</span>
 </div>
 <div aria-label="Theme Mode Selection" className="flex flex-col gap-space-sm" role="radiogroup">
 {/*  Option 1: Light Mode (Active)  */}
-<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" id="theme-card-light" >
+<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" id="theme-card-light" >
 <div className="flex items-start gap-space-md">
 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-fixed to-primary-container/20 flex items-center justify-center text-primary shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-[24px]" style={{fontVariationSettings: '"FILL" 1'}}>light_mode</span>
@@ -121,7 +121,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Option 2: Dark Mode  */}
-<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99] bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" id="theme-card-dark" >
+<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" id="theme-card-dark" >
 <div className="flex items-start gap-space-md">
 <div className="w-10 h-10 rounded-full bg-inverse-surface/10 flex items-center justify-center text-on-surface shrink-0">
 <span className="material-symbols-outlined text-[24px]">dark_mode</span>
@@ -138,7 +138,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Option 3: System Match  */}
-<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99] bg-white/20 backdrop-blur-md border border-white/30 shadow-lg" id="theme-card-system" >
+<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" id="theme-card-system" >
 <div className="flex items-start gap-space-md">
 <div className="w-10 h-10 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-secondary shrink-0">
 <span className="material-symbols-outlined text-[24px]">routine</span>
@@ -157,7 +157,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Accent Luminescence / Tint Presets  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between mb-space-xs">
 <h3 className="font-headline-sm text-headline-sm text-on-surface">Chromatic Aura</h3>
 <span className="font-label-md text-label-md text-primary" id="current-accent-label">Luminous Indigo</span>
@@ -205,7 +205,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Translucency & Motion Preferences  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <h3 className="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Glassmorphic Physics</h3>
 <div className="flex flex-col gap-space-md">
 {/*  Toggle 1: Frosted Translucency  */}
@@ -241,7 +241,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Background Library & Wallpaper Shortcut  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between mb-space-xs">
 <h3 className="font-headline-sm text-headline-sm text-on-surface">Atmospheric Canvas</h3>
 <span className="font-label-sm text-label-sm text-on-surface-variant">Default Ambient</span>

@@ -28,7 +28,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 <div className="absolute top-24 -right-10 w-64 h-64 bg-tertiary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
 <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
 {/*  Security Status Hero Card  */}
-<section className="relative overflow-hidden flex flex-col space-y-space-md rounded-3xl p-5 mb-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<section className="relative overflow-hidden flex flex-col space-y-space-md rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Decorative Shield Background SVG Motif  */}
 <div className="absolute -right-6 -bottom-6 w-36 h-36 opacity-10 pointer-events-none text-primary">
 <svg className="w-full h-full" fill="currentColor" viewbox="0 0 24 24">
@@ -86,7 +86,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 <span className="text-label-sm font-label-sm text-outline">2 Methods Configured</span>
 </div>
 {/*  Biometric Card  */}
-<div className="space-y-space-sm rounded-3xl p-5 mb-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="space-y-space-sm rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <div className="flex items-center space-x-space-md">
 <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary">
@@ -109,7 +109,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  PIN Protection Card  */}
-<div className="space-y-space-md rounded-3xl p-5 mb-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="space-y-space-md rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="flex items-center justify-between">
 <div className="flex items-center space-x-space-md">
 <div className="w-10 h-10 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-secondary">
@@ -149,7 +149,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 <h3 className="text-headline-sm font-headline-sm text-on-surface">Lock Timing &amp; Trigger</h3>
 <p className="text-body-sm font-body-sm text-on-surface-variant">Specify how swiftly Momentum re-secures your data</p>
 </div>
-<div className="space-y-space-md rounded-3xl p-5 mb-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="space-y-space-md rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Radio-style trigger selection  */}
 <div className="space-y-2" id="timing-options">
 {/*  Option 1: Immediately (Selected)  */}
@@ -231,7 +231,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 </div>
 <span className="material-symbols-outlined text-outline">tune</span>
 </div>
-<div className="space-y-3 rounded-3xl p-5 mb-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="space-y-3 rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Finance & Expenses  */}
 <div className="flex items-center justify-between py-2">
 <div className="flex items-center space-x-3">
@@ -277,7 +277,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 </div>
 {/*  Zero-Knowledge Encryption Trust Note  */}
 <div className="pt-space-md">
-<div className="flex items-start space-x-3 rounded-3xl p-5 mb-4 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+<div className="flex items-start space-x-3 rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary mt-0.5 shrink-0">
 <span className="material-symbols-outlined text-[16px]">lock_clock</span>
 </div>

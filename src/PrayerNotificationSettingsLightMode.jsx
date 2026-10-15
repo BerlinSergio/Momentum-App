@@ -40,10 +40,10 @@ export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* MASTER PRAYER ALERTS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="w-full flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="rounded-2xl p-3 shrink-0 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+            <div className="rounded-2xl p-3 shrink-0 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
               <BellRing className="w-5 h-5 text-indigo-600"/>
             </div>
             <div className="flex flex-col">
@@ -58,7 +58,7 @@ export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* TIMING PREFERENCES CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Timing Preferences</h3>
         
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -102,7 +102,7 @@ export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* INDIVIDUAL PRAYER REMINDERS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Individual Prayer Reminders</h3>
           <span className="text-xs font-medium text-indigo-600">5 Configured</span>
@@ -205,7 +205,7 @@ export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {
       </div>
 
       {/* AUDIO & HAPTICS CARD */}
-      <div className="block mx-5 mb-6 p-5 rounded-3xl space-y-3.5 bg-white/20 backdrop-blur-md border border-white/30 shadow-lg">
+      <div className="block mx-5 mb-6 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <div className="text-sm font-semibold text-slate-900">Vibration & Haptics</div>
