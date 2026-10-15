@@ -173,13 +173,13 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
 </div>
 <div className="p-3 rounded-2xl focus-within:border-indigo-400 focus-within:bg-white transition-colors flex flex-col gap-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <textarea className="w-full font-body-md text-body-md text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none resize-none" id="note-input" maxlength="140" placeholder="Add an optional note..." rows="2">Weekly fresh produce, oats, and almond milk</textarea>
-<div className="flex items-center gap-2 pt-1 border-t border-slate-200/80">
-<button className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200/80 hover:bg-slate-200 text-slate-700 font-label-sm text-label-sm transition-colors" type="button">
-<span className="material-symbols-outlined text-[14px] text-teal-600">receipt</span>
+<div className="flex flex-row items-center gap-3 w-full pt-1.5 border-t border-slate-200/80">
+<button className="flex-1 h-10 rounded-xl flex items-center justify-center gap-2 font-medium text-xs bg-slate-100 border border-slate-200/80 hover:bg-slate-200 text-slate-700 transition-colors" type="button">
+<span className="material-symbols-outlined text-[16px] text-teal-600">receipt</span>
 <span>Receipt Attached</span>
 </button>
-<button className="btn-primary" type="button">
-<span className="material-symbols-outlined text-[14px]">add_a_photo</span>
+<button className="flex-1 h-10 rounded-xl flex items-center justify-center gap-2 font-medium text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all active:scale-95" type="button">
+<span className="material-symbols-outlined text-[16px]">add_a_photo</span>
 <span>Replace</span>
 </button>
 </div>
