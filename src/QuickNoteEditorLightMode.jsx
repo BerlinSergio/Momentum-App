@@ -13,7 +13,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Edit3 className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Quick Note Editor
           </h1>
         </div>
@@ -33,7 +33,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
 
       {/* 2. AUTOSAVED & QUICK UTILITIES SUB-BAR */}
       <div className="flex items-center justify-between px-5 py-2">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 text-emerald-700 shadow-2xs">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 text-emerald-700 shadow-2xs text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
           <Sparkles className="w-3.5 h-3.5 text-emerald-600"/>
           Autosaved • 10:45 AM
         </span>
@@ -166,9 +166,9 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
       <div className="flex items-center justify-between px-6 mb-4 text-[11px] font-medium text-slate-400">
         <div className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-slate-400"/>
-          <span>Created Today • 10:45 AM</span>
+          <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Created Today • 10:45 AM</span>
         </div>
-        <span>48 words • 284 chars</span>
+        <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>48 words • 284 chars</span>
       </div>
 
       {/* Action Buttons Container */}

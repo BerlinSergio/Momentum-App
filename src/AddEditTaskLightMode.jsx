@@ -11,7 +11,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <CheckSquare className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Add / Edit Task
           </h1>
         </div>
@@ -30,7 +30,7 @@ export default function AddEditTaskLightMode({ setActiveTab }) {
 
   {/* Status Bar */}
   <div className="flex items-center justify-between px-2 pt-2">
-    <span className="rounded-full px-3 py-1 bg-slate-100 border border-slate-200 text-indigo-700 text-xs font-medium">
+    <span className="rounded-full px-3 py-1 bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
       &bull; EDITING TASK #1
     </span>
     <button aria-label="Delete Task" className="btn-danger" type="button">

@@ -13,7 +13,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <PenTool className="w-5 h-5 text-white"/>
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">Notes Dashboard</h1>
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Notes Dashboard</h1>
         </div>
         <div className="flex items-center gap-2">
           <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
@@ -72,9 +72,9 @@ export default function NotesMainLightMode({ setActiveTab }) {
       {/* 3. QUICK NOTES SECTION */}
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="text-amber-500">⚡</span>
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Quick Notes</h3>
-          <span className="text-xs text-slate-400">• Fleeting</span>
+          <span className="text-amber-500 text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>⚡</span>
+          <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Quick Notes</h3>
+          <span className="text-xs text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>• Fleeting</span>
         </div>
         <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-0.5">
           See all <ChevronRight className="w-3.5 h-3.5"/>
@@ -126,10 +126,10 @@ export default function NotesMainLightMode({ setActiveTab }) {
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-1.5">
           <BookOpen className="w-4 h-4 text-indigo-600"/>
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Long Notes</h3>
-          <span className="text-xs text-slate-400">• Journal & Studies</span>
+          <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Long Notes</h3>
+          <span className="text-xs text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>• Journal & Studies</span>
         </div>
-        <span className="text-xs font-medium text-slate-400">6 Total</span>
+        <span className="text-xs font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>6 Total</span>
       </div>
 
       <div className="block mx-5 mb-3 p-4 rounded-2xl transition-all space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">

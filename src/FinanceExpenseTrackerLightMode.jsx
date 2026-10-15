@@ -11,7 +11,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Coins className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Finance & Expenses
           </h1>
         </div>
@@ -28,8 +28,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
         {/* Visible Subtitle & Month Selector Row (No Overlap) */}
         <div className="px-5 pt-2 pb-4 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-900 tracking-normal">Finance & Expenses</h1>
-            <p className="text-xs font-normal text-slate-500 mt-0.5">Track spending & financial wellness</p>
+            <h1 className="text-lg font-bold text-indigo-950 tracking-normal" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Finance & Expenses</h1>
+            <p className="text-xs font-normal text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Track spending & financial wellness</p>
           </div>
           <button className="px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 text-xs font-bold text-indigo-700 shadow-sm hover:bg-slate-50 flex items-center gap-1.5 transition-all">
             October 2026
@@ -71,7 +71,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
 
         {/* SPENDING CATEGORIES CAROUSEL */}
         <div className="flex items-center justify-between px-5 mb-2.5">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Spending Categories</span>
+          <span className="text-xs font-semibold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Spending Categories</span>
           <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700">Details</button>
         </div>
         <div className="flex items-center gap-3 px-5 mb-5 overflow-x-auto scrollbar-none py-1">
@@ -122,8 +122,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
 
         {/* TRANSACTION FEED */}
         <div className="flex items-center justify-between px-5 py-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today</span>
-          <span className="text-xs font-semibold text-slate-700">-$73.25</span>
+          <span className="text-xs font-semibold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Today</span>
+          <span className="text-xs font-semibold text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>-$73.25</span>
         </div>
 
         <div className="block mx-5 mb-2.5 p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
@@ -165,8 +165,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
         </div>
 
         <div className="flex items-center justify-between px-5 py-2 mt-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Yesterday</span>
-          <span className="text-xs font-semibold text-slate-700">-$215.00</span>
+          <span className="text-xs font-semibold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Yesterday</span>
+          <span className="text-xs font-semibold text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>-$215.00</span>
         </div>
 
         <div className="block mx-5 mb-2.5 p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
@@ -208,8 +208,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
         </div>
         
         <div className="flex items-center justify-between px-5 py-2 mt-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Oct 21</span>
-          <span className="text-xs font-semibold text-slate-700">-$112.30</span>
+          <span className="text-xs font-semibold text-indigo-950 font-semibold font-semibold uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Oct 21</span>
+          <span className="text-xs font-semibold text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>-$112.30</span>
         </div>
 
         <div className="block mx-5 mb-2.5 p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">

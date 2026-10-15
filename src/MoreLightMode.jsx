@@ -15,7 +15,7 @@ export default function MoreLightMode({ setActiveTab }) {
             alt="Momentum Logo" 
             className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-indigo-600/30" 
           />
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">More</h1>
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>More</h1>
         </div>
         <div className="flex items-center gap-3">
           <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
@@ -26,7 +26,7 @@ export default function MoreLightMode({ setActiveTab }) {
           </div>
         </div>
       </div>
-      <p className="px-5 text-xs font-normal text-slate-500 mb-5">
+      <p className="px-5 text-xs font-normal text-slate-800 mb-5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
         Spiritual tools, mindful finance & preferences
       </p>
 
@@ -67,8 +67,8 @@ export default function MoreLightMode({ setActiveTab }) {
 
       {/* Ecosystem Essentials */}
       <div className="flex items-center justify-between px-5 mb-3">
-        <h3 className="text-sm font-bold text-slate-900 tracking-tight">Ecosystem Essentials</h3>
-        <span className="text-xs font-normal text-slate-500">6 Modules</span>
+        <h3 className="text-sm font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Ecosystem Essentials</h3>
+        <span className="text-xs font-normal text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>6 Modules</span>
       </div>
 
       <div className="mx-5 mb-6 space-y-3">

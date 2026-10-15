@@ -13,7 +13,7 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             New Dhikr
           </h1>
         </div>
@@ -33,11 +33,11 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       {/* Sub-bar */}
       <div className="flex items-center justify-between px-5 pt-2 pb-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
             NEW DHIKR
           </span>
-          <span className="text-xs font-medium text-slate-500">Custom Counter</span>
+          <span className="text-xs font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Custom Counter</span>
         </div>
         <button className="p-1.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors">
           <RotateCcw className="w-4 h-4"/>

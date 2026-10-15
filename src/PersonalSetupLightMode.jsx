@@ -23,10 +23,10 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
             className="w-16 h-16 object-cover rounded-2xl aspect-square flex-shrink-0 shadow-lg shadow-indigo-600/30 mb-4 ring-4 ring-indigo-50"
           />
 
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Welcome to Momentum
           </h1>
-          <p className="text-xs font-normal text-slate-500 max-w-xs mx-auto mt-1.5 leading-relaxed">
+          <p className="text-xs font-normal text-slate-800 max-w-xs mx-auto mt-1.5 leading-relaxed" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Personalize your space for mindful routines, accurate prayer schedules, and daily finances.
           </p>
         </div>
@@ -124,7 +124,7 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
         {/* ENCRYPTION & LOCAL STORAGE NOTICE */}
         <div className="mx-5 mb-6 flex items-start gap-2.5 px-2 text-slate-400">
           <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-400"/>
-          <p className="text-[11px] font-normal leading-relaxed">
+          <p className="text-[11px] font-normal leading-relaxed text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Stored locally & encrypted securely. You can modify prayer calculation algorithms & currency anytime in Settings.
           </p>
         </div>

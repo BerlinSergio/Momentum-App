@@ -13,7 +13,7 @@ export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <BellRing className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Prayer Notification Settings
           </h1>
         </div>
@@ -34,9 +34,9 @@ export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {
       <div className="px-5 pt-2 pb-4">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 mb-1">
           <SlidersHorizontal className="w-3.5 h-3.5"/>
-          <span>PREFERENCES • AUDIO & ALERTS</span>
+          <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>PREFERENCES • AUDIO & ALERTS</span>
         </div>
-        <p className="text-xs font-normal text-slate-500">Configure gentle auditory reminders, Adhan cues, and early mindfulness alerts for each daily prayer.</p>
+        <p className="text-xs font-normal text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Configure gentle auditory reminders, Adhan cues, and early mindfulness alerts for each daily prayer.</p>
       </div>
 
       {/* MASTER PRAYER ALERTS CARD */}

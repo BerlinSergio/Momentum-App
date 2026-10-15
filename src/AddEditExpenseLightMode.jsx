@@ -17,7 +17,7 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Coins className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Edit Expense
           </h1>
         </div>
@@ -32,8 +32,8 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
 <div className="flex items-center justify-between px-1">
 <div className="flex items-center gap-space-xs bg-slate-100 border border-slate-200/80 px-3 py-1.5 rounded-full shadow-sm">
 <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
-<span className="font-label-sm text-label-sm text-slate-600 font-medium tracking-wide">EDITING TRANSACTION</span>
-<span className="font-label-sm text-label-sm text-indigo-700 font-bold ml-0.5">#TX-8924</span>
+<span className="font-label-sm text-label-sm text-slate-800 font-medium tracking-wide" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>EDITING TRANSACTION</span>
+<span className="font-label-sm text-label-sm text-indigo-950 font-bold ml-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>#TX-8924</span>
 </div>
 <button className="btn-danger" id="delete-header-btn" type="button">
 <span className="material-symbols-outlined text-[15px]">delete</span>

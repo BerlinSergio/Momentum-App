@@ -13,7 +13,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Sparkles className="w-5 h-5 text-white"/>
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">Prayer Times</h1>
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Prayer Times</h1>
         </div>
         <div className="flex items-center gap-2">
           <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
@@ -28,10 +28,10 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       {/* Title & Alerts Row */}
       <div className="flex items-center justify-between px-5 pt-2 pb-1">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Prayer Times</h2>
-          <p className="text-xs font-normal text-slate-500 mt-0.5">Stay connected to your spiritual rhythm</p>
+          <h2 className="text-xl font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Prayer Times</h2>
+          <p className="text-xs font-normal text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Stay connected to your spiritual rhythm</p>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 border border-indigo-200/80 text-indigo-700 shadow-2xs">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 border border-indigo-200/80 text-slate-800 shadow-2xs" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
           <BellRing className="w-3.5 h-3.5 text-indigo-600"/>
           Alerts On
         </span>

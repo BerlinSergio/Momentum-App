@@ -18,25 +18,25 @@ export default function SplashScreenLightMode() {
 
         {/* Brand Title & Subtitle */}
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-[0.28em] text-slate-900 uppercase">
+          <h1 className="text-2xl font-bold tracking-[0.28em] text-indigo-950 uppercase" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Momentum
           </h1>
-          <p className="text-xs font-normal text-slate-500 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs font-normal text-slate-800 max-w-xs mx-auto leading-relaxed" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Spiritual tools, mindful finance & daily routines
           </p>
         </div>
 
         {/* Minimal Aesthetic Goal Pills */}
         <div className="flex items-center justify-center gap-2 pt-1">
-          <span className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-slate-200/80 text-slate-700 shadow-2xs">
+          <span className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-slate-200/80 text-slate-800 shadow-2xs" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Focus
           </span>
-          <span className="text-slate-300 text-xs">•</span>
-          <span className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-slate-200/80 text-slate-700 shadow-2xs">
+          <span className="text-slate-800 text-xs" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>•</span>
+          <span className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-slate-200/80 text-slate-800 shadow-2xs" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Clarity
           </span>
-          <span className="text-slate-300 text-xs">•</span>
-          <span className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-slate-200/80 text-slate-700 shadow-2xs">
+          <span className="text-slate-800 text-xs" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>•</span>
+          <span className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-slate-200/80 text-slate-800 shadow-2xs" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Growth
           </span>
         </div>
@@ -65,8 +65,8 @@ export default function SplashScreenLightMode() {
 
         {/* Updated Version & Tagline Footer */}
         <div className="text-center">
-          <p className="text-[11px] font-medium text-slate-400">
-            <span className="font-semibold text-slate-600">v1.0</span> • App By Milad Wardak
+          <p className="text-[11px] font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
+            <span className="font-semibold text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>v1.0</span> • App By Milad Wardak
           </p>
         </div>
       </div>

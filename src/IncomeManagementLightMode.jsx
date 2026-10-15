@@ -13,7 +13,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Income Management
           </h1>
         </div>
@@ -34,7 +34,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
       <div className="flex items-center justify-between px-5 py-2 mb-2">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-indigo-600" />
-          <span className="text-sm font-medium text-slate-500">Period:</span>
+          <span className="text-sm font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Period:</span>
           <button className="flex items-center gap-1 bg-white border border-slate-200 px-3 py-1 rounded-full text-slate-700 transition-all active:scale-95 shadow-sm">
             <span className="text-sm font-semibold">October 2026</span>
             <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -42,7 +42,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
         </div>
         <div className="flex items-center gap-1.5 text-indigo-600 text-xs font-semibold bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
           <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
-          <span>Live Sync</span>
+          <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Live Sync</span>
         </div>
       </div>
 
@@ -162,8 +162,8 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
         {/* Detailed Income Feed */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-600 tracking-wider uppercase">This Month • October 2026</span>
-            <span className="text-xs font-semibold text-slate-500">4 Transactions</span>
+            <span className="text-xs font-bold text-indigo-950 tracking-wider uppercase" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>This Month • October 2026</span>
+            <span className="text-xs font-semibold text-indigo-950 font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>4 Transactions</span>
           </div>
 
           {/* Item 1: TechCorp Salary */}

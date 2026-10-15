@@ -13,7 +13,7 @@ export default function HomeDashboardLightMode() {
             alt="Momentum Logo" 
             className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-indigo-600/30" 
           />
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Momentum
           </h1>
         </div>
@@ -30,17 +30,17 @@ export default function HomeDashboardLightMode() {
         {/* User Greeting Section - No Overlap */}
         <div className="px-5 pt-3 pb-5 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+            <h1 className="text-xl font-bold text-indigo-950 tracking-tight flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
               Good morning, Aisha <span>👋</span>
             </h1>
-            <p className="text-xs font-normal text-slate-500 mt-0.5">Stay consistent. Small steps every day.</p>
-            <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider block mt-1">
+            <p className="text-xs font-normal text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Stay consistent. Small steps every day.</p>
+            <span className="text-[11px] font-semibold text-indigo-950 font-semibold font-semibold uppercase tracking-wider block mt-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
               Monday, 24 Oct
             </span>
           </div>
           <div className="w-12 h-12 rounded-full ring-2 ring-indigo-100 shadow-sm overflow-hidden flex-shrink-0 bg-slate-200 flex items-center justify-center">
             {/* Fallback image if not present */}
-            <span className="text-lg font-bold text-slate-500">A</span>
+            <span className="text-lg font-bold text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>A</span>
           </div>
         </div>
 

@@ -11,7 +11,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Fingerprint className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Biometric Settings
           </h1>
         </div>
@@ -189,7 +189,7 @@ export default function BiometricSettingsLightMode({ setActiveTab }) {
 <div className="fixed bottom-8 inset-x-8 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none flex justify-center" id="toast">
 <div className="px-space-lg py-space-sm rounded-full bg-inverse-surface text-inverse-on-surface shadow-xl flex items-center space-x-2">
 <span className="material-symbols-outlined text-tertiary-fixed text-[18px]" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
-<span className="font-body-sm text-body-sm font-medium">Biometric Sanctuary updated</span>
+<span className="font-body-sm text-body-sm font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Biometric Sanctuary updated</span>
 </div>
 </div>
 </div>

@@ -11,7 +11,7 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Wallet className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.85), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Add Income
           </h1>
         </div>
@@ -26,11 +26,11 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
 <div className="flex flex-row items-center justify-center gap-2 w-full flex-wrap">
 <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-<span id="mode-text">&bull; NEW ENTRY #1</span>
+<span id="mode-text" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>&bull; NEW ENTRY #1</span>
 </span>
 <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
 <span className="material-symbols-outlined text-[16px]">check</span>
-<span>&bull; AUTO-CATEGORIZED</span>
+<span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>&bull; AUTO-CATEGORIZED</span>
 </span>
 <button className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-slate-700 hover:text-slate-900 transition-all text-xs font-semibold bg-slate-100 border border-slate-200 hover:bg-slate-200 active:scale-95" id="clear-btn" type="button">
 <span className="material-symbols-outlined text-[16px]">restart_alt</span>
@@ -73,10 +73,10 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
 <div className="flex flex-col space-y-space-sm">
 <div className="flex items-center justify-between px-space-xs">
 <div>
-<h2 className="font-headline-sm text-headline-sm text-on-surface">Income Source</h2>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Choose source type for cashflow analytics</p>
+<h2 className="font-headline-sm text-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Income Source</h2>
+<p className="font-body-sm text-body-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Choose source type for cashflow analytics</p>
 </div>
-<span className="font-label-sm text-label-sm text-primary font-semibold">Step 1 of 2</span>
+<span className="font-label-sm text-label-sm text-indigo-950 font-semibold font-semibold font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Step 1 of 2</span>
 </div>
 {/*  Category Pill Horizontal Ribbon  */}
 <div className="grid grid-cols-2 gap-3.5 pt-1" id="sources-container">

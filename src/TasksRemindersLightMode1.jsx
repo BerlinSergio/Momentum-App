@@ -26,7 +26,7 @@ export default function TasksRemindersLightMode1() {
             <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
               <CheckSquare className="w-5 h-5 text-white"/>
             </div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">Tasks</h1>
+            <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Tasks</h1>
           </div>
           <div className="flex items-center gap-2">
             <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
@@ -41,13 +41,13 @@ export default function TasksRemindersLightMode1() {
         {/* Title & Profile Avatar Banner */}
         <div className="flex items-center justify-between px-5 pt-2 pb-3">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Tasks & Reminders</h2>
-            <p className="text-xs font-normal text-slate-500 mt-0.5">Organize your day with mindful focus</p>
+            <h2 className="text-2xl font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Tasks & Reminders</h2>
+            <p className="text-xs font-normal text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Organize your day with mindful focus</p>
           </div>
           <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-indigo-100 shadow-sm flex-shrink-0">
             {/* We'll use a placeholder colored div as image may not exist */}
             <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-400">
-              <span className="font-bold text-lg">A</span>
+              <span className="font-bold text-lg text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>A</span>
             </div>
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function TasksRemindersLightMode1() {
 
         {/* Today's Focus Section & Task Tiles */}
         <div className="flex items-center justify-between px-5 mb-3">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Today's Focus</h3>
+          <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Today's Focus</h3>
           <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Sort by Time</button>
         </div>
 

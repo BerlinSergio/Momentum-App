@@ -11,7 +11,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Info className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             About Momentum
           </h1>
         </div>
@@ -44,7 +44,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 />
 </div>
 {/*  Wordmark & Philosophy  */}
-<h2 className="text-3xl font-bold text-on-surface tracking-tight mt-3">Momentum</h2>
+<h2 className="text-3xl font-bold text-indigo-950 tracking-tight mt-3" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h2>
 <div className="w-fit mx-auto mt-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border border-white/80 shadow-sm">
   <p className="text-center text-sm leading-relaxed text-slate-900 font-medium">
     Where sacred time meets mindful living.
@@ -196,15 +196,15 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 {/*  Dual Lotus Accent  */}
 <div className="flex items-center justify-center gap-2 mb-2 text-primary/70">
 <span className="material-symbols-outlined text-[18px]">spa</span>
-<span className="font-label-sm text-label-sm tracking-widest text-on-surface-variant uppercase font-semibold">Mindful Focus</span>
+<span className="font-label-sm text-label-sm tracking-widest text-indigo-950 uppercase font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Mindful Focus</span>
 <span className="material-symbols-outlined text-[18px]">spa</span>
 </div>
 {/*  Closing Quote  */}
-<p className="font-body-sm text-body-sm text-on-surface-variant italic max-w-xs mx-auto">
+<p className="font-body-sm text-body-sm text-slate-800 italic max-w-xs mx-auto" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
       “Crafted with peace for intentional minds everywhere.”
     </p>
 {/*  Copyright  */}
-<p className="font-label-sm text-label-sm text-outline mt-3">
+<p className="font-label-sm text-label-sm text-slate-800 mt-3" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
       © 2026 Momentum App • All Rights Reserved.
     </p>
 </footer>

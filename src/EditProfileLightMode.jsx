@@ -11,7 +11,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <User className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Edit Profile
           </h1>
         </div>
@@ -44,7 +44,7 @@ export default function EditProfileLightMode({ setActiveTab }) {
               Remove
             </button>
           </div>
-          <p className="text-[11px] text-slate-500 text-center mt-2 font-medium">PNG, JPG or WEBP · Max 5MB</p>
+          <p className="text-[11px] text-slate-800 text-center mt-2 font-medium" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>PNG, JPG or WEBP · Max 5MB</p>
         </section>
 
         {/* IDENTITY & ACCOUNT CARD */}

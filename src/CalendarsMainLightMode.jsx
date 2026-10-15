@@ -11,7 +11,7 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Calendar className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Calendars & Time
           </h1>
         </div>
@@ -30,16 +30,16 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <div className="relative flex flex-col pt-1 pb-2">
 <div className="flex items-center justify-between">
 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/80 backdrop-blur-md shadow-sm">
-<span className="text-[13px]">✨</span>
-<span className="font-label-sm text-label-sm text-primary font-semibold tracking-wide uppercase">Tri-Calendar Sync</span>
+<span className="text-[13px] text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>✨</span>
+<span className="font-label-sm text-label-sm text-indigo-950 font-semibold tracking-wide uppercase" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Tri-Calendar Sync</span>
 </div>
 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high/60 backdrop-blur-md">
 <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-<span className="font-label-sm text-label-sm text-on-surface-variant font-medium">Kabul (UTC+4:30)</span>
+<span className="font-label-sm text-label-sm text-slate-800 font-medium" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Kabul (UTC+4:30)</span>
 </div>
 </div>
-<h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-3">Calendars & Time</h2>
-<p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Harmonize civil, spiritual, and solar rhythms seamlessly</p>
+<h2 className="font-headline-lg text-headline-lg text-indigo-950 tracking-tight mt-3" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Calendars & Time</h2>
+<p className="font-body-sm text-body-sm text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Harmonize civil, spiritual, and solar rhythms seamlessly</p>
 </div>
 {/*  Triple-Date Hero Glass Card  */}
 <div className="relative rounded-2xl p-space-lg overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
@@ -102,8 +102,8 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 {/*  Calendar System Selection Carousel/Stack  */}
 <div className="flex flex-col space-y-2.5">
 <div className="flex items-center justify-between px-1">
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Dedicated Systems</h3>
-<span className="font-label-sm text-label-sm text-on-surface-variant">Tap to enter system</span>
+<h3 className="font-headline-sm text-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Dedicated Systems</h3>
+<span className="font-label-sm text-label-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Tap to enter system</span>
 </div>
 {/*  Card 1: Gregorian  */}
 <div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-white/70 backdrop-blur-md border border-white/80 shadow-lg" role="button" tabIndex={0}>
@@ -273,8 +273,8 @@ export default function CalendarsMainLightMode({ setActiveTab }) {
 <div className="space-y-3">
 <div className="flex items-center justify-between px-1">
 <div>
-<h2 className="font-headline-sm text-headline-sm text-on-surface">Harmonized Flow</h2>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Saturday • 5 intertwined milestones</p>
+<h2 className="font-headline-sm text-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Harmonized Flow</h2>
+<p className="font-body-sm text-body-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Saturday • 5 intertwined milestones</p>
 </div>
 <button className="btn-primary">
 <span className="material-symbols-outlined text-[16px]">add</span>

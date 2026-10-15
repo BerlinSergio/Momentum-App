@@ -13,7 +13,7 @@ export default function PinSetupChangeLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Security PIN & Vault
           </h1>
         </div>
@@ -34,7 +34,7 @@ export default function PinSetupChangeLightMode({ setActiveTab }) {
       <div className="flex items-center justify-between px-5 py-2.5">
         <div className="flex items-center gap-1.5 text-indigo-700">
           <ShieldCheck className="w-4 h-4 text-indigo-600"/>
-          <span className="text-[10px] font-bold tracking-wider uppercase">Momentum Shield • Vault Security</span>
+          <span className="text-[10px] font-bold tracking-wider uppercase text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum Shield • Vault Security</span>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-teal-600">
           <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>

@@ -17,7 +17,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <History className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Dhikr History
           </h1>
         </div>
@@ -39,13 +39,13 @@ export default function TasbeehHistoryLightMode({ setActiveTab }) {
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/70 px-3 py-1 rounded-full shadow-2xs">
               <Calendar className="w-3.5 h-3.5 text-indigo-600"/>
-              <span>Today • Oct 24, 2026</span>
+              <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Today • Oct 24, 2026</span>
             </div>
             <button className="p-2 rounded-xl bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 shadow-2xs transition-colors">
               <SlidersHorizontal className="w-4 h-4"/>
             </button>
           </div>
-          <p className="text-xs font-normal text-slate-500">
+          <p className="text-xs font-normal text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Reflect upon your daily dhikr milestones and spiritual consistency.
           </p>
         </div>
@@ -98,8 +98,8 @@ export default function TasbeehHistoryLightMode({ setActiveTab }) {
         {/* 4. TIMELINE HEADER */}
         <div className="flex items-center justify-between px-5 mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Timeline</h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-700">
+            <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Timeline</h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
               5 Recorded
             </span>
           </div>
@@ -240,7 +240,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab }) {
 
         {/* Timeline Divider */}
         <div className="text-center my-4">
-          <span className="text-[10px] font-bold tracking-widest text-slate-600 uppercase bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60">
+          <span className="text-[10px] font-bold tracking-widest text-indigo-950 uppercase bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
             Yesterday • Oct 23
           </span>
         </div>

@@ -14,7 +14,7 @@ export default function TasbeehSettingsLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <SlidersHorizontal className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Tasbeeh Preferences
           </h1>
         </div>
@@ -90,7 +90,7 @@ export default function TasbeehSettingsLightMode({ setActiveTab }) {
 
         {/* Completion Ritual Preview Card */}
         <div className="flex items-center justify-between px-5 mb-2.5">
-          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">COMPLETION RITUAL PREVIEW</span>
+          <span className="text-[10px] font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>COMPLETION RITUAL PREVIEW</span>
           <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
             <Eye className="w-3.5 h-3.5"/>Live Preview
           </button>
@@ -139,7 +139,7 @@ export default function TasbeehSettingsLightMode({ setActiveTab }) {
           </button>
           <div className="flex items-center justify-center gap-1.5 text-[11px] font-normal text-slate-400">
             <Lock className="w-3 h-3 text-slate-400"/>
-            <span>Preferences sync automatically to your local device</span>
+            <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Preferences sync automatically to your local device</span>
           </div>
         </div>
 

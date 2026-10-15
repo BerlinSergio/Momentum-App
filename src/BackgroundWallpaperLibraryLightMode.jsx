@@ -11,7 +11,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Image className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Background Library
           </h1>
         </div>
@@ -25,8 +25,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 {/*  Top Context Header Area (Filter & Subtitle Info)  */}
 <div className="flex items-center justify-between px-space-xs pt-space-xs">
 <div className="flex flex-col">
-<span className="text-label-sm font-label-sm text-tertiary uppercase tracking-wider">Atmosphere Engine</span>
-<h2 className="text-headline-sm font-headline-sm text-on-surface">Curated Wallpapers</h2>
+<span className="text-label-sm font-label-sm text-tertiary uppercase tracking-wider text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Atmosphere Engine</span>
+<h2 className="text-headline-sm font-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Curated Wallpapers</h2>
 </div>
 <div className="flex items-center gap-space-xs">
 <button aria-label="Toggle preview accent" className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shadow-sm active:scale-95 transition-transform" id="themeToggleMini">
@@ -121,8 +121,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 {/*  30-Background Curated Grid Section Header  */}
 <div className="flex items-center justify-between pt-space-xs">
 <div className="flex items-baseline gap-2">
-<h3 className="text-headline-sm font-headline-sm text-on-surface">Master Collection</h3>
-<span className="text-label-sm font-label-sm text-outline">Showing 8 of 30</span>
+<h3 className="text-headline-sm font-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Master Collection</h3>
+<span className="text-label-sm font-label-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Showing 8 of 30</span>
 </div>
 <button className="text-label-md font-label-md text-primary flex items-center gap-1 active:opacity-75">
 <span>Auto-Rotate</span>
@@ -290,7 +290,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 {/*  Load More / Full Library Indicator  */}
 
 <div className="flex flex-col items-center justify-center my-6 space-y-2">
-  <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+  <span className="text-xs text-slate-800 font-medium flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
     22 additional themes available in Sanctuary Cloud
   </span>

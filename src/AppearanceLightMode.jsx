@@ -11,7 +11,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Palette className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Appearance
           </h1>
         </div>
@@ -28,7 +28,7 @@ export default function AppearanceLightMode({ setActiveTab }) {
 <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary">
 <span className="material-symbols-outlined text-[16px]" style={{fontVariationSettings: '"FILL" 1'}}>palette</span>
 </span>
-<span className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Visual Language</span>
+<span className="font-label-md text-label-md text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Visual Language</span>
 </div>
 <button className="font-label-md text-label-md text-primary hover:text-primary-container transition-colors px-space-sm py-1 rounded-full bg-surface-container/60 hover:bg-surface-container active:scale-95 transition-all" id="reset-btn" type="button">
       Reset Default

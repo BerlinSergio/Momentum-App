@@ -13,7 +13,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Sliders className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             Background Blur Control
           </h1>
         </div>
@@ -198,7 +198,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) 
 {/*  Toast Confirmation Feedback  */}
 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-full bg-inverse-surface text-inverse-on-surface font-body-sm text-body-sm flex items-center gap-2 shadow-xl opacity-0 pointer-events-none transition-all duration-300" id="toast-feedback">
 <span className="material-symbols-outlined text-tertiary-fixed text-[18px]">check_circle</span>
-<span id="toast-message">Blur intensity updated to 18px</span>
+<span id="toast-message" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Blur intensity updated to 18px</span>
 </div>
 </div>
 </main>

@@ -11,7 +11,7 @@ export default function AppLockLightMode({ setActiveTab }) {
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
             <Lock className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
+          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             App Lock & Security
           </h1>
         </div>
@@ -82,8 +82,8 @@ export default function AppLockLightMode({ setActiveTab }) {
 {/*  Authentication Methods Section  */}
 <div className="pt-space-md space-y-space-md">
 <div className="flex items-center justify-between px-1">
-<h3 className="text-headline-sm font-headline-sm text-on-surface">Authentication Methods</h3>
-<span className="text-label-sm font-label-sm text-outline">2 Methods Configured</span>
+<h3 className="text-headline-sm font-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Authentication Methods</h3>
+<span className="text-label-sm font-label-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>2 Methods Configured</span>
 </div>
 {/*  Biometric Card  */}
 <div className="space-y-space-sm rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
@@ -146,8 +146,8 @@ export default function AppLockLightMode({ setActiveTab }) {
 {/*  Lock Timing & Trigger Behavior  */}
 <div className="pt-space-md space-y-space-md">
 <div className="px-1">
-<h3 className="text-headline-sm font-headline-sm text-on-surface">Lock Timing &amp; Trigger</h3>
-<p className="text-body-sm font-body-sm text-on-surface-variant">Specify how swiftly Momentum re-secures your data</p>
+<h3 className="text-headline-sm font-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Lock Timing &amp; Trigger</h3>
+<p className="text-body-sm font-body-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Specify how swiftly Momentum re-secures your data</p>
 </div>
 <div className="space-y-space-md rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 {/*  Radio-style trigger selection  */}
@@ -226,8 +226,8 @@ export default function AppLockLightMode({ setActiveTab }) {
 <div className="pt-space-md space-y-space-md">
 <div className="px-1 flex items-center justify-between">
 <div>
-<h3 className="text-headline-sm font-headline-sm text-on-surface">Selective Guardrails</h3>
-<p className="text-body-sm font-body-sm text-on-surface-variant">Granular security per sacred &amp; personal domain</p>
+<h3 className="text-headline-sm font-headline-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Selective Guardrails</h3>
+<p className="text-body-sm font-body-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Granular security per sacred &amp; personal domain</p>
 </div>
 <span className="material-symbols-outlined text-outline">tune</span>
 </div>
@@ -296,7 +296,7 @@ export default function AppLockLightMode({ setActiveTab }) {
 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
 </button>
 <div className="text-center mt-2.5">
-<span className="text-label-sm font-label-sm text-outline">Last modified: Today at 07:42 AM</span>
+<span className="text-label-sm font-label-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Last modified: Today at 07:42 AM</span>
 </div>
 </div>
 </div>
