@@ -1,0 +1,349 @@
+import React from 'react';
+import { 
+  SlidersHorizontal, Bell, Camera, CheckCircle2, Wallet, Clock, 
+  UserCheck, ChevronRight, Sun, Moon, ShieldCheck, Fingerprint, Lock, 
+  Cloud, Database, Save, RotateCcw, Infinity 
+} from 'lucide-react';
+
+export default function SettingsProfileDarkMode() {
+  return (
+    <div className="min-h-screen pb-28">
+      {/* TOP HEADER BAR */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-2xl flex items-center justify-center">
+            <SlidersHorizontal className="w-5 h-5"/>
+          </div>
+          <h1 className="font-bold tracking-tight">Settings & Profile</h1>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button className="p-2 rounded-full transition-colors">
+            <Bell className="w-5 h-5"/>
+          </button>
+          <div className="w-9 h-9 rounded-full font-bold flex items-center justify-center">
+            A
+          </div>
+        </div>
+      </div>
+
+      {/* PROFILE HERO CARD */}
+      <div className="mx-5 mb-5 p-5 border rounded-3xl space-y-3">
+        <div className="relative w-20 h-20 mx-auto">
+          <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-bold">
+            <img src="/avatar.jpg" alt="Aisha" className="w-full h-full object-cover" onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }} />
+            <span className="hidden">A</span>
+          </div>
+          <button className="absolute bottom-0 right-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors">
+            <Camera className="w-3 h-3"/>
+          </button>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-center gap-1.5">
+            <h2 className="font-bold">Aisha Rahmani</h2>
+            <CheckCircle2 className="w-4 h-4"/>
+          </div>
+          <p className="font-normal mt-0.5">
+            Living intentionally • Kabul, Afghanistan
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 pt-1">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-semibold border">
+            <Wallet className="w-3 h-3"/>
+            AFN (؋)
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-semibold border">
+            <Clock className="w-3 h-3"/>
+            Asia/Kabul (UTC+4:30)
+          </span>
+        </div>
+
+        <button className="w-full py-2.5 px-4 rounded-2xl border font-semibold flex items-center justify-between transition-colors mt-2">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4"/>
+            <span>Account & Personal Credentials</span>
+          </div>
+          <span className="flex items-center gap-1 font-medium">
+            Details <ChevronRight className="w-3.5 h-3.5"/>
+          </span>
+        </button>
+      </div>
+
+      {/* REGIONAL PREFERENCES CARD */}
+      <div className="mx-5 mb-5 p-5 border rounded-3xl space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold uppercase tracking-wider">Regional Preferences</h3>
+          <span className="font-semibold">Sync Active</span>
+        </div>
+        
+        <div className="flex flex-col gap-1">
+          <button className="w-full p-3 rounded-2xl border flex items-center justify-between transition-colors group">
+            <div className="">
+              <p className="font-semibold group-hover:text-indigo-400 transition-colors">Legal Name</p>
+              <p className="font-normal">Aisha Rahmani</p>
+            </div>
+            <ChevronRight className="w-4 h-4 group-hover:text-indigo-400 transition-colors"/>
+          </button>
+
+          <button className="w-full p-3 rounded-2xl border flex items-center justify-between transition-colors group">
+            <div className="">
+              <p className="font-semibold group-hover:text-indigo-400 transition-colors">Base Currency</p>
+              <p className="font-normal">Afghan Afghani (AFN)</p>
+            </div>
+            <ChevronRight className="w-4 h-4 group-hover:text-indigo-400 transition-colors"/>
+          </button>
+
+          <button className="w-full p-3 rounded-2xl border flex items-center justify-between transition-colors group">
+            <div className="">
+              <p className="font-semibold group-hover:text-indigo-400 transition-colors">Timezone Calculation</p>
+              <p className="font-normal">Asia/Kabul (UTC+4:30)</p>
+            </div>
+            <ChevronRight className="w-4 h-4 group-hover:text-indigo-400 transition-colors"/>
+          </button>
+
+          <button className="w-full p-3 rounded-2xl border flex items-center justify-between transition-colors group">
+            <div className="">
+              <p className="font-semibold group-hover:text-indigo-400 transition-colors">Location & City</p>
+              <p className="font-normal">Kabul, Afghanistan</p>
+            </div>
+            <ChevronRight className="w-4 h-4 group-hover:text-indigo-400 transition-colors"/>
+          </button>
+        </div>
+      </div>
+
+      {/* ATMOSPHERE & VISUALS CARD */}
+      <div className="mx-5 mb-5 p-5 border rounded-3xl space-y-3.5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold uppercase tracking-wider">Atmosphere & Visuals</h3>
+          <span className="font-semibold">Serenity v2</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-bold">Theme Mode</h4>
+            <p className="">Luminous Serenity</p>
+          </div>
+          <div className="p-1 rounded-2xl border flex items-center gap-1">
+            <button className="py-1 px-3 rounded-xl font-medium flex items-center gap-1 transition-colors">
+              <Sun className="w-3.5 h-3.5"/>Light
+            </button>
+            <button className="py-1 px-3 rounded-xl font-semibold flex items-center gap-1">
+              <Moon className="w-3.5 h-3.5"/>Dark
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-2xl border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl border flex items-center justify-center">
+              <div className="w-5 h-5 rounded-full"></div>
+            </div>
+            <div>
+              <p className="font-semibold">Serene Horizon</p>
+              <p className="font-normal">Pair 04</p>
+            </div>
+          </div>
+          <button className="font-semibold px-3 py-1.5 rounded-xl transition-colors">
+            Customize
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <div>
+            <h4 className="font-bold">Text & Spatial Scale</h4>
+            <p className="">Balanced Density</p>
+          </div>
+          <button className="px-3 py-1.5 rounded-xl border font-semibold transition-colors flex items-center gap-1">
+            Standard <ChevronRight className="w-3 h-3"/>
+          </button>
+        </div>
+      </div>
+
+      {/* SECURITY & SANCTUARY CARD */}
+      <div className="mx-5 mb-5 p-5 border rounded-3xl space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold uppercase tracking-wider">Security & Sanctuary</h3>
+          <span className="font-semibold flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full"></span>Protected
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between p-3 rounded-2xl border">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4"/>
+            </div>
+            <div>
+              <p className="font-semibold">App Lock Safeguard</p>
+              <p className="font-normal">Require unlock on open</p>
+            </div>
+          </div>
+          <div className="w-11 h-6 rounded-full p-0.5 flex items-center justify-end transition-colors cursor-pointer">
+            <div className="w-5 h-5 rounded-full"></div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button className="p-3 rounded-2xl border transition-colors flex flex-col items-center gap-2 group">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Lock className="w-4 h-4"/>
+            </div>
+            <div>
+              <p className="font-semibold">4-Digit PIN</p>
+              <p className="font-normal mt-0.5">Change Code</p>
+            </div>
+          </button>
+          
+          <button className="p-3 rounded-2xl border transition-colors flex flex-col items-center gap-2 group">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Fingerprint className="w-4 h-4"/>
+            </div>
+            <div>
+              <p className="font-semibold">Biometrics</p>
+              <p className="font-normal mt-0.5">Face/Touch ID</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* MINDFUL NOTIFICATIONS CARD */}
+      <div className="mx-5 mb-5 p-5 border rounded-3xl space-y-3.5">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold uppercase tracking-wider">Mindful Notifications</h3>
+          <span className="font-semibold">All Active</span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">Prayer Timings (Salah)</p>
+              <p className="font-normal">5 Daily Adhan alerts</p>
+            </div>
+            <div className="w-11 h-6 rounded-full p-0.5 flex items-center justify-end transition-colors cursor-pointer">
+              <div className="w-5 h-5 rounded-full"></div>
+            </div>
+          </div>
+          <div className="h-px w-full"></div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">Daily Agenda Briefing</p>
+              <p className="font-normal">Morning summary at 07:30</p>
+            </div>
+            <div className="w-11 h-6 rounded-full p-0.5 flex items-center justify-end transition-colors cursor-pointer">
+              <div className="w-5 h-5 rounded-full"></div>
+            </div>
+          </div>
+          <div className="h-px w-full"></div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">Spiritual Reflections</p>
+              <p className="font-normal">Fajr & Evening Murāqabah</p>
+            </div>
+            <div className="w-11 h-6 rounded-full p-0.5 flex items-center justify-end transition-colors cursor-pointer">
+              <div className="w-5 h-5 rounded-full"></div>
+            </div>
+          </div>
+          <div className="h-px w-full"></div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">Daily Radiance & Wisdom</p>
+              <p className="font-normal">08:00 AM uplifting quote</p>
+            </div>
+            <div className="w-11 h-6 rounded-full p-0.5 flex items-center justify-end transition-colors cursor-pointer">
+              <div className="w-5 h-5 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DATA & RESILIENCE CARD */}
+      <div className="mx-5 mb-5 p-5 border rounded-3xl space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold uppercase tracking-wider">Data & Resilience</h3>
+          <span className="font-medium">Cloud Active</span>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between p-3 rounded-2xl transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                <Cloud className="w-4 h-4"/>
+              </div>
+              <div>
+                <p className="font-semibold">Zero-Knowledge Cloud Sync</p>
+                <p className="font-normal">Last synchronized 2m ago</p>
+              </div>
+            </div>
+            <button className="px-3 py-1.5 rounded-xl transition-colors font-semibold flex items-center gap-1">
+              <RotateCcw className="w-3 h-3"/>
+              Sync
+            </button>
+          </div>
+
+          <button className="w-full flex items-center justify-between p-3 rounded-2xl transition-colors group">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center group-hover:bg-slate-600 transition-colors">
+                <Save className="w-4 h-4"/>
+              </div>
+              <div>
+                <p className="font-semibold">Encrypted Local Archive</p>
+                <p className="font-normal">Snapshot export to storage</p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 group-hover:text-slate-400 transition-colors"/>
+          </button>
+
+          <div className="h-px w-full my-1"></div>
+
+          <button className="w-full flex items-center justify-between p-3 rounded-2xl transition-colors group">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                <Database className="w-4 h-4"/>
+              </div>
+              <div>
+                <p className="font-semibold">Clear Local Database</p>
+                <p className="font-normal">Erase cached logs and temporary files</p>
+              </div>
+            </div>
+            <span className="px-3 py-1.5 rounded-xl font-semibold group-hover:bg-red-500/30 transition-colors">
+              Reset
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* ABOUT MOMENTUM & UPDATED VERSION CARD */}
+      <div className="mx-5 mb-28 p-6 border rounded-3xl space-y-3 relative overflow-hidden">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto">
+          <Infinity className="w-6 h-6"/>
+        </div>
+        <div>
+          <h4 className="font-bold">Momentum</h4>
+          <p className="font-semibold mt-0.5">
+            Version 2.5.0 • Build 2026.10
+          </p>
+        </div>
+        <p className="font-normal max-w-xs mx-auto leading-relaxed">
+          Harmonizing civil commitments, spiritual equilibrium, and natural seasonal rhythms into a single intentional flow.
+        </p>
+        
+        <div className="flex items-center justify-center gap-3 font-semibold pt-1">
+          <button className="hover:underline">Privacy Sanctuary</button>
+          <span>•</span>
+          <button className="hover:underline">Terms of Grace</button>
+          <span>•</span>
+          <button className="hover:underline">Credits</button>
+        </div>
+        
+        <p className="font-normal">
+          Crafted with peace for intentional minds everywhere.
+        </p>
+      </div>
+
+    </div>
+  );
+}

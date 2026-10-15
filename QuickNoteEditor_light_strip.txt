@@ -1,0 +1,194 @@
+import React from 'react';
+import { ArrowLeft, Share2, MoreVertical, Sparkles, Pin, Palette, Trash2, Play, Mic, X, Camera, CheckSquare, List, Tag, Edit3, Bell, Clock, ArrowRight } from 'lucide-react';
+
+export default function QuickNoteEditorLightMode() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* 1. TOP HEADER & STATUS BAR */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+        <div className="flex items-center gap-2.5">
+          <button className="p-2 rounded-full transition-colors">
+            <ArrowLeft className="w-5 h-5"/>
+          </button>
+          <div>
+            <h1 className="font-bold tracking-tight">Quick Note Editor</h1>
+            <span className="font-semibold flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full inline-block"></span>
+              Saved to Cloud
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button className="p-2 rounded-full transition-colors">
+            <Share2 className="w-5 h-5"/>
+          </button>
+          <button className="p-2 rounded-full transition-colors">
+            <MoreVertical className="w-5 h-5"/>
+          </button>
+          <div className="w-9 h-9 rounded-full font-bold flex items-center justify-center">
+            A
+          </div>
+        </div>
+      </div>
+
+      {/* 2. AUTOSAVED & QUICK UTILITIES SUB-BAR */}
+      <div className="flex items-center justify-between px-5 py-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold border">
+          <Sparkles className="w-3.5 h-3.5"/>
+          Autosaved • 10:45 AM
+        </span>
+        <div className="flex items-center gap-1">
+          <button className="p-2 rounded-xl transition-colors"><Pin className="w-4 h-4"/></button>
+          <button className="p-2 rounded-xl transition-colors"><Palette className="w-4 h-4"/></button>
+          <button className="p-2 rounded-xl transition-colors"><Trash2 className="w-4 h-4"/></button>
+        </div>
+      </div>
+
+      {/* CATEGORY TAGS ROW */}
+      <div className="flex items-center gap-2 px-5 mb-4 overflow-x-auto scrollbar-none pb-1">
+        <button className="px-3.5 py-1.5 rounded-2xl border font-medium whitespace-nowrap flex items-center gap-1.5">
+          <span>💡</span> Idea
+        </button>
+        <button className="px-3.5 py-1.5 rounded-2xl font-semibold whitespace-nowrap flex items-center gap-1.5">
+          <span>✅</span> Checklist
+        </button>
+        <button className="px-3.5 py-1.5 rounded-2xl border font-medium whitespace-nowrap flex items-center gap-1.5">
+          <span>✨</span> Spiritual
+        </button>
+        <button className="px-3.5 py-1.5 rounded-2xl border font-medium whitespace-nowrap flex items-center gap-1.5">
+          <span>💼</span> Work
+        </button>
+        <button className="px-3.5 py-1.5 rounded-2xl border font-medium whitespace-nowrap flex items-center gap-1.5">
+          <span>🌱</span> Personal
+        </button>
+      </div>
+
+      {/* MAIN QUICK NOTE CARD */}
+      <div className="mx-5 mb-4 p-5 border rounded-3xl space-y-4">
+        {/* Title Row */}
+        <div className="flex items-center justify-between">
+          <input 
+            type="text" 
+            defaultValue="Friday Family Dinner Prep" 
+            className="font-bold w-full focus:outline-none"
+          />
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"></span>
+        </div>
+        
+        {/* Color Tint Selector */}
+        <div className="flex items-center gap-3 pt-1">
+          <span className="font-medium">Tint:</span>
+          <div className="flex items-center gap-2">
+            <button className="w-6 h-6 rounded-full"></button>
+            <button className="w-6 h-6 rounded-full hover:scale-110 transition-transform"></button>
+            <button className="w-6 h-6 rounded-full hover:scale-110 transition-transform"></button>
+            <button className="w-6 h-6 rounded-full hover:scale-110 transition-transform"></button>
+            <button className="w-6 h-6 rounded-full hover:scale-110 transition-transform"></button>
+          </div>
+        </div>
+
+        {/* Body Paragraph */}
+        <p className="font-normal leading-relaxed pt-1">Pick up fresh figs, organic honey, and cardamom pods from the local market before Asr prayer. Remind Uncle Tariq about arriving at 6:30 PM. Prepare the outdoor seating with warm lanterns.</p>
+        
+        {/* Embedded Audio Player Card */}
+        <div className="p-3.5 rounded-2xl border flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button className="w-10 h-10 rounded-full flex items-center justify-center transition-colors flex-shrink-0">
+              <Play className="w-4 h-4 ml-0.5"/>
+            </button>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-bold">Audio Memo 01</h4>
+                <Mic className="w-3 h-3"/>
+                <span className="font-semibold">0:42</span>
+              </div>
+              {/* Soundwave Bars */}
+              <div className="flex items-center gap-1 mt-1.5 h-3">
+                <span className="w-1 h-3 rounded-full"></span>
+                <span className="w-1 h-2 rounded-full"></span>
+                <span className="w-1 h-4 rounded-full"></span>
+                <span className="w-1 h-1.5 rounded-full"></span>
+                <span className="w-1 h-3 rounded-full"></span>
+                <span className="w-1 h-2 rounded-full"></span>
+              </div>
+            </div>
+          </div>
+          <button className="p-1.5 transition-colors">
+            <X className="w-4 h-4"/>
+          </button>
+        </div>
+
+        {/* Embedded Photo Attachment */}
+        <div className="relative rounded-2xl overflow-hidden border group">
+          <img src="/inspiration_table.jpg" alt="Outdoor Table" className="w-full h-44 object-cover"/>
+          <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-xl backdrop-blur-md font-medium flex items-center gap-1.5">
+            <Camera className="w-3.5 h-3.5"/>
+            <span>Inspiration_Table_Setup.jpg</span>
+          </div>
+          <button className="absolute bottom-2.5 right-2.5 p-1.5 rounded-xl backdrop-blur-md transition-colors">
+            <X className="w-4 h-4"/>
+          </button>
+        </div>
+
+        {/* Editor Quick Toolbar Strip */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-2">
+            <button className="p-2 rounded-xl transition-colors"><CheckSquare className="w-4 h-4"/></button>
+            <button className="p-2 rounded-xl transition-colors"><List className="w-4 h-4"/></button>
+            <button className="p-2 rounded-xl transition-colors"><Mic className="w-4 h-4"/></button>
+            <button className="p-2 rounded-xl transition-colors"><Camera className="w-4 h-4"/></button>
+            <button className="p-2 rounded-xl transition-colors"><Tag className="w-4 h-4"/></button>
+          </div>
+          <button className="px-3 py-1.5 rounded-xl border font-semibold flex items-center gap-1.5 transition-colors">
+            <Edit3 className="w-3.5 h-3.5"/>
+            Scribble
+          </button>
+        </div>
+      </div>
+
+      {/* REMINDER SETTING CARD */}
+      <div className="mx-5 mb-4 p-4 border rounded-3xl flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Bell className="w-5 h-5"/>
+          </div>
+          <div>
+            <h4 className="font-bold">Reminder: Today at 5:00 PM</h4>
+            <p className="font-normal mt-0.5">Triggers 1 hour before Asr prayer</p>
+          </div>
+        </div>
+        <button className="px-3 py-1 rounded-xl font-semibold transition-colors">
+          Edit
+        </button>
+      </div>
+
+      {/* METADATA ROW & STANDARDIZED ACTION BUTTONS */}
+      <div className="flex items-center justify-between px-6 mb-4 font-medium">
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5"/>
+          <span>Created Today • 10:45 AM</span>
+        </div>
+        <span>48 words • 284 chars</span>
+      </div>
+
+      {/* Action Buttons Container */}
+      <div className="px-5 pb-10 space-y-3">
+        <button className="w-full py-4 px-6 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all">
+          <span>Save Quick Note</span>
+          <ArrowRight className="w-4 h-4"/>
+        </button>
+
+        <div className="flex items-center gap-3">
+          <button className="flex-1 py-3 px-4 rounded-xl border font-semibold flex items-center justify-center gap-1.5 transition-all">
+            <X className="w-4 h-4"/>
+            Cancel Changes
+          </button>
+          <button className="flex-1 py-3 px-4 rounded-xl border font-semibold flex items-center justify-center gap-1.5 transition-all">
+            <Trash2 className="w-4 h-4"/>
+            Delete Note
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
