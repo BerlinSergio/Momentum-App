@@ -1,0 +1,20 @@
+{
+  "name": "Momentum - Mindful Routine & Growth",
+  "short_name": "Momentum",
+  "description": "Mindful daily routines, habit mastery, prayer rhythms, and financial clarity.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#4f46e5",
+  "background_color": "#090d16",
+  "categories": ["lifestyle", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

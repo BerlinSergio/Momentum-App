@@ -38,4 +38,19 @@ createRoot(document.getElementById('root')).render(
       <App />
     </ErrorBoundary>
   </React.StrictMode>,
-)
+);
+
+// Register Service Worker for offline PWA support
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        console.log('Momentum SW registered successfully:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('Momentum SW registration failed:', err);
+      });
+  });
+}
+
