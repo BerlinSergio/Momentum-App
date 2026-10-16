@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { 
-  ArrowLeft, ShieldCheck, RotateCcw, KeyRound, Shield, CheckCircle2, Info, HelpCircle, Delete, ArrowRight 
+  ArrowLeft, ShieldCheck, RotateCcw, KeyRound, Shield, CheckCircle2, Info, HelpCircle, ArrowRight 
 } from 'lucide-react';
 
 export default function PinSetupChangeDarkMode({ setActiveTab }) {
@@ -86,7 +86,16 @@ export default function PinSetupChangeDarkMode({ setActiveTab }) {
             </div>
             <span className="text-[11px] font-medium text-teal-400 block pl-6 mt-0.5">Identity authenticated</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/60 shadow-xs">
+            <input 
+              aria-label="Enter Current PIN" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+              defaultValue="••••" 
+              inputMode="numeric" 
+              maxLength={4} 
+              pattern="[0-9]*" 
+              type="text"
+            />
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
@@ -103,7 +112,16 @@ export default function PinSetupChangeDarkMode({ setActiveTab }) {
             </div>
             <span className="text-[11px] font-medium text-teal-400 block pl-6 mt-0.5">High entropy matched</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/60 shadow-xs">
+            <input 
+              aria-label="New 4-Digit PIN" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+              defaultValue="••••" 
+              inputMode="numeric" 
+              maxLength={4} 
+              pattern="[0-9]*" 
+              type="text"
+            />
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
@@ -120,7 +138,16 @@ export default function PinSetupChangeDarkMode({ setActiveTab }) {
             </div>
             <span className="text-[11px] font-medium text-indigo-400 block pl-6 mt-0.5">Awaiting last digit slot</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-950/40 border border-indigo-500/30 shadow-xs">
+            <input 
+              aria-label="Confirm New PIN" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+              defaultValue="123" 
+              inputMode="numeric" 
+              maxLength={4} 
+              pattern="[0-9]*" 
+              type="text"
+            />
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
@@ -145,31 +172,7 @@ export default function PinSetupChangeDarkMode({ setActiveTab }) {
         </div>
       </div>
 
-      {/* 5. STRUCTURED NUMERIC KEYPAD CONTAINER */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="grid grid-cols-3 gap-3 text-center">
-          {[{n:'1', l:''}, {n:'2', l:'ABC'}, {n:'3', l:'DEF'},
-            {n:'4', l:'GHI'}, {n:'5', l:'JKL'}, {n:'6', l:'MNO'},
-            {n:'7', l:'PQRS'}, {n:'8', l:'TUV'}, {n:'9', l:'WXYZ'}].map((k) => (
-            <button key={k.n} className="py-3 rounded-2xl bg-slate-800/70 hover:bg-slate-700 border border-slate-700 text-white active:bg-slate-600 transition-all flex flex-col items-center justify-center active:scale-95 shadow-2xs">
-              <span className="text-xl font-bold">{k.n}</span>
-              {k.l ? <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5">{k.l}</span> : <span className="h-3.5"></span>}
-            </button>
-          ))}
-          <button className="btn-danger">
-            Clear
-          </button>
-          <button className="py-3 rounded-2xl bg-slate-800/70 hover:bg-slate-700 border border-slate-700 text-white active:bg-slate-600 transition-all flex flex-col items-center justify-center active:scale-95 shadow-2xs">
-            <span className="text-xl font-bold">0</span>
-            <span className="text-[10px] font-semibold text-slate-400 mt-0.5">+</span>
-          </button>
-          <button className="py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/50 flex items-center justify-center transition-all">
-            <Delete className="w-5 h-5"/>
-          </button>
-        </div>
-      </div>
-
-      {/* 6. SHIELD GUARDRAILS CARD */}
+      {/* 5. SHIELD GUARDRAILS CARD */}
       <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
         <h3 className="text-xs font-bold text-white uppercase tracking-wider">Shield Guardrails</h3>
         
@@ -194,7 +197,7 @@ export default function PinSetupChangeDarkMode({ setActiveTab }) {
         </div>
       </div>
 
-      {/* 7. BOTTOM ACTION BUTTONS */}
+      {/* 6. BOTTOM ACTION BUTTONS */}
       <div className="px-5 pb-10 space-y-3">
         <button className="btn-primary w-full">
           <span>Save New PIN</span>
