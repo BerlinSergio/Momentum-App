@@ -21,7 +21,7 @@ export default function CitySelectionLightMode({ setActiveTab }) {
             A
           </div>
         </div>
-      </div><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-28 space-y-4">
+      </div><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-52 space-y-4">
 {/*  Active Selection Hero Display  */}
 <section className="relative w-full rounded-3xl p-5 mb-5 overflow-hidden transition-all duration-300 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
 <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-gradient-to-br from-primary-fixed/60 via-secondary-fixed/40 to-transparent blur-2xl pointer-events-none"></div>
@@ -55,8 +55,8 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 <span className="font-body-sm text-body-sm font-medium">1,791m MSL</span>
 </div>
 </div>
-<div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-<span className="material-symbols-outlined text-primary text-[18px] mt-0.5">verified</span>
+<div className="flex flex-row items-center gap-3 p-4 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<span className="material-symbols-outlined text-primary text-[20px] flex-shrink-0">verified</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
           Accurate elevation and coordinate geocoding ensures exact astronomical solar angle calculations for prayer and fasting schedules.
         </p>
@@ -65,11 +65,11 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 </section>
 {/*  Search & Instant GPS Locate  */}
 <section className="flex flex-col">
-<div className="relative w-full">
-<span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[22px]">search</span>
-<input className="w-full py-3.5 pl-11 pr-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 placeholder:text-slate-400" id="citySearchInput" placeholder="Search city or country name..." type="search"/>
-<button aria-label="Clear query" className="btn-secondary" id="clearSearchBtn">
-<span className="material-symbols-outlined text-[14px]">close</span>
+<div className="relative flex items-center w-full mb-3">
+<span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none">search</span>
+<input className="w-full h-12 pl-12 pr-12 rounded-2xl bg-white border border-slate-200/80 shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-900 placeholder:text-slate-400" id="citySearchInput" placeholder="Search city or country name..." type="search"/>
+<button aria-label="Clear query" className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors" id="clearSearchBtn">
+<span className="material-symbols-outlined text-[16px]">close</span>
 </button>
 </div>
 {/*  GPS Button  */}
@@ -251,15 +251,15 @@ export default function CitySelectionLightMode({ setActiveTab }) {
 </div>
 </section>
 {/*  Manual Coordinates Entry Accordion  */}
-<section className="rounded-3xl p-4 mb-5 space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-<button className="w-full flex items-center justify-between text-left group" id="toggleManualFormBtn">
-<div className="flex items-center gap-2 text-primary font-headline-sm text-headline-sm">
+<section className="rounded-3xl mb-5 overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<button className="flex items-center justify-between w-full p-4 text-left group" id="toggleManualFormBtn">
+<div className="flex items-center gap-3 text-primary font-headline-sm text-headline-sm">
 <span className="material-symbols-outlined text-[20px]">tune</span>
 <span>Enter custom latitude, longitude &amp; elevation</span>
 </div>
 <span className="material-symbols-outlined text-outline transition-transform duration-200" id="accordionArrow">expand_more</span>
 </button>
-<div className="hidden mt-3 pt-3 flex-col space-y-3" id="manualForm">
+<div className="hidden px-4 pb-4 pt-1 flex-col space-y-3" id="manualForm">
 <div className="grid grid-cols-2 gap-2">
 <div className="flex flex-col space-y-1">
 <label className="font-label-sm text-label-sm text-on-surface-variant">Latitude (°N/S)</label>
