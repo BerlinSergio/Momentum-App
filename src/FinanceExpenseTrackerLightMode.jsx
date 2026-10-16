@@ -74,29 +74,29 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab }) {
           <span className="text-xs font-semibold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Spending Categories</span>
           <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700">Details</button>
         </div>
-        <div className="flex items-center gap-3 px-5 mb-5 overflow-x-auto scrollbar-none py-1">
+        <div className="flex items-center gap-3.5 px-5 mb-5 overflow-x-auto scrollbar-none pb-2 pt-1">
           {/* Housing */}
-          <div className="min-w-[130px] p-3.5 rounded-2xl transition-all flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><HomeIcon className="w-4 h-4"/></div>
-            <div>
-              <p className="text-xs font-normal text-slate-500">Housing</p>
-              <p className="text-sm font-bold text-slate-900">$1,450</p>
+          <div className="w-32 h-28 rounded-2xl transition-all flex flex-col items-center justify-center gap-2 flex-shrink-0 p-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><HomeIcon className="w-4 h-4"/></div>
+            <div className="flex flex-col items-center text-center">
+              <p className="text-xs font-normal text-slate-500 text-center">Housing</p>
+              <p className="text-sm font-bold text-slate-900 text-center">$1,450</p>
             </div>
           </div>
           {/* Food */}
-          <div className="min-w-[130px] p-3.5 rounded-2xl transition-all flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><Utensils className="w-4 h-4"/></div>
-            <div>
-              <p className="text-xs font-normal text-slate-500">Food & Dining</p>
-              <p className="text-sm font-bold text-slate-900">$820</p>
+          <div className="w-32 h-28 rounded-2xl transition-all flex flex-col items-center justify-center gap-2 flex-shrink-0 p-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><Utensils className="w-4 h-4"/></div>
+            <div className="flex flex-col items-center text-center">
+              <p className="text-xs font-normal text-slate-500 text-center">Food & Dining</p>
+              <p className="text-sm font-bold text-slate-900 text-center">$820</p>
             </div>
           </div>
           {/* Shopping */}
-          <div className="min-w-[130px] p-3.5 rounded-2xl transition-all flex items-center gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><ShoppingBag className="w-4 h-4"/></div>
-            <div>
-              <p className="text-xs font-normal text-slate-500">Shopping</p>
-              <p className="text-sm font-bold text-slate-900">$460</p>
+          <div className="w-32 h-28 rounded-2xl transition-all flex flex-col items-center justify-center gap-2 flex-shrink-0 p-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><ShoppingBag className="w-4 h-4"/></div>
+            <div className="flex flex-col items-center text-center">
+              <p className="text-xs font-normal text-slate-500 text-center">Shopping</p>
+              <p className="text-sm font-bold text-slate-900 text-center">$460</p>
             </div>
           </div>
         </div>
