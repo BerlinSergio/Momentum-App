@@ -108,17 +108,19 @@ export default function IncomeManagementDarkMode({ setActiveTab }) {
         </section>
 
         {/* Quick Actions Bar */}
-        <section className="flex items-center gap-3">
-          <button className="btn-primary">
+        <section className="flex flex-row items-center justify-between w-full gap-3">
+          <button className="btn-primary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2">
             <PlusCircle className="w-5 h-5" />
             <span>Add Income</span>
           </button>
-          <button className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-slate-800">
-            <Download className="w-5 h-5" />
-          </button>
-          <button className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-slate-800">
-            <FileText className="w-5 h-5" />
-          </button>
+          <div className="flex flex-row items-center gap-2">
+            <button aria-label="Export statement" className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-slate-800">
+              <Download className="w-5 h-5" />
+            </button>
+            <button aria-label="Statement reports" className="h-12 w-12 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-slate-800">
+              <FileText className="w-5 h-5" />
+            </button>
+          </div>
         </section>
 
         {/* Search & Filter Controls */}
