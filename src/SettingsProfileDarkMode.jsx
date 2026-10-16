@@ -298,20 +298,20 @@ export default function SettingsProfileDarkMode({ setActiveTab }) {
 
           <div className="h-px bg-white/10 w-full my-1"></div>
 
-          <button className="btn-danger w-full">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center">
+          <div className="flex flex-row items-center justify-between w-full p-3 rounded-2xl transition-colors bg-rose-500/90 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20 border border-rose-400/30 backdrop-blur-sm group">
+            <div className="flex flex-row items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center shrink-0">
                 <Database className="w-4 h-4"/>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-red-400">Clear Local Database</p>
-                <p className="text-[11px] font-normal text-red-400/70">Erase cached logs and temporary files</p>
+              <div className="text-left">
+                <p className="text-xs font-semibold text-white">Clear Local Database</p>
+                <p className="text-[11px] font-normal text-rose-100">Erase cached logs and temporary files</p>
               </div>
             </div>
-            <span className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-[11px] font-semibold group-hover:bg-red-500/30 transition-colors">
+            <button className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 text-[11px] font-semibold transition-colors shadow-sm shrink-0">
               Reset
-            </span>
-          </button>
+            </button>
+          </div>
         </div>
       </div>
 
