@@ -29,14 +29,14 @@ export default function AddEditExpenseLightMode({ setActiveTab }) {
         </div>
       </div><main className="flex-1 w-full bg-transparent pb-safe px-margin"><div className="flex flex-col w-full pb-28 space-y-4">
 {/*  Mode Pill & Quick Context Indicator  */}
-<div className="flex items-center justify-between px-1">
-<div className="flex items-center gap-space-xs bg-slate-100 border border-slate-200/80 px-3 py-1.5 rounded-full shadow-sm">
+<div className="flex flex-row items-center justify-between w-full px-1">
+<div className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-slate-100 border border-slate-200/80 shadow-sm whitespace-nowrap shrink-0">
 <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
 <span className="font-label-sm text-label-sm text-slate-800 font-medium tracking-wide" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>EDITING TRANSACTION</span>
 <span className="font-label-sm text-label-sm text-indigo-950 font-bold ml-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>#TX-8924</span>
 </div>
-<button className="btn-danger" id="delete-header-btn" type="button">
-<span className="material-symbols-outlined text-[15px]">delete</span>
+<button className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-label-sm text-label-sm font-semibold shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap shrink-0" id="delete-header-btn" type="button">
+<span className="material-symbols-outlined text-[16px]">delete</span>
 <span className="font-label-sm text-label-sm font-semibold">Delete</span>
 </button>
 </div>

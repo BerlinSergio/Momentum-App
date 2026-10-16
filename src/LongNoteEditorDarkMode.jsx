@@ -33,16 +33,16 @@ export default function LongNoteEditorDarkMode({ setActiveTab }) {
       </div>
       
       {/* Timestamp & Pinned Row */}
-      <div className="flex items-center justify-between px-5 py-2.5">
-        <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+      <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
+        <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 shadow-sm">
           <CloudCheck className="w-4 h-4 text-slate-500"/>
           Saved • Oct 24, 2026, 11:20 AM
         </span>
         <div className="flex items-center gap-2">
-          <button className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800">
+          <button className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-800 transition-colors" type="button">
             <Eye className="w-4 h-4"/>
           </button>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-violet-500/15 border border-violet-500/30 text-violet-300 flex items-center gap-1">
+          <span className="h-9 px-3 rounded-full text-xs font-bold bg-violet-500/15 border border-violet-500/30 text-violet-300 inline-flex items-center justify-center gap-1 shadow-sm">
             <Pin className="w-3.5 h-3.5 text-violet-400 rotate-45"/>
             Pinned
           </span>

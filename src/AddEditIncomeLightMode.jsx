@@ -24,15 +24,15 @@ export default function AddEditIncomeLightMode({ setActiveTab }) {
       </div><main className="flex-1 w-full bg-surface pb-safe px-margin"><div className="w-full max-w-md mx-auto px-4 py-4 space-y-5 pb-20 flex flex-col select-none">
 {/*  Status Badge & Mode Switch Bar  */}
 <div className="flex flex-row items-center justify-center gap-2 w-full flex-wrap">
-<span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
+<span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm">
 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
 <span id="mode-text" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>&bull; NEW ENTRY #1</span>
 </span>
-<span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">
+<span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm">
 <span className="material-symbols-outlined text-[16px]">check</span>
 <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>&bull; AUTO-CATEGORIZED</span>
 </span>
-<button className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-slate-700 hover:text-slate-900 transition-all text-xs font-semibold bg-slate-100 border border-slate-200 hover:bg-slate-200 active:scale-95" id="clear-btn" type="button">
+<button className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-slate-700 hover:text-slate-900 transition-all text-xs font-semibold bg-slate-100 border border-slate-200 hover:bg-slate-200 active:scale-95 shadow-sm" id="clear-btn" type="button">
 <span className="material-symbols-outlined text-[16px]">restart_alt</span>
 <span>Reset</span>
 </button>

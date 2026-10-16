@@ -36,12 +36,12 @@ export default function TasbeehHistoryLightMode({ setActiveTab }) {
 
         {/* 2. SUB-BAR: DATE & DESCRIPTION */}
         <div className="px-5 pt-2 pb-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/70 px-3 py-1 rounded-full shadow-2xs">
+          <div className="flex flex-row items-center justify-between w-full mb-1.5">
+            <div className="h-9 px-3.5 rounded-full flex items-center justify-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/70 shadow-sm">
               <Calendar className="w-3.5 h-3.5 text-indigo-600"/>
               <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Today • Oct 24, 2026</span>
             </div>
-            <button className="p-2 rounded-xl bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 shadow-2xs transition-colors">
+            <button className="h-9 w-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center transition-colors active:scale-95" type="button">
               <SlidersHorizontal className="w-4 h-4"/>
             </button>
           </div>

@@ -24,15 +24,15 @@ export default function AddEditIncomeDarkMode({ setActiveTab }) {
       </div><main className="flex-1 w-full bg-surface pb-safe px-margin"><div className="w-full max-w-md mx-auto px-4 py-4 space-y-5 pb-20 flex flex-col select-none">
 {/*  Status Badge & Mode Switch Bar  */}
 <div className="flex flex-row items-center justify-center gap-2 w-full flex-wrap">
-<span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+<span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold shadow-sm">
 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
 <span id="mode-text">&bull; NEW ENTRY #1</span>
 </span>
-<span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+<span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-sm">
 <span className="material-symbols-outlined text-[16px]">check</span>
 <span>&bull; AUTO-CATEGORIZED</span>
 </span>
-<button className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-slate-300 hover:text-white transition-all text-xs font-semibold bg-slate-800/80 border border-slate-700/80 hover:bg-slate-700/80 active:scale-95" id="clear-btn" type="button">
+<button className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-slate-300 hover:text-white transition-all text-xs font-semibold bg-slate-800/80 border border-slate-700/80 hover:bg-slate-700/80 active:scale-95 shadow-sm" id="clear-btn" type="button">
 <span className="material-symbols-outlined text-[16px]">restart_alt</span>
 <span>Reset</span>
 </button>

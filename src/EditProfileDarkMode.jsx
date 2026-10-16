@@ -35,11 +35,11 @@ export default function EditProfileDarkMode({ setActiveTab }) {
             <img src="/path-to-avatar.jpg" alt="Profile" className="w-full h-full object-cover" />
           </div>
           <div className="flex items-center justify-center gap-3 mt-3">
-            <button className="px-4 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-500/25 transition-all flex items-center gap-1.5 shadow-sm">
+            <button className="h-9 px-4 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-semibold text-xs hover:bg-indigo-500/25 transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95" type="button">
               <Pencil className="w-3.5 h-3.5"/>
               Change Photo
             </button>
-            <button className="btn-danger">
+            <button className="h-9 px-4 rounded-xl bg-rose-500/90 hover:bg-rose-600 text-white font-semibold text-xs shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all flex items-center justify-center gap-1.5 active:scale-95" type="button">
               <Trash2 className="w-3.5 h-3.5"/>
               Remove
             </button>

@@ -33,16 +33,16 @@ export default function LongNoteEditorLightMode({ setActiveTab }) {
       </div>
       
       {/* Timestamp & Pinned Row */}
-      <div className="flex items-center justify-between px-5 py-2.5">
-        <span className="text-xs font-semibold text-indigo-950 font-semibold flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
+      <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
+        <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-100 border border-slate-200/80 text-slate-800 shadow-sm" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
           <CloudCheck className="w-4 h-4 text-slate-400"/>
           Saved • Oct 24, 2026, 11:20 AM
         </span>
         <div className="flex items-center gap-2">
-          <button className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100">
+          <button className="h-9 w-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors" type="button">
             <Eye className="w-4 h-4"/>
           </button>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-violet-50 border border-violet-200/80 text-violet-700 flex items-center gap-1 text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+          <span className="h-9 px-3 rounded-full text-xs font-bold bg-violet-50 border border-violet-200/80 text-violet-700 inline-flex items-center justify-center gap-1 shadow-sm text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             <Pin className="w-3.5 h-3.5 text-violet-600 rotate-45"/>
             Pinned
           </span>

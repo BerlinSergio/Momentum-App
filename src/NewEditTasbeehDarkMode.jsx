@@ -31,16 +31,17 @@ export default function NewEditTasbeehDarkMode({ setActiveTab }) {
       </div>
 
       {/* Sub-bar */}
-      <div className="flex items-center justify-between px-5 pt-2 pb-4">
+      <div className="flex flex-row items-center justify-between w-full px-5 pt-2 pb-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-900/50 border border-indigo-800/80 text-indigo-300">
+          <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-xs font-bold bg-indigo-900/50 border border-indigo-800/80 text-indigo-300 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
             NEW DHIKR
           </span>
           <span className="text-xs font-medium text-slate-400">Custom Counter</span>
         </div>
-        <button className="p-1.5 rounded-xl text-slate-500 hover:text-indigo-400 hover:bg-slate-800 transition-colors">
-          <RotateCcw className="w-4 h-4"/>
+        <button className="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-indigo-400 hover:bg-slate-700/80 transition-colors shadow-sm active:scale-95" type="button">
+          <RotateCcw className="w-3.5 h-3.5"/>
+          <span>Reset</span>
         </button>
       </div>
 

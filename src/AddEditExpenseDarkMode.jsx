@@ -29,14 +29,14 @@ export default function AddEditExpenseDarkMode({ setActiveTab }) {
         </div>
       </div><main className="flex-1 w-full bg-transparent pb-safe px-margin"><div className="flex flex-col w-full pb-28 space-y-4">
 {/*  Mode Pill & Quick Context Indicator  */}
-<div className="flex items-center justify-between px-1">
-<div className="flex items-center gap-space-xs bg-[#131b2c]/80 border border-white/10 px-3 py-1.5 rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.3)]">
+<div className="flex flex-row items-center justify-between w-full px-1">
+<div className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-[#131b2c]/80 border border-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.3)] whitespace-nowrap shrink-0">
 <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
 <span className="font-label-sm text-label-sm text-slate-400 font-medium tracking-wide">EDITING TRANSACTION</span>
 <span className="font-label-sm text-label-sm text-indigo-300 font-bold ml-0.5">#TX-8924</span>
 </div>
-<button className="btn-danger" id="delete-header-btn" type="button">
-<span className="material-symbols-outlined text-[15px]">delete</span>
+<button className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-label-sm text-label-sm font-semibold shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap shrink-0" id="delete-header-btn" type="button">
+<span className="material-symbols-outlined text-[16px]">delete</span>
 <span className="font-label-sm text-label-sm font-semibold">Delete</span>
 </button>
 </div>

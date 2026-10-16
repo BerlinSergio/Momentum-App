@@ -31,16 +31,17 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       </div>
 
       {/* Sub-bar */}
-      <div className="flex items-center justify-between px-5 pt-2 pb-4">
+      <div className="flex flex-row items-center justify-between w-full px-5 pt-2 pb-4">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+          <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-xs font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-950 shadow-sm" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
             NEW DHIKR
           </span>
           <span className="text-xs font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Custom Counter</span>
         </div>
-        <button className="p-1.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors">
-          <RotateCcw className="w-4 h-4"/>
+        <button className="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-100 border border-slate-200/80 text-slate-600 hover:text-indigo-600 hover:bg-slate-200 transition-colors shadow-sm active:scale-95" type="button">
+          <RotateCcw className="w-3.5 h-3.5"/>
+          <span>Reset</span>
         </button>
       </div>
 

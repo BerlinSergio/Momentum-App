@@ -23,18 +23,19 @@ export default function AddEditRoutineDarkMode({ setActiveTab }) {
         </div>
       </div><main className="flex-1 w-full max-w-md mx-auto px-4 py-4 space-y-5 pb-20">
   {/* Header Status Bar */}
-  <div className="flex items-center justify-between px-2 pt-2">
-    <div className="flex items-center gap-2">
-      <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-300 font-medium text-xs shadow-sm flex items-center gap-1.5 border border-slate-700/60">
+  <div className="flex flex-row items-center justify-between w-full px-1 pt-2">
+    <div className="flex items-center gap-1.5">
+      <span className="h-9 px-3 rounded-full bg-slate-800 text-slate-300 font-medium text-xs shadow-sm flex items-center justify-center gap-1.5 border border-slate-700/60 whitespace-nowrap shrink-0">
         <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
         ROUTINE #RT-402
       </span>
-      <span className="px-3 py-1 rounded-full bg-indigo-900/30 text-indigo-400 font-medium text-xs border border-indigo-800/50">
+      <span className="h-9 px-2.5 rounded-full bg-indigo-900/30 text-indigo-400 font-medium text-xs border border-indigo-800/50 flex items-center justify-center whitespace-nowrap shrink-0">
         Draft Changes
       </span>
     </div>
-    <button aria-label="Delete Routine" className="btn-danger" type="button">
-      <span className="material-symbols-outlined text-[18px]">delete</span>
+    <button aria-label="Delete Routine" className="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-medium text-xs shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap shrink-0" type="button">
+      <span className="material-symbols-outlined text-[16px]">delete</span>
+      <span>Delete</span>
     </button>
   </div>
 

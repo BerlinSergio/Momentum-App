@@ -32,15 +32,15 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
       </div>
 
       {/* 2. AUTOSAVED & QUICK UTILITIES SUB-BAR */}
-      <div className="flex items-center justify-between px-5 py-2">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 border border-emerald-200/80 text-emerald-700 shadow-2xs text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
+      <div className="flex flex-row items-center justify-between w-full px-5 py-2">
+        <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-50 border border-emerald-200/80 text-emerald-700 shadow-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
           <Sparkles className="w-3.5 h-3.5 text-emerald-600"/>
           Autosaved • 10:45 AM
         </span>
         <div className="flex items-center gap-1 text-slate-500">
-          <button className="p-2 rounded-xl hover:bg-slate-100 transition-colors"><Pin className="w-4 h-4 text-slate-600"/></button>
-          <button className="p-2 rounded-xl hover:bg-slate-100 transition-colors"><Palette className="w-4 h-4 text-slate-600"/></button>
-          <button className="p-2 rounded-xl hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors"><Trash2 className="w-4 h-4"/></button>
+          <button className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors" type="button"><Pin className="w-4 h-4 text-slate-600"/></button>
+          <button className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors" type="button"><Palette className="w-4 h-4 text-slate-600"/></button>
+          <button className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors" type="button"><Trash2 className="w-4 h-4"/></button>
         </div>
       </div>
 

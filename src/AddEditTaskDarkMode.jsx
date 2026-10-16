@@ -29,12 +29,13 @@ export default function AddEditTaskDarkMode({ setActiveTab }) {
   </div>
 
   {/* Status Bar */}
-  <div className="flex items-center justify-between px-2 pt-2">
-    <span className="rounded-full px-3 py-1 bg-slate-900/80 border border-slate-800 text-teal-400 text-xs font-medium">
+  <div className="flex flex-row items-center justify-between w-full px-2 pt-2">
+    <span className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-slate-900/80 border border-slate-800 text-teal-400 text-xs font-medium shadow-sm whitespace-nowrap shrink-0">
       &bull; EDITING TASK #1
     </span>
-    <button aria-label="Delete Task" className="btn-danger" type="button">
-      <span className="material-symbols-outlined text-[18px]">delete</span>
+    <button aria-label="Delete Task" className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-medium text-xs shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap shrink-0" type="button">
+      <span className="material-symbols-outlined text-[16px]">delete</span>
+      <span>Delete</span>
     </button>
   </div>
 
