@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import {
   CheckSquare,
@@ -16,9 +16,11 @@ import {
 } from 'lucide-react';
 
 export default function TasksRemindersLightMode1() {
+  const [activeFilter, setActiveFilter] = useState('today');
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between select-none">
-      <div className="flex-1 overflow-y-auto pb-28">
+      <div className="flex-1 overflow-y-auto pb-36">
         
         {/* Top Header & Title Row */}
         <div className="flex items-center justify-between px-5 pt-6 pb-2">
@@ -91,13 +93,22 @@ export default function TasksRemindersLightMode1() {
 
         {/* Filter Pills */}
         <div className="flex items-center gap-2 px-5 mb-5">
-          <button className="flex-1 py-2 px-3 rounded-2xl bg-indigo-600 text-white text-xs font-semibold shadow-sm text-center">
+          <button 
+            onClick={() => setActiveFilter('today')}
+            className={`flex-1 py-2 px-3 rounded-2xl text-xs font-semibold shadow-sm text-center transition-all active:scale-95 cursor-pointer select-none ${activeFilter === 'today' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50'}`}
+          >
             Today (5)
           </button>
-          <button className="flex-1 py-2 px-3 rounded-2xl bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 text-xs font-semibold shadow-sm text-center transition-colors">
+          <button 
+            onClick={() => setActiveFilter('upcoming')}
+            className={`flex-1 py-2 px-3 rounded-2xl text-xs font-semibold shadow-sm text-center transition-all active:scale-95 cursor-pointer select-none ${activeFilter === 'upcoming' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50'}`}
+          >
             Upcoming (4)
           </button>
-          <button className="flex-1 py-2 px-3 rounded-2xl bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 text-xs font-semibold shadow-sm text-center transition-colors">
+          <button 
+            onClick={() => setActiveFilter('done')}
+            className={`flex-1 py-2 px-3 rounded-2xl text-xs font-semibold shadow-sm text-center transition-all active:scale-95 cursor-pointer select-none ${activeFilter === 'done' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50'}`}
+          >
             Done (8)
           </button>
         </div>
@@ -105,98 +116,118 @@ export default function TasksRemindersLightMode1() {
         {/* Today's Focus Section & Task Tiles */}
         <div className="flex items-center justify-between px-5 mb-3">
           <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Today's Focus</h3>
-          <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Sort by Time</button>
+          <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 active:scale-95 transition-all cursor-pointer select-none">Sort by Time</button>
         </div>
 
-        <div className="px-5 space-y-3 mb-6">
-          {/* Task 1 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between opacity-80 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-indigo-500" />
-              <div>
-                <span className="line-through text-xs font-medium text-slate-400 block">Morning workout & stretch</span>
-                <span className="text-[10px] text-slate-400 mt-0.5 block">🕒 7:00 AM • 🔔 6:50 AM</span>
-              </div>
+        {activeFilter === 'done' ? (
+          <div className="mx-5 my-4 p-8 rounded-3xl border backdrop-blur-xl flex flex-col items-center justify-center text-center bg-white/60 border-white/60 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-indigo-50/80 text-indigo-600">
+              <CheckCircle2 className="w-8 h-8"/>
             </div>
+            <h3 className="text-base font-semibold mb-1 text-slate-900">
+              All Caught Up!
+            </h3>
+            <p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-600">
+              No pending completed tasks to archive. Enjoy your mindful peace.
+            </p>
+            <button 
+              onClick={() => setActiveFilter('today')}
+              className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-indigo-600 text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
+            >
+              Back to Today
+            </button>
           </div>
-
-          {/* Task 2 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <Circle className="w-5 h-5 text-violet-500" />
-              <div>
-                <span className="text-xs font-semibold text-slate-900 block">Review Q4 product roadmap</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-600 uppercase">#Work</span>
-                  <span className="text-[10px] text-slate-500">🕒 11:00 AM • 🔔 15m before</span>
+        ) : (
+          <div className="px-5 space-y-3 mb-6">
+            {/* Task 1 */}
+            <div className="p-3.5 rounded-2xl flex items-center justify-between opacity-80 transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-indigo-500" />
+                <div>
+                  <span className="line-through text-xs font-medium text-slate-400 block">Morning workout & stretch</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">🕒 7:00 AM • 🔔 6:50 AM</span>
                 </div>
               </div>
             </div>
-            <button className="p-1 rounded-full text-slate-400 hover:bg-slate-50">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          </div>
 
-          {/* Task 3 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors relative overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <Circle className="w-5 h-5 text-teal-500" />
-              <div>
-                <span className="text-xs font-semibold text-slate-900 block">Dhuhr Prayer & reflection</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-600 uppercase">#Spiritual</span>
-                  <span className="text-[10px] text-slate-500">🕒 1:05 PM • 🔔 Adhan chime</span>
+            {/* Task 2 */}
+            <div className="p-3.5 rounded-2xl flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
+              <div className="flex items-center gap-3">
+                <Circle className="w-5 h-5 text-violet-500" />
+                <div>
+                  <span className="text-xs font-semibold text-slate-900 block">Review Q4 product roadmap</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 text-violet-600 uppercase">#Work</span>
+                    <span className="text-[10px] text-slate-500">🕒 11:00 AM • 🔔 15m before</span>
+                  </div>
                 </div>
               </div>
+              <button aria-label="Task options" className="p-1 rounded-full text-slate-400 hover:bg-slate-50 active:scale-90 transition-transform cursor-pointer select-none">
+                <MoreVertical className="w-4 h-4" />
+              </button>
             </div>
-            <button className="p-1.5 rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100">
-              <Bell className="w-3.5 h-3.5" />
-            </button>
-          </div>
 
-          {/* Task 4 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <Droplet className="w-5 h-5 text-cyan-500" />
-              <div>
-                <span className="text-xs font-semibold text-slate-900 block">Drink 2L daily water quota</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-50 text-cyan-600 uppercase">3/4 DONE</span>
-                  <span className="text-[10px] text-slate-500">🕒 Throughout day • 🔔 Hourly</span>
+            {/* Task 3 */}
+            <div className="p-3.5 rounded-2xl flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none relative overflow-hidden bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
+              <div className="flex items-center gap-3">
+                <Circle className="w-5 h-5 text-teal-500" />
+                <div>
+                  <span className="text-xs font-semibold text-slate-900 block">Dhuhr Prayer & reflection</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-50 text-teal-600 uppercase">#Spiritual</span>
+                    <span className="text-[10px] text-slate-500">🕒 1:05 PM • 🔔 Adhan chime</span>
+                  </div>
                 </div>
               </div>
+              <button aria-label="Notification chime" className="p-1.5 rounded-full bg-slate-50 text-slate-600 hover:bg-slate-100 active:scale-90 transition-transform cursor-pointer select-none">
+                <Bell className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <button className="py-1 px-2.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-bold">
-              +250ml
-            </button>
-          </div>
 
-          {/* Task 5 */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between transition-colors bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <Circle className="w-5 h-5 text-slate-500" />
-              <div>
-                <span className="text-xs font-semibold text-slate-900 block">Grocery run & meal prep</span>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-600 uppercase">#Personal</span>
-                  <span className="text-[10px] text-slate-500">🕒 5:30 PM • 🔔 At arrival</span>
+            {/* Task 4 */}
+            <div className="p-3.5 rounded-2xl flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
+              <div className="flex items-center gap-3">
+                <Droplet className="w-5 h-5 text-cyan-500" />
+                <div>
+                  <span className="text-xs font-semibold text-slate-900 block">Drink 2L daily water quota</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-50 text-cyan-600 uppercase">3/4 DONE</span>
+                    <span className="text-[10px] text-slate-500">🕒 Throughout day • 🔔 Hourly</span>
+                  </div>
                 </div>
               </div>
+              <button className="py-1 px-2.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-[10px] font-bold active:scale-95 transition-all cursor-pointer select-none">
+                +250ml
+              </button>
             </div>
-            <button className="p-1 rounded-full text-slate-400 hover:bg-slate-50">
-              <MoreVertical className="w-4 h-4" />
-            </button>
+
+            {/* Task 5 */}
+            <div className="p-3.5 rounded-2xl flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
+              <div className="flex items-center gap-3">
+                <Circle className="w-5 h-5 text-slate-500" />
+                <div>
+                  <span className="text-xs font-semibold text-slate-900 block">Grocery run & meal prep</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-600 uppercase">#Personal</span>
+                    <span className="text-[10px] text-slate-500">🕒 5:30 PM • 🔔 At arrival</span>
+                  </div>
+                </div>
+              </div>
+              <button aria-label="Task options" className="p-1 rounded-full text-slate-400 hover:bg-slate-50 active:scale-90 transition-transform cursor-pointer select-none">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Upcoming Days Section */}
         <div className="block mx-5 p-5 rounded-3xl space-y-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Upcoming Days</h3>
-            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">View Week</button>
+            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 active:scale-95 transition-all cursor-pointer select-none">View Week</button>
           </div>
 
-          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+          <div className="p-3 rounded-2xl flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-slate-100 text-slate-600">
                 <span className="text-[8px] font-bold uppercase">Tue</span>
@@ -210,7 +241,7 @@ export default function TasksRemindersLightMode1() {
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </div>
 
-          <div className="p-3 rounded-2xl flex items-center justify-between transition-colors cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+          <div className="p-3 rounded-2xl flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none bg-white/70 hover:bg-white/80 backdrop-blur-md border border-white/80 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-slate-100 text-slate-600">
                 <span className="text-[8px] font-bold uppercase">Wed</span>
@@ -232,7 +263,7 @@ export default function TasksRemindersLightMode1() {
                 <p className="text-[10px] text-slate-400">Fajr prayer, Journaling, Hydration...</p>
               </div>
             </div>
-            <button className="px-3 py-1 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors">
+            <button className="px-3 py-1 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 active:scale-95 transition-all cursor-pointer select-none">
               Restore
             </button>
           </div>

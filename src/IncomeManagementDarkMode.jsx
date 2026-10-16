@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { 
-  ArrowLeft, SlidersHorizontal, User, Calendar, ChevronDown, Info, TrendingUp, CalendarClock, PlusCircle, Download, FileText, Search, Building2, Palette, Store, Award, Repeat, Edit2, Trash2, Building, Sparkles, PartyPopper, Leaf, Home, Wallet, Plus, CheckSquare, Grid 
+  ArrowLeft, SlidersHorizontal, User, Calendar, ChevronDown, Info, TrendingUp, CalendarClock, PlusCircle, Download, FileText, Search, Building2, Palette, Store, Award, Repeat, Edit2, Trash2, Building, Sparkles, PartyPopper, Leaf, Home, Wallet, Plus, CheckSquare, Grid, SearchX 
 } from 'lucide-react';
 
 export default function IncomeManagementDarkMode({ setActiveTab }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const hasMatch = searchQuery.trim() === '' || 'techcorp solutions mobile app ui design e-commerce royalty performance incentive freelance bonus salary'.includes(searchQuery.toLowerCase().trim());
+
   return (
-    <div className="min-h-screen bg-slate-950 font-sans pb-24">
+    <div className="min-h-screen bg-slate-950 font-sans pb-36">
       {/* Top Header */}
       <div className="flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
@@ -109,7 +112,10 @@ export default function IncomeManagementDarkMode({ setActiveTab }) {
 
         {/* Quick Actions Bar */}
         <section className="flex flex-row items-center justify-between w-full gap-3">
-          <button className="btn-primary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2">
+          <button 
+            onClick={() => setActiveTab && setActiveTab('add_edit_income_dark_mode')}
+            className="btn-primary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2"
+          >
             <PlusCircle className="w-5 h-5" />
             <span>Add Income</span>
           </button>
@@ -128,35 +134,37 @@ export default function IncomeManagementDarkMode({ setActiveTab }) {
           <div className="flex-1 relative flex items-center">
             <Search className="absolute left-3 w-5 h-5 text-slate-500" />
             <input 
-              className="w-full h-11 pl-10 pr-4 bg-slate-900 border border-slate-800 rounded-2xl text-white placeholder:text-slate-500 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40 shadow-sm transition-all" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-11 pl-10 pr-4 bg-slate-900 border border-slate-800 rounded-2xl text-white placeholder:text-slate-500 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm transition-all" 
               placeholder="Search income sources or notes..." 
               type="text"
             />
           </div>
           <button className="h-11 px-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-300 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform hover:bg-slate-800">
-            <Calendar className="w-4 h-4 text-slate-400" />
+            <Calendar className="w-4 h-4 text-slate-500" />
             <span className="text-sm font-semibold">Date</span>
           </button>
         </div>
 
         {/* Source Filter Tabs (Horizontal Scrollable) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-5 px-5 no-scrollbar">
-          <button className="shrink-0 px-4 py-2 rounded-full bg-white text-slate-900 text-sm font-semibold shadow-sm whitespace-nowrap">
+          <button className="shrink-0 px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-semibold shadow-sm whitespace-nowrap active:scale-95 transition-all cursor-pointer select-none">
             All Sources (5)
           </button>
-          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:bg-slate-700 whitespace-nowrap">
+          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none whitespace-nowrap">
             Salary (1)
           </button>
-          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:bg-slate-700 whitespace-nowrap">
+          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none whitespace-nowrap">
             Freelance (2)
           </button>
-          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:bg-slate-700 whitespace-nowrap">
+          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none whitespace-nowrap">
             Business (1)
           </button>
-          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:bg-slate-700 whitespace-nowrap">
+          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-sm font-medium shadow-sm hover:bg-slate-800 active:scale-95 transition-all cursor-pointer select-none whitespace-nowrap">
             Bonus (1)
           </button>
-          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-500 text-sm font-medium shadow-sm active:bg-slate-700 whitespace-nowrap opacity-60">
+          <button className="shrink-0 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 text-slate-500 text-sm font-medium shadow-sm active:scale-95 transition-all cursor-pointer select-none whitespace-nowrap opacity-60">
             Other (0)
           </button>
         </div>
@@ -164,158 +172,180 @@ export default function IncomeManagementDarkMode({ setActiveTab }) {
         {/* Detailed Income Feed */}
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-500 tracking-wider uppercase">This Month • October 2026</span>
-            <span className="text-xs font-semibold text-slate-400">4 Transactions</span>
+            <span className="text-xs font-bold text-slate-400 tracking-wider uppercase">This Month • October 2026</span>
+            <span className="text-xs font-semibold text-slate-400 font-semibold">4 Transactions</span>
           </div>
 
-          {/* Item 1: TechCorp Salary */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-indigo-400" />
+          {!hasMatch ? (
+            <div className="w-full my-4 p-8 rounded-3xl border backdrop-blur-xl flex flex-col items-center justify-center text-center bg-slate-900/60 border-white/10 shadow-sm">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-indigo-500/10 text-indigo-400">
+                <SearchX className="w-8 h-8"/>
+              </div>
+              <h3 className="text-base font-semibold mb-1 text-white">
+                No Income Streams Found
+              </h3>
+              <p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-400">
+                No income records match your current search query. Try clearing the filter.
+              </p>
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-indigo-600 text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
+              >
+                Clear Search Filter
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Item 1: TechCorp Salary */}
+              <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5 text-indigo-400" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-base font-bold text-white truncate">TechCorp Solutions</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full shrink-0">Salary</span>
+                        <span className="text-xs font-medium text-slate-400 truncate">Oct 01, 2026</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-lg font-bold text-emerald-400">+$5,000.00</span>
+                    <span className="text-xs font-medium text-slate-500">Cleared</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-white">TechCorp Solutions</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">Salary</span>
-                    <span className="text-xs font-medium text-slate-400">Oct 01, 2026</span>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">
+                    <Repeat className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-xs font-medium text-slate-400">Monthly recurring (Day 1)</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button aria-label="Edit income" className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-800 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button aria-label="Delete income" className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/25 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end">
-                <span className="text-lg font-bold text-emerald-400">+$5,000.00</span>
-                <span className="text-xs font-medium text-slate-400">Cleared</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
-              <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700/50 px-2.5 py-1 rounded-full">
-                <Repeat className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-medium text-slate-300">Monthly recurring (Day 1)</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="w-8 h-8 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-colors">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/20 active:scale-95 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Item 2: Mobile App UI Design */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center shrink-0">
-                  <Palette className="w-5 h-5 text-fuchsia-400" />
+              {/* Item 2: Mobile App UI Design */}
+              <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-11 h-11 rounded-2xl bg-fuchsia-500/15 border border-fuchsia-500/20 flex items-center justify-center shrink-0">
+                      <Palette className="w-5 h-5 text-fuchsia-400" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-base font-bold text-white truncate">Mobile App UI Design</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-300 px-2 py-0.5 rounded-full shrink-0">Freelance</span>
+                        <span className="text-xs font-medium text-slate-400 truncate">Oct 14, 2026</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-lg font-bold text-emerald-400">+$650.00</span>
+                    <span className="text-xs font-medium text-slate-500">Invoice #1042</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-white">Mobile App UI Design</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold bg-fuchsia-500/20 text-fuchsia-300 px-2 py-0.5 rounded-full">Freelance</span>
-                    <span className="text-xs font-medium text-slate-400">Oct 14, 2026</span>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">
+                    <Building className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-xs font-medium text-slate-400">Client: Aura Labs</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button aria-label="Edit income" className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-800 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button aria-label="Delete income" className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/25 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end">
-                <span className="text-lg font-bold text-emerald-400">+$650.00</span>
-                <span className="text-xs font-medium text-slate-400">Invoice #1042</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
-              <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700/50 px-2.5 py-1 rounded-full">
-                <Building className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-medium text-slate-300">Client: Aura Labs</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="w-8 h-8 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-colors">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/20 active:scale-95 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Item 3: E-commerce Store Royalty */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                  <Store className="w-5 h-5 text-amber-400" />
+              {/* Item 3: E-commerce Store Royalty */}
+              <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center shrink-0">
+                      <Store className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-base font-bold text-white truncate">E-commerce Royalty</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full shrink-0">Business</span>
+                        <span className="text-xs font-medium text-slate-400 truncate">Oct 18, 2026</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-lg font-bold text-emerald-400">+$350.00</span>
+                    <span className="text-xs font-medium text-slate-500">Stripe Payout</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-white">E-commerce Royalty</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Business</span>
-                    <span className="text-xs font-medium text-slate-400">Oct 18, 2026</span>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span className="text-xs font-medium text-slate-400">Digital Design Assets</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button aria-label="Edit income" className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-800 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button aria-label="Delete income" className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/25 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end">
-                <span className="text-lg font-bold text-emerald-400">+$350.00</span>
-                <span className="text-xs font-medium text-slate-400">Stripe Payout</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
-              <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700/50 px-2.5 py-1 rounded-full">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-xs font-medium text-slate-300">Digital Design Assets</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="w-8 h-8 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-colors">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/20 active:scale-95 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Item 4: Q3 Performance Incentive */}
-          <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
-                  <Award className="w-5 h-5 text-sky-400" />
+              {/* Item 4: Q3 Performance Incentive */}
+              <div className="w-full rounded-3xl p-4 flex flex-col gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-11 h-11 rounded-2xl bg-sky-500/15 border border-sky-500/20 flex items-center justify-center shrink-0">
+                      <Award className="w-5 h-5 text-sky-400" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-base font-bold text-white truncate">Q3 Performance Incentive</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full shrink-0">Bonus</span>
+                        <span className="text-xs font-medium text-slate-400 truncate">Oct 20, 2026</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end shrink-0">
+                    <span className="text-lg font-bold text-emerald-400">+$200.00</span>
+                    <span className="text-xs font-medium text-slate-500">One-time payout</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-white">Q3 Performance Incentive</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded-full">Bonus</span>
-                    <span className="text-xs font-medium text-slate-400">Oct 20, 2026</span>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-full">
+                    <PartyPopper className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                    <span className="text-xs font-medium text-slate-400">Team KPI Completion</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button aria-label="Edit income" className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-800 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button aria-label="Delete income" className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/25 active:scale-90 transition-transform cursor-pointer select-none">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col items-end">
-                <span className="text-lg font-bold text-emerald-400">+$200.00</span>
-                <span className="text-xs font-medium text-slate-400">One-time payout</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
-              <div className="flex items-center gap-1.5 bg-slate-800/50 border border-slate-700/50 px-2.5 py-1 rounded-full">
-                <PartyPopper className="w-3.5 h-3.5 text-sky-400" />
-                <span className="text-xs font-medium text-slate-300">Team KPI Completion</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="w-8 h-8 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-400 flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-colors">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500/20 active:scale-95 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </section>
 
         {/* Ambient Inspiration Quote Pill */}
         <div className="w-full rounded-3xl p-5 flex items-center gap-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-          <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-teal-500/15 border border-teal-500/20 flex items-center justify-center shrink-0">
             <Leaf className="w-5 h-5 text-teal-400" />
           </div>
           <div className="flex flex-col">
@@ -349,7 +379,7 @@ export default function IncomeManagementDarkMode({ setActiveTab }) {
           
           {/* Center Action Button (+) */}
           <div className="relative -top-5 flex items-center justify-center">
-            <button className="w-14 h-14 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 active:scale-95 transition-transform ring-4 ring-slate-950">
+            <button className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 active:scale-95 transition-transform ring-4 ring-slate-950">
               <Plus className="w-7 h-7" strokeWidth={2.5} />
             </button>
           </div>
