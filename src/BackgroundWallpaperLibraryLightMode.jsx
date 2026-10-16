@@ -21,7 +21,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
             A
           </div>
         </div>
-      </div><main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface"><div className="flex flex-col w-full pb-28 space-y-space-lg">
+      </div><main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface"><div className="flex flex-col w-full pb-52 space-y-space-lg">
 {/*  Top Context Header Area (Filter & Subtitle Info)  */}
 <div className="flex items-center justify-between px-space-xs pt-space-xs">
 <div className="flex flex-col">
@@ -301,8 +301,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab }) {
 </div>
 {/*  Floating Sticky Action Container Above Shell Safe Margin  */}
 
-<div className="fixed bottom-0 left-0 right-0 z-40">
-<div className="backdrop-blur-xl bg-white/80 border-t border-slate-200/60 p-4 rounded-t-3xl flex flex-col gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
+<div className="fixed bottom-0 left-0 right-0 z-50">
+<div className="backdrop-blur-2xl bg-white/90 border-t border-slate-200/80 p-4 rounded-t-3xl flex flex-col gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)]">
 {/*  Primary Action Button  */}
 <button className="btn-secondary w-full">
 <span>Customize Selected Background</span>

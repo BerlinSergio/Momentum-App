@@ -21,7 +21,7 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab }) {
             A
           </div>
         </div>
-      </div><main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-slate-900"><div className="flex flex-col w-full pb-28 space-y-space-lg">
+      </div><main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-slate-900"><div className="flex flex-col w-full pb-52 space-y-space-lg">
 {/*  Top Context Header Area (Filter & Subtitle Info)  */}
 <div className="flex items-center justify-between px-space-xs pt-space-xs">
 <div className="flex flex-col">
@@ -301,8 +301,8 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab }) {
 </div>
 {/*  Floating Sticky Action Container Above Shell Safe Margin  */}
 
-<div className="fixed bottom-0 left-0 right-0 z-40">
-<div className="bg-slate-900/85 backdrop-blur-xl border-t border-slate-800 p-4 rounded-t-3xl flex flex-col gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
+<div className="fixed bottom-0 left-0 right-0 z-50">
+<div className="bg-slate-900/90 backdrop-blur-2xl border-t border-slate-800 p-4 rounded-t-3xl flex flex-col gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
 {/*  Primary Action Button  */}
 <button className="btn-secondary w-full">
 <span>Customize Selected Background</span>
