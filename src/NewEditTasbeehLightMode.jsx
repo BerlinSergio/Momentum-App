@@ -241,20 +241,20 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       {/* STANDARDIZED BOTTOM ACTION BUTTONS */}
       <div className="px-5 pb-10 space-y-3">
         {/* Primary Save Button */}
-        <button className="btn-primary w-full">
-          Save Tasbeeh
+        <button className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2">
+          <span>Save Tasbeeh</span>
           <ArrowRight className="w-4 h-4"/>
         </button>
 
         {/* Balanced Secondary Buttons Row */}
-        <div className="w-full flex items-center gap-3">
-          <button className="btn-secondary flex-1">
+        <div className="flex flex-row items-center justify-between gap-3 w-full">
+          <button className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
             <X className="w-4 h-4 text-slate-500"/>
-            Cancel
+            <span>Cancel</span>
           </button>
-          <button className="btn-danger flex-1">
+          <button className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
             <Trash2 className="w-4 h-4 text-rose-500"/>
-            Delete Tasbeeh
+            <span>Delete Tasbeeh</span>
           </button>
         </div>
       </div>

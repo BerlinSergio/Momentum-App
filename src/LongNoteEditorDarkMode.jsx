@@ -203,18 +203,18 @@ export default function LongNoteEditorDarkMode({ setActiveTab }) {
 
       {/* BOTTOM ACTIONS & FORMATTING TOOLBAR */}
       <div className="px-5 pb-28 space-y-3">
-        <button className="btn-primary w-full">
-          Save Journal Note
+        <button className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2">
+          <span>Save Journal Note</span>
           <ArrowRight className="w-4 h-4"/>
         </button>
-        <div className="w-full flex items-center gap-3">
-          <button className="btn-secondary flex-1">
+        <div className="flex flex-row items-center justify-between gap-3 w-full">
+          <button className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
             <XCircle className="w-4 h-4 text-slate-400"/>
-            Cancel Draft
+            <span>Cancel Draft</span>
           </button>
-          <button className="btn-danger flex-1">
+          <button className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
             <Trash2 className="w-4 h-4 text-rose-400"/>
-            Delete Note
+            <span>Delete Note</span>
           </button>
         </div>
       </div>

@@ -173,19 +173,19 @@ export default function QuickNoteEditorLightMode({ setActiveTab }) {
 
       {/* Action Buttons Container */}
       <div className="px-5 pb-10 space-y-3">
-        <button className="btn-primary w-full">
+        <button className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2">
           <span>Save Quick Note</span>
           <ArrowRight className="w-4 h-4"/>
         </button>
 
-        <div className="flex items-center gap-3">
-          <button className="btn-secondary">
+        <div className="flex flex-row items-center justify-between gap-3 w-full">
+          <button className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
             <X className="w-4 h-4 text-slate-500"/>
-            Cancel Changes
+            <span>Cancel Changes</span>
           </button>
-          <button className="btn-danger">
+          <button className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
             <Trash2 className="w-4 h-4 text-rose-500"/>
-            Delete Note
+            <span>Delete Note</span>
           </button>
         </div>
       </div>
