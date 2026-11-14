@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { curatedWallpapers, generateWallpaperBatch } from '../data/defaultWallpapers';
+import { useThemeStore } from '../store/useThemeStore';
 
 const WallpaperContext = createContext();
 
@@ -17,7 +18,7 @@ export function WallpaperProvider({ children }) {
       const saved = localStorage.getItem(STORAGE_KEYS.WALLPAPERS);
       if (saved && saved !== 'undefined') {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 30) return parsed;
+        if (Array.isArray(parsed) && parsed.length === 30 && parsed[0]?.lightGradient && parsed[0].lightImage && !parsed[0].lightImage.includes('picsum.photos')) return parsed;
       }
     } catch (e) {
       console.error('Failed to parse saved wallpapers:', e);
@@ -128,6 +129,11 @@ export function WallpaperProvider({ children }) {
       
       const now = Date.now();
       setWallpapers(newWallpapers);
+      try {
+        useThemeStore.getState().setDownloadedWallpapers(newWallpapers);
+      } catch (e) {
+        // theme store sync safe fallback
+      }
       setCurrentIndex(0);
       setBatchFetchedAt(now);
     } catch (error) {

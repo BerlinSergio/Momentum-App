@@ -1,91 +1,215 @@
-import React from 'react';
-
+﻿import { useEffect } from 'react';
+import UserAvatar from './components/UserAvatar';
+import { useTasbeehStore, computeTodayTotal } from './store/useTasbeehStore';
 import { 
-  Sparkles, History, Settings, Volume2, MoreVertical, Repeat, Award, Flag, RotateCcw, Undo2, Pointer, Edit2, PlusCircle, Clock, Lightbulb, Home, Wallet, Plus, CheckSquare, MoreHorizontal, ArrowLeft 
+  Sparkles, History, Settings, Volume2, VolumeX, MoreVertical, Repeat, Award, Flag, RotateCcw, Undo2, Pointer, Edit2, PlusCircle, Clock, Lightbulb, Home, Wallet, Plus, CheckSquare, MoreHorizontal
 } from 'lucide-react';
 
 export default function TasbeehMainLightMode({ setActiveTab }) {
+  const {
+    currentCount,
+    lapCount,
+    dailyGoal,
+    hapticsEnabled,
+    soundEnabled,
+    keepAwakeEnabled,
+    keepAwake,
+    fullScreenTapEnabled,
+    fullScreenTap,
+    volumeKeysEnabled,
+    volumeKeys,
+    activePreset,
+    historyLogs,
+    increment,
+    decrement,
+    reset,
+    saveSession,
+    toggleHaptics,
+    toggleSound,
+    setTarget,
+  } = useTasbeehStore();
+
+  const target = Number(activePreset?.target) || 33;
+  const progressRatio = target > 0 ? Math.min(1, Math.max(0, currentCount / target)) : 0;
+  const strokeDashoffset = Math.round(264 - (progressRatio * 264));
+  const goal = dailyGoal || 1000;
+  const todayTotal = computeTodayTotal(historyLogs, currentCount);
+  const goalPercentage = Math.min(100, Math.round((todayTotal / goal) * 100));
+
+  // Volume Keys for Counting
+  useEffect(() => {
+    const isVolumeEnabled = volumeKeysEnabled ?? volumeKeys ?? true;
+    if (!isVolumeEnabled) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'AudioVolumeUp' || e.code === 'AudioVolumeUp' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        increment();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [volumeKeysEnabled, volumeKeys, increment]);
+
+  // Keep Screen Awake during Dhikr
+  useEffect(() => {
+    const isAwake = keepAwakeEnabled ?? keepAwake ?? true;
+    if (!isAwake) return;
+
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+      try {
+        if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch {
+        // Silently ignore if unsupported
+      }
+    };
+    requestWakeLock();
+    return () => {
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+      }
+    };
+  }, [keepAwakeEnabled, keepAwake]);
+
+  const handleReset = () => {
+    if (currentCount > 0) {
+      saveSession(currentCount);
+    }
+    reset();
+  };
+
+  const handleSaveAndLog = () => {
+    if (currentCount > 0) {
+      saveSession(currentCount);
+      reset();
+    }
+    if (setActiveTab) {
+      setActiveTab('tasbeeh_history_light_mode');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between select-none">
-      <div className="flex-1 overflow-y-auto pb-28">
+      <div 
+        onClick={(e) => {
+          const isTapEnabled = fullScreenTapEnabled ?? fullScreenTap ?? false;
+          if (isTapEnabled && !e.target.closest('button, nav, a, input, select')) {
+            increment();
+          }
+        }}
+        className="flex-1 pb-28"
+      >
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-5 pt-6 pb-2">
+        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
+            <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Digital Tasbeeh</h1>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Digital Tasbeeh</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
+            <button 
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('tasbeeh_history_light_mode')}
+              aria-label="Dhikr History"
+              className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
+            >
               <History className="w-5 h-5" />
             </button>
-            <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
+            <button 
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('tasbeeh_settings_light_mode')}
+              aria-label="Tasbeeh Settings"
+              className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
+            >
               <Settings className="w-5 h-5" />
             </button>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-              A
-            </div>
+            <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
           </div>
         </div>
 
         {/* Current Dhikr Card */}
-        <div className="block mx-5 my-3 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="block mx-5 my-3 p-5 rounded-3xl space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-700">
-                <Sparkles className="w-3 h-3 text-indigo-600" />CURRENT DHIKR
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary">
+                <Sparkles className="w-3 h-3 text-primary" />CURRENT DHIKR
               </span>
               <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-50 border border-slate-200 text-slate-500">
                 Spiritual Focus
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <button className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500">
-                <Volume2 className="w-4 h-4" />
+              <button 
+                type="button"
+                onClick={toggleSound}
+                title={soundEnabled ? 'Sound enabled' : 'Sound muted'}
+                className={`p-1.5 rounded-xl transition-colors cursor-pointer select-none ${
+                  soundEnabled ? 'text-primary bg-primary/10 hover:bg-primary/15' : 'text-slate-400 hover:bg-slate-100'
+                }`}
+              >
+                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
-              <button className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500">
+              <button 
+                type="button"
+                onClick={() => setActiveTab && setActiveTab('tasbeeh_settings_light_mode')}
+                aria-label="More Options"
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 cursor-pointer select-none"
+              >
                 <MoreVertical className="w-4 h-4" />
               </button>
             </div>
           </div>
           <div className="text-center py-1 space-y-1">
-            <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-2xl font-bold font-quran text-slate-900" dir="rtl">سُبْحَانَ اللَّهِ وَبِحَمْدِهِ</h2>
-            <p className="text-sm font-semibold text-slate-800">SubhanAllah wa bi-Hamdih</p>
-            <p className="text-xs font-normal italic text-slate-500">“Glory be to Allah and Praise Him”</p>
+            <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-2xl font-bold font-quran text-slate-900" dir="rtl">{activePreset?.arabic || 'سُبْحَانَ ٱللَّٰهِ'}</h2>
+            <p className="text-sm font-semibold text-slate-800">{activePreset?.transliteration || 'Subhanallah'}</p>
+            <p className="text-xs font-normal italic text-slate-500">“{activePreset?.meaning || 'Glory be to Allah'}”</p>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5">
+            <button 
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
+              className="text-xs font-semibold text-primary hover:text-primary flex items-center gap-1.5 cursor-pointer select-none active:scale-95 transition-transform"
+            >
               <Repeat className="w-3.5 h-3.5" />Change Phrase
             </button>
             <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Round <strong className="text-slate-700 font-bold">1</strong> of 3
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Round <strong className="text-slate-700 font-bold">{lapCount + 1}</strong>
             </span>
           </div>
         </div>
 
         {/* Daily Dedication / Goal Pill Card */}
-        <div className="block mx-5 mb-4 p-3.5 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div 
+          onClick={() => setActiveTab && setActiveTab('tasbeeh_history_light_mode')}
+          className="block mx-5 mb-4 p-3.5 rounded-2xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer hover:bg-white/80 active:scale-[0.99] transition-all"
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0">
               <Award className="w-4 h-4" />
             </div>
             <div>
               <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Daily Dedication</span>
-              <span className="text-xs font-bold text-slate-900"><strong className="text-sm font-bold">428</strong> counts</span>
+              <span className="text-xs font-bold text-slate-900"><strong className="text-sm font-bold">{todayTotal}</strong> counts</span>
             </div>
           </div>
           <div className="text-right">
             <span className="text-xs font-bold text-teal-600 flex items-center gap-1 justify-end">
               <Flag className="w-3.5 h-3.5" />
-              Goal 1,000
+              Goal {goal.toLocaleString()}
             </span>
-            <span className="text-[10px] font-medium text-slate-400">43% completed</span>
+            <span className="text-[10px] font-medium text-slate-400">{goalPercentage}% completed</span>
           </div>
         </div>
 
         {/* Center Circular Counter Hero Section */}
-        <div className="block mx-5 mb-5 p-6 rounded-3xl flex flex-col items-center space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="block mx-5 mb-5 p-6 rounded-3xl flex flex-col items-center space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="relative w-52 h-52 mx-auto flex items-center justify-center">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
               <circle
@@ -104,15 +228,15 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
                 stroke="url(#counterGradient)"
                 strokeWidth="8"
                 strokeDasharray="264"
-                strokeDashoffset="48"
+                strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
                 fill="transparent"
-                className="transition-all duration-300"
+                className="transition-all duration-200"
               />
               <defs>
                 <linearGradient id="counterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#4f46e5" />
-                  <stop offset="100%" stopColor="#0d9488" />
+                  <stop offset="0%" stopColor="var(--color-primary)" />
+                  <stop offset="100%" stopColor="var(--color-primary-container)" />
                 </linearGradient>
               </defs>
             </svg>
@@ -120,32 +244,49 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               <span className="text-[10px] font-bold text-slate-600 tracking-widest uppercase">
                 COUNTER
               </span>
-              <span className="text-5xl font-extrabold text-slate-900 tracking-tight my-0.5">
-                27
+              <span className="text-5xl font-extrabold text-slate-900 tracking-tight my-0.5 font-display">
+                {currentCount}
               </span>
               <span className="text-xs font-medium text-slate-500">
-                of <strong className="text-indigo-600 font-bold">33</strong> Target
+                of <strong className="text-primary font-bold">{target}</strong> Target
               </span>
             </div>
           </div>
 
           <div className="flex items-center justify-center gap-6 pt-1 text-xs font-semibold text-slate-500">
-            <button className="flex items-center gap-1.5 hover:text-slate-900 transition-colors">
+            <button 
+              type="button"
+              onClick={handleReset}
+              className="flex items-center gap-1.5 hover:text-slate-900 active:scale-95 transition-all cursor-pointer select-none"
+            >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
             </button>
-            <span className="flex items-center gap-1.5 text-teal-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
-              <span>Haptics: Soft</span>
-            </span>
-            <button className="flex items-center gap-1.5 hover:text-slate-900 transition-colors">
+            <button 
+              type="button"
+              onClick={toggleHaptics}
+              title="Toggle haptics"
+              className="flex items-center gap-1.5 text-teal-600 hover:text-teal-700 active:scale-95 transition-all cursor-pointer select-none"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${hapticsEnabled ? 'bg-teal-500' : 'bg-slate-300'}`}></span>
+              <span>Haptics: {hapticsEnabled ? 'On' : 'Off'}</span>
+            </button>
+            <button 
+              type="button"
+              onClick={decrement}
+              className="flex items-center gap-1.5 hover:text-slate-900 active:scale-95 transition-all cursor-pointer select-none"
+            >
               <Undo2 className="w-3.5 h-3.5" />
               <span>Undo</span>
             </button>
           </div>
 
-          <button className="w-full py-5 px-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white shadow-lg shadow-indigo-600/35 flex items-center justify-center gap-3 transition-all active:scale-[0.98] select-none mt-4">
-            <div className="w-9 h-9 rounded-2xl bg-white/70 backdrop-blur-md flex items-center justify-center">
+          <button 
+            type="button"
+            onClick={increment}
+            className="w-full py-5 px-6 rounded-3xl bg-gradient-to-r from-primary via-primary to-teal-600 hover:from-primary hover:to-teal-700 text-white shadow-lg shadow-primary/35 flex items-center justify-center gap-3 transition-all active:scale-[0.98] select-none mt-4 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-2xl bg-white/80 backdrop-blur-xl flex items-center justify-center">
               <Pointer className="w-5 h-5 text-white stroke-[2.2]" />
             </div>
             <div className="text-left">
@@ -156,38 +297,73 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
 
         {/* Target Selector Row */}
-        <div className="block mx-5 mb-4 p-4 rounded-3xl space-y-2.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="block mx-5 mb-4 p-4 rounded-3xl space-y-2.5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Select Target</span>
-            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Standard Tasbeeh</button>
+            <button 
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
+              className="text-xs font-semibold text-primary hover:text-primary cursor-pointer select-none"
+            >
+              Standard Tasbeeh
+            </button>
           </div>
           <div className="grid grid-cols-5 gap-2">
-            <button className="py-2 rounded-2xl bg-indigo-600 text-white text-xs font-bold shadow-sm">33</button>
-            <button className="py-2 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 text-xs font-semibold">99</button>
-            <button className="py-2 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 text-xs font-semibold">100</button>
-            <button className="py-2 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 text-xs font-semibold">1000</button>
-            <button className="py-2 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 text-xs font-semibold flex items-center justify-center"><Edit2 className="w-3.5 h-3.5" /></button>
+            {[33, 99, 100, 1000].map((t) => (
+              <button 
+                key={t}
+                type="button"
+                onClick={() => setTarget(t)}
+                className={`py-2 rounded-2xl text-xs transition-all cursor-pointer select-none active:scale-95 ${
+                  target === t 
+                    ? 'bg-primary text-white font-bold shadow-sm' 
+                    : 'bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100 font-semibold'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+            <button 
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
+              title="Edit Custom Dhikr"
+              className="py-2 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 text-xs font-semibold flex items-center justify-center cursor-pointer select-none active:scale-95"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
         {/* 3-Action Quick Grid */}
         <div className="grid grid-cols-3 gap-2.5 mx-5 mb-4">
-          <button className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors">
-            <RotateCcw className="w-4 h-4 text-indigo-600" />
+          <button 
+            type="button"
+            onClick={handleReset}
+            className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer select-none active:scale-95"
+          >
+            <RotateCcw className="w-4 h-4 text-primary" />
             <span className="text-[11px] font-semibold">Reset Count</span>
           </button>
-          <button className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors">
-            <PlusCircle className="w-4 h-4 text-indigo-600" />
+          <button 
+            type="button"
+            onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
+            className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer select-none active:scale-95"
+          >
+            <PlusCircle className="w-4 h-4 text-primary" />
             <span className="text-[11px] font-semibold">New Phrase</span>
           </button>
-          <button className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors">
-            <Clock className="w-4 h-4 text-indigo-600" />
-            <span className="text-[11px] font-semibold">View Log</span>
+          <button 
+            type="button"
+            onClick={handleSaveAndLog}
+            className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer select-none active:scale-95"
+          >
+            <Clock className="w-4 h-4 text-primary" />
+            <span className="text-[11px] font-semibold">{currentCount > 0 ? 'Log Session' : 'View Log'}</span>
           </button>
         </div>
 
         {/* Mindful Consistency Hadith Card */}
-        <div className="block mx-5 p-4 rounded-3xl flex items-start gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="block mx-5 p-4 rounded-3xl flex items-start gap-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="w-8 h-8 rounded-xl bg-white text-teal-600 flex items-center justify-center flex-shrink-0 shadow-sm">
             <Lightbulb className="w-4 h-4" />
           </div>
@@ -198,42 +374,6 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         </div>
       </div>
 
-      {/* Floating Navigation Dock */}
-      <div className="fixed bottom-0 w-full z-50 pointer-events-none pb-5">
-        <div className="px-5">
-          <nav className="pointer-events-auto w-full h-[68px] rounded-3xl bg-white/85 backdrop-blur-3xl shadow-[0_16px_40px_rgba(30,45,90,0.12)] border border-slate-100 flex items-center justify-between px-2 relative">
-            <a aria-current="page" className="flex flex-col items-center justify-center flex-1 h-full transition-all gap-0.5 text-indigo-600 font-semibold" href="#">
-              <div className="w-9 h-7 flex items-center justify-center rounded-full">
-                <Home className="w-5 h-5" />
-              </div>
-              <span className="text-[10px]">Home</span>
-            </a>
-            <a className="flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-slate-600 transition-all gap-0.5" href="#">
-              <div className="w-9 h-7 flex items-center justify-center rounded-full">
-                <Wallet className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-medium">Finance</span>
-            </a>
-            <div className="flex flex-col items-center justify-center flex-1 h-full relative">
-              <a aria-label="Record Dhikr" className="absolute -top-5 w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600 via-violet-600 to-teal-500 flex items-center justify-center text-white shadow-[0_10px_24px_-2px_rgba(99,102,241,0.45)] hover:scale-105 active:scale-95 transition-transform ring-4 ring-slate-50/80" href="#">
-                <Plus className="w-7 h-7" />
-              </a>
-            </div>
-            <a className="flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-slate-600 transition-all gap-0.5" href="#">
-              <div className="w-9 h-7 flex items-center justify-center rounded-full">
-                <CheckSquare className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-medium">Tasks</span>
-            </a>
-            <a className="flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-slate-600 transition-all gap-0.5" href="#">
-              <div className="w-9 h-7 flex items-center justify-center rounded-full">
-                <MoreHorizontal className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-medium">More</span>
-            </a>
-          </nav>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,303 +1,420 @@
-import React from 'react';
-import { Sparkles, Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun, CheckCircle2, ChevronRight, Plus, Home, Grid, Check } from 'lucide-react';
+﻿import React, { useMemo } from 'react';
+import { useFinanceStore, calculateGroupedTotals, formatSingleCurrency } from './store/useFinanceStore';
+import StackedCurrencyDisplay from './components/StackedCurrencyDisplay';
+import { useProfileStore } from './store/useProfileStore';
+import { useTaskStore, getTodayIsoDate } from './store/useTaskStore';
+import { useLocationStore, CITIES_DATA } from './store/useLocationStore';
+import { useRoutineStore } from './store/useRoutineStore';
+import UserAvatar from './components/UserAvatar';
+import {
+  Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun,
+  CheckCircle2, ChevronRight, Plus, Check, Sparkles
+} from 'lucide-react';
 
+function calculatePrayerSchedule(lat = 34.5553, lng = 69.2075, tzOffsetHours = 4.5) {
+  const d = new Date();
+  const startOfYear = new Date(d.getFullYear(), 0, 1);
+  const dayOfYear = Math.floor((d.getTime() - startOfYear.getTime()) / 86400000) + 1;
+  const b = (2 * Math.PI * (dayOfYear - 81)) / 365;
+  const eot = 9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b);
+  const declination = 23.45 * Math.sin((2 * Math.PI * (284 + dayOfYear)) / 365) * (Math.PI / 180);
+  const latRad = lat * (Math.PI / 180);
+  const solarNoonMinutes = 720 - 4 * lng - eot + tzOffsetHours * 60;
+  const solarNoon = solarNoonMinutes / 60;
+  function hourAngle(altitudeDeg) {
+    const altRad = altitudeDeg * (Math.PI / 180);
+    const cosHA = (Math.sin(altRad) - Math.sin(latRad) * Math.sin(declination)) / (Math.cos(latRad) * Math.cos(declination));
+    if (cosHA > 1 || cosHA < -1) return null;
+    return (Math.acos(cosHA) * (180 / Math.PI)) / 15;
+  }
+  const fajrHA = hourAngle(-18) || 1.7;
+  const sunriseHA = hourAngle(-0.833) || 1.4;
+  const asrAlt = (Math.atan(1 / (1 + Math.tan(Math.abs(latRad - declination))))) * (180 / Math.PI);
+  const asrHA = hourAngle(asrAlt) || 1.0;
+  const sunsetHA = sunriseHA;
+  const ishaHA = hourAngle(-18) || 1.7;
+  const fajrHours = solarNoon - fajrHA;
+  const dhuhrHours = solarNoon;
+  const asrHours = solarNoon + asrHA;
+  const maghribHours = solarNoon + sunsetHA;
+  const ishaHours = solarNoon + ishaHA;
+  function formatTime(hours) {
+    const totalMinutes = Math.round(hours * 60);
+    let h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 || 12;
+    return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+  const prayers = [
+    { id: 'fajr', name: 'Fajr', time: formatTime(fajrHours), decimalHours: fajrHours },
+    { id: 'dhuhr', name: 'Dhuhr', time: formatTime(dhuhrHours), decimalHours: dhuhrHours },
+    { id: 'asr', name: 'Asr', time: formatTime(asrHours), decimalHours: asrHours },
+    { id: 'maghrib', name: 'Maghrib', time: formatTime(maghribHours), decimalHours: maghribHours },
+    { id: 'isha', name: 'Isha', time: formatTime(ishaHours), decimalHours: ishaHours },
+  ];
+  const currentHours = d.getHours() + d.getMinutes() / 60;
+  let nextIndex = 0;
+  let hoursRemaining = 0;
+  let foundNext = false;
+  for (let i = 0; i < prayers.length; i++) {
+    if (currentHours < prayers[i].decimalHours) {
+      nextIndex = i;
+      hoursRemaining = prayers[i].decimalHours - currentHours;
+      foundNext = true;
+      break;
+    }
+  }
+  if (!foundNext) {
+    nextIndex = 0;
+    hoursRemaining = 24 - currentHours + prayers[0].decimalHours;
+  }
+  const remHours = Math.floor(hoursRemaining);
+  const remMinutes = Math.round((hoursRemaining - remHours) * 60);
+  const countdownText = remHours > 0 ? `${remHours}h ${remMinutes}m` : `${remMinutes}m`;
+  const calculatedList = prayers.map((p, idx) => ({
+    ...p,
+    isNext: idx === nextIndex,
+    isPassed: foundNext ? idx < nextIndex : true,
+  }));
+  return { prayers: calculatedList, nextPrayer: calculatedList[nextIndex], countdownText };
+}
 
-export default function HomeDashboardLightMode() {
+export default function HomeDashboardLightMode({ setActiveTab }) {
+  const profile = useProfileStore();
+  const { transactions, incomes, savingsTarget, monthlyBudgetCap, _hasHydrated: financeHydrated } = useFinanceStore();
+  const { tasks, toggleTaskStatus } = useTaskStore();
+  const selectedCity = useLocationStore((s) => s.selectedCity);
+  const routineStreak = useRoutineStore((s) => {
+    const total = s.routines?.length || 0;
+    const completed = s.routines?.filter((r) => r.completed).length || 0;
+    const base = typeof s.baseStreak === 'number' ? s.baseStreak : 14;
+    if (total > 0 && completed === total) {
+      return typeof s.streakCount === 'number' && s.streakCount > base ? s.streakCount : base + 1;
+    }
+    return typeof s.streakCount === 'number' ? s.streakCount : base;
+  });
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
+  }, []);
+
+  const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+  const allFinanceItems = useMemo(() => {
+    const list = [...(transactions || [])];
+    (incomes || []).forEach((inc) => {
+      if (!list.some((tx) => tx.id === inc.id)) {
+        list.push({ ...inc, type: 'income' });
+      }
+    });
+    return list;
+  }, [transactions, incomes]);
+
+  const currentMonthTransactions = useMemo(() => {
+    return allFinanceItems.filter((tx) => !tx.date || tx.date.startsWith(currentMonthPrefix));
+  }, [allFinanceItems, currentMonthPrefix]);
+
+  const homeIncomeGrouped = useMemo(() => {
+    return calculateGroupedTotals(currentMonthTransactions.filter((tx) => tx.type === 'income'));
+  }, [currentMonthTransactions]);
+
+  const homeExpensesGrouped = useMemo(() => {
+    return calculateGroupedTotals(currentMonthTransactions.filter((tx) => tx.type === 'expense'));
+  }, [currentMonthTransactions]);
+
+  const homeCurrencies = useMemo(() => {
+    const set = new Set([...Object.keys(homeIncomeGrouped), ...Object.keys(homeExpensesGrouped)]);
+    const arr = Array.from(set);
+    return arr.length > 0 ? arr : ['AFN'];
+  }, [homeIncomeGrouped, homeExpensesGrouped]);
+
+  const homeSavedGrouped = useMemo(() => {
+    const grouped = {};
+    homeCurrencies.forEach((cur) => {
+      const inc = homeIncomeGrouped[cur] || 0;
+      const exp = homeExpensesGrouped[cur] || 0;
+      grouped[cur] = inc - exp;
+    });
+    return grouped;
+  }, [homeCurrencies, homeIncomeGrouped, homeExpensesGrouped]);
+
+  const savingsStats = useMemo(() => {
+    const rawCurrency = profile?.currency || 'AFN';
+    let currencyCode = 'AFN';
+    let currencySymbol = '؋';
+    if (rawCurrency.includes('USD') || rawCurrency.includes('$')) {
+      currencyCode = 'USD';
+      currencySymbol = '$';
+    } else if (rawCurrency.includes('EUR') || rawCurrency.includes('€')) {
+      currencyCode = 'EUR';
+      currencySymbol = '€';
+    } else if (rawCurrency.includes('GBP') || rawCurrency.includes('£')) {
+      currencyCode = 'GBP';
+      currencySymbol = '£';
+    } else if (rawCurrency.includes('PKR') || rawCurrency.includes('₨')) {
+      currencyCode = 'PKR';
+      currencySymbol = '₨';
+    } else if (rawCurrency.includes('IRR') || rawCurrency.includes('﷼')) {
+      currencyCode = 'IRR';
+      currencySymbol = '﷼';
+    } else if (rawCurrency.includes('AFN') || rawCurrency.includes('؋')) {
+      currencyCode = 'AFN';
+      currencySymbol = '؋';
+    }
+    const storeTarget = typeof savingsTarget === 'number'
+      ? savingsTarget
+      : (savingsTarget?.[currencyCode] ?? (monthlyBudgetCap?.[currencyCode] ? monthlyBudgetCap[currencyCode] : null));
+    const targetAmount = Number(storeTarget) > 0 ? Number(storeTarget) : (currencyCode === 'AFN' ? 60000 : 1000);
+    const actualSaved = homeSavedGrouped[currencyCode] !== undefined
+      ? homeSavedGrouped[currencyCode]
+      : (homeCurrencies[0] && homeSavedGrouped[homeCurrencies[0]] !== undefined ? homeSavedGrouped[homeCurrencies[0]] : 0);
+    const rawRate = targetAmount > 0 ? (actualSaved / targetAmount) * 100 : 0;
+    const clampedRate = Math.max(0, rawRate);
+    const roundedRate = Math.round(clampedRate * 10) / 10;
+    const displayRate = roundedRate === 0 ? '0%' : (roundedRate % 1 === 0 ? `${roundedRate.toFixed(0)}%` : `${roundedRate.toFixed(1)}%`);
+    const barWidth = Math.min(100, Math.max(0, roundedRate));
+    const formattedTarget = `${currencySymbol}${targetAmount.toLocaleString('en-US')}`;
+    return { currencyCode, currencySymbol, targetAmount, actualSaved, displayRate, barWidth, formattedTarget };
+  }, [profile?.currency, savingsTarget, monthlyBudgetCap, homeSavedGrouped, homeCurrencies]);
+
+  const displayTasks = useMemo(() => {
+    const todayLocal = getTodayIsoDate();
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    return (tasks || []).filter((t) => {
+      if (!t.dueDate) return true;
+      const due = String(t.dueDate).slice(0, 10);
+      return due === todayLocal || due === todayUtc;
+    });
+  }, [tasks]);
+
+  const prayerSchedule = useMemo(() => {
+    const cityName = (profile?.city || selectedCity?.name || 'Kabul').toLowerCase();
+    const matched = CITIES_DATA.find((c) => cityName.includes(c.name.toLowerCase()));
+    const lat = matched ? matched.latitude : (selectedCity?.latitude || 34.5553);
+    const lng = matched ? matched.longitude : (selectedCity?.longitude || 69.2075);
+    let tzOffset = 4.5;
+    if (matched?.timezone === 'Asia/Riyadh') tzOffset = 3;
+    else if (matched?.timezone === 'Europe/Istanbul') tzOffset = 3;
+    else if (matched?.timezone === 'Europe/London') tzOffset = 0;
+    else if (matched?.timezone === 'America/Toronto') tzOffset = -5;
+    return calculatePrayerSchedule(lat, lng, tzOffset);
+  }, [profile?.city, selectedCity]);
+
+  const userFirstName = useMemo(() => {
+    return profile?.fullName?.trim() ? profile.fullName.trim().split(' ')[0] : '';
+  }, [profile?.fullName]);
+
+  if (!financeHydrated) {
+    return (
+      <div className="w-full min-h-[500px] flex items-center justify-center bg-transparent">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <>
+    <div className="relative w-full pb-36 bg-transparent font-sans">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
         <div className="flex items-center gap-3">
-          <img 
-            src="/logo.png" 
-            alt="Momentum Logo" 
-            className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-indigo-600/30" 
-          />
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Momentum
-          </h1>
+          <img src="/logo.png" alt="Momentum Logo" className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/20" />
+          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"><Bell className="w-5 h-5"/></button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
+          <button type="button" onClick={() => setActiveTab && setActiveTab('notifications_settings_light_mode')} aria-label="Notifications" className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer">
+            <Bell className="w-5 h-5"/>
+          </button>
+          <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </header>
 
-      <main className="flex-1 flex flex-col w-full pb-[120px] bg-transparent relative z-10">
-        
-        {/* User Greeting Section - No Overlap */}
+      <main className="w-full bg-transparent relative z-10 pointer-events-auto">
+        {/* User Greeting Section - Dynamic Greeting & Profile Sync */}
         <div className="px-5 pt-3 pb-5 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-indigo-950 tracking-tight flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-              Good morning, Aisha <span>👋</span>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+              {greeting}{userFirstName ? `, ${userFirstName}` : ''} <span>👋</span>
             </h1>
             <p className="text-xs font-normal text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Stay consistent. Small steps every day.</p>
-            <span className="text-[11px] font-semibold text-indigo-950 font-semibold font-semibold uppercase tracking-wider block mt-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
-              Monday, 24 Oct
+            <span className="text-[11px] font-semibold text-slate-900 uppercase tracking-wider block mt-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' })}
             </span>
           </div>
-          <div className="w-12 h-12 rounded-full ring-2 ring-indigo-100 shadow-sm overflow-hidden flex-shrink-0 bg-slate-200 flex items-center justify-center">
-            {/* Fallback image if not present */}
-            <span className="text-lg font-bold text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>A</span>
-          </div>
+          <UserAvatar size="w-12 h-12" textSize="text-lg" setActiveTab={setActiveTab} />
         </div>
 
         {/* FINANCIAL HEALTH HERO CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div onClick={() => setActiveTab && setActiveTab('finance_expense_tracker_light_mode')} className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer hover:bg-white/80 active:scale-[0.99] transition-all pointer-events-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-indigo-600" />
+              <Wallet className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-bold text-slate-900">Financial Health</h2>
             </div>
-            <span className="text-xs font-semibold text-indigo-600">October</span>
+            <span className="text-xs font-semibold text-primary">{new Date().toLocaleDateString('en-US', { month: 'long' })}</span>
           </div>
-          
           <div className="grid grid-cols-3 gap-2.5 pt-1">
-            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="p-3 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg flex flex-col justify-between items-center min-h-[96px]">
               <span className="text-[11px] font-medium text-slate-500 block">Income</span>
-              <p className="text-base font-bold text-slate-900 mt-0.5">$6,200</p>
-              <span className="text-[10px] font-semibold text-emerald-600 inline-flex items-center gap-0.5 mt-0.5">↗ +8.4%</span>
+              <StackedCurrencyDisplay grouped={homeIncomeGrouped} align="center" isDark={false} primaryClass="text-xs sm:text-sm font-bold text-slate-900 mt-0.5" secondaryClass="text-[10px] sm:text-xs text-slate-500 font-medium" />
+              <span className="text-[10px] font-semibold text-emerald-600 inline-flex items-center justify-center gap-0.5 mt-0.5">↗ Inflow</span>
             </div>
-            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="p-3 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg flex flex-col justify-between items-center min-h-[96px]">
               <span className="text-[11px] font-medium text-slate-500 block">Expenses</span>
-              <p className="text-base font-bold text-slate-900 mt-0.5">$3,450</p>
-              <span className="text-[10px] font-medium text-slate-500 inline-flex items-center gap-0.5 mt-0.5">✔ Safe limit</span>
+              <StackedCurrencyDisplay grouped={homeExpensesGrouped} align="center" isDark={false} primaryClass="text-xs sm:text-sm font-bold text-slate-900 mt-0.5" secondaryClass="text-[10px] sm:text-xs text-slate-500 font-medium" />
+              <span className="text-[10px] font-medium text-slate-500 inline-flex items-center justify-center gap-0.5 mt-0.5">✔ Outflow</span>
             </div>
-            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <span className="text-[11px] font-medium text-indigo-700 block">Saved</span>
-              <p className="text-base font-bold text-indigo-700 mt-0.5">+$2,750</p>
-              <span className="text-[10px] font-semibold text-indigo-600 inline-flex items-center gap-0.5 mt-0.5">44.3%</span>
+            <div className="p-3 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg flex flex-col justify-between items-center min-h-[96px]">
+              <span className="text-[11px] font-medium text-primary block">Saved</span>
+              <StackedCurrencyDisplay grouped={homeSavedGrouped} align="center" showSign={true} isDark={false} primaryClass="text-xs sm:text-sm font-bold text-primary mt-0.5" secondaryClass="text-[10px] sm:text-xs text-primary/80 font-medium" />
+              <span className="text-[10px] font-semibold text-primary inline-flex items-center justify-center gap-0.5 mt-0.5">Net</span>
             </div>
           </div>
-
           <div className="pt-2">
             <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="font-medium text-slate-600">Savings Target ($3,000)</span>
-              <span className="font-bold text-indigo-600">91.6%</span>
+              <span className="font-medium text-slate-600">Savings Target ({savingsStats.formattedTarget})</span>
+              <span className="font-bold text-primary">{savingsStats.displayRate}</span>
             </div>
-            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500" style={{ width: '91.6%' }}></div>
+            <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400 transition-all duration-500" style={{ width: `${savingsStats.barWidth}%` }}></div>
             </div>
           </div>
         </div>
 
         {/* QUICK ACTIONS GRID */}
         <div className="grid grid-cols-4 gap-3 mx-5 mb-5">
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <CreditCard className="w-5 h-5 text-indigo-600" />
+          <button type="button" onClick={() => setActiveTab && setActiveTab('add_edit_expense_light_mode')} className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer pointer-events-auto active:scale-95">
+            <CreditCard className="w-5 h-5 text-primary" />
             <span className="text-xs font-semibold text-slate-700">Log Cost</span>
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+          <button type="button" onClick={() => { useTaskStore.getState().setEditingTaskId(null); setActiveTab && setActiveTab('add_edit_task_light_mode'); }} className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer pointer-events-auto active:scale-95">
             <CheckSquare className="w-5 h-5 text-violet-600" />
             <span className="text-xs font-semibold text-slate-700">Add Task</span>
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+          <button type="button" onClick={() => setActiveTab && setActiveTab('prayer_times_light_mode')} className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer pointer-events-auto active:scale-95">
             <Moon className="w-5 h-5 text-teal-600" />
             <span className="text-xs font-semibold text-slate-700">Prayers</span>
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+          <button type="button" onClick={() => setActiveTab && setActiveTab('tasbeeh_main_light_mode')} className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer pointer-events-auto active:scale-95">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <span className="text-xs font-semibold text-slate-700">Reflect</span>
           </button>
         </div>
 
         {/* ROUTINE & PRAYER CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl relative overflow-hidden space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="block mx-5 mb-5 p-5 rounded-3xl relative overflow-hidden space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-600" />
+              <Clock className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-bold text-slate-900">Routine & Prayer</h2>
             </div>
-            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Edit</button>
+            <button type="button" onClick={() => setActiveTab && setActiveTab('prayer_times_light_mode')} className="text-xs font-semibold text-primary hover:text-primary cursor-pointer pointer-events-auto">
+              Edit
+            </button>
           </div>
-
-          <div className="p-3.5 rounded-2xl flex items-center justify-between relative z-10 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100/80">
+          <div className="p-3.5 rounded-2xl flex items-center justify-between relative z-10 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-sm border border-primary/20 shrink-0">
                 <Sun className="w-4 h-4"/>
               </div>
-              <div>
-                <span className="text-[11px] font-medium text-slate-500">Next: Dhuhr in 1h 45m</span>
-                <h3 className="text-base font-bold text-slate-900">1:05 PM</h3>
+              <div className="flex flex-col justify-center min-w-0">
+                <span className="text-[11px] font-medium text-slate-500 leading-tight block whitespace-nowrap">Next: {prayerSchedule.nextPrayer.name} in {prayerSchedule.countdownText}</span>
+                <h3 className="text-base font-bold text-slate-900 font-display leading-tight mt-0.5">{prayerSchedule.nextPrayer.time}</h3>
               </div>
             </div>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white shadow-sm">Upcoming</span>
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary text-white shadow-sm shrink-0 flex items-center justify-center self-center">Upcoming</span>
           </div>
-
-          <div className="relative pt-2 pb-1">
-            {/* Clean Mosque Silhouette Artwork Vector */}
-            <div className="absolute right-0 bottom-0 left-0 h-28 pointer-events-none z-0 flex items-end justify-end pr-2 overflow-hidden">
-              <svg 
-                viewBox="0 0 300 100" 
-                fill="currentColor" 
-                className="w-64 h-24 text-indigo-100/80"
-                preserveAspectRatio="none"
+          <div className="grid grid-cols-5 gap-2 w-full relative z-10">
+            {prayerSchedule.prayers.map((prayer) => (
+              <div
+                key={prayer.id}
+                className={`py-2 px-1 rounded-2xl text-center border transition-all flex flex-col items-center justify-center min-h-[52px] ${
+                  prayer.isNext
+                    ? 'bg-primary/15 border-primary shadow-sm shadow-primary/15'
+                    : 'bg-slate-100/90 border-slate-200/80'
+                }`}
               >
-                {/* Left Minaret */}
-                <rect x="50" y="30" width="8" height="70" rx="2" />
-                <path d="M54 15 L48 30 L60 30 Z" />
-                <circle cx="54" cy="13" r="2" />
-
-                {/* Small Left Dome */}
-                <path d="M75 100 C75 55, 115 55, 115 100 Z" />
-                <path d="M95 45 L93 55 L97 55 Z" />
-
-                {/* Grand Center Dome */}
-                <path d="M110 100 C110 35, 175 35, 175 100 Z" />
-                <path d="M142.5 25 L140 37 L145 37 Z" />
-                <circle cx="142.5" cy="22" r="2.5" />
-
-                {/* Small Right Dome */}
-                <path d="M170 100 C170 58, 205 58, 205 100 Z" />
-                <path d="M187.5 48 L185.5 58 L189.5 58 Z" />
-
-                {/* Right Tall Minaret */}
-                <rect x="220" y="20" width="10" height="80" rx="2" />
-                <path d="M225 5 L218 20 L232 20 Z" />
-                <circle cx="225" cy="3" r="2.5" />
-              </svg>
-            </div>
-
-            {/* The 5 Prayer Time Columns (Semi-transparent / clear backdrop so mosque is visible behind) */}
-            <div className="grid grid-cols-5 gap-2 relative z-10 text-center">
-              {/* Fajr */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Fajr</span>
-                <p className="text-xs font-bold text-slate-800 mt-0.5">5:12 AM</p>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mx-auto mt-1"/>
+                <span className={`text-[10px] block font-medium leading-tight ${prayer.isNext ? 'text-primary font-bold' : 'text-slate-500'}`}>
+                  {prayer.name}
+                </span>
+                <span className={`text-[11px] block mt-1 font-bold font-display leading-tight ${prayer.isNext ? 'text-slate-900' : prayer.isPassed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                  {prayer.time.split(' ')[0]}
+                </span>
               </div>
-
-              {/* Dhuhr (Active) */}
-              <div className="p-2.5 rounded-2xl text-indigo-700 ring-1 ring-indigo-300 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] font-semibold text-indigo-600 block">Dhuhr</span>
-                <p className="text-xs font-bold text-indigo-700 mt-0.5">1:05 PM</p>
-                <Clock className="w-3.5 h-3.5 text-indigo-600 mx-auto mt-1"/>
-              </div>
-
-              {/* Asr */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Asr</span>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">4:28 PM</p>
-                <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
-              </div>
-
-              {/* Maghrib */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Maghrib</span>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">6:42 PM</p>
-                <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
-              </div>
-
-              {/* Isha */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Isha</span>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">8:05 PM</p>
-                <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* TODAY'S TASKS */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
+        <div className="mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-indigo-600" />
+              <CheckSquare className="w-4 h-4 text-violet-600" />
               <h2 className="text-sm font-bold text-slate-900">Today's Tasks</h2>
             </div>
-            <button className="btn-primary">
-              <Plus className="w-3.5 h-3.5" />
-              <span className="text-xs font-semibold">Add Task</span>
+            <button type="button" onClick={() => { useTaskStore.getState().setEditingTaskId(null); setActiveTab && setActiveTab('add_edit_task_light_mode'); }} className="text-xs font-semibold text-primary hover:text-primary flex items-center gap-1 cursor-pointer pointer-events-auto">
+              <Plus className="w-3.5 h-3.5" /> Add Task
             </button>
           </div>
-
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
-                  <Check className="w-3 h-3" />
+          <div className="space-y-2">
+            {displayTasks.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-500">No tasks scheduled for today. Great job!</div>
+            ) : (
+              displayTasks.map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => toggleTaskStatus(task.id)}
+                  className="p-3.5 rounded-2xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm transition-all hover:bg-white/80 cursor-pointer pointer-events-auto"
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleTaskStatus(task.id); }}
+                      aria-label="Toggle task status"
+                      className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-all cursor-pointer pointer-events-auto shrink-0 ${
+                        task.status === 'done' || task.status === 'completed'
+                          ? 'bg-primary border-primary text-white shadow-sm'
+                          : 'border-slate-300 hover:border-primary text-transparent'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <span className={`text-xs font-medium truncate ${task.status === 'done' || task.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                      {task.title}
+                    </span>
+                  </div>
+                  {task.priority && (
+                    <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      String(task.priority).toLowerCase() === 'urgent' || String(task.priority).toLowerCase() === 'high'
+                        ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+                        : String(task.priority).toLowerCase() === 'medium'
+                        ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                        : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                    }`}>{task.priority}</span>
+                  )}
                 </div>
-                <span className="text-sm font-semibold text-slate-900 line-through opacity-60 truncate">Drink 500ml water</span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-500 text-[11px] font-medium">
-                <Clock className="w-3.5 h-3.5" />
-                <span>10:00 AM</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-transparent group-hover:border-indigo-400 transition-all shrink-0">
-                  <Check className="w-3 h-3" />
-                </div>
-                <span className="text-sm font-semibold text-slate-900 truncate">Review quarterly budget</span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-500 text-[11px] font-medium">
-                <Clock className="w-3.5 h-3.5" />
-                <span>11:30 AM</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-transparent group-hover:border-indigo-400 transition-all shrink-0">
-                  <Check className="w-3 h-3" />
-                </div>
-                <span className="text-sm font-semibold text-slate-900 truncate">Read 20 min Quran & reflection</span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-500 text-[11px] font-medium">
-                <Clock className="w-3.5 h-3.5" />
-                <span>8:00 PM</span>
-              </div>
-            </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* MINDFUL STREAK BANNER */}
-        <div className="block mx-5 mb-28 p-4 rounded-3xl flex items-start gap-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-600 shrink-0 shadow-sm border border-slate-200/60">
-            <Sparkles className="w-5 h-5" />
+        {/* HABIT STREAK HERO BANNER */}
+        <div onClick={() => { if (typeof setActiveTab === 'function') { setActiveTab('daily_routine_light_mode'); } else { useNavigationStore.getState().setActiveTab('daily_routine_light_mode'); } }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (typeof setActiveTab === 'function') { setActiveTab('daily_routine_light_mode'); } else { useNavigationStore.getState().setActiveTab('daily_routine_light_mode'); } } }} aria-label="View Daily Routine" className="mx-5 mb-5 p-4 rounded-3xl bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-lg flex items-center justify-between cursor-pointer hover:bg-white active:scale-[0.99] transition-all pointer-events-auto">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-lg shadow-sm border border-amber-500/30 shrink-0">
+              🔥
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-slate-900 truncate">{routineStreak > 0 ? `${routineStreak} Day Routine Streak` : 'Start Your Habit Streak'}</h3>
+              <p className="text-xs text-slate-600 mt-0.5 truncate">Consistency creates mastery</p>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-sm font-bold text-slate-900">Mindful Streak: 14 Days</span>
-            <span className="text-xs font-normal text-slate-500 pr-2">"Peace comes from within. Do not seek it without."</span>
-          </div>
-          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-indigo-600 shrink-0 shadow-sm mt-1 border border-slate-200/60">
-            <ChevronRight className="w-4 h-4" />
-          </div>
+          <ChevronRight className="w-5 h-5 text-primary shrink-0" />
         </div>
       </main>
-
-      {/* FLOATING BOTTOM DOCK */}
-      <nav className="fixed bottom-0 w-full z-50 pb-safe pointer-events-none">
-        <div className="px-5 pb-5 pt-2">
-          <div className="pointer-events-auto mx-auto max-w-md h-16 px-2 rounded-full bg-white/90 backdrop-blur-3xl shadow-lg border border-slate-200/50 flex items-center justify-between">
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full transition-all text-indigo-600">
-              <Home className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-bold">Home</span>
-            </button>
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full text-slate-500 transition-all hover:text-slate-800">
-              <Wallet className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-semibold">Finance</span>
-            </button>
-            <div className="flex items-center justify-center px-2">
-              <button className="w-14 h-14 -mt-6 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 hover:scale-105 active:scale-95 transition-transform ring-4 ring-white">
-                <Plus className="w-6 h-6" />
-              </button>
-            </div>
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full text-slate-500 transition-all hover:text-slate-800">
-              <CheckSquare className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-semibold">Tasks</span>
-            </button>
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full text-slate-500 transition-all hover:text-slate-800">
-              <Grid className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-semibold">More</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-    </>
+    </div>
   );
 }

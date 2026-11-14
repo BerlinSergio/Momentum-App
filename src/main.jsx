@@ -1,7 +1,14 @@
-import React from 'react'
+﻿import React from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { useSettingsStore } from './store/useSettingsStore'
+import { usePrayerStore } from './store/usePrayerStore'
+
+if (typeof window !== 'undefined') {
+  window.useSettingsStore = useSettingsStore;
+  window.usePrayerStore = usePrayerStore;
+}
 
 class ErrorBoundary extends React.Component {
   constructor(props) {

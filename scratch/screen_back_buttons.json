@@ -1,0 +1,648 @@
+{
+  "AboutMomentumDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Info, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function AboutMomentumDarkMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 23,
+      "snippet": "20:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n21:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n22:           >\r\n23:             <ArrowLeft className=\"w-5 h-5\" />\r\n24:           </button>\r\n25:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n26:             A\r"
+    }
+  ],
+  "AboutMomentumLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Info, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function AboutMomentumLightMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 23,
+      "snippet": "20:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n21:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n22:           >\r\n23:             <ArrowLeft className=\"w-5 h-5\" />\r\n24:           </button>\r\n25:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n26:             A\r"
+    }
+  ],
+  "AddEditExpenseDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useRef } from 'react';\n2: import { useFinanceStore } from './store/useFinanceStore';\n3: import { Coins, ArrowLeft, Check, Calendar } from 'lucide-react';\n4: \n5: const EXPENSE_CATEGORIES = [\n6:   { id: 'food', name: 'Food & Dining', label: 'Food', icon: 'restaurant' },"
+    },
+    {
+      "line": 168,
+      "snippet": "165:             onClick={() => handleNavigate('finance_expense_tracker_dark_mode')} \n166:             className=\"p-2 rounded-full text-slate-300 hover:bg-white/10 transition-colors pointer-events-auto cursor-pointer\"\n167:           >\n168:             <ArrowLeft className=\"w-5 h-5\" />\n169:           </button>\n170:         </div>\n171:       </header>"
+    }
+  ],
+  "AddEditExpenseLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useRef } from 'react';\n2: import { useFinanceStore } from './store/useFinanceStore';\n3: import { Coins, ArrowLeft, Check, Calendar } from 'lucide-react';\n4: \n5: const EXPENSE_CATEGORIES = [\n6:   { id: 'food', name: 'Food & Dining', label: 'Food', icon: 'restaurant' },"
+    },
+    {
+      "line": 168,
+      "snippet": "165:             onClick={() => handleNavigate('finance_expense_tracker_light_mode')} \n166:             className=\"p-2 rounded-full text-slate-600 hover:bg-white/10 transition-colors pointer-events-auto cursor-pointer\"\n167:           >\n168:             <ArrowLeft className=\"w-5 h-5\" />\n169:           </button>\n170:         </div>\n171:       </header>"
+    }
+  ],
+  "AddEditIncomeDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useRef } from 'react';\n2: import { useFinanceStore } from './store/useFinanceStore';\n3: import { Wallet, ArrowLeft } from 'lucide-react';\n4: \n5: const SOURCES = [\n6:   { id: 'salary', name: 'Salary', icon: 'work', colSpan: '' },"
+    },
+    {
+      "line": 161,
+      "snippet": "158:             }} \n159:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"\n160:           >\n161:             <ArrowLeft className=\"w-5 h-5\"/>\n162:           </button>\n163:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n164:             A"
+    }
+  ],
+  "AddEditIncomeLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useRef } from 'react';\n2: import { useFinanceStore } from './store/useFinanceStore';\n3: import { Wallet, ArrowLeft } from 'lucide-react';\n4: \n5: const SOURCES = [\n6:   { id: 'salary', name: 'Salary', icon: 'work', colSpan: '' },"
+    },
+    {
+      "line": 161,
+      "snippet": "158:             }} \n159:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"\n160:           >\n161:             <ArrowLeft className=\"w-5 h-5\"/>\n162:           </button>\n163:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n164:             A"
+    }
+  ],
+  "AddEditRoutineDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Clock, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function AddEditRoutineDarkMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "AddEditRoutineLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Clock, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function AddEditRoutineLightMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "AddEditTaskDarkMode.jsx": [
+    {
+      "line": 2,
+      "snippet": "1: import React, { useState, useEffect, useRef } from 'react';\n2: import { CheckSquare, ArrowLeft } from 'lucide-react';\n3: import { useTaskStore } from './store/useTaskStore';\n4: \n5: const getCurrentIsoDate = () => {"
+    },
+    {
+      "line": 378,
+      "snippet": "375:           </h1>\n376:         </div>\n377:         <div className=\"flex items-center gap-2\">\n378:           <button onClick={handleCancel} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\n379:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n380:             A\n381:           </div>"
+    }
+  ],
+  "AddEditTaskLightMode.jsx": [
+    {
+      "line": 2,
+      "snippet": "1: import React, { useState, useEffect, useRef } from 'react';\n2: import { CheckSquare, ArrowLeft } from 'lucide-react';\n3: import { useTaskStore } from './store/useTaskStore';\n4: \n5: const getCurrentIsoDate = () => {"
+    },
+    {
+      "line": 378,
+      "snippet": "375:           </h1>\n376:         </div>\n377:         <div className=\"flex items-center gap-2\">\n378:           <button onClick={handleCancel} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\n379:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n380:             A\n381:           </div>"
+    }
+  ],
+  "AfghanSolarHijriShamsiCalendarDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useMemo } from 'react';\n2: import {\n3:   Calendar, ArrowLeft, ChevronLeft, ChevronRight, Plus, Clock, Trash2, X, Sparkles, Sun, CalendarClock\n4: } from 'lucide-react';\n5: import { useCalendarStore } from './store/useCalendarStore';\n6: import {"
+    },
+    {
+      "line": 134,
+      "snippet": "131:           </h1>\n132:         </div>\n133:         <div className=\"flex items-center gap-2\">\n134:           <button type=\"button\" onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>\n135:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n136:             A\n137:           </div>"
+    }
+  ],
+  "AfghanSolarHijriShamsiCalendarLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useMemo } from 'react';\n2: import {\n3:   Calendar, ArrowLeft, ChevronLeft, ChevronRight, Plus, Clock, Trash2, X, Sparkles, Sun, CalendarClock\n4: } from 'lucide-react';\n5: import { useCalendarStore } from './store/useCalendarStore';\n6: import {"
+    },
+    {
+      "line": 134,
+      "snippet": "131:           </h1>\n132:         </div>\n133:         <div className=\"flex items-center gap-2\">\n134:           <button type=\"button\" onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>\n135:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n136:             A\n137:           </div>"
+    }
+  ],
+  "AppearanceDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useEffect } from 'react';\n2: import {\n3:   Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor\n4: } from 'lucide-react';\n5: import { useThemeStore, AURA_PRESETS, applyAppearanceToDOM } from './store/useThemeStore';\n6: "
+    },
+    {
+      "line": 102,
+      "snippet": "99:           </h1>\n100:         </div>\n101:         <div className=\"flex items-center gap-2\">\n102:           <button type=\"button\" onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>\n103:           <div\n104:             className=\"w-9 h-9 rounded-full text-white font-bold text-xs flex items-center justify-center shadow-sm transition-colors duration-300\"\n105:             style={{ backgroundColor: activeAuraPreset.hex }}"
+    },
+    {
+      "line": 604,
+      "snippet": "601:               <span className=\"text-xs font-semibold text-slate-400\">Default Ambient</span>\n602:             </div>\n603:             <div\n604:               onClick={() => setActiveTab && setActiveTab('background_wallpaper_library_dark_mode')}\n605:               className=\"relative rounded-2xl overflow-hidden bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 p-3.5 shadow-sm group cursor-pointer transition-all active:scale-[0.99] backdrop-blur-xl\"\n606:             >\n607:               <div className=\"flex items-center gap-3.5\">"
+    }
+  ],
+  "AppearanceLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import { useState, useEffect } from 'react';\n2: import {\n3:   Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor\n4: } from 'lucide-react';\n5: import { useThemeStore, AURA_PRESETS, applyAppearanceToDOM } from './store/useThemeStore';\n6: "
+    },
+    {
+      "line": 102,
+      "snippet": "99:           </h1>\n100:         </div>\n101:         <div className=\"flex items-center gap-2\">\n102:           <button type=\"button\" onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>\n103:           <div\n104:             className=\"w-9 h-9 rounded-full text-white font-bold text-xs flex items-center justify-center shadow-sm transition-colors duration-300\"\n105:             style={{ backgroundColor: activeAuraPreset.hex }}"
+    },
+    {
+      "line": 604,
+      "snippet": "601:               <span className=\"text-xs font-semibold text-slate-500\">Default Ambient</span>\n602:             </div>\n603:             <div\n604:               onClick={() => setActiveTab && setActiveTab('background_wallpaper_library_light_mode')}\n605:               className=\"relative rounded-2xl overflow-hidden bg-white/50 hover:bg-white/80 border border-slate-200/60 p-3.5 shadow-sm group cursor-pointer transition-all active:scale-[0.99] backdrop-blur-xl\"\n606:             >\n607:               <div className=\"flex items-center gap-3.5\">"
+    }
+  ],
+  "AppLockDarkMode.jsx": [
+    {
+      "line": 2,
+      "snippet": "1: import { useState, useEffect } from 'react';\n2: import { Lock, ArrowLeft, X } from 'lucide-react';\n3: import useSecurityStore, { LOCK_TIMING_OPTIONS } from './store/useSecurityStore';\n4: import { authenticateBiometrics } from './utils/biometricAuth';\n5: "
+    },
+    {
+      "line": 140,
+      "snippet": "137:         </div>\n138:         <div className=\"flex items-center gap-2\">\n139:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\">\n140:             <ArrowLeft className=\"w-5 h-5\" />\n141:           </button>\n142:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n143:             A"
+    }
+  ],
+  "AppLockLightMode.jsx": [
+    {
+      "line": 2,
+      "snippet": "1: import { useState, useEffect } from 'react';\n2: import { Lock, ArrowLeft, X } from 'lucide-react';\n3: import useSecurityStore, { LOCK_TIMING_OPTIONS } from './store/useSecurityStore';\n4: import { authenticateBiometrics } from './utils/biometricAuth';\n5: "
+    },
+    {
+      "line": 140,
+      "snippet": "137:         </div>\n138:         <div className=\"flex items-center gap-2\">\n139:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\">\n140:             <ArrowLeft className=\"w-5 h-5\" />\n141:           </button>\n142:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n143:             A"
+    }
+  ],
+  "BackgroundPreviewBlurControlDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import { useState } from 'react';\n2: import { useWallpaper } from './context/WallpaperContext';\n3: import { useThemeStore } from './store/useThemeStore';\n4: import { Sliders, ArrowLeft, CheckCircle2 } from 'lucide-react';\n5: \n6: export default function BackgroundPreviewBlurControlDarkMode({ setActiveTab }) {\n7:   const { currentWallpaper, blurLevel, setBlurLevel } = useWallpaper();"
+    },
+    {
+      "line": 58,
+      "snippet": "55:         </div>\n56:         <div className=\"flex items-center gap-2\">\n57:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\">\n58:             <ArrowLeft className=\"w-5 h-5\" />\n59:           </button>\n60:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n61:             A"
+    }
+  ],
+  "BackgroundPreviewBlurControlLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import { useState } from 'react';\n2: import { useWallpaper } from './context/WallpaperContext';\n3: import { useThemeStore } from './store/useThemeStore';\n4: import { Sliders, ArrowLeft, CheckCircle2 } from 'lucide-react';\n5: \n6: export default function BackgroundPreviewBlurControlLightMode({ setActiveTab }) {\n7:   const { currentWallpaper, blurLevel, setBlurLevel } = useWallpaper();"
+    },
+    {
+      "line": 58,
+      "snippet": "55:         </div>\n56:         <div className=\"flex items-center gap-2\">\n57:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\">\n58:             <ArrowLeft className=\"w-5 h-5\" />\n59:           </button>\n60:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n61:             A"
+    }
+  ],
+  "BackgroundWallpaperLibraryDarkMode.jsx": [
+    {
+      "line": 2,
+      "snippet": "1: import React, { useState, useRef } from 'react';\n2: import { Image, ArrowLeft, X } from 'lucide-react';\n3: import { useThemeStore } from './store/useThemeStore';\n4: import { useWallpaper } from './context/WallpaperContext';\n5: import { BACKGROUND_LIBRARY, getBackgroundById } from './data/defaultWallpapers';"
+    },
+    {
+      "line": 88,
+      "snippet": "85:           </h1>\n86:         </div>\n87:         <div className=\"flex items-center gap-2\">\n88:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\n89:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n90:             A\n91:           </div>"
+    },
+    {
+      "line": 103,
+      "snippet": "100:               <h2 className=\"text-headline-sm font-headline-sm text-white\" style={{}}>Curated Wallpapers</h2>\n101:             </div>\n102:             <div className=\"flex items-center gap-space-xs\">\n103:               <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_dark_mode')} aria-label=\"Toggle preview accent\" className=\"w-9 h-9 rounded-full bg-white/10 text-slate-300 hover:bg-white/20 flex items-center justify-center shadow-sm active:scale-95 transition-transform\" id=\"themeToggleMini\">\n104:                 <span className=\"material-symbols-outlined text-[19px]\">tune</span>\n105:               </button>\n106:               <button onClick={() => setShowInfoModal(true)} aria-label=\"Library details\" className=\"w-9 h-9 rounded-full bg-white/10 text-slate-300 hover:bg-white/20 flex items-center justify-center shadow-sm active:scale-95 transition-transform\">"
+    },
+    {
+      "line": 144,
+      "snippet": "141:                 </div>\n142:                 <span className=\"text-body-sm font-body-sm text-slate-400\">{isCustomActive ? 'Custom user wallpaper active' : 'Calibrated for glass contrast'}</span>\n143:               </div>\n144:               <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_dark_mode')} className=\"inline-flex items-center gap-1 px-space-md py-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 font-label-md text-label-md shadow-sm active:scale-95 transition-all\">\n145:                 <span>Adjust Blur</span>\n146:                 <span className=\"material-symbols-outlined text-[15px]\">arrow_forward</span>\n147:               </button>"
+    },
+    {
+      "line": 205,
+      "snippet": "202:                       </div>\n203:                     )}\n204:                     {/* Favorite Toggle */}\n205:                     <button onClick={(e) => toggleFavorite(e, bg.id)} className=\"absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-slate-950/70 backdrop-blur-xl border border-white/10 text-slate-200 hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm\">\n206:                       <span className={`material-symbols-outlined text-[14px] ${isFav ? 'text-rose-400' : ''}`} style={isFav ? { fontVariationSettings: '\"FILL\" 1' } : {}}>favorite</span>\n207:                     </button>\n208:                     {/* Selection Ring Overlay */}"
+    },
+    {
+      "line": 254,
+      "snippet": "251:           <div className=\"fixed bottom-0 left-0 right-0 z-50\">\n252:             <div className=\"backdrop-blur-2xl bg-slate-900/90 border-t border-white/10 p-4 rounded-t-3xl flex flex-col gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.4)]\">\n253:               {/* Primary Action Button */}\n254:               <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_dark_mode')} className=\"btn-secondary w-full\">\n255:                 <span>Customize Selected Background</span>\n256:                 <span className=\"material-symbols-outlined text-[18px]\">tune</span>\n257:               </button>"
+    },
+    {
+      "line": 270,
+      "snippet": "267:       {/* Sleek Glassmorphic Atmosphere Engine & Pairing Info Modal */}\n268:       {showInfoModal && (\n269:         <div className=\"fixed inset-0 z-[100] flex items-center justify-center p-4\">\n270:           <div className=\"absolute inset-0 bg-black/60 backdrop-blur-sm\" onClick={() => setShowInfoModal(false)} />\n271:           <div className=\"relative w-full max-w-sm rounded-3xl p-6 bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col space-y-4\">\n272:             <div className=\"flex items-center justify-between pb-2 border-b border-white/10\">\n273:               <div className=\"flex items-center gap-2.5\">"
+    }
+  ],
+  "BackgroundWallpaperLibraryLightMode.jsx": [
+    {
+      "line": 2,
+      "snippet": "1: import React, { useState, useRef } from 'react';\n2: import { Image, ArrowLeft, X } from 'lucide-react';\n3: import { useThemeStore } from './store/useThemeStore';\n4: import { useWallpaper } from './context/WallpaperContext';\n5: import { BACKGROUND_LIBRARY, getBackgroundById } from './data/defaultWallpapers';"
+    },
+    {
+      "line": 88,
+      "snippet": "85:           </h1>\n86:         </div>\n87:         <div className=\"flex items-center gap-2\">\n88:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\n89:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\n90:             A\n91:           </div>"
+    },
+    {
+      "line": 103,
+      "snippet": "100:               <h2 className=\"text-headline-sm font-headline-sm text-slate-900\" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Curated Wallpapers</h2>\n101:             </div>\n102:             <div className=\"flex items-center gap-space-xs\">\n103:               <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_light_mode')} aria-label=\"Toggle preview accent\" className=\"w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform\" id=\"themeToggleMini\">\n104:                 <span className=\"material-symbols-outlined text-[19px]\">tune</span>\n105:               </button>\n106:               <button onClick={() => setShowInfoModal(true)} aria-label=\"Library details\" className=\"w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform\">"
+    },
+    {
+      "line": 144,
+      "snippet": "141:                 </div>\n142:                 <span className=\"text-body-sm font-body-sm text-slate-600\">{isCustomActive ? 'Custom user wallpaper active' : 'Calibrated for glass contrast'}</span>\n143:               </div>\n144:               <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_light_mode')} className=\"inline-flex items-center gap-1 px-space-md py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-label-md text-label-md shadow-sm active:scale-95 transition-all\">\n145:                 <span>Adjust Blur</span>\n146:                 <span className=\"material-symbols-outlined text-[15px]\">arrow_forward</span>\n147:               </button>"
+    },
+    {
+      "line": 205,
+      "snippet": "202:                       </div>\n203:                     )}\n204:                     {/* Favorite Toggle */}\n205:                     <button onClick={(e) => toggleFavorite(e, bg.id)} className=\"absolute top-2.5 right-2.5 w-7 h-7 rounded-xl bg-black/40 backdrop-blur-xl border border-white/50 text-white hover:text-rose-400 flex items-center justify-center transition-colors shadow-sm\">\n206:                       <span className={`material-symbols-outlined text-[14px] ${isFav ? 'text-rose-400' : ''}`} style={isFav ? { fontVariationSettings: '\"FILL\" 1' } : {}}>favorite</span>\n207:                     </button>\n208:                     {/* Selection Ring Overlay */}"
+    },
+    {
+      "line": 254,
+      "snippet": "251:           <div className=\"fixed bottom-0 left-0 right-0 z-50\">\n252:             <div className=\"backdrop-blur-2xl bg-white/90 border-t border-slate-200/80 p-4 rounded-t-3xl flex flex-col gap-3 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.15)]\">\n253:               {/* Primary Action Button */}\n254:               <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_light_mode')} className=\"btn-secondary w-full\">\n255:                 <span>Customize Selected Background</span>\n256:                 <span className=\"material-symbols-outlined text-[18px]\">tune</span>\n257:               </button>"
+    },
+    {
+      "line": 270,
+      "snippet": "267:       {/* Sleek Glassmorphic Atmosphere Engine & Pairing Info Modal */}\n268:       {showInfoModal && (\n269:         <div className=\"fixed inset-0 z-[100] flex items-center justify-center p-4\">\n270:           <div className=\"absolute inset-0 bg-black/60 backdrop-blur-sm\" onClick={() => setShowInfoModal(false)} />\n271:           <div className=\"relative w-full max-w-sm rounded-3xl p-6 bg-white/95 backdrop-blur-2xl border border-white/50 shadow-2xl flex flex-col space-y-4\">\n272:             <div className=\"flex items-center justify-between pb-2 border-b border-slate-100\">\n273:               <div className=\"flex items-center gap-2.5\">"
+    }
+  ],
+  "BiometricSettingsDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Fingerprint, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function BiometricSettingsDarkMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "BiometricSettingsLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Fingerprint, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function BiometricSettingsLightMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "CalendarsMainDarkMode.jsx": [],
+  "CalendarsMainLightMode.jsx": [],
+  "CitySelectionDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React, { useState } from 'react';\r\n2: \r\n3: import { MapPin, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function CitySelectionDarkMode({ setActiveTab }) {\r\n6:   const [searchQuery, setSearchQuery] = useState('');\r"
+    },
+    {
+      "line": 23,
+      "snippet": "20:           </h1>\r\n21:         </div>\r\n22:         <div className=\"flex items-center gap-2\">\r\n23:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n24:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n25:             A\r\n26:           </div>\r"
+    }
+  ],
+  "CitySelectionLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React, { useState } from 'react';\r\n2: \r\n3: import { MapPin, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function CitySelectionLightMode({ setActiveTab }) {\r\n6:   const [searchQuery, setSearchQuery] = useState('');\r"
+    },
+    {
+      "line": 23,
+      "snippet": "20:           </h1>\r\n21:         </div>\r\n22:         <div className=\"flex items-center gap-2\">\r\n23:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n24:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n25:             A\r\n26:           </div>\r"
+    }
+  ],
+  "CurrencySelectionDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Coins, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function CurrencySelectionDarkMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "CurrencySelectionLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { Coins, ArrowLeft } from 'lucide-react';\r\n4: \r\n5: export default function CurrencySelectionLightMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "DailyRoutineDarkMode.jsx": [],
+  "DailyRoutineLightMode.jsx": [],
+  "EditProfileDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { ArrowLeft, Pencil, Trash2, UserCheck, User, Mail, CheckCircle2, Globe, Sun, Cloud, ArrowRight } from 'lucide-react';\r\n4: \r\n5: export default function EditProfileDarkMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "EditProfileLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { ArrowLeft, Pencil, Trash2, UserCheck, User, Mail, CheckCircle2, Globe, Sun, Cloud, ArrowRight } from 'lucide-react';\r\n4: \r\n5: export default function EditProfileLightMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    }
+  ],
+  "FinanceExpenseTrackerDarkMode.jsx": [],
+  "FinanceExpenseTrackerLightMode.jsx": [],
+  "GregorianCalendarDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { ArrowLeft, Calendar, LayoutGrid, ChevronLeft, ChevronDown, ChevronRight, ArrowLeftRight, Banknote, CheckCircle2, Briefcase, Clock, Heart, Plus } from 'lucide-react';\r\n4: \r\n5: export default function GregorianCalendarDarkMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    },
+    {
+      "line": 44,
+      "snippet": "41:               </button>\r\n42:             </div>\r\n43:             <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium\">\r\n44:               <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r\n45:               <span>Rabi' al-Thani 1448 AH • Aqrab 1405 SH</span>\r\n46:             </div>\r\n47:           </div>\r"
+    }
+  ],
+  "GregorianCalendarLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { ArrowLeft, Calendar, LayoutGrid, ChevronLeft, ChevronDown, ChevronRight, ArrowLeftRight, Banknote, CheckCircle2, Briefcase, Clock, Heart, Plus } from 'lucide-react';\r\n4: \r\n5: export default function GregorianCalendarLightMode({ setActiveTab }) {\r\n6:   return (\r"
+    },
+    {
+      "line": 19,
+      "snippet": "16:           </h1>\r\n17:         </div>\r\n18:         <div className=\"flex items-center gap-2\">\r\n19:           <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r\n20:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n21:             A\r\n22:           </div>\r"
+    },
+    {
+      "line": 44,
+      "snippet": "41:               </button>\r\n42:             </div>\r\n43:             <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium\">\r\n44:               <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r\n45:               <span>Rabi' al-Thani 1448 AH • Aqrab 1405 SH</span>\r\n46:             </div>\r\n47:           </div>\r"
+    }
+  ],
+  "HomeDashboardDarkMode.jsx": [],
+  "HomeDashboardLightMode.jsx": [],
+  "IslamicHijriCalendarDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Moon, LayoutGrid, ChevronLeft, ChevronDown, ChevronRight, ArrowLeftRight, Sun, CheckCircle2, BookOpen, Clock, Heart, Plus, Home, Wallet, CheckSquare, Grid \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function IslamicHijriCalendarDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    },
+    {
+      "line": 49,
+      "snippet": "46:           </button>\r\n47:         </div>\r\n48:         <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium\">\r\n49:           <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r\n50:           <span>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} CE • Aqrab 1405 SH</span>\r\n51:         </div>\r\n52: \r"
+    }
+  ],
+  "IslamicHijriCalendarLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Moon, LayoutGrid, ChevronLeft, ChevronDown, ChevronRight, ArrowLeftRight, Sun, CheckCircle2, BookOpen, Clock, Heart, Plus, Home, Wallet, CheckSquare, Grid \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function IslamicHijriCalendarLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    },
+    {
+      "line": 49,
+      "snippet": "46:           </button>\r\n47:         </div>\r\n48:         <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium\">\r\n49:           <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r\n50:           <span>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} CE • Aqrab 1405 SH</span>\r\n51:         </div>\r\n52: \r"
+    }
+  ],
+  "LongNoteEditorDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Share2, MoreVertical, CloudCheck, Eye, Pin, Calendar, \r\n5:   Clock, Leaf, TrendingUp, ArrowRight, XCircle, Trash2, Bold, Italic, \r\n6:   Type, List, ListOrdered, Quote, Image as ImageIcon, Mic, Plus, FileText\r\n7: } from 'lucide-react';\r"
+    },
+    {
+      "line": 27,
+      "snippet": "24:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n25:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n26:           >\r\n27:             <ArrowLeft className=\"w-5 h-5\" />\r\n28:           </button>\r\n29:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n30:             A\r"
+    }
+  ],
+  "LongNoteEditorLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Share2, MoreVertical, CloudCheck, Eye, Pin, Calendar, \r\n5:   Clock, Leaf, TrendingUp, ArrowRight, XCircle, Trash2, Bold, Italic, \r\n6:   Type, List, ListOrdered, Quote, Image as ImageIcon, Mic, Plus, FileText\r\n7: } from 'lucide-react';\r"
+    },
+    {
+      "line": 27,
+      "snippet": "24:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n25:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n26:           >\r\n27:             <ArrowLeft className=\"w-5 h-5\" />\r\n28:           </button>\r\n29:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n30:             A\r"
+    }
+  ],
+  "MoreDarkMode.jsx": [
+    {
+      "line": 5,
+      "snippet": "2: import BottomNavBar from './components/BottomNavBar';\n3: \r\n4: import { \r\n5:   Sparkles, Bell, ChevronRight, TrendingUp, Moon, Repeat, PenLine, Calendar, Settings, Quote, Heart, Share2, Home, Wallet, Plus, CheckSquare, LayoutGrid, ArrowLeft \r\n6: } from 'lucide-react';\r\n7: \r\n8: export default function MoreDarkMode({ setActiveTab }) {\r"
+    }
+  ],
+  "MoreLightMode.jsx": [
+    {
+      "line": 5,
+      "snippet": "2: import BottomNavBar from './components/BottomNavBar';\n3: \r\n4: import { \r\n5:   Sparkles, Bell, ChevronRight, TrendingUp, Moon, Repeat, PenLine, Calendar, Settings, Quote, Heart, Share2, Home, Wallet, Plus, CheckSquare, LayoutGrid, ArrowLeft \r\n6: } from 'lucide-react';\r\n7: \r\n8: export default function MoreLightMode({ setActiveTab }) {\r"
+    }
+  ],
+  "NewEditTasbeehDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React, { useState } from 'react';\n2: import { useTasbeehStore } from './store/useTasbeehStore';\n3: import { \n4:   ArrowLeft, RotateCcw, BookOpen, Sparkles, Minus, Plus, Flag, Bell, ArrowRight, X, Trash2 \n5: } from 'lucide-react';\n6: \n7: export default function NewEditTasbeehDarkMode({ setActiveTab }) {"
+    },
+    {
+      "line": 95,
+      "snippet": "92:             onClick={handleCancel}\n93:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"\n94:           >\n95:             <ArrowLeft className=\"w-5 h-5\" />\n96:           </button>\n97:           <button\n98:             type=\"button\""
+    }
+  ],
+  "NewEditTasbeehLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React, { useState } from 'react';\n2: import { useTasbeehStore } from './store/useTasbeehStore';\n3: import { \n4:   ArrowLeft, RotateCcw, BookOpen, Sparkles, Minus, Plus, Flag, Bell, ArrowRight, X, Trash2 \n5: } from 'lucide-react';\n6: \n7: export default function NewEditTasbeehLightMode({ setActiveTab }) {"
+    },
+    {
+      "line": 95,
+      "snippet": "92:             onClick={handleCancel}\n93:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"\n94:           >\n95:             <ArrowLeft className=\"w-5 h-5\" />\n96:           </button>\n97:           <button\n98:             type=\"button\""
+    }
+  ],
+  "NotesMainDarkMode.jsx": [
+    {
+      "line": 5,
+      "snippet": "2: import BottomNavBar from './components/BottomNavBar';\n3: \r\n4: import { \r\n5:   PenTool, Search, Bell, Sparkles, SlidersHorizontal, ChevronRight, Mic, BookOpen, FolderArchive, Folder, Home, Wallet, Plus, CheckSquare, LayoutGrid, ArrowLeft, SearchX \r\n6: } from 'lucide-react';\r\n7: \r\n8: export default function NotesMainDarkMode({ setActiveTab }) {\r"
+    }
+  ],
+  "NotesMainLightMode.jsx": [
+    {
+      "line": 5,
+      "snippet": "2: import BottomNavBar from './components/BottomNavBar';\n3: \r\n4: import { \r\n5:   PenTool, Search, Bell, Sparkles, SlidersHorizontal, ChevronRight, Mic, BookOpen, FolderArchive, Folder, Home, Wallet, Plus, CheckSquare, LayoutGrid, ArrowLeft, SearchX \r\n6: } from 'lucide-react';\r\n7: \r\n8: export default function NotesMainLightMode({ setActiveTab }) {\r"
+    }
+  ],
+  "NoteMediaAttachmentViewerDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Share2, MoreVertical, Image, Download, Trash2, Cloud, Video, Mic, Check, Play, Maximize, ChevronLeft, ChevronRight, Volume2, MapPin, ArrowRight, Wand2 \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "NoteMediaAttachmentViewerLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Share2, MoreVertical, Image, Download, Trash2, Cloud, Video, Mic, Check, Play, Maximize, ChevronLeft, ChevronRight, Volume2, MapPin, ArrowRight, Wand2 \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function NoteMediaAttachmentViewerLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "NotificationsSettingsDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Bell, CheckCircle2, Sparkles, Moon, ArrowRight, MoonStar as Mosque \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function NotificationsSettingsDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "NotificationsSettingsLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Bell, CheckCircle2, Sparkles, Moon, ArrowRight, MoonStar as Mosque \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function NotificationsSettingsLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "PersonalSetupDarkMode.jsx": [],
+  "PersonalSetupLightMode.jsx": [],
+  "PinSetupChangeDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, ShieldCheck, RotateCcw, KeyRound, Shield, CheckCircle2, Info, HelpCircle, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function PinSetupChangeDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "PinSetupChangeLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, ShieldCheck, RotateCcw, KeyRound, Shield, CheckCircle2, Info, HelpCircle, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function PinSetupChangeLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "PrayerNotificationSettingsDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, SlidersHorizontal, BellRing, Bell, Moon, Sun, Sunrise, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function PrayerNotificationSettingsDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "PrayerNotificationSettingsLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, SlidersHorizontal, BellRing, Bell, Moon, Sun, Sunrise, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function PrayerNotificationSettingsLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "PrayerTimesDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   Sparkles, Bell, BellRing, MapPin, Compass, Calendar, CheckCircle2, Bookmark, ArrowLeft \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function PrayerTimesDarkMode({ setActiveTab }) {\r"
+    }
+  ],
+  "PrayerTimesLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   Sparkles, Bell, BellRing, MapPin, Compass, Calendar, CheckCircle2, Bookmark, ArrowLeft \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function PrayerTimesLightMode({ setActiveTab }) {\r"
+    }
+  ],
+  "QuickNoteEditorDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Share2, MoreVertical, Sparkles, Pin, Palette, Trash2, Play, Mic, X, Camera, CheckSquare, List, Tag, Edit3, Bell, Clock, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function QuickNoteEditorDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "QuickNoteEditorLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Share2, MoreVertical, Sparkles, Pin, Palette, Trash2, Play, Mic, X, Camera, CheckSquare, List, Tag, Edit3, Bell, Clock, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function QuickNoteEditorLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 25,
+      "snippet": "22:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n23:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n24:           >\r\n25:             <ArrowLeft className=\"w-5 h-5\" />\r\n26:           </button>\r\n27:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n28:             A\r"
+    }
+  ],
+  "SettingsProfileDarkMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: import { \r\n3:   SlidersHorizontal, Bell, Camera, CheckCircle2, Wallet, Clock, UserCheck, ChevronRight, Sun, Moon, ShieldCheck, Fingerprint, Lock, Cloud, Database, Save, RotateCcw, ArrowLeft \r\n4: } from 'lucide-react';\r\n5: \r\n6: \r"
+    }
+  ],
+  "SettingsProfileLightMode.jsx": [
+    {
+      "line": 3,
+      "snippet": "1: import React from 'react';\r\n2: import { \r\n3:   SlidersHorizontal, Bell, Camera, CheckCircle2, Wallet, Clock, UserCheck, ChevronRight, Sun, Moon, ShieldCheck, Fingerprint, Lock, Cloud, Database, Save, RotateCcw, ArrowLeft \r\n4: } from 'lucide-react';\r\n5: \r\n6: \r"
+    }
+  ],
+  "TasbeehHistoryDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React, { useState } from 'react';\n2: import { useTasbeehStore } from './store/useTasbeehStore';\n3: import { \n4:   ArrowLeft, Calendar, SlidersHorizontal, CheckCircle2, Upload, Play, Quote, PlusCircle, History, Trash2 \n5: } from 'lucide-react';\n6: \n7: export default function TasbeehHistoryDarkMode({ setActiveTab }) {"
+    },
+    {
+      "line": 102,
+      "snippet": "99:               onClick={() => setActiveTab && setActiveTab('tasbeeh_main_dark_mode')}\n100:               className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"\n101:             >\n102:               <ArrowLeft className=\"w-5 h-5\" />\n103:             </button>\n104:             <button\n105:               type=\"button\""
+    }
+  ],
+  "TasbeehHistoryLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React, { useState } from 'react';\n2: import { useTasbeehStore } from './store/useTasbeehStore';\n3: import { \n4:   ArrowLeft, Calendar, SlidersHorizontal, CheckCircle2, Upload, Play, Quote, PlusCircle, History, Trash2 \n5: } from 'lucide-react';\n6: \n7: export default function TasbeehHistoryLightMode({ setActiveTab }) {"
+    },
+    {
+      "line": 102,
+      "snippet": "99:               onClick={() => setActiveTab && setActiveTab('tasbeeh_main_light_mode')}\n100:               className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"\n101:             >\n102:               <ArrowLeft className=\"w-5 h-5\" />\n103:             </button>\n104:             <button\n105:               type=\"button\""
+    }
+  ],
+  "TasbeehMainDarkMode.jsx": [],
+  "TasbeehMainLightMode.jsx": [],
+  "TasbeehSettingsDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React, { useState } from 'react';\n2: import { useTasbeehStore } from './store/useTasbeehStore';\n3: import { \n4:   ArrowLeft, SlidersHorizontal, Eye, CheckCircle2, Sparkles, Check, PlusCircle, RotateCcw, ArrowRight, Lock \n5: } from 'lucide-react';\n6: \n7: export default function TasbeehSettingsDarkMode({ setActiveTab }) {"
+    },
+    {
+      "line": 94,
+      "snippet": "91:               onClick={() => setActiveTab && setActiveTab('tasbeeh_main_dark_mode')}\n92:               className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"\n93:             >\n94:               <ArrowLeft className=\"w-5 h-5\" />\n95:             </button>\n96:             <button\n97:               type=\"button\""
+    }
+  ],
+  "TasbeehSettingsLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React, { useState } from 'react';\n2: import { useTasbeehStore } from './store/useTasbeehStore';\n3: import { \n4:   ArrowLeft, SlidersHorizontal, Eye, CheckCircle2, Sparkles, Check, PlusCircle, RotateCcw, ArrowRight, Lock \n5: } from 'lucide-react';\n6: \n7: export default function TasbeehSettingsLightMode({ setActiveTab }) {"
+    },
+    {
+      "line": 94,
+      "snippet": "91:               onClick={() => setActiveTab && setActiveTab('tasbeeh_main_light_mode')}\n92:               className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"\n93:             >\n94:               <ArrowLeft className=\"w-5 h-5\" />\n95:             </button>\n96:             <button\n97:               type=\"button\""
+    }
+  ],
+  "TasksRemindersDarkMode.jsx": [],
+  "TasksRemindersLightMode.jsx": [],
+  "TimezoneSelectionDarkMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Compass, Sun, Radio, Search, Check, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function TimezoneSelectionDarkMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 27,
+      "snippet": "24:             onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}\r\n25:             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r\n26:           >\r\n27:             <ArrowLeft className=\"w-5 h-5\" />\r\n28:           </button>\r\n29:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n30:             A\r"
+    }
+  ],
+  "TimezoneSelectionLightMode.jsx": [
+    {
+      "line": 4,
+      "snippet": "1: import React from 'react';\r\n2: \r\n3: import { \r\n4:   ArrowLeft, Compass, Sun, Radio, Search, Check, ArrowRight \r\n5: } from 'lucide-react';\r\n6: \r\n7: export default function TimezoneSelectionLightMode({ setActiveTab }) {\r"
+    },
+    {
+      "line": 27,
+      "snippet": "24:             onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}\r\n25:             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r\n26:           >\r\n27:             <ArrowLeft className=\"w-5 h-5\" />\r\n28:           </button>\r\n29:           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r\n30:             A\r"
+    }
+  ]
+}

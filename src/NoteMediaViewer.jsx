@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -8,7 +8,7 @@ const NoteMediaViewer = () => {
   const [isPinned, setIsPinned] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   return /*#__PURE__*/_jsxDEV("div", {
-    className: "bg-surface-container font-body-md text-on-surface antialiased flex flex-col min-h-screen relative selection:bg-primary/40 selection:text-indigo-200",
+    className: "bg-surface-container font-body-md text-on-surface antialiased flex flex-col min-h-screen relative selection:bg-primary/40 selection:text-primary/70",
     children: [/*#__PURE__*/_jsxDEV("header", {
       className: "fixed top-0 w-full z-50 pt-safe bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 backdrop-blur-xl shadow-[0_1px_12px_rgba(42,73,223,0.05)]",
       children: /*#__PURE__*/_jsxDEV("div", {
@@ -257,7 +257,7 @@ const NoteMediaViewer = () => {
                     children: "schedule"
                   }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                     className: "font-label-sm text-label-sm text-on-surface font-medium",
-                    children: "Oct 24, 2026 • 06:14 AM"
+                    children: "Oct 26, 2026 • 06:14 AM"
                   }, void 0, false)]
                 }, void 0, true), /*#__PURE__*/_jsxDEV("span", {
                   className: "font-label-sm text-label-sm text-on-surface dark:text-on-surface-variant",

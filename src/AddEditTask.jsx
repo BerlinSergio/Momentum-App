@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -232,7 +232,7 @@ const AddEditTask = ({
                 className: "flex items-center gap-1 text-on-surface dark:text-on-surface-variant",
                 children: [/*#__PURE__*/_jsxDEV("span", {
                   className: "font-label-md text-label-md text-on-surface font-medium",
-                  children: "Oct 24, 2026"
+                  children: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                 }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                   className: "material-symbols-outlined text-[16px]",
                   children: "chevron_right"
@@ -253,7 +253,7 @@ const AddEditTask = ({
                 className: "flex items-center gap-1 text-on-surface dark:text-on-surface-variant",
                 children: [/*#__PURE__*/_jsxDEV("span", {
                   className: "font-label-md text-label-md text-on-surface font-medium",
-                  children: "11:00 AM"
+                  children: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                 }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                   className: "material-symbols-outlined text-[16px]",
                   children: "chevron_right"

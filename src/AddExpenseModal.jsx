@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -95,7 +95,7 @@ const AddExpenseModal = ({
     extraClass: "col-span-2"
   }];
   return /*#__PURE__*/_jsxDEV("div", {
-    className: "bg-surface-container text-on-surface min-h-screen relative flex flex-col selection:bg-primary/30 selection:text-indigo-200",
+    className: "bg-surface-container text-on-surface min-h-screen relative flex flex-col selection:bg-primary/30 selection:text-primary/70",
     children: [/*#__PURE__*/_jsxDEV("div", {
       className: "fixed inset-0 pointer-events-none -z-10 overflow-hidden",
       children: [/*#__PURE__*/_jsxDEV("div", {
@@ -211,7 +211,7 @@ const AddExpenseModal = ({
               className: "font-display-lg text-display-lg text-primary select-none font-bold",
               children: "$"
             }, void 0, false), /*#__PURE__*/_jsxDEV(GlassInput, {
-              className: "font-display-lg text-display-lg text-on-surface bg-transparent text-center focus:outline-none max-w-[190px] font-bold tracking-tight caret-indigo-400",
+              className: "font-display-lg text-display-lg text-on-surface bg-transparent text-center focus:outline-none max-w-[190px] font-bold tracking-tight caret-primary",
               inputMode: "decimal",
               type: "text",
               value: amount,
@@ -273,7 +273,7 @@ const AddExpenseModal = ({
               const isActive = selectedCategory === cat.id;
               return /*#__PURE__*/_jsxDEV(LiquidButton, {
                 variant: "subtle",
-                className: `flex items-center gap-2 p-2.5 rounded-DEFAULT font-label-md text-label-md transition-all text-left ${cat.extraClass || ''} ${isActive ? 'bg-primary text-on-surface shadow-[0_4px_14px_rgba(79,70,229,0.35)] border border-primary/30' : 'bg-surface-container hover:bg-surface-container border border-outline-variant text-on-surface'}`,
+                className: `flex items-center gap-2 p-2.5 rounded-DEFAULT font-label-md text-label-md transition-all text-left ${cat.extraClass || ''} ${isActive ? 'bg-primary text-on-surface shadow-md shadow-primary/30 border border-primary/30' : 'bg-surface-container hover:bg-surface-container border border-outline-variant text-on-surface'}`,
                 onClick: () => setSelectedCategory(cat.id),
                 type: "button",
                 children: [/*#__PURE__*/_jsxDEV("span", {
@@ -312,7 +312,7 @@ const AddExpenseModal = ({
                 }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
                   children: [/*#__PURE__*/_jsxDEV("p", {
                     className: "font-body-md text-body-md font-semibold text-on-surface",
-                    children: "Today, Oct 24, 2026"
+                    children: `Today, ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
                   }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
                     className: "font-body-sm text-body-sm text-on-surface-variant dark:text-on-surface-variant",
                     children: "10:15 AM"
@@ -421,7 +421,7 @@ const AddExpenseModal = ({
         }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
           className: "space-y-3 pt-2",
           children: [/*#__PURE__*/_jsxDEV(LiquidButton, {
-            className: "w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-purple-600 text-on-surface font-headline-sm text-headline-sm shadow-[0_8px_24px_rgba(79,70,229,0.4)] hover:shadow-[0_12px_28px_rgba(79,70,229,0.5)] active:scale-[0.98] transition-all flex items-center justify-center gap-2",
+            className: "w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-primary via-primary to-primary-container text-on-surface font-headline-sm text-headline-sm shadow-lg shadow-primary/40 hover:shadow-lg shadow-primary/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2",
             onClick: handleSave,
             type: "button",
             variant: "primary",

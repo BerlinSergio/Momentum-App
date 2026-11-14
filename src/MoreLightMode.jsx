@@ -1,245 +1,385 @@
-import React from 'react';
-
-import { 
-  Sparkles, Bell, ChevronRight, TrendingUp, Moon, Repeat, PenLine, Calendar, Settings, Quote, Heart, Share2, Home, Wallet, Plus, CheckSquare, LayoutGrid, ArrowLeft 
+import React, { useState, useEffect, useMemo } from 'react';
+import UserAvatar from './components/UserAvatar';
+import { useProfileStore } from './store/useProfileStore';
+import { useTasbeehStore } from './store/useTasbeehStore';
+import { useNotesStore } from './store/useNotesStore';
+import { usePrayerStore } from './store/usePrayerStore';
+import { useLocationStore } from './store/useLocationStore';
+import { useNavigationStore } from './store/useNavigationStore';
+import { getHijriDateParts, HIJRI_MONTHS } from './utils/afghanCalendar.js';
+import { getDailyQuote, DAILY_QUOTES } from './data/dailyQuotes.js';
+import {
+  Sparkles, Bell, ChevronRight, Moon, Repeat, PenLine, Calendar,
+  Settings, Quote, Heart, Share2, Check, CheckCircle2, BookOpen
 } from 'lucide-react';
 
-export default function MoreLightMode({ setActiveTab }) {
+function getNextPrayerInfo(city) {
+  const lat = city?.lat || 34.5553;
+  const lng = city?.lng || 69.2075;
+  const tzOffsetHours = 4.5;
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((d - start) / (1000 * 60 * 60 * 24));
+  const b = (2 * Math.PI * (dayOfYear - 81)) / 364;
+  const eot = 9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b);
+  const declination = 23.45 * Math.sin((2 * Math.PI * (284 + dayOfYear)) / 365) * (Math.PI / 180);
+  const latRad = lat * (Math.PI / 180);
+  const solarNoonMinutes = 720 - 4 * lng - eot + tzOffsetHours * 60;
+  const solarNoon = solarNoonMinutes / 60;
+  function hourAngle(altitudeDeg) {
+    const altRad = altitudeDeg * (Math.PI / 180);
+    const cosHA = (Math.sin(altRad) - Math.sin(latRad) * Math.sin(declination)) / (Math.cos(latRad) * Math.cos(declination));
+    if (cosHA > 1 || cosHA < -1) return null;
+    return (Math.acos(cosHA) * (180 / Math.PI)) / 15;
+  }
+  const fajrHA = hourAngle(-18) || 1.7;
+  const sunriseHA = hourAngle(-0.833) || 1.4;
+  const asrAlt = (Math.atan(1 / (1 + Math.tan(Math.abs(latRad - declination))))) * (180 / Math.PI);
+  const asrHA = hourAngle(asrAlt) || 1.0;
+  const sunsetHA = sunriseHA;
+  const ishaHA = hourAngle(-18) || 1.7;
+  const prayers = [
+    { name: 'Fajr', hours: solarNoon - fajrHA },
+    { name: 'Dhuhr', hours: solarNoon },
+    { name: 'Asr', hours: solarNoon + asrHA },
+    { name: 'Maghrib', hours: solarNoon + sunsetHA },
+    { name: 'Isha', hours: solarNoon + ishaHA },
+  ];
+  const currentHours = d.getHours() + d.getMinutes() / 60;
+  for (let i = 0; i < prayers.length; i++) {
+    if (currentHours < prayers[i].hours) {
+      return prayers[i].name;
+    }
+  }
+  return 'Fajr';
+}
+
+export default function MoreLightMode({ setActiveTab, goBack }) {
+  const fullName = useProfileStore((s) => s.fullName);
+  const displayName = (!fullName || fullName.trim().toLowerCase() === 'milad wardak' || fullName.trim().toLowerCase() === 'user profile') ? 'Milad Wardak' : fullName;
+  const currentCount = useTasbeehStore((s) => s.currentCount) || 0;
+  const historyLogs = useTasbeehStore((s) => s.historyLogs) || [];
+  const punctualPercentage = usePrayerStore((s) => s.punctualPercentage) ?? 0;
+  const reflectionStreak = useNotesStore((s) => s.reflectionStreak) || 0;
+  const selectedCity = useLocationStore((s) => s.selectedCity);
+  const [shareFeedback, setShareFeedback] = useState('');
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [likedQuoteIds, setLikedQuoteIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem('momentum-liked-radiance-quotes');
+      if (stored) return JSON.parse(stored);
+      if (localStorage.getItem('momentum-saved-radiance-quote') === 'true') {
+        return [getDailyQuote().id || 1];
+      }
+      return [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDate(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const navigateTo = (target) => {
+    if (setActiveTab) {
+      setActiveTab(target);
+    } else {
+      useNavigationStore.getState().navigateTo(target);
+    }
+  };
+
+  const totalAdhkar = useMemo(() => {
+    const logsSum = (historyLogs || []).reduce((acc, log) => acc + (Number(log?.count) || 0), 0);
+    return logsSum + Number(currentCount || 0);
+  }, [historyLogs, currentCount]);
+  const reflectionDays = useMemo(() => `${reflectionStreak || 0} d`, [reflectionStreak]);
+  const nextPrayerName = useMemo(() => getNextPrayerInfo(selectedCity), [selectedCity]);
+  const hijriFormatted = useMemo(() => {
+    const p = getHijriDateParts(new Date());
+    const m = HIJRI_MONTHS[p.hm - 1]?.nameEn || 'Rabi\' al-Thani';
+    const shortMonth = m.replace('al-Awwal', 'I').replace('al-Thani', 'II').replace('al-Akhirah', 'II');
+    return `${p.hd} ${shortMonth}`;
+  }, []);
+  const todayQuote = useMemo(() => getDailyQuote(currentDate), [currentDate]);
+  const isQuoteLiked = useMemo(() => {
+    return Boolean(todayQuote?.id && likedQuoteIds.includes(todayQuote.id));
+  }, [likedQuoteIds, todayQuote]);
+
+  const handleToggleLike = (e) => {
+    e.stopPropagation();
+    if (!todayQuote?.id) return;
+    setLikedQuoteIds((prev) => {
+      const exists = prev.includes(todayQuote.id);
+      const updated = exists ? prev.filter((id) => id !== todayQuote.id) : [...prev, todayQuote.id];
+      try {
+        localStorage.setItem('momentum-liked-radiance-quotes', JSON.stringify(updated));
+        localStorage.setItem('momentum-saved-radiance-quote', String(!exists));
+      } catch {}
+      return updated;
+    });
+  };
+  const handleShareQuote = async (e) => {
+    e.stopPropagation();
+    const text = `${todayQuote.quote} — ${todayQuote.surah}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: 'Daily Radiance • Momentum', text, url: window.location.origin });
+        setShareFeedback('Shared!');
+        setTimeout(() => setShareFeedback(''), 2000);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setShareFeedback('Copied!');
+        setTimeout(() => setShareFeedback(''), 2000);
+        return;
+      } catch {}
+    }
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setShareFeedback('Copied!');
+      setTimeout(() => setShareFeedback(''), 2000);
+    } catch {
+      setShareFeedback('Copied!');
+      setTimeout(() => setShareFeedback(''), 2000);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-28 font-sans">
+    <div className="min-h-screen bg-slate-50 pb-36 font-sans text-slate-900">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
-          <img 
-            src="/logo.png" 
-            alt="Momentum Logo" 
-            className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-indigo-600/30" 
+          <img
+            src="/logo.png"
+            alt="Momentum Logo"
+            className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/30"
           />
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>More</h1>
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">More</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
+          <button
+            onClick={() => navigateTo('notifications_settings_light_mode')}
+            aria-label="Notifications"
+            className="p-2 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer pointer-events-auto"
+          >
             <Bell className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            U
-          </div>
         </div>
       </div>
-      <p className="px-5 text-xs font-normal text-slate-800 mb-5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
-        Spiritual tools, mindful finance & preferences
-      </p>
 
       {/* Profile Hero Card */}
-      <div className="block mx-5 mb-6 p-5 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white flex items-center justify-center font-bold text-xl shadow-md shadow-indigo-500/30">
-              A
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-slate-900">Aisha M.</h2>
-                <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold tracking-wide uppercase">PRO</span>
-              </div>
-              <p className="text-sm font-normal text-slate-500">Level 4 Streak • 28 Days Active</p>
+      <div
+        onClick={() => navigateTo('settings_profile_light_mode')}
+        className="block mx-5 mb-6 p-5 rounded-[24px] bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-sm cursor-pointer pointer-events-auto transition-all active:scale-[0.99] hover:border-slate-300 select-none"
+      >
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <UserAvatar
+              size="w-16 h-16"
+              textSize="text-xl"
+              setActiveTab={setActiveTab}
+            />
+            <div className="flex flex-col justify-center min-w-0 flex-1">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight leading-snug">{displayName}</h2>
+              <p className="text-xs font-normal text-slate-500 leading-snug mt-0.5">Momentum Member</p>
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 text-indigo-600 flex items-center justify-center transition-colors">
+          <button
+            onClick={(e) => { e.stopPropagation(); navigateTo('settings_profile_light_mode'); }}
+            aria-label="Profile Settings"
+            className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer pointer-events-auto flex-shrink-0"
+          >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-3 pt-4 border-t border-slate-100">
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <span className="text-base font-bold text-indigo-600">142</span>
-            <span className="text-xs font-normal text-slate-500">Adhkar</span>
+        <div className="grid grid-cols-3 pt-4 border-t border-slate-100">
+          <div
+            onClick={(e) => { e.stopPropagation(); navigateTo('tasbeeh_main_light_mode'); }}
+            className="flex flex-col items-center justify-center py-1 border-r border-slate-100/80 active:scale-95 transition-transform text-center cursor-pointer pointer-events-auto"
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+              <span className="text-base font-bold text-slate-900 tracking-tight leading-none">{totalAdhkar}</span>
+            </div>
+            <span className="text-[11px] font-medium text-slate-500">Adhkar</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <span className="text-base font-bold text-teal-600">96%</span>
-            <span className="text-xs font-normal text-slate-500">Punctual</span>
+          <div
+            onClick={(e) => { e.stopPropagation(); navigateTo('prayer_times_light_mode'); }}
+            className="flex flex-col items-center justify-center py-1 border-r border-slate-100/80 active:scale-95 transition-transform text-center cursor-pointer pointer-events-auto"
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+              <span className="text-base font-bold text-slate-900 tracking-tight leading-none">{punctualPercentage}%</span>
+            </div>
+            <span className="text-[11px] font-medium text-slate-500">Punctual</span>
           </div>
-          <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <span className="text-base font-bold text-rose-500">18 d</span>
-            <span className="text-xs font-normal text-slate-500">Reflection</span>
+          <div
+            onClick={(e) => { e.stopPropagation(); navigateTo('notes_main_light_mode'); }}
+            className="flex flex-col items-center justify-center py-1 active:scale-95 transition-transform text-center cursor-pointer pointer-events-auto"
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <BookOpen className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+              <span className="text-base font-bold text-slate-900 tracking-tight leading-none">{reflectionDays}</span>
+            </div>
+            <span className="text-[11px] font-medium text-slate-500">Reflection</span>
           </div>
         </div>
       </div>
 
-      {/* Ecosystem Essentials */}
+      {/* Section Header */}
       <div className="flex items-center justify-between px-5 mb-3">
-        <h3 className="text-sm font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Ecosystem Essentials</h3>
-        <span className="text-xs font-normal text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>6 Modules</span>
+        <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">Ecosystem Essentials</span>
+        <span className="text-xs font-medium text-slate-400">5 Modules</span>
       </div>
 
-      <div className="mx-5 mb-6 space-y-3">
-        {/* Income & Cashflow */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
+      {/* Ecosystem Essentials List */}
+      <div className="space-y-3 px-5 mb-6">
+
+        {/* Prayer Times */}
+        <div
+          onClick={() => navigateTo('prayer_times_light_mode')}
+          className="flex items-center justify-between w-full p-4 rounded-3xl active:scale-[0.98] transition-all cursor-pointer pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:border-emerald-500/30 select-none"
+        >
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+              <Moon className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900">Income & Cashflow</span>
-              <span className="text-xs font-normal text-slate-500">Salary, passive streams & deposits</span>
+            <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
+              <span className="text-[15px] font-semibold text-slate-800 tracking-tight leading-tight">Prayer Times</span>
+              <span className="text-[12px] text-slate-500 line-clamp-1 leading-tight">Accurate prayer timetable</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-indigo-600">$3,450</span>
-            <ChevronRight className="w-5 h-5 text-slate-400" />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs font-semibold text-emerald-600">Next: {nextPrayerName}</span>
+            <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
           </div>
         </div>
 
-        {/* Prayer Times & Qibla */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center">
-              <Moon className="w-6 h-6" />
+        {/* Tasbeh */}
+        <div
+          onClick={() => navigateTo('tasbeeh_main_light_mode')}
+          className="flex items-center justify-between w-full p-4 rounded-3xl active:scale-[0.98] transition-all cursor-pointer pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:border-teal-500/30 select-none"
+        >
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
+              <Repeat className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-900">Prayer Times & Qibla</span>
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-              </div>
-              <span className="text-xs font-normal text-slate-500">Local timetable, Adhan & compass</span>
+            <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
+              <span className="text-[15px] font-semibold text-slate-800 tracking-tight leading-tight">Tasbeh</span>
+              <span className="text-[12px] text-slate-500 line-clamp-1 leading-tight">Vibrational daily dhikr beads</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-teal-600">Next: Dhuhr</span>
-            <ChevronRight className="w-5 h-5 text-slate-400" />
-          </div>
+          <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
         </div>
 
-        {/* Digital Tasbeeh & Dhikr */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <Repeat className="w-6 h-6" />
+        {/* Notes */}
+        <div
+          onClick={() => navigateTo('notes_main_light_mode')}
+          className="flex items-center justify-between w-full p-4 rounded-3xl active:scale-[0.98] transition-all cursor-pointer pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:border-amber-500/30 select-none"
+        >
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+              <PenLine className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900">Digital Tasbeeh & Dhikr</span>
-              <span className="text-xs font-normal text-slate-500">Morning/evening Adhkar & counters</span>
+            <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
+              <span className="text-[15px] font-semibold text-slate-800 tracking-tight leading-tight">Notes</span>
+              <span className="text-[12px] text-slate-500 line-clamp-1 leading-tight">Mindful daily thoughts and scratchpad</span>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
+          <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
         </div>
 
-        {/* Notes & Reflections */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <PenLine className="w-6 h-6" />
+        {/* Calendars */}
+        <div
+          onClick={() => navigateTo('calendars_main_light_mode')}
+          className="flex items-center justify-between w-full p-4 rounded-3xl active:scale-[0.98] transition-all cursor-pointer pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:border-blue-500/30 select-none"
+        >
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-primary flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900">Notes & Reflections</span>
-              <span className="text-xs font-normal text-slate-500">Mindful daily thoughts and scratchpad</span>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
-        </div>
-
-        {/* Calendars & Hijri Dates */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Calendar className="w-6 h-6" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900">Calendars & Hijri Dates</span>
-              <span className="text-xs font-normal text-slate-500">Synchronized lunar and standard schedule</span>
+            <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
+              <span className="text-[15px] font-semibold text-slate-800 tracking-tight leading-tight">Calendars</span>
+              <span className="text-[12px] text-slate-500 line-clamp-1 leading-tight">Synchronized lunar and standard schedule</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-normal text-slate-500">14 Shawwal</span>
-            <ChevronRight className="w-5 h-5 text-slate-400" />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs font-normal text-slate-500">{hijriFormatted}</span>
+            <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
           </div>
         </div>
 
         {/* Settings & Preferences */}
-        <div className="flex items-center justify-between p-4 rounded-3xl active:scale-[0.98] transition-transform cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center">
-              <Settings className="w-6 h-6" />
+        <div
+          onClick={() => navigateTo('settings_profile_light_mode')}
+          className="flex items-center justify-between w-full p-4 rounded-3xl active:scale-[0.98] transition-all cursor-pointer pointer-events-auto bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:border-slate-300 select-none"
+        >
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
+              <Settings className="w-5 h-5" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900">Settings & Preferences</span>
-              <span className="text-xs font-normal text-slate-500">Notifications, cloud backup & privacy</span>
+            <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
+              <span className="text-[15px] font-semibold text-slate-800 tracking-tight leading-tight">Settings & Preferences</span>
+              <span className="text-[12px] text-slate-500 line-clamp-1 leading-tight">Notifications, cloud backup & privacy</span>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 text-slate-400" />
+          <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
         </div>
       </div>
 
       {/* Daily Radiance Card */}
-      <div className="block mx-5 mb-5 relative overflow-hidden rounded-3xl p-5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <Quote className="absolute -right-4 -bottom-4 w-24 h-24 text-indigo-500/10 rotate-12" />
+      <div className="block mx-5 mb-5 relative overflow-hidden rounded-3xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg select-none">
+        <Quote className="absolute -right-4 -bottom-4 w-24 h-24 text-primary/10 rotate-12 pointer-events-none" />
         <div className="relative z-10 flex flex-col space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-indigo-600">
+            <div className="flex items-center gap-1.5 text-primary">
               <Sparkles className="w-4 h-4" />
               <span className="text-xs font-bold tracking-wide uppercase">Daily Radiance</span>
             </div>
-            <button className="w-8 h-8 rounded-full bg-white text-slate-400 hover:text-rose-500 flex items-center justify-center shadow-sm">
-              <Heart className="w-4 h-4" />
+            <button
+              onClick={handleToggleLike}
+              aria-label={isQuoteLiked ? "Remove quote from favorites" : "Save quote to favorites"}
+              className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm cursor-pointer pointer-events-auto transition-transform active:scale-90 ${isQuoteLiked ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-400 hover:text-rose-500'}`}
+            >
+              <Heart className={`w-4 h-4 ${isQuoteLiked ? 'fill-current' : ''}`} />
             </button>
           </div>
           <p className="text-base font-medium text-slate-900 italic leading-relaxed pr-4">
-            “Indeed, with hardship comes ease. Keep moving forward one step at a time.”
+            {todayQuote.quote}
           </p>
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-xs font-normal text-slate-500">Surah Ash-Sharh • 94:6</span>
-            <button className="flex items-center gap-1 text-xs font-bold text-indigo-600">
-              <span>Share</span>
-              <Share2 className="w-3.5 h-3.5" />
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <span className="text-xs font-normal text-slate-500">{todayQuote.surah}</span>
+            <button
+              onClick={handleShareQuote}
+              aria-label="Share Quote"
+              className="flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors cursor-pointer pointer-events-auto px-2 py-1 rounded-lg hover:bg-primary/10 active:scale-95"
+            >
+              {shareFeedback ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-teal-600" />
+                  <span className="text-teal-600">{shareFeedback}</span>
+                </>
+              ) : (
+                <>
+                  <span>Share</span>
+                  <Share2 className="w-3.5 h-3.5" />
+                </>
+              )}
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Floating Bottom Navigation Dock (Light Mode) */}
-      <div className="fixed bottom-4 left-5 right-5 z-30">
-        <nav className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-full px-4 py-2.5 shadow-xl shadow-slate-200/60 flex items-center justify-between">
-          
-          {/* Home Tab */}
-          <button 
-            onClick={() => setActiveTab && setActiveTab('home')}
-            className="flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors flex-1"
-          >
-            <Home className="w-5 h-5"/>
-            <span className="text-[10px] font-medium">Home</span>
-          </button>
-
-          {/* Finance Tab */}
-          <button 
-            onClick={() => setActiveTab && setActiveTab('finance')}
-            className="flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors flex-1"
-          >
-            <Wallet className="w-5 h-5"/>
-            <span className="text-[10px] font-medium">Finance</span>
-          </button>
-
-          {/* Center Action (+) Button */}
-          <div className="relative -top-3 flex-shrink-0 px-1">
-            <button className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 ring-4 ring-white hover:scale-105 active:scale-95 transition-all">
-              <Plus className="w-6 h-6 stroke-[2.5]"/>
-            </button>
-          </div>
-
-          {/* Tasks Tab */}
-          <button 
-            onClick={() => setActiveTab && setActiveTab('tasks')}
-            className="flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-600 transition-colors flex-1"
-          >
-            <CheckSquare className="w-5 h-5"/>
-            <span className="text-[10px] font-medium">Tasks</span>
-          </button>
-
-          {/* More Tab (Active) */}
-          <button className="flex flex-col items-center justify-center gap-0.5 text-indigo-600 transition-colors flex-1">
-            <LayoutGrid className="w-5 h-5"/>
-            <span className="text-[10px] font-bold">More</span>
-          </button>
-
-        </nav>
       </div>
     </div>
   );

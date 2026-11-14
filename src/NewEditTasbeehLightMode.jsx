@@ -1,79 +1,157 @@
-import React from 'react';
-
+﻿import React, { useState } from 'react';
+import UserAvatar from './components/UserAvatar';
+import { useTasbeehStore } from './store/useTasbeehStore';
 import { 
-  ArrowLeft, FolderArchive, RotateCcw, BookOpen, Sparkles, Minus, Plus, Flag, Bell, ArrowRight, X, Trash2 
+  ArrowLeft, RotateCcw, BookOpen, Sparkles, Minus, Plus, Flag, Bell, ArrowRight, X, Trash2 
 } from 'lucide-react';
 
-export default function NewEditTasbeehLightMode({ setActiveTab }) {
+export default function NewEditTasbeehLightMode({ setActiveTab, goBack }) {
+  const { activePreset, updateActivePreset, reset } = useTasbeehStore();
+
+  const [title, setTitle] = useState(activePreset?.transliteration || 'Astaghfirullah wa Atubu Ilayh');
+  const [arabic, setArabic] = useState(activePreset?.arabic || 'أَسْتَغْفِرُ اللهَ وَأَتُوبُ إِلَيْهِ');
+  const [meaning, setMeaning] = useState(activePreset?.meaning || 'I seek forgiveness of Allah and repent to Him.');
+  const [targetCount, setTargetCount] = useState(Number(activePreset?.target) || 100);
+  const [dailyGoalEnabled, setDailyGoalEnabled] = useState(true);
+  const [goalType, setGoalType] = useState('daily');
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+
+  const SUGGESTIONS = [
+    { title: 'SubhanAllah', arabic: 'سُبْحَانَ ٱللَّٰهِ', meaning: 'Glory be to Allah', target: 33 },
+    { title: 'Alhamdulillah', arabic: 'ٱلْحَمْدُ لِلَّٰهِ', meaning: 'All praise is for Allah', target: 33 },
+    { title: 'Allahu Akbar', arabic: 'ٱللَّٰهُ أَكْبَرُ', meaning: 'Allah is the Greatest', target: 34 },
+    { title: 'La Ilaha Illallah', arabic: 'لَا إِلَٰهَ إِلَّا ٱللَّٰهُ', meaning: 'There is no god but Allah', target: 100 },
+  ];
+
+  const handleApplySuggestion = (sug) => {
+    setTitle(sug.title);
+    setArabic(sug.arabic);
+    setMeaning(sug.meaning);
+    setTargetCount(sug.target);
+  };
+
+  const handleResetDefaults = () => {
+    setTitle('Astaghfirullah wa Atubu Ilayh');
+    setArabic('أَسْتَغْفِرُ اللهَ وَأَتُوبُ إِلَيْهِ');
+    setMeaning('I seek forgiveness of Allah and repent to Him.');
+    setTargetCount(100);
+  };
+
+  const handleSave = () => {
+    updateActivePreset({
+      transliteration: title.trim() || 'Dhikr',
+      arabic: arabic.trim(),
+      meaning: meaning.trim(),
+      target: Number(targetCount) || 33,
+    });
+    if (setActiveTab) setActiveTab('tasbeeh_main_light_mode');
+  };
+
+  const handleCancel = () => {
+    if (goBack) goBack('tasbeeh_main_light_mode');
+    else if (setActiveTab) setActiveTab('tasbeeh_main_light_mode');
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Reset this Dhikr preset back to Subhanallah (33)?')) {
+      updateActivePreset({
+        id: 'p1',
+        arabic: 'سُبْحَانَ ٱللَّٰهِ',
+        transliteration: 'Subhanallah',
+        meaning: 'Glory be to Allah',
+        target: 33,
+      });
+      reset();
+      if (setActiveTab) setActiveTab('tasbeeh_main_light_mode');
+    }
+  };
+
+  const handleCustomTarget = () => {
+    const custom = window.prompt('Enter custom target bead count:', String(targetCount));
+    if (custom !== null) {
+      const num = parseInt(custom, 10);
+      if (!isNaN(num) && num > 0) {
+        setTargetCount(num);
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-10">
+    <div className="min-h-screen bg-slate-50 font-sans pb-10 select-none">
       {/* TOP HEADER */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
+          <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             New Dhikr
           </h1>
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}
-            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
+            type="button"
+            onClick={handleCancel}
+            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
+          <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
         </div>
       </div>
 
       {/* Sub-bar */}
       <div className="flex flex-row items-center justify-between w-full px-5 pt-2 pb-4">
         <div className="flex items-center gap-2">
-          <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-xs font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-950 shadow-sm" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+          <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-xs font-bold bg-primary/10 border border-primary/20 text-slate-900 shadow-sm" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
             NEW DHIKR
           </span>
           <span className="text-xs font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Custom Counter</span>
         </div>
-        <button className="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-100 border border-slate-200/80 text-slate-600 hover:text-indigo-600 hover:bg-slate-200 transition-colors shadow-sm active:scale-95" type="button">
+        <button 
+          type="button"
+          onClick={handleResetDefaults}
+          className="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-100 border border-slate-200/80 text-slate-600 hover:text-primary hover:bg-slate-200 transition-colors shadow-sm active:scale-95 cursor-pointer select-none"
+        >
           <RotateCcw className="w-3.5 h-3.5"/>
           <span>Reset</span>
         </button>
       </div>
 
       {/* DHIKR TITLE & ENHANCED ARABIC SCRIPT BOX */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-              Dhikr Title <span className="text-indigo-600">*</span>
+              Dhikr Title <span className="text-primary">*</span>
             </label>
             <span className="text-[11px] font-normal text-slate-400">Primary Name</span>
           </div>
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
             <input 
               type="text" 
-              defaultValue="Astaghfirullah wa Atubu Ilayh" 
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               className="bg-transparent text-sm font-semibold text-slate-900 w-full focus:outline-none" 
+              placeholder="e.g. Astaghfirullah wa Atubu Ilayh"
             />
-            <BookOpen className="w-4 h-4 text-indigo-600 flex-shrink-0 ml-2" />
+            <BookOpen className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
           </div>
         </div>
 
         {/* Elegant Arabic Script Preview Box (Light Mode) */}
-        <div className="relative overflow-hidden rounded-2xl p-6 text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="relative overflow-hidden rounded-2xl p-6 text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           
           {/* Symmetrical Islamic Radial Glow */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-200/35 via-transparent to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent pointer-events-none"></div>
 
           {/* Refined Islamic Geometric Arabesque / Star Watermark (Properly Centered & Scaled) */}
           <div className="absolute inset-0 flex items-center justify-center opacity-[0.07] pointer-events-none">
             <svg 
-              className="w-48 h-48 text-indigo-900" 
+              className="w-48 h-48 text-primary" 
               viewBox="0 0 200 200" 
               fill="currentColor"
             >
@@ -97,19 +175,19 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
           </div>
 
           {/* Subtle Ornamental Inner Border Accent */}
-          <div className="absolute inset-2 rounded-xl border border-dashed border-indigo-200/60 pointer-events-none"></div>
+          <div className="absolute inset-2 rounded-xl border border-dashed border-primary/20 pointer-events-none"></div>
 
           {/* Content Layer */}
           <div className="relative z-10 space-y-2">
-            <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-indigo-700 bg-white/90 border border-indigo-200/70 shadow-2xs uppercase">
+            <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-primary bg-white/90 border border-primary/20 shadow-2xs uppercase">
               PREVIEW (SCRIPT)
             </span>
 
             <h3 
-              className="text-2xl sm:text-3xl font-bold text-indigo-950 font-quran leading-relaxed py-2 select-all tracking-wide"
+              className="text-2xl sm:text-3xl font-bold text-slate-900 font-quran leading-relaxed py-2 select-all tracking-wide"
               dir="rtl"
             >
-              أَسْتَغْفِرُ اللهَ وَأَتُوبُ إِلَيْهِ
+              {arabic}
             </h3>
           </div>
         </div>
@@ -118,80 +196,116 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
         <div className="pt-1">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600"/>
+              <Sparkles className="w-3.5 h-3.5 text-primary"/>
               Preset Suggestions
             </span>
             <span className="text-[10px] text-slate-400 font-normal">Tap to fill</span>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-            <button className="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold whitespace-nowrap hover:bg-indigo-100">
-              SubhanAllah
-            </button>
-            <button className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium whitespace-nowrap hover:bg-slate-100">
-              Alhamdulillah
-            </button>
-            <button className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium whitespace-nowrap hover:bg-slate-100">
-              Allahu Akbar
-            </button>
-            <button className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium whitespace-nowrap hover:bg-slate-100">
-              La Ilaha Illallah
-            </button>
+            {SUGGESTIONS.map((sug) => {
+              const isActive = title === sug.title;
+              return (
+                <button 
+                  key={sug.title}
+                  type="button"
+                  onClick={() => handleApplySuggestion(sug)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer select-none ${
+                    isActive 
+                      ? 'bg-primary/15 text-primary border border-primary shadow-2xs' 
+                      : 'bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 font-medium'
+                  }`}
+                >
+                  {sug.title}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* TRANSLITERATION & MEANING CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-slate-700">Transliteration & Meaning</label>
           <span className="text-[11px] font-normal text-slate-400">Optional</span>
         </div>
-        <div className="p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <p className="text-xs font-normal text-slate-700 leading-relaxed">
-            I seek forgiveness of Allah and repent to Him.
-          </p>
+        <div className="p-3.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+          <input 
+            type="text"
+            value={meaning}
+            onChange={(e) => setMeaning(e.target.value)}
+            placeholder="Meaning of this dhikr..."
+            className="bg-transparent text-xs font-normal text-slate-700 leading-relaxed w-full focus:outline-none"
+          />
         </div>
       </div>
 
       {/* TARGET COUNT & STEPPER CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-slate-700">Target Count</span>
-          <span className="text-xs font-bold text-indigo-600">100 cycles</span>
+          <span className="text-xs font-bold text-primary">{targetCount} cycles</span>
         </div>
         
         {/* 6 Presets Grid */}
         <div className="grid grid-cols-6 gap-1.5">
-          <button className="py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 hover:bg-slate-100">33</button>
-          <button className="py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 hover:bg-slate-100">99</button>
-          <button className="py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-sm shadow-indigo-600/30">100</button>
-          <button className="py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 hover:bg-slate-100">500</button>
-          <button className="py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 hover:bg-slate-100">1000</button>
-          <button className="py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] font-semibold text-slate-700 hover:bg-slate-100">Custom</button>
+          {[33, 99, 100, 500, 1000].map((num) => (
+            <button 
+              key={num}
+              type="button"
+              onClick={() => setTargetCount(num)}
+              className={`py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none ${
+                targetCount === num 
+                  ? 'bg-primary text-white font-bold shadow-sm shadow-primary/30' 
+                  : 'bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              {num}
+            </button>
+          ))}
+          <button 
+            type="button"
+            onClick={handleCustomTarget}
+            className={`py-2 rounded-xl text-[11px] font-semibold transition-all cursor-pointer select-none ${
+              ![33, 99, 100, 500, 1000].includes(targetCount)
+                ? 'bg-primary text-white font-bold shadow-sm shadow-primary/30'
+                : 'bg-slate-50 border border-slate-200/80 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            Custom
+          </button>
         </div>
 
         {/* Stepper Block */}
-        <div className="p-4 rounded-2xl flex items-center justify-between bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <button className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center shadow-xs hover:bg-slate-50 transition-colors">
+        <div className="p-4 rounded-2xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+          <button 
+            type="button"
+            onClick={() => setTargetCount((prev) => Math.max(1, prev - 1))}
+            className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center shadow-xs hover:bg-slate-50 transition-colors cursor-pointer select-none active:scale-95"
+          >
             <Minus className="w-4 h-4"/>
           </button>
           <div className="text-center">
-            <h4 className="text-3xl font-bold text-indigo-600">100</h4>
+            <h4 className="text-3xl font-bold text-primary">{targetCount}</h4>
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mt-0.5">Beads Count</span>
           </div>
-          <button className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center shadow-xs hover:bg-slate-50 transition-colors">
+          <button 
+            type="button"
+            onClick={() => setTargetCount((prev) => prev + 1)}
+            className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-700 font-bold flex items-center justify-center shadow-xs hover:bg-slate-50 transition-colors cursor-pointer select-none active:scale-95"
+          >
             <Plus className="w-4 h-4"/>
           </button>
         </div>
       </div>
 
       {/* DAILY GOAL & REMINDER CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
         {/* Daily Goal Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
-              <Flag className="w-4 h-4 text-indigo-600"/>
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Flag className="w-4 h-4 text-primary"/>
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-slate-900">Daily Goal</span>
@@ -199,16 +313,33 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" defaultChecked />
-            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            <input 
+              type="checkbox" 
+              checked={dailyGoalEnabled} 
+              onChange={() => setDailyGoalEnabled(!dailyGoalEnabled)} 
+              className="sr-only peer" 
+            />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
           </label>
         </div>
 
-        <div className="flex items-center gap-2 p-1 rounded-xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <button className="flex-1 py-1.5 rounded-lg bg-white shadow-sm text-xs font-semibold text-indigo-600">
+        <div className="flex items-center gap-2 p-1 rounded-xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+          <button 
+            type="button"
+            onClick={() => setGoalType('daily')}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+              goalType === 'daily' ? 'bg-white shadow-sm text-primary font-semibold' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
             Daily Practice
           </button>
-          <button className="flex-1 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-700">
+          <button 
+            type="button"
+            onClick={() => setGoalType('occasions')}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
+              goalType === 'occasions' ? 'bg-white shadow-sm text-primary font-semibold' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
             Specific Occasions
           </button>
         </div>
@@ -227,12 +358,17 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" defaultChecked />
+            <input 
+              type="checkbox" 
+              checked={reminderEnabled} 
+              onChange={() => setReminderEnabled(!reminderEnabled)} 
+              className="sr-only peer" 
+            />
             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
           </label>
         </div>
 
-        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <span className="text-xs font-semibold text-slate-600">Preferred Window</span>
           <span className="text-xs font-bold text-slate-900">After Asr (5:15 PM)</span>
         </div>
@@ -241,18 +377,30 @@ export default function NewEditTasbeehLightMode({ setActiveTab }) {
       {/* STANDARDIZED BOTTOM ACTION BUTTONS */}
       <div className="px-5 pb-10 space-y-3">
         {/* Primary Save Button */}
-        <button className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2">
+        <button 
+          type="button"
+          onClick={handleSave}
+          className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2 cursor-pointer select-none"
+        >
           <span>Save Tasbeeh</span>
           <ArrowRight className="w-4 h-4"/>
         </button>
 
         {/* Balanced Secondary Buttons Row */}
         <div className="flex flex-row items-center justify-between gap-3 w-full">
-          <button className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
+          <button 
+            type="button"
+            onClick={handleCancel}
+            className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer select-none"
+          >
             <X className="w-4 h-4 text-slate-500"/>
             <span>Cancel</span>
           </button>
-          <button className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap">
+          <button 
+            type="button"
+            onClick={handleDelete}
+            className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer select-none"
+          >
             <Trash2 className="w-4 h-4 text-rose-500"/>
             <span>Delete Tasbeeh</span>
           </button>

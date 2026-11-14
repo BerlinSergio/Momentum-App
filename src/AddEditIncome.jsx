@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -195,25 +195,25 @@ export default function AddEditIncome({
               className: "flex items-center justify-between gap-1.5 pt-1",
               children: [/*#__PURE__*/_jsxDEV(LiquidButton, {
                 variant: "pill",
-                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '500.00' ? 'bg-gradient-to-r from-primary to-indigo-600 text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
+                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '500.00' ? 'bg-gradient-to-r from-primary to-primary text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
                 onClick: () => handlePreset(500),
                 type: "button",
                 children: ["+", currencies[currencyIdx].sym, "500"]
               }, void 0, true), /*#__PURE__*/_jsxDEV(LiquidButton, {
                 variant: "pill",
-                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '1,000.00' ? 'bg-gradient-to-r from-primary to-indigo-600 text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
+                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '1,000.00' ? 'bg-gradient-to-r from-primary to-primary text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
                 onClick: () => handlePreset(1000),
                 type: "button",
                 children: ["+", currencies[currencyIdx].sym, "1,000"]
               }, void 0, true), /*#__PURE__*/_jsxDEV(LiquidButton, {
                 variant: "pill",
-                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '2,500.00' ? 'bg-gradient-to-r from-primary to-indigo-600 text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
+                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '2,500.00' ? 'bg-gradient-to-r from-primary to-primary text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
                 onClick: () => handlePreset(2500),
                 type: "button",
                 children: ["+", currencies[currencyIdx].sym, "2,500"]
               }, void 0, true), /*#__PURE__*/_jsxDEV(LiquidButton, {
                 variant: "pill",
-                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '5,000.00' ? 'bg-gradient-to-r from-primary to-indigo-600 text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
+                className: `preset-pill flex-1 py-1.5 px-2 rounded-full font-label-md text-label-md text-center transition-all duration-150 active:scale-95 shadow-sm ${amount === '5,000.00' ? 'bg-gradient-to-r from-primary to-primary text-on-surface shadow-lg shadow-primary/30 border border-primary/40' : 'bg-surface-container hover:bg-surface-container border text-on-surface'}`,
                 onClick: () => handlePreset(5000),
                 type: "button",
                 children: ["+", currencies[currencyIdx].sym, "5,000"]
@@ -246,7 +246,7 @@ export default function AddEditIncome({
                 onClick: () => setActiveSource(src.id),
                 type: "button",
                 children: [/*#__PURE__*/_jsxDEV("div", {
-                  className: `w-10 h-10 rounded-full flex items-center justify-center mb-1.5 ${isActive ? 'bg-gradient-to-tr from-indigo-600 to-primary text-on-surface shadow-[0_4px_12px_rgba(99,102,241,0.4)]' : 'bg-surface-container text-on-surface-variant dark:text-on-surface-variant'}`,
+                  className: `w-10 h-10 rounded-full flex items-center justify-center mb-1.5 ${isActive ? 'bg-gradient-to-tr from-primary to-primary text-on-surface shadow-[0_4px_12px_rgba(99,102,241,0.4)]' : 'bg-surface-container text-on-surface-variant dark:text-on-surface-variant'}`,
                   children: /*#__PURE__*/_jsxDEV("span", {
                     className: "material-symbols-outlined text-[20px]",
                     style: isActive ? {
@@ -441,7 +441,7 @@ export default function AddEditIncome({
         }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
           className: "flex flex-col space-y-space-sm pt-2",
           children: [/*#__PURE__*/_jsxDEV(LiquidButton, {
-            className: "w-full py-4 px-6 rounded-DEFAULT bg-gradient-to-r from-primary via-indigo-600 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-on-surface font-headline-sm text-headline-sm shadow-[0_8px_25px_rgba(99,102,241,0.4)] border border-primary/30 flex items-center justify-center gap-2 hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-75 disabled:cursor-not-allowed",
+            className: "w-full py-4 px-6 rounded-DEFAULT bg-gradient-to-r from-primary via-primary to-primary-container hover:from-primary hover:to-primary-container text-on-surface font-headline-sm text-headline-sm shadow-[0_8px_25px_rgba(99,102,241,0.4)] border border-primary/30 flex items-center justify-center gap-2 hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-75 disabled:cursor-not-allowed",
             disabled: saveState !== 'idle',
             onClick: handleSave,
             type: "button",

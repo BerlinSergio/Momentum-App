@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -9,7 +9,6 @@ export default function AppLock({
 }) {
   const [masterToggle, setMasterToggle] = useState(true);
   const [biometricsToggle, setBiometricsToggle] = useState(true);
-  const [quickDhikrToggle, setQuickDhikrToggle] = useState(true);
   const [hideMultitaskingToggle, setHideMultitaskingToggle] = useState(true);
   const [lockTiming, setLockTiming] = useState('immediate');
   const [isSaved, setIsSaved] = useState(false);
@@ -383,120 +382,6 @@ export default function AppLock({
               children: /*#__PURE__*/_jsxDEV("span", {
                 className: `pointer-events-none inline-block h-5 w-5 transform rounded-full ${hideMultitaskingToggle ? 'bg-on-primary translate-x-5' : 'bg-on-surface-variant translate-x-0'} shadow transition duration-200`
               }, void 0, false)
-            }, void 0, false)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("section", {
-          className: "space-y-space-sm",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            children: [/*#__PURE__*/_jsxDEV("h3", {
-              className: "font-headline-sm text-headline-sm text-on-surface ",
-              children: "Selective Guardrails"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-              className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant mt-0.5",
-              children: "Granular security per sacred & personal domain"
-            }, void 0, false)]
-          }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-            className: "rounded-xl bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 backdrop-blur-md p-space-sm space-y-1 shadow-md",
-            children: [/*#__PURE__*/_jsxDEV("div", {
-              className: "flex items-center justify-between p-3 rounded-lg hover:bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 transition-colors",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "flex items-center gap-3 min-w-0 pr-2",
-                children: [/*#__PURE__*/_jsxDEV("div", {
-                  className: "w-8 h-8 rounded-lg bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 flex items-center justify-center shrink-0 text-secondary",
-                  children: /*#__PURE__*/_jsxDEV("span", {
-                    className: "material-symbols-outlined text-[18px]",
-                    children: "account_balance_wallet"
-                  }, void 0, false)
-                }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                  className: "min-w-0",
-                  children: [/*#__PURE__*/_jsxDEV("p", {
-                    className: "font-label-lg text-label-lg text-on-surface truncate",
-                    children: "Finance & Halal Expenses"
-                  }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-                    className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant",
-                    children: "Requires re-verification"
-                  }, void 0, false)]
-                }, void 0, true)]
-              }, void 0, true), /*#__PURE__*/_jsxDEV("span", {
-                className: "font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 text-on-surface dark:text-on-surface-variant shrink-0",
-                children: "Always Locked"
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "flex items-center justify-between p-3 rounded-lg hover:bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 transition-colors",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "flex items-center gap-3 min-w-0 pr-2",
-                children: [/*#__PURE__*/_jsxDEV("div", {
-                  className: "w-8 h-8 rounded-lg bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 flex items-center justify-center shrink-0 text-primary",
-                  children: /*#__PURE__*/_jsxDEV("span", {
-                    className: "material-symbols-outlined text-[18px]",
-                    children: "auto_stories"
-                  }, void 0, false)
-                }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                  className: "min-w-0",
-                  children: [/*#__PURE__*/_jsxDEV("p", {
-                    className: "font-label-lg text-label-lg text-on-surface truncate",
-                    children: "Reflections & Intimate Notes"
-                  }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-                    className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant",
-                    children: "Requires re-verification"
-                  }, void 0, false)]
-                }, void 0, true)]
-              }, void 0, true), /*#__PURE__*/_jsxDEV("span", {
-                className: "font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 text-on-surface dark:text-on-surface-variant shrink-0",
-                children: "Always Locked"
-              }, void 0, false)]
-            }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-              className: "flex items-center justify-between p-3 rounded-lg hover:bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 transition-colors",
-              children: [/*#__PURE__*/_jsxDEV("div", {
-                className: "flex items-center gap-3 min-w-0 pr-2",
-                children: [/*#__PURE__*/_jsxDEV("div", {
-                  className: "w-8 h-8 rounded-lg bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 flex items-center justify-center shrink-0 text-tertiary",
-                  children: /*#__PURE__*/_jsxDEV("span", {
-                    className: "material-symbols-outlined text-[18px]",
-                    children: "touch_app"
-                  }, void 0, false)
-                }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-                  className: "min-w-0",
-                  children: [/*#__PURE__*/_jsxDEV("p", {
-                    className: "font-label-lg text-label-lg text-on-surface truncate",
-                    children: "Allow Quick Dhikr Counter"
-                  }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-                    className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant",
-                    children: "Permit Tasbeeh widget without unlocking"
-                  }, void 0, false)]
-                }, void 0, true)]
-              }, void 0, true), /*#__PURE__*/_jsxDEV(LiquidButton, {
-                variant: "primary",
-                "aria-checked": quickDhikrToggle,
-                className: `relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors duration-200 ${quickDhikrToggle ? 'bg-primary' : 'bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0'}`,
-                role: "switch",
-                type: "button",
-                onClick: () => setQuickDhikrToggle(!quickDhikrToggle),
-                children: /*#__PURE__*/_jsxDEV("span", {
-                  className: `pointer-events-none inline-block h-5 w-5 transform rounded-full ${quickDhikrToggle ? 'bg-on-primary translate-x-5' : 'bg-on-surface-variant translate-x-0'} shadow transition duration-200`
-                }, void 0, false)
-              }, void 0, false)]
-            }, void 0, true)]
-          }, void 0, true)]
-        }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
-          className: "rounded-xl bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 backdrop-blur-md p-space-md shadow-inner flex items-start gap-3",
-          children: [/*#__PURE__*/_jsxDEV("div", {
-            className: "w-9 h-9 rounded-lg bg-primary-container/20 flex items-center justify-center shrink-0 text-primary mt-0.5",
-            children: /*#__PURE__*/_jsxDEV("span", {
-              className: "material-symbols-outlined text-[20px]",
-              style: {
-                fontVariationSettings: "'FILL' 1"
-              },
-              children: "enhanced_encryption"
-            }, void 0, false)
-          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
-            className: "space-y-1 min-w-0",
-            children: [/*#__PURE__*/_jsxDEV("h4", {
-              className: "font-label-lg text-label-lg text-on-surface ",
-              children: "Zero-Knowledge Architecture"
-            }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
-              className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant leading-relaxed",
-              children: "Your PIN, passcodes, and biometrics never leave this hardware unit. Authentication keys are held exclusively within your device Secure Element."
             }, void 0, false)]
           }, void 0, true)]
         }, void 0, true), /*#__PURE__*/_jsxDEV("div", {

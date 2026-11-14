@@ -1,5 +1,6 @@
 import React from 'react';
 import { useWallpaper } from '../context/WallpaperContext';
+import { useThemeStore } from '../store/useThemeStore';
 import LiquidButton from './ui/LiquidButton';
 
 export default function WallpaperSelector({ isDarkMode, onClose }) {
@@ -174,6 +175,9 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
                     type="button"
                     onClick={() => {
                       setCurrentIndex(index);
+                      if (wp.id) {
+                        useThemeStore.getState().setActiveBackgroundId(wp.id);
+                      }
                       setAutoDaily(false);
                     }}
                     className={`group relative aspect-[9/16] rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md focus:outline-none ${
@@ -181,6 +185,7 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
                         ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-current scale-[1.02]'
                         : 'opacity-90 hover:opacity-100'
                     }`}
+                    style={{ background: wp.gradient || wp.lightGradient || 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)' }}
                   >
                     {/* Thumbnail Image with fallback */}
                     <img 

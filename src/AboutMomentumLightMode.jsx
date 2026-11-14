@@ -1,30 +1,31 @@
 import React from 'react';
+import UserAvatar from './components/UserAvatar';
 
 import { Info, ArrowLeft } from 'lucide-react';
 
-export default function AboutMomentumLightMode({ setActiveTab }) {
+export default function AboutMomentumLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
+          <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Info className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
             About Momentum
           </h1>
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}
+            onClick={() => (goBack ? goBack('settings_profile_light_mode') : (setActiveTab ? setActiveTab('settings_profile_light_mode') : window.history.back()))}
             className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
+          <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
         </div>
       </div>
       <main className="flex flex-col flex-1 relative w-full pb-safe bg-transparent"><div className="w-full max-w-md mx-auto px-4 py-4 space-y-6 pb-24 select-none relative">
@@ -44,21 +45,21 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 />
 </div>
 {/*  Wordmark & Philosophy  */}
-<h2 className="text-3xl font-bold text-indigo-950 tracking-tight mt-3" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h2>
-<div className="w-fit mx-auto mt-2 px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border border-white/80 shadow-sm">
+<h2 className="text-3xl font-bold text-slate-900 tracking-tight mt-3" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h2>
+<div className="w-fit mx-auto mt-2 px-4 py-1.5 rounded-full bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm">
   <p className="text-center text-sm leading-relaxed text-slate-900 font-medium">
     Where sacred time meets mindful living.
   </p>
 </div>
 {/*  Version Release Pill  */}
-<div className="mx-auto inline-flex items-center justify-center gap-2 mt-4 px-3.5 py-1.5 rounded-full bg-white/70 backdrop-blur-md border border-white/80 shadow-sm">
+<div className="mx-auto inline-flex items-center justify-center gap-2 mt-4 px-3.5 py-1.5 rounded-full bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm">
 <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
 <span className="font-label-sm text-label-sm text-slate-800 uppercase tracking-wider font-semibold">VERSION 1.0 (BUILD 2026)</span>
 </div>
 </section>
 {/*  2. Authorship & Vision Card  */}
 <section className="">
-<div className="relative overflow-hidden rounded-2xl p-5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<div className="relative overflow-hidden rounded-2xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
 <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full pointer-events-none"></div>
 <div className="flex items-center gap-4 relative z-10">
 <div className="w-11 h-11 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
@@ -82,13 +83,13 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </section>
 {/*  3. Core Philosophy Section  */}
 <section className="">
-<div className="w-fit text-left flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white/70 backdrop-blur-md border border-white/80 shadow-sm">
+<div className="w-fit text-left flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm">
 <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
 <h3 className="font-label-md text-label-md text-slate-900 uppercase tracking-widest font-semibold">Core Philosophy</h3>
 </div>
 <div className="flex flex-col space-y-3">
 {/*  Card 1  */}
-<div className="p-5 rounded-2xl transition-colors duration-200 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<div className="p-5 rounded-2xl transition-colors duration-200 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
 <div className="flex items-center gap-4">
 <div className="w-10 h-10 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-secondary text-[20px]">calendar_month</span>
@@ -102,7 +103,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 2  */}
-<div className="p-5 rounded-2xl transition-colors duration-200 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<div className="p-5 rounded-2xl transition-colors duration-200 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
 <div className="flex items-center gap-4">
 <div className="w-10 h-10 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-primary text-[20px]">enhanced_encryption</span>
@@ -116,7 +117,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </div>
 </div>
 {/*  Card 3  */}
-<div className="p-5 rounded-2xl transition-colors duration-200 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<div className="p-5 rounded-2xl transition-colors duration-200 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
 <div className="flex items-center gap-4">
 <div className="w-10 h-10 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-tertiary text-[20px]">wb_twilight</span>
@@ -133,13 +134,13 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </section>
 {/*  4. Open Source & Craft Section  */}
 <section className="">
-<div className="w-fit text-left flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white/70 backdrop-blur-md border border-white/80 shadow-sm">
+<div className="w-fit text-left flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm">
 <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
 <h3 className="font-label-md text-label-md text-slate-900 uppercase tracking-widest font-semibold">Open Source &amp; Craft</h3>
 </div>
-<div className="rounded-2xl overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<div className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
 {/*  Row 1  */}
-<div className="flex items-center justify-between p-4 px-5 hover:bg-white/70 transition-colors">
+<div className="flex items-center justify-between p-4 px-5 hover:bg-white/80 transition-colors">
 <div className="flex items-center gap-4 min-w-0">
 <div className="w-9 h-9 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-on-surface-variant text-[18px]">font_download</span>
@@ -150,7 +151,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </div>
 <div className="h-[1px] bg-black/5 mx-5"></div>
 {/*  Row 2  */}
-<div className="flex items-center justify-between p-4 px-5 hover:bg-white/70 transition-colors">
+<div className="flex items-center justify-between p-4 px-5 hover:bg-white/80 transition-colors">
 <div className="flex items-center gap-4 min-w-0">
 <div className="w-9 h-9 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-on-surface-variant text-[18px]">public</span>
@@ -161,7 +162,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </div>
 <div className="h-[1px] bg-black/5 mx-5"></div>
 {/*  Row 3  */}
-<div className="flex items-center justify-between p-4 px-5 hover:bg-white/70 transition-colors">
+<div className="flex items-center justify-between p-4 px-5 hover:bg-white/80 transition-colors">
 <div className="flex items-center gap-4 min-w-0">
 <div className="w-9 h-9 rounded-full bg-white/80 border border-white/90 flex items-center justify-center shrink-0 shadow-sm">
 <span className="material-symbols-outlined text-on-surface-variant text-[18px]">palette</span>
@@ -174,13 +175,13 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 </section>
 {/*  5. Sanctuary & Trust Section  */}
 <section className="">
-<div className="w-fit text-left flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white/70 backdrop-blur-md border border-white/80 shadow-sm">
+<div className="w-fit text-left flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm">
 <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
 <h3 className="font-label-md text-label-md text-slate-900 uppercase tracking-widest font-semibold">Sanctuary &amp; Trust</h3>
 </div>
-<div className="rounded-2xl overflow-hidden flex flex-col bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+<div className="rounded-2xl overflow-hidden flex flex-col bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
 {/*  Item 1  */}
-<button className="w-full flex items-center justify-between p-4 px-5 text-left hover:bg-white/70 active:bg-white/70 transition-colors group" type="button">
+<button className="w-full flex items-center justify-between p-4 px-5 text-left hover:bg-white/80 active:bg-white/80 transition-colors group" type="button">
 <div className="flex items-center gap-4 min-w-0">
 <div className="w-9 h-9 rounded-full bg-white/80 border border-white/90 flex items-center justify-center text-primary shrink-0 shadow-sm group-hover:scale-105 transition-transform">
 <span className="material-symbols-outlined text-[18px]">shield</span>
@@ -196,7 +197,7 @@ export default function AboutMomentumLightMode({ setActiveTab }) {
 {/*  Dual Lotus Accent  */}
 <div className="flex items-center justify-center gap-2 mb-2 text-primary/70">
 <span className="material-symbols-outlined text-[18px]">spa</span>
-<span className="font-label-sm text-label-sm tracking-widest text-indigo-950 uppercase font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Mindful Focus</span>
+<span className="font-label-sm text-label-sm tracking-widest text-slate-900 uppercase font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Mindful Focus</span>
 <span className="material-symbols-outlined text-[18px]">spa</span>
 </div>
 {/*  Closing Quote  */}

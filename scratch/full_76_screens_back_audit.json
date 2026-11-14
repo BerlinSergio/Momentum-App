@@ -1,0 +1,802 @@
+[
+  {
+    "name": "AboutMomentumDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 23,
+        "btnLine": 19,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('more_dark_mode') : (setActiveTab ? setActiveTab('more_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "AboutMomentumLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 23,
+        "btnLine": 19,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('more_light_mode') : (setActiveTab ? setActiveTab('more_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "AddEditExpenseDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 170,
+        "btnLine": 165,
+        "snippet": "<button              type=\"button\"              onClick={() => handleNavigate('finance_expense_tracker_dark_mode')}              className=\"p-2 rounded-full text-slate-300 hover:bg-white/10 transition-colors pointer-events-auto cursor-pointer\"           >             <ArrowLeft className=\"w-5 h-5\" />           </button>         </div>       </header>"
+      }
+    ]
+  },
+  {
+    "name": "AddEditExpenseLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 170,
+        "btnLine": 165,
+        "snippet": "<button              type=\"button\"              onClick={() => handleNavigate('finance_expense_tracker_light_mode')}              className=\"p-2 rounded-full text-slate-600 hover:bg-white/10 transition-colors pointer-events-auto cursor-pointer\"           >             <ArrowLeft className=\"w-5 h-5\" />           </button>         </div>       </header>"
+      }
+    ]
+  },
+  {
+    "name": "AddEditIncomeDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 161,
+        "btnLine": 161,
+        "snippet": "<ArrowLeft className=\"w-5 h-5\"/>           </button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A"
+      }
+    ]
+  },
+  {
+    "name": "AddEditIncomeLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 161,
+        "btnLine": 161,
+        "snippet": "<ArrowLeft className=\"w-5 h-5\"/>           </button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A"
+      }
+    ]
+  },
+  {
+    "name": "AddEditRoutineDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('daily_routine_dark_mode') : (setActiveTab ? setActiveTab('daily_routine_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "AddEditRoutineLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('daily_routine_light_mode') : (setActiveTab ? setActiveTab('daily_routine_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "AddEditTaskDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 380,
+        "btnLine": 380,
+        "snippet": "<button onClick={handleCancel} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A           </div>"
+      }
+    ]
+  },
+  {
+    "name": "AddEditTaskLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 380,
+        "btnLine": 380,
+        "snippet": "<button onClick={handleCancel} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A           </div>"
+      }
+    ]
+  },
+  {
+    "name": "AfghanSolarHijriShamsiCalendarDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 134,
+        "btnLine": 134,
+        "snippet": "<button type=\"button\" onClick={() => (goBack ? goBack('calendars_main_dark_mode') : (setActiveTab ? setActiveTab('calendars_main_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A           </div>"
+      }
+    ]
+  },
+  {
+    "name": "AfghanSolarHijriShamsiCalendarLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 134,
+        "btnLine": 134,
+        "snippet": "<button type=\"button\" onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A           </div>"
+      }
+    ]
+  },
+  {
+    "name": "AppLockDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 140,
+        "btnLine": 139,
+        "snippet": "<button onClick={() => (goBack ? goBack('more_dark_mode') : (setActiveTab ? setActiveTab('more_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\">             <ArrowLeft className=\"w-5 h-5\" />           </button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A"
+      }
+    ]
+  },
+  {
+    "name": "AppLockLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 140,
+        "btnLine": 139,
+        "snippet": "<button onClick={() => (goBack ? goBack('more_light_mode') : (setActiveTab ? setActiveTab('more_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\">             <ArrowLeft className=\"w-5 h-5\" />           </button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A"
+      }
+    ]
+  },
+  {
+    "name": "AppearanceDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 102,
+        "btnLine": 102,
+        "snippet": "<button type=\"button\" onClick={() => (goBack ? goBack('more_dark_mode') : (setActiveTab ? setActiveTab('more_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div             className=\"w-9 h-9 rounded-full text-white font-bold text-xs flex items-center justify-center shadow-sm transition-colors duration-300\"             style={{ backgroundColor: activeAuraPreset.hex }}"
+      }
+    ]
+  },
+  {
+    "name": "AppearanceLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 102,
+        "btnLine": 102,
+        "snippet": "<button type=\"button\" onClick={() => (goBack ? goBack('more_light_mode') : (setActiveTab ? setActiveTab('more_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div             className=\"w-9 h-9 rounded-full text-white font-bold text-xs flex items-center justify-center shadow-sm transition-colors duration-300\"             style={{ backgroundColor: activeAuraPreset.hex }}"
+      }
+    ]
+  },
+  {
+    "name": "BackgroundPreviewBlurControlDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 58,
+        "btnLine": 57,
+        "snippet": "<button onClick={() => (goBack ? goBack('background_wallpaper_library_dark_mode') : (setActiveTab ? setActiveTab('background_wallpaper_library_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\">             <ArrowLeft className=\"w-5 h-5\" />           </button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A"
+      }
+    ]
+  },
+  {
+    "name": "BackgroundPreviewBlurControlLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 58,
+        "btnLine": 57,
+        "snippet": "<button onClick={() => (goBack ? goBack('background_wallpaper_library_light_mode') : (setActiveTab ? setActiveTab('background_wallpaper_library_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\">             <ArrowLeft className=\"w-5 h-5\" />           </button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A"
+      }
+    ]
+  },
+  {
+    "name": "BackgroundWallpaperLibraryDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 163,
+        "btnLine": 163,
+        "snippet": "<button onClick={() => (goBack ? goBack('appearance_dark_mode') : (setActiveTab ? setActiveTab('appearance_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A           </div>"
+      }
+    ]
+  },
+  {
+    "name": "BackgroundWallpaperLibraryLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 163,
+        "btnLine": 163,
+        "snippet": "<button onClick={() => (goBack ? goBack('appearance_light_mode') : (setActiveTab ? setActiveTab('appearance_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">             A           </div>"
+      }
+    ]
+  },
+  {
+    "name": "BiometricSettingsDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('app_lock_dark_mode') : (setActiveTab ? setActiveTab('app_lock_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "BiometricSettingsLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('app_lock_light_mode') : (setActiveTab ? setActiveTab('app_lock_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "CalendarsMainDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "CalendarsMainLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "CitySelectionDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 23,
+        "btnLine": 23,
+        "snippet": "<button onClick={() => (goBack ? goBack('prayer_times_dark_mode') : (setActiveTab ? setActiveTab('prayer_times_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "CitySelectionLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 23,
+        "btnLine": 23,
+        "snippet": "<button onClick={() => (goBack ? goBack('prayer_times_light_mode') : (setActiveTab ? setActiveTab('prayer_times_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "CurrencySelectionDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('finance_expense_tracker_dark_mode') : (setActiveTab ? setActiveTab('finance_expense_tracker_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "CurrencySelectionLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('finance_expense_tracker_light_mode') : (setActiveTab ? setActiveTab('finance_expense_tracker_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "DailyRoutineDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "DailyRoutineLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "EditProfileDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('settings_profile_dark_mode') : (setActiveTab ? setActiveTab('settings_profile_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "EditProfileLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('settings_profile_light_mode') : (setActiveTab ? setActiveTab('settings_profile_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "FinanceExpenseTrackerDarkMode",
+    "props": "setActiveTab, initialTab = 'dashboard'",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "FinanceExpenseTrackerLightMode",
+    "props": "setActiveTab, initialTab = 'dashboard'",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "GregorianCalendarDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('calendars_main_dark_mode') : (setActiveTab ? setActiveTab('calendars_main_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      },
+      {
+        "iconLine": 44,
+        "btnLine": 39,
+        "snippet": "<button className=\"p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300\">\r                 <ChevronRight className=\"w-4 h-4\"/>\r               </button>\r             </div>\r             <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium\">\r               <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r               <span>Rabi' al-Thani 1448 AH • Aqrab 1405 SH</span>\r             </div>\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "GregorianCalendarLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 19,
+        "btnLine": 19,
+        "snippet": "<button onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"><ArrowLeft className=\"w-5 h-5\"/></button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A\r           </div>"
+      },
+      {
+        "iconLine": 44,
+        "btnLine": 39,
+        "snippet": "<button className=\"p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700\">\r                 <ChevronRight className=\"w-4 h-4\"/>\r               </button>\r             </div>\r             <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium\">\r               <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r               <span>Rabi' al-Thani 1448 AH • Aqrab 1405 SH</span>\r             </div>\r           </div>"
+      }
+    ]
+  },
+  {
+    "name": "HomeDashboardDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "HomeDashboardLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "IslamicHijriCalendarDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('calendars_main_dark_mode') : (setActiveTab ? setActiveTab('calendars_main_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      },
+      {
+        "iconLine": 49,
+        "btnLine": 44,
+        "snippet": "<button className=\"p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300\">\r             <ChevronRight className=\"w-4 h-4\"/>\r           </button>\r         </div>\r         <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium\">\r           <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r           <span>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} CE • Aqrab 1405 SH</span>\r         </div>"
+      }
+    ]
+  },
+  {
+    "name": "IslamicHijriCalendarLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      },
+      {
+        "iconLine": 49,
+        "btnLine": 44,
+        "snippet": "<button className=\"p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700\">\r             <ChevronRight className=\"w-4 h-4\"/>\r           </button>\r         </div>\r         <div className=\"flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium\">\r           <ArrowLeftRight className=\"w-3.5 h-3.5 text-primary\"/>\r           <span>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} CE • Aqrab 1405 SH</span>\r         </div>"
+      }
+    ]
+  },
+  {
+    "name": "LongNoteEditorDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 27,
+        "btnLine": 23,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('notes_main_dark_mode') : (setActiveTab ? setActiveTab('notes_main_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "LongNoteEditorLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 27,
+        "btnLine": 23,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('notes_main_light_mode') : (setActiveTab ? setActiveTab('notes_main_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "MoreDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "MoreLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "NewEditTasbeehDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 96,
+        "btnLine": 91,
+        "snippet": "<button              type=\"button\"             onClick={handleCancel}             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"           >             <ArrowLeft className=\"w-5 h-5\" />           </button>           <button             type=\"button\""
+      }
+    ]
+  },
+  {
+    "name": "NewEditTasbeehLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 96,
+        "btnLine": 91,
+        "snippet": "<button              type=\"button\"             onClick={handleCancel}             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"           >             <ArrowLeft className=\"w-5 h-5\" />           </button>           <button             type=\"button\""
+      }
+    ]
+  },
+  {
+    "name": "NoteMediaAttachmentViewerDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('notes_main_dark_mode') : (setActiveTab ? setActiveTab('notes_main_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "NoteMediaAttachmentViewerLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('notes_main_light_mode') : (setActiveTab ? setActiveTab('notes_main_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "NotesMainDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "NotesMainLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "NotificationsSettingsDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('more_dark_mode') : (setActiveTab ? setActiveTab('more_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "NotificationsSettingsLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('more_light_mode') : (setActiveTab ? setActiveTab('more_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "PersonalSetupDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "PersonalSetupLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "PinSetupChangeDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('app_lock_dark_mode') : (setActiveTab ? setActiveTab('app_lock_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "PinSetupChangeLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('app_lock_light_mode') : (setActiveTab ? setActiveTab('app_lock_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "PrayerNotificationSettingsDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('prayer_times_dark_mode') : (setActiveTab ? setActiveTab('prayer_times_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "PrayerNotificationSettingsLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('prayer_times_light_mode') : (setActiveTab ? setActiveTab('prayer_times_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "PrayerTimesDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "PrayerTimesLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "QuickNoteEditorDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('notes_main_dark_mode') : (setActiveTab ? setActiveTab('notes_main_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "QuickNoteEditorLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 25,
+        "btnLine": 21,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('notes_main_light_mode') : (setActiveTab ? setActiveTab('notes_main_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "SettingsProfileDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 20,
+        "btnLine": 19,
+        "snippet": "<button type=\"button\" onClick={() => (goBack ? goBack('more_dark_mode') : (setActiveTab ? setActiveTab('more_dark_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer\" aria-label=\"Go back\">\r             <ArrowLeft className=\"w-5 h-5\"/>\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "SettingsProfileLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 20,
+        "btnLine": 19,
+        "snippet": "<button type=\"button\" onClick={() => (goBack ? goBack('more_light_mode') : (setActiveTab ? setActiveTab('more_light_mode') : window.history.back()))} className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer\" aria-label=\"Go back\">\r             <ArrowLeft className=\"w-5 h-5\"/>\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "SplashScreenDarkMode",
+    "props": "UNKNOWN",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "SplashScreenLightMode",
+    "props": "UNKNOWN",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "TasbeehHistoryDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 102,
+        "btnLine": 97,
+        "snippet": "<button                type=\"button\"               onClick={() => (goBack ? goBack('tasbeeh_main_dark_mode') : (setActiveTab ? setActiveTab('tasbeeh_main_dark_mode') : window.history.back()))}               className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"             >               <ArrowLeft className=\"w-5 h-5\" />             </button>             <button               type=\"button\""
+      }
+    ]
+  },
+  {
+    "name": "TasbeehHistoryLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 102,
+        "btnLine": 97,
+        "snippet": "<button                type=\"button\"               onClick={() => (goBack ? goBack('tasbeeh_main_light_mode') : (setActiveTab ? setActiveTab('tasbeeh_main_light_mode') : window.history.back()))}               className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"             >               <ArrowLeft className=\"w-5 h-5\" />             </button>             <button               type=\"button\""
+      }
+    ]
+  },
+  {
+    "name": "TasbeehMainDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "TasbeehMainLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "TasbeehSettingsDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 94,
+        "btnLine": 89,
+        "snippet": "<button                type=\"button\"               onClick={() => (goBack ? goBack('tasbeeh_main_dark_mode') : (setActiveTab ? setActiveTab('tasbeeh_main_dark_mode') : window.history.back()))}               className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer select-none\"             >               <ArrowLeft className=\"w-5 h-5\" />             </button>             <button               type=\"button\""
+      }
+    ]
+  },
+  {
+    "name": "TasbeehSettingsLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 94,
+        "btnLine": 89,
+        "snippet": "<button                type=\"button\"               onClick={() => (goBack ? goBack('tasbeeh_main_light_mode') : (setActiveTab ? setActiveTab('tasbeeh_main_light_mode') : window.history.back()))}               className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none\"             >               <ArrowLeft className=\"w-5 h-5\" />             </button>             <button               type=\"button\""
+      }
+    ]
+  },
+  {
+    "name": "TasksRemindersDarkMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "TasksRemindersLightMode",
+    "props": "setActiveTab",
+    "hasBackButton": false,
+    "backButtons": []
+  },
+  {
+    "name": "TimezoneSelectionDarkMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 27,
+        "btnLine": 23,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('prayer_times_dark_mode') : (setActiveTab ? setActiveTab('prayer_times_dark_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  },
+  {
+    "name": "TimezoneSelectionLightMode",
+    "props": "setActiveTab, goBack",
+    "hasBackButton": true,
+    "backButtons": [
+      {
+        "iconLine": 27,
+        "btnLine": 23,
+        "snippet": "<button \r             onClick={() => (goBack ? goBack('prayer_times_light_mode') : (setActiveTab ? setActiveTab('prayer_times_light_mode') : window.history.back()))}\r             className=\"p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors\"\r           >\r             <ArrowLeft className=\"w-5 h-5\" />\r           </button>\r           <div className=\"w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold text-xs flex items-center justify-center shadow-sm\">\r             A"
+      }
+    ]
+  }
+]

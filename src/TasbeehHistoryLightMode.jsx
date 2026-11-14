@@ -1,47 +1,127 @@
-import React from 'react';
-
+import React, { useState } from 'react';
+import UserAvatar from './components/UserAvatar';
+import { useTasbeehStore } from './store/useTasbeehStore';
 import { 
-  ArrowLeft, FolderArchive, Calendar, SlidersHorizontal, CheckCircle2, Upload, Play, Quote, PlusCircle, History 
+  ArrowLeft, Calendar, SlidersHorizontal, CheckCircle2, Upload, Play, Quote, PlusCircle, History, Trash2 
 } from 'lucide-react';
 
-export default function TasbeehHistoryLightMode({ setActiveTab }) {
+export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
+  const { historyLogs, currentCount, dailyGoal, clearHistory, setActivePreset } = useTasbeehStore();
+  const [activeFilter, setActiveFilter] = useState('Today');
+
+  // Filter logs dynamically based on the active timeframe tab
+  const filteredLogs = (historyLogs || []).filter((log) => {
+    if (activeFilter === 'All Time') return true;
+    if (!log.date) return activeFilter === 'Today';
+
+    const logDate = new Date(log.date);
+    if (isNaN(logDate.getTime())) return activeFilter === 'Today' || activeFilter === 'All Time';
+
+    const now = new Date();
+
+    if (activeFilter === 'Today') {
+      return (
+        logDate.getFullYear() === now.getFullYear() &&
+        logDate.getMonth() === now.getMonth() &&
+        logDate.getDate() === now.getDate()
+      );
+    }
+
+    if (activeFilter === 'This Week') {
+      const diffMs = now.getTime() - logDate.getTime();
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays <= 7;
+    }
+
+    if (activeFilter === 'This Month') {
+      return (
+        logDate.getFullYear() === now.getFullYear() &&
+        logDate.getMonth() === now.getMonth()
+      );
+    }
+
+    return true;
+  });
+
+  // Calculate statistics dynamically based on filtered logs
+  const completedRecited = filteredLogs.reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+  const totalRecited = completedRecited + (Number(currentCount) || 0);
+  const sessionCount = filteredLogs.length;
+  const baselineGoal = dailyGoal || 1000;
+  const targetGoal = activeFilter === 'Today' ? baselineGoal : activeFilter === 'This Week' ? baselineGoal * 7 : activeFilter === 'This Month' ? baselineGoal * 30 : baselineGoal;
+  const goalPercentage = targetGoal > 0 ? Math.min(999, Math.round((totalRecited / targetGoal) * 100)) : 0;
+  const targetSessions = activeFilter === 'Today' ? 'Target 6' : activeFilter === 'This Week' ? 'Target 30' : activeFilter === 'This Month' ? 'Target 120' : 'Target 6';
+
+  const formatLogDate = (dateStr) => {
+    if (!dateStr) return 'Today • 08:45 PM';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Today • 08:45 PM';
+
+    const now = new Date();
+    const isToday = (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = (
+      d.getFullYear() === yesterday.getFullYear() &&
+      d.getMonth() === yesterday.getMonth() &&
+      d.getDate() === yesterday.getDate()
+    );
+
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Today • ${timeStr}`;
+    if (isYesterday) return `Yesterday • ${timeStr}`;
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${timeStr}`;
+  };
+
   return (
-    <div className="min-h-screen bg-transparent flex flex-col justify-between relative overflow-x-hidden select-none">
+    <div className="min-h-screen bg-transparent flex flex-col justify-between relative select-none">
       
-      {/* SCROLLABLE MAIN CONTENT (pb-40 guarantees that no card is hidden behind the fixed bottom button) */}
-      <div className="flex-1 overflow-y-auto pb-40">
+      {/* SCROLLABLE MAIN CONTENT */}
+      <div className="flex-1 pb-40">
         
         {/* 1. TOP HEADER BAR */}
-        <div className="flex items-center justify-between px-5 pt-6 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
-            <History className="w-5 h-5 text-white" />
+        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
+              <History className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+              Dhikr History
+            </h1>
           </div>
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Dhikr History
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}
-            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
+          <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={() => (goBack ? goBack('tasbeeh_main_light_mode') : (setActiveTab ? setActiveTab('tasbeeh_main_light_mode') : window.history.back()))}
+              className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
           </div>
         </div>
-      </div>
 
         {/* 2. SUB-BAR: DATE & DESCRIPTION */}
         <div className="px-5 pt-2 pb-3">
           <div className="flex flex-row items-center justify-between w-full mb-1.5">
-            <div className="h-9 px-3.5 rounded-full flex items-center justify-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/70 shadow-sm">
-              <Calendar className="w-3.5 h-3.5 text-indigo-600"/>
-              <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Today • Oct 24, 2026</span>
+            <div className="h-9 px-3.5 rounded-full flex items-center justify-center gap-2 text-xs font-semibold text-primary bg-primary/10 border border-primary/20 shadow-sm">
+              <Calendar className="w-3.5 h-3.5 text-primary"/>
+              <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
+                {activeFilter === 'Today' ? `Today • ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : activeFilter}
+              </span>
             </div>
-            <button className="h-9 w-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center transition-colors active:scale-95" type="button">
+            <button 
+              type="button"
+              onClick={() => setActiveTab && setActiveTab('tasbeeh_settings_light_mode')}
+              className="h-9 w-9 rounded-full bg-white border border-slate-200/80 text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center transition-colors active:scale-95 cursor-pointer select-none"
+            >
               <SlidersHorizontal className="w-4 h-4"/>
             </button>
           </div>
@@ -50,254 +130,178 @@ export default function TasbeehHistoryLightMode({ setActiveTab }) {
           </p>
         </div>
 
-        {/* 3. TODAY'S RECITATIONS HERO CARD (ROUNDED-3XL WITH SOFT SHADOW) */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+        {/* 3. TODAY'S RECITATIONS HERO CARD */}
+        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Today's Recitations</span>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+              {activeFilter === 'Today' ? "Today's Recitations" : `${activeFilter} Recitations`}
+            </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200/70">
               <CheckCircle2 className="w-3 h-3 text-teal-500"/>
-              Surpassed Goal
+              {totalRecited >= targetGoal ? 'Surpassed Goal' : 'On Track'}
             </span>
           </div>
 
           <div className="pt-0.5">
             <div className="flex items-baseline gap-2">
-              <h2 className="text-3xl font-bold text-indigo-600">1,254</h2>
+              <h2 className="text-3xl font-bold text-primary">{totalRecited.toLocaleString()}</h2>
               <span className="text-xs font-medium text-slate-500">dhikr completed</span>
             </div>
           </div>
 
           {/* 3-Column Metrics Grid */}
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
-            <div className="p-2.5 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">Sessions</span>
-              <span className="text-sm font-bold text-slate-900 mt-0.5 block">8</span>
-              <span className="text-[10px] text-slate-500 block">Target 6</span>
+              <span className="text-sm font-bold text-slate-900 mt-0.5 block">{sessionCount}</span>
+              <span className="text-[10px] text-slate-500 block">{targetSessions}</span>
             </div>
-            <div className="p-2.5 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">Active Streak</span>
               <span className="text-sm font-bold text-slate-900 mt-0.5 block">14d 🔥</span>
               <span className="text-[10px] text-slate-500 block">Personal best</span>
             </div>
-            <div className="p-2.5 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+            <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">Goal Met</span>
-              <span className="text-sm font-bold text-teal-600 mt-0.5 block">125%</span>
-              <span className="text-[10px] text-slate-500 block">1,000 baseline</span>
+              <span className="text-sm font-bold text-teal-600 mt-0.5 block">{goalPercentage}%</span>
+              <span className="text-[10px] text-slate-500 block">{targetGoal.toLocaleString()} baseline</span>
             </div>
           </div>
 
           {/* Time Filter Segmented Tabs */}
           <div className="p-1 rounded-2xl bg-slate-100/80 border border-slate-200/70 flex items-center gap-1">
-            <button className="flex-1 py-1.5 rounded-xl bg-white text-xs font-semibold text-indigo-700 shadow-xs text-center">Today</button>
-            <button className="flex-1 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 text-center">This Week</button>
-            <button className="flex-1 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 text-center">This Month</button>
-            <button className="flex-1 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 text-center">All Time</button>
+            {['Today', 'This Week', 'This Month', 'All Time'].map((tab) => (
+              <button 
+                key={tab}
+                type="button"
+                onClick={() => setActiveFilter(tab)}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer select-none text-center ${
+                  activeFilter === tab 
+                    ? 'bg-white text-primary shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* 4. TIMELINE HEADER */}
         <div className="flex items-center justify-between px-5 mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Timeline</h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200/80 text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-              5 Recorded
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Timeline</h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 border border-primary/20 text-slate-900" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+              {sessionCount} Recorded
             </span>
           </div>
-          <button className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-            <span>Export Log</span>
-            <Upload className="w-3.5 h-3.5"/>
-          </button>
+          <div className="flex items-center gap-2">
+            {sessionCount > 0 && (
+              <button 
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Clear all logged Dhikr history?')) {
+                    clearHistory();
+                  }
+                }}
+                className="flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 cursor-pointer select-none"
+              >
+                <Trash2 className="w-3.5 h-3.5"/>
+                <span>Clear</span>
+              </button>
+            )}
+            <button 
+              type="button"
+              onClick={() => alert('Exporting Dhikr History... Coming Soon!')}
+              className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary cursor-pointer select-none"
+            >
+              <span>Export</span>
+              <Upload className="w-3.5 h-3.5"/>
+            </button>
+          </div>
         </div>
 
-        {/* 5. TIMELINE CARDS (ROUNDED-3XL WITH SOFT SHADOWS) */}
-        
-        {/* Card 1 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-teal-600"/>
-              <span className="text-xs font-medium text-slate-500">Today • 08:45 PM</span>
-            </div>
-            <span className="text-xs font-semibold text-teal-600">Completed</span>
+        {/* 5. TIMELINE CARDS */}
+        {sessionCount === 0 ? (
+          <div className="mx-5 p-8 rounded-3xl text-center space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+            <p className="text-sm font-semibold text-slate-700">No recorded Dhikr sessions yet.</p>
+            <p className="text-xs text-slate-500">Tap below to start your digital tasbeeh session.</p>
           </div>
-          <h4 className="text-sm font-bold text-slate-900">SubhanAllah wa bi-Hamdih</h4>
-          <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2.5">
-            <div>
-              <span className="text-[10px] text-slate-400 block">Total Recited</span>
-              <span className="font-bold text-slate-900">100 <span className="text-slate-400 font-normal">/ 100</span></span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Duration</span>
-              <span className="font-semibold text-slate-700">4m 12s</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Session Type</span>
-              <span className="font-semibold text-slate-700 truncate block">Evening Adhkar</span>
-            </div>
-          </div>
-          <button className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs">
-            <Play className="w-3.5 h-3.5 fill-slate-700"/>
-            Repeat
-          </button>
-        </div>
+        ) : (
+          filteredLogs.map((log) => {
+            const formattedDate = formatLogDate(log.date);
 
-        {/* Card 2 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-teal-600"/>
-              <span className="text-xs font-medium text-slate-500">Today • 05:30 PM</span>
-            </div>
-            <span className="text-xs font-semibold text-teal-600">Completed</span>
-          </div>
-          <h4 className="text-sm font-bold text-slate-900">Astaghfirullah</h4>
-          <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2.5">
-            <div>
-              <span className="text-[10px] text-slate-400 block">Total Recited</span>
-              <span className="font-bold text-slate-900">100 <span className="text-slate-400 font-normal">/ 100</span></span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Duration</span>
-              <span className="font-semibold text-slate-700">3m 45s</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Session Type</span>
-              <span className="font-semibold text-slate-700 truncate block">Post-Asr Dhikr</span>
-            </div>
-          </div>
-          <button className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs">
-            <Play className="w-3.5 h-3.5 fill-slate-700"/>
-            Repeat
-          </button>
-        </div>
-
-        {/* Card 3 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600"/>
-              <span className="text-xs font-medium text-slate-500">Today • 01:25 PM</span>
-            </div>
-            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-full">
-              Full Set (100)
-            </span>
-          </div>
-          <h4 className="text-sm font-bold text-slate-900">Ayatul Kursi & Tasbeeh Fatimah</h4>
-          <p className="text-[11px] font-normal text-slate-500">
-            SubhanAllah 33 • Alhamdulillah 33 • Allahu Akbar 34
-          </p>
-          <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2.5">
-            <div>
-              <span className="text-[10px] text-slate-400 block">Total Recited</span>
-              <span className="font-bold text-slate-900">100 <span className="text-slate-400 font-normal">/ 100</span></span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Duration</span>
-              <span className="font-semibold text-slate-700">5m 10s</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Session Type</span>
-              <span className="font-semibold text-slate-700 truncate block">Post-Dhuhr</span>
-            </div>
-          </div>
-          <button className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs">
-            <Play className="w-3.5 h-3.5 fill-slate-700"/>
-            Repeat
-          </button>
-        </div>
-
-        {/* Card 4 (FULL UNTRUNCATED TEXT) */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-teal-600"/>
-              <span className="text-xs font-medium text-slate-500">Today • 06:15 AM</span>
-            </div>
-            <span className="text-xs font-semibold text-teal-600">Completed</span>
-          </div>
-          <h4 className="text-sm font-bold text-slate-900 leading-snug">
-            La ilaha illallahu wahdahu la sharika lah
-          </h4>
-          <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2.5">
-            <div>
-              <span className="text-[10px] text-slate-400 block">Total Recited</span>
-              <span className="font-bold text-slate-900">100 <span className="text-slate-400 font-normal">/ 100</span></span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Duration</span>
-              <span className="font-semibold text-slate-700">6m 20s</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Session Type</span>
-              <span className="font-semibold text-slate-700 truncate block">Morning Adhkar</span>
-            </div>
-          </div>
-          <button className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs">
-            <Play className="w-3.5 h-3.5 fill-slate-700"/>
-            Repeat
-          </button>
-        </div>
-
-        {/* Timeline Divider */}
-        <div className="text-center my-4">
-          <span className="text-[10px] font-bold tracking-widest text-indigo-950 uppercase bg-slate-100 px-3 py-1 rounded-full border border-slate-200/60" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
-            Yesterday • Oct 23
-          </span>
-        </div>
-
-        {/* Card 5 */}
-        <div className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-indigo-600"/>
-              <span className="text-xs font-medium text-slate-500">Yesterday • 04:10 PM</span>
-            </div>
-            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-full">
-              Friday Special
-            </span>
-          </div>
-          <h4 className="text-sm font-bold text-slate-900">Salawat upon the Prophet ﷺ</h4>
-          <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2.5">
-            <div>
-              <span className="text-[10px] text-slate-400 block">Total Recited</span>
-              <span className="font-bold text-slate-900">500 <span className="text-slate-400 font-normal">/ 500</span></span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Duration</span>
-              <span className="font-semibold text-slate-700">18m 40s</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-400 block">Session Type</span>
-              <span className="font-semibold text-slate-700 truncate block">Jummah Sunnah</span>
-            </div>
-          </div>
-          <button className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs">
-            <Play className="w-3.5 h-3.5 fill-slate-700"/>
-            Repeat
-          </button>
-        </div>
+            return (
+              <div key={log.id} className="block mx-5 mb-3.5 p-4 rounded-3xl space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-teal-600"/>
+                    <span className="text-xs font-medium text-slate-500">{formattedDate}</span>
+                  </div>
+                  <span className="text-xs font-semibold text-teal-600">Completed</span>
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">{log.phrase}</h4>
+                <div className="grid grid-cols-3 gap-2 text-xs border-t border-slate-100 pt-2.5">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Total Recited</span>
+                    <span className="font-bold text-slate-900">{log.count} <span className="text-slate-400 font-normal">/ {log.target || log.count}</span></span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Duration</span>
+                    <span className="font-semibold text-slate-700">{log.duration || '3m 15s'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Session Type</span>
+                    <span className="font-semibold text-slate-700 truncate block">{log.sessionType || 'Daily Dhikr'}</span>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setActivePreset({
+                      id: log.id,
+                      arabic: log.arabic || '',
+                      transliteration: log.phrase,
+                      meaning: '',
+                      target: log.target || 33,
+                    });
+                    if (setActiveTab) setActiveTab('tasbeeh_main_light_mode');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer select-none active:scale-[0.99]"
+                >
+                  <Play className="w-3.5 h-3.5 fill-slate-700"/>
+                  Repeat
+                </button>
+              </div>
+            );
+          })
+        )}
 
         {/* Quote Card */}
-        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-2 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="w-8 h-8 rounded-full bg-white text-indigo-600 flex items-center justify-center shadow-2xs">
+        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+          <div className="w-8 h-8 rounded-full bg-white text-primary flex items-center justify-center shadow-2xs">
             <Quote className="w-4 h-4"/>
           </div>
-          <p className="text-xs font-medium italic text-indigo-950 leading-relaxed">
+          <p className="text-xs font-medium italic text-slate-900 leading-relaxed">
             "The remembrance of Allah brings peace to the heart."
           </p>
-          <span className="text-[11px] font-normal text-indigo-700 block text-right">
+          <span className="text-[11px] font-normal text-primary block text-right">
             — Surah Ar-Ra'd 13:28
           </span>
         </div>
 
-      </div>
+        {/* Action Button (In-flow, clean spacing above bottom nav) */}
+        <div className="mx-5 pt-2">
+          <button 
+            type="button"
+            onClick={() => setActiveTab && setActiveTab('tasbeeh_main_light_mode')}
+            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-primary to-primary-container hover:brightness-105 text-white font-semibold text-sm shadow-xl shadow-primary/35 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer select-none"
+          >
+            <PlusCircle className="w-5 h-5 stroke-[2.2]"/>
+            <span>+ Start New Dhikr Session</span>
+          </button>
+        </div>
 
-      {/* 6. FIXED FLOATING ACTION BAR WITH BACKDROP SHIELD (ZERO OVERLAP) */}
-      <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent pointer-events-none z-30">
-        <button className="pointer-events-auto w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-sm shadow-xl shadow-indigo-600/35 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]">
-          <PlusCircle className="w-5 h-5 stroke-[2.2]"/>
-          <span>Start New Dhikr Session</span>
-        </button>
       </div>
 
     </div>

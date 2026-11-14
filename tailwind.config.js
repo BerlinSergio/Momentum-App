@@ -26,7 +26,8 @@ export default {
         "on-background": "var(--color-on-background)",
         "inverse-surface": "var(--color-inverse-surface)",
         "inverse-on-surface": "var(--color-inverse-on-surface)",
-        "primary": "var(--color-primary)",
+        // primary uses RGB channels so opacity modifiers (bg-primary/10) work in Tailwind v3
+        "primary": "rgb(var(--color-primary-rgb) / <alpha-value>)",
         "primary-container": "var(--color-primary-container)",
         "primary-fixed": "var(--color-primary-fixed)",
         "primary-fixed-dim": "var(--color-primary-fixed-dim)",
@@ -75,19 +76,29 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        inter: ['Inter', 'sans-serif'],
+        display: ['"Space Grotesk"', 'sans-serif'],
         heading: ['"Plus Jakarta Sans"', 'sans-serif'],
         bahij: ['BahijTitr', 'sans-serif'],
         quran: ['ArabQuranIslamic', 'serif'],
-        "body-sm": ["Inter"],
-        "body-lg": ["Inter"],
-        "display-lg": ["Inter"],
-        "label-md": ["Inter"],
-        "label-sm": ["Inter"],
-        "headline-lg": ["Inter"],
-        "body-md": ["Inter"],
-        "metric-lg": ["Inter"],
-        "headline-sm": ["Inter"],
-        "headline-md": ["Inter"]
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+        "body-sm": ["Inter", "sans-serif"],
+        "body-lg": ["Inter", "sans-serif"],
+        "display-lg": ['"Space Grotesk"', "sans-serif"],
+        "display-hero": ['"Space Grotesk"', "sans-serif"],
+        "display-hero-mobile": ['"Space Grotesk"', "sans-serif"],
+        "label-md": ["Inter", "sans-serif"],
+        "label-sm": ["Inter", "sans-serif"],
+        "label-lg": ["Inter", "sans-serif"],
+        "headline-lg": ['"Space Grotesk"', "sans-serif"],
+        "headline-lg-mobile": ['"Space Grotesk"', "sans-serif"],
+        "body-md": ["Inter", "sans-serif"],
+        "metric-lg": ['"Space Grotesk"', "sans-serif"],
+        "headline-sm": ['"Plus Jakarta Sans"', "sans-serif"],
+        "headline-md": ['"Plus Jakarta Sans"', "sans-serif"],
+        "title-lg": ['"Plus Jakarta Sans"', "sans-serif"],
+        "title-md": ['"Plus Jakarta Sans"', "sans-serif"],
+        "title-sm": ['"Plus Jakarta Sans"', "sans-serif"]
       },
       fontSize: {
         "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
@@ -100,6 +111,18 @@ export default {
         "metric-lg": ["28px", { "lineHeight": "34px", "fontWeight": "700" }],
         "headline-sm": ["16px", { "lineHeight": "22px", "fontWeight": "600" }],
         "headline-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }]
+      },
+      keyframes: {
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%': { transform: 'translateX(-8px)' },
+          '40%': { transform: 'translateX(8px)' },
+          '60%': { transform: 'translateX(-6px)' },
+          '80%': { transform: 'translateX(6px)' },
+        },
+      },
+      animation: {
+        shake: 'shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both',
       }
     },
   },
