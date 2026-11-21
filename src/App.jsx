@@ -524,7 +524,7 @@ function AppContent() {
     <>
       {devLayoutMode === 'mobile_preview' && Boolean(import.meta.env.DEV) ? (
         /* ── DEV-ONLY SIMULATED MOBILE PHONE PREVIEW ── */
-        <div className="h-screen w-full flex flex-col items-center justify-center p-2 sm:p-6 relative font-sans antialiased text-on-surface overflow-hidden">
+        <div className="h-[100dvh] w-full flex flex-col items-center justify-center p-2 sm:p-6 relative font-sans antialiased text-on-surface overflow-hidden">
           <GlobalBackground isDarkMode={isDarkMode} />
 
           {/* Dev Mode Banner */}
@@ -557,7 +557,7 @@ function AppContent() {
                         key={activeTab}
                         screenKey={activeTab}
                         direction={navigationDirection}
-                        className="w-full h-full flex flex-col"
+                        className="w-full min-w-0 h-full flex flex-col"
                       >
                         {renderScreen()}
                       </PageTransition>
@@ -577,7 +577,7 @@ function AppContent() {
         </div>
       ) : (
         /* ── RESPONSIVE APPLICATION SHELL (DEFAULT FOR DESKTOP, TABLET & MOBILE) ── */
-        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`w-full h-screen overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
+        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`w-full h-[100dvh] overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
           {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
 
           {/* Desktop Navigation Sidebar (Only rendered on desktop viewports: >= 1024px) */}
@@ -613,13 +613,13 @@ function AppContent() {
                   />
                 ) : (
                   <AppLockGuard>
-                    <div className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto flex-1 flex flex-col items-center px-0 lg:px-6 xl:px-8 py-0 lg:py-4">
+                    <div className="w-full min-w-0 max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto flex-1 flex flex-col items-center px-0 lg:px-6 xl:px-8 py-0 lg:py-4">
                       <AnimatePresence mode="wait" initial={false}>
                         <PageTransition
                           key={activeTab}
                           screenKey={activeTab}
                           direction={navigationDirection}
-                          className="w-full flex-1 flex flex-col"
+                          className="w-full min-w-0 flex-1 flex flex-col"
                         >
                           {renderScreen()}
                         </PageTransition>
