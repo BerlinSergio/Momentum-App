@@ -171,12 +171,17 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
     <>
       <nav
         aria-label={t('nav.bottomNavAria')}
+        data-testid="mobile-bottom-nav"
         className={`fixed bottom-4 left-0 right-0 mx-auto w-[92%] max-w-md h-16 z-50 px-2 rounded-[2rem] backdrop-blur-3xl shadow-lg border flex items-center justify-between pointer-events-auto transition-colors select-none ${dockBg}`}
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        // Keep the dock geometry unchanged: padding on a fixed-height flex nav
+        // pushed every tab icon and label upward on mobile, especially in RTL.
+        // Safe-area clearance belongs below the dock, not inside its content box.
+        style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {/* 1. HOME TAB */}
         <motion.button
           type="button"
+          data-testid="mobile-tab-home"
           onClick={() => handleTabClick('home')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
@@ -197,6 +202,7 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
         {/* 2. FINANCE TAB */}
         <motion.button
           type="button"
+          data-testid="mobile-tab-finance"
           onClick={() => handleTabClick('finance')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
@@ -236,6 +242,7 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
         {/* 4. TASKS TAB */}
         <motion.button
           type="button"
+          data-testid="mobile-tab-tasks"
           onClick={() => handleTabClick('tasks')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
@@ -256,6 +263,7 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
         {/* 5. MORE TAB */}
         <motion.button
           type="button"
+          data-testid="mobile-tab-more"
           onClick={() => handleTabClick('more')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
