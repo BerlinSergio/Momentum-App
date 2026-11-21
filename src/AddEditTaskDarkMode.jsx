@@ -405,7 +405,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
           />
         </div>
       </header>
-      <main className="flex-1 w-full max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-28 relative">
+      <main className="flex-1 w-full min-w-0 max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-28 relative">
         {/* Ambient Backdrop Glow Spots */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
           <div className="absolute top-1/4 -left-20 w-72 h-72 rounded-full bg-primary/15 blur-[100px]"></div>
@@ -439,9 +439,9 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
                 <span>{t('tasks.taskTitle', 'Task Title')}</span>
                 <span className="text-xs text-slate-400 font-medium tracking-normal">{t('common.required', 'Required')}</span>
               </label>
-              <div className="text-white placeholder-slate-500 rounded-2xl px-4 py-3 flex items-center justify-between focus-within:border-primary transition-all bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
+              <div className="min-w-0 w-full text-white placeholder-slate-500 rounded-2xl px-3 sm:px-4 py-3 flex items-center justify-between focus-within:border-primary transition-all bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
                 <input 
-                  className="flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:outline-none text-sm" 
+                  className="min-w-0 w-0 flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:outline-none text-sm" 
                   id="task-title" 
                   data-testid="task-title-input"
                   type="text" 
@@ -450,8 +450,8 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
                   placeholder={t('tasks.taskTitlePlaceholder', 'e.g. Review Q4 product roadmap')} 
                   autoComplete="off"
                 />
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-                  <button onClick={() => setTitle('')} aria-label={t('common.clear', 'Clear')} className="btn-secondary" type="button">
+                <div className="flex shrink-0 items-center gap-1.5 ps-2 border-s border-slate-800">
+                  <button onClick={() => setTitle('')} aria-label={t('common.clear', 'Clear')} className="btn-secondary !w-8 !h-8 !min-w-8 !p-1.5" type="button">
                     <span className="material-symbols-outlined text-[18px]">close</span>
                   </button>
                   <button 
