@@ -19,6 +19,7 @@ const path = require('node:path');
 const APP_URL = process.env.MOMENTUM_URL || 'http://localhost:5173';
 const QUICK = process.env.MOBILE_QA_QUICK === '1';
 const CAPTURE_ALL = process.env.MOBILE_QA_CAPTURE_ALL === '1';
+const FOCUS = (process.env.MOBILE_QA_FOCUS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const WIDTHS = QUICK ? [390] : [320, 360, 390, 412];
 const LOCALES = QUICK ? ['ps-AF'] : ['en', 'ps-AF', 'fa-AF'];
 const MODES = ['light', 'dark'];
@@ -35,7 +36,8 @@ function safeFile(text) {
 async function main() {
   const { ALL_SCREENS } = await import('../../src/data/screenRegistry.js');
   const logical = (s) => s.replace(/_(dark|light)_mode(_\d+)?$/, '$2');
-  const screens = Array.from(new Set(ALL_SCREENS.map((s) => logical(s.id))));
+  const screens = Array.from(new Set(ALL_SCREENS.map((s) => logical(s.id))))
+    .filter((screen) => FOCUS.length === 0 || FOCUS.includes(screen));
   const chromeChoices = [
     process.env.PUPPETEER_EXECUTABLE_PATH,
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -99,15 +101,50 @@ async function main() {
                 historyStack: [],
               });
             }, { locale, mode, screen });
-            await wait(155);
+            // AnimatePresence(mode=wait) exits (~180ms) before entering (~300ms).
+            // Measuring at 155ms captures a moving/old page and creates false overflow.
+            await wait(600);
             const measure = await page.evaluate(() => {
               const issues = [];
               const viewport = document.querySelector('.momentum-canvas-viewport');
               if (!viewport) return { issues: ['MISSING_APP_VIEWPORT'] };
               const vr = viewport.getBoundingClientRect();
-              if (viewport.scrollWidth > viewport.clientWidth + 3) {
+              const hasHorizontalOverflow = viewport.scrollWidth > viewport.clientWidth + 3;
+              if (hasHorizontalOverflow) {
                 issues.push('HORIZONTAL_CONTENT_OVERFLOW:' + (viewport.scrollWidth - viewport.clientWidth) + 'px');
               }
+              // Only gather geometry for failing cases; identify the offending
+              // rendered node(s) instead of guessing with blanket overflow:hidden.
+              const overflowElements = hasHorizontalOverflow
+                ? Array.from(viewport.querySelectorAll('*')).flatMap((element) => {
+                    const style = getComputedStyle(element);
+                    if (style.display === 'none' || style.visibility === 'hidden') return [];
+                    const box = element.getBoundingClientRect();
+                    if (box.width < 1 || box.height < 1) return [];
+                    const left = Math.max(0, vr.left - box.left);
+                    const right = Math.max(0, box.right - vr.right);
+                    if (Math.max(left, right) < 4) return [];
+                    const tag = element.tagName.toLowerCase();
+                    const cls = typeof element.className === 'string'
+                      ? element.className.slice(0, 170) : '';
+                    return [{
+                      tag,
+                      className: cls,
+                      left: Math.round(box.left),
+                      right: Math.round(box.right),
+                      viewportLeft: Math.round(vr.left),
+                      viewportRight: Math.round(vr.right),
+                      leftOverflow: Math.round(left),
+                      rightOverflow: Math.round(right),
+                      position: style.position,
+                      overflowX: style.overflowX,
+                      text: (element.textContent || '').trim().slice(0, 65),
+                    }];
+                  }).sort((a, b) =>
+                    Math.max(b.leftOverflow, b.rightOverflow) -
+                    Math.max(a.leftOverflow, a.rightOverflow)
+                  ).slice(0, 10)
+                : [];
               if (document.documentElement.scrollWidth > window.innerWidth + 3) {
                 issues.push('DOCUMENT_OVERFLOW:' + (document.documentElement.scrollWidth - window.innerWidth) + 'px');
               }
@@ -144,6 +181,7 @@ async function main() {
                 appWidth: Math.round(vr.width),
                 viewportWidth: window.innerWidth,
                 screenWidth: viewport.scrollWidth,
+                overflowElements,
               };
             });
             const label = width + '_' + locale + '_' + mode + '_' + screen;
@@ -166,7 +204,7 @@ async function main() {
       await page.setViewport({ width, height: 844, isMobile: true, deviceScaleFactor: 1 });
       for (const locale of LOCALES) {
         for (const mode of MODES) {
-          for (const screen of ['long_note_editor', 'quick_note_editor']) {
+          for (const screen of ['long_note_editor', 'quick_note_editor'].filter((id) => FOCUS.length === 0 || FOCUS.includes(id))) {
             await page.evaluate(({ locale, mode, screen }) => {
               window.useLocaleStore.getState().setLocale(locale);
               window.useThemeStore.getState().setTheme(mode);
