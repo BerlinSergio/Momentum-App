@@ -169,13 +169,12 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
 
   return (
     <>
+      {/* The dock box stays fixed-height; safe-area clearance is below it,
+          not internal padding that would shift the tab icons and labels. */}
       <nav
         aria-label={t('nav.bottomNavAria')}
         data-testid="mobile-bottom-nav"
         className={`fixed bottom-4 left-0 right-0 mx-auto w-[92%] max-w-md h-16 z-50 px-2 rounded-[2rem] backdrop-blur-3xl shadow-lg border flex items-center justify-between pointer-events-auto transition-colors select-none ${dockBg}`}
-        // Keep the dock geometry unchanged: padding on a fixed-height flex nav
-        // pushed every tab icon and label upward on mobile, especially in RTL.
-        // Safe-area clearance belongs below the dock, not inside its content box.
         style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {/* 1. HOME TAB */}
