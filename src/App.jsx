@@ -94,6 +94,7 @@ import { ConfirmationViewport } from './components/ui/confirmation/index.js';
 
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { themedScreenId } from './utils/themeNavigation.js';
 
 import { useThemeStore } from './store/useThemeStore';
 import { useNotesStore } from './store/useNotesStore';
@@ -255,14 +256,10 @@ function AppContent() {
     setupCompleted !== true;
   
   const [isWallpaperSelectorOpen, setIsWallpaperSelectorOpen] = useState(false);
-  const { syncThemeToScreen, theme } = useTheme();
+  const { theme } = useTheme();
 
-  const isDarkMode = activeTab.includes('_dark_mode') || (theme === 'dark' && !activeTab.includes('_light_mode'));
-
-  // Auto-sync theme based on active screen name
-  useEffect(() => {
-    syncThemeToScreen(activeTab);
-  }, [activeTab, syncThemeToScreen]);
+  // The user-selected global appearance, never the route suffix, controls the whole app.
+  const isDarkMode = theme === 'dark';
 
   // Onboarding route protection guard: prevent deep links, history or dev-navigator from bypassing onboarding
   useEffect(() => {
@@ -350,7 +347,9 @@ function AppContent() {
   }, [isVaultLocked]);
 
   const renderScreen = () => {
- switch (activeTab) {
+ // Preserve all existing Dark/Light component designs, but select by global appearance.
+ // Legacy deep links are translated without changing navigation identity/history.
+ switch (themedScreenId(activeTab, theme)) {
  case 'about_momentum_dark_mode': return <AboutMomentumDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'about_momentum_light_mode': return <AboutMomentumLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'add_edit_expense_dark_mode': return <AddEditExpenseDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
