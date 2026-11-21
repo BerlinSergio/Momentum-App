@@ -677,7 +677,7 @@ export default function AddEditTaskLightMode({ setActiveTab, goBack }) {
                   <span className={`material-symbols-outlined text-[14px] transition-transform duration-200 ${isReminderMenuOpen ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
                 {isReminderMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute end-0 top-full mt-2 w-48 max-w-[calc(100vw-2rem)] rounded-2xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
                     {reminderOptions.map((option) => (
                       <button
                         key={option}
