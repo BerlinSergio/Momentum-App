@@ -25,11 +25,13 @@ export const useConfirmStore = create((set, get) => ({
           variant: options.variant || 'default', // 'destructive' | 'warning' | 'info' | 'default'
           title: options.title || '',
           titleKey: options.titleKey || '',
-          message: options.message || '',
+          // Compatibility with existing note editors and other callers:
+          // they pass description/confirmText/cancelText, not message/labels.
+          message: options.message ?? options.description ?? '',
           messageKey: options.messageKey || '',
-          confirmLabel: options.confirmLabel || '',
+          confirmLabel: options.confirmLabel ?? options.confirmText ?? '',
           confirmLabelKey: options.confirmLabelKey || '',
-          cancelLabel: options.cancelLabel || '',
+          cancelLabel: options.cancelLabel ?? options.cancelText ?? '',
           cancelLabelKey: options.cancelLabelKey || '',
           defaultValue: options.defaultValue !== undefined ? String(options.defaultValue) : '',
           placeholder: options.placeholder || '',
@@ -39,6 +41,10 @@ export const useConfirmStore = create((set, get) => ({
           resolve,
           reject,
           ...options,
+          // Must be normalized AFTER spreading caller options.
+          message: options.message ?? options.description ?? '',
+          confirmLabel: options.confirmLabel ?? options.confirmText ?? '',
+          cancelLabel: options.cancelLabel ?? options.cancelText ?? '',
         },
       });
     });
