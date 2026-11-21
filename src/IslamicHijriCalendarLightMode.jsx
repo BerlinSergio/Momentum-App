@@ -1,240 +1,486 @@
-import React from 'react';
-
-import { 
-  ArrowLeft, Moon, LayoutGrid, ChevronLeft, ChevronDown, ChevronRight, ArrowLeftRight, Sun, CheckCircle2, BookOpen, Clock, Heart, Plus, Home, Wallet, CheckSquare, Grid 
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
+import UserAvatar from './components/UserAvatar';
+import {
+  ArrowLeft, Moon, ChevronLeft, ChevronDown, ChevronRight,
+  ArrowLeftRight, Sun, CheckCircle2, BookOpen, Clock,
+  Heart, Plus, Trash2, X
 } from 'lucide-react';
+import { useCalendarStore } from './store/useCalendarStore.js';
+import { useRoutineStore, isRoutineCompletedForDate, isRoutineScheduledForDate } from './store/useRoutineStore.js';
+import { useAppTime } from './hooks/useAppTime.js';
+import { getHijriDateParts, hijriToGregorian, getHijriMonthGrid, HIJRI_MONTHS, getShamsiDate } from './utils/afghanCalendar.js';
+import { MomentumTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
 
-export default function IslamicHijriCalendarLightMode({ setActiveTab }) {
+const HIJRI_WEEKDAYS = ['Ahad', 'Ith', 'Thul', 'Arba', 'Kham', 'Jum', 'Sabt'];
+
+export default function IslamicHijriCalendarLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
+  const { now, effectiveTimezone, currentDateKey } = useAppTime();
+  const todayHijri = useMemo(() => getHijriDateParts(now, effectiveTimezone), [now, effectiveTimezone]);
+  const [viewHijriYear, setViewHijriYear] = useState(() => todayHijri.hy || 1448);
+  const [viewHijriMonth, setViewHijriMonth] = useState(() => todayHijri.hm || 4);
+  const [selectedHijriDay, setSelectedHijriDay] = useState(() => todayHijri.hd || 13);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+
+  // Add Event Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [formTitle, setFormTitle] = useState('');
+  const [formCategory, setFormCategory] = useState('Spiritual');
+  const [formHijriDay, setFormHijriDay] = useState(() => todayHijri.hd || 13);
+  const [formTime, setFormTime] = useState('04:45 PM – 05:45 PM');
+  const [formNote, setFormNote] = useState('');
+
+  // Global Persistent Stores (Zustand)
+  const { events: calendarEvents, addEvent: addCalendarEvent, toggleEvent: toggleCalendarEvent, deleteEvent: deleteCalendarEvent } = useCalendarStore();
+  const { routines, toggleRoutineCompletion } = useRoutineStore();
+
+  const handlePrevMonth = () => {
+    if (viewHijriMonth === 1) {
+      setViewHijriMonth(12);
+      setViewHijriYear((y) => y - 1);
+    } else {
+      setViewHijriMonth((m) => m - 1);
+    }
+    setSelectedHijriDay(1);
+  };
+
+  const handleNextMonth = () => {
+    if (viewHijriMonth === 12) {
+      setViewHijriMonth(1);
+      setViewHijriYear((y) => y + 1);
+    } else {
+      setViewHijriMonth((m) => m + 1);
+    }
+    setSelectedHijriDay(1);
+  };
+
+  const currentMonthObj = useMemo(() => {
+    return HIJRI_MONTHS[viewHijriMonth - 1] || HIJRI_MONTHS[3];
+  }, [viewHijriMonth]);
+
+  const monthGrid = useMemo(() => {
+    return getHijriMonthGrid(viewHijriYear, viewHijriMonth);
+  }, [viewHijriYear, viewHijriMonth]);
+
+  const selectedGregorianDate = useMemo(() => {
+    const clampedDay = Math.min(selectedHijriDay, monthGrid.totalDays);
+    return hijriToGregorian(viewHijriYear, viewHijriMonth, clampedDay);
+  }, [viewHijriYear, viewHijriMonth, selectedHijriDay, monthGrid.totalDays]);
+
+  const selectedShamsiDate = useMemo(() => {
+    return getShamsiDate(selectedGregorianDate, effectiveTimezone);
+  }, [selectedGregorianDate, effectiveTimezone]);
+
+  const crossCalendarSubtitle = useMemo(() => {
+    const gMonth = selectedGregorianDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const sMonth = selectedShamsiDate?.monthInfo?.nameEn || 'Aqrab';
+    const sYear = selectedShamsiDate?.jy || 1405;
+    return `${gMonth} CE • ${sMonth} ${sYear} SH`;
+  }, [selectedGregorianDate, selectedShamsiDate]);
+
+  const dayHeaderStr = useMemo(() => {
+    const weekday = selectedGregorianDate.toLocaleDateString('en-US', { weekday: 'long' });
+    return `${weekday}, ${selectedHijriDay} ${currentMonthObj.nameEn} ${viewHijriYear} AH`;
+  }, [selectedGregorianDate, selectedHijriDay, currentMonthObj, viewHijriYear]);
+
+  const dayEquivalenceBadge = useMemo(() => {
+    const gStr = selectedGregorianDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    const sDay = selectedShamsiDate?.jd || 2;
+    const sMonth = selectedShamsiDate?.monthInfo?.nameEn || 'Aqrab';
+    return `${gStr} • ${sDay} ${sMonth}`;
+  }, [selectedGregorianDate, selectedShamsiDate]);
+
+  const daySignificanceNote = useMemo(() => {
+    if (selectedHijriDay === 13 || selectedHijriDay === 14 || selectedHijriDay === 15) {
+      return 'First of Ayyam al-Beed (White Days) • Qiyam & Sunnah Fasting';
+    }
+    const weekdayIdx = selectedGregorianDate.getDay();
+    if (weekdayIdx === 5) return "Blessed Friday (Jumu'ah) • Surah Al-Kahf & Salawat";
+    if (weekdayIdx === 1 || weekdayIdx === 4) return 'Sunnah Fasting Day (Monday/Thursday) • Good Deeds';
+    return 'Daily spiritual mindfulness, beneficial study & righteous action';
+  }, [selectedHijriDay, selectedGregorianDate]);
+
+  const allUnifiedEvents = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    (calendarEvents || []).forEach((evt) => {
+      let hy = Number(evt.hijriYear);
+      let hm = Number(evt.hijriMonth);
+      let hd = Number(evt.hijriDay);
+      if (!hy || !hm || !hd) {
+        if (evt.date) {
+          try {
+            const gDate = new Date(evt.date + 'T12:00:00Z');
+            const h = getHijriDateParts(gDate);
+            hy = h.hy; hm = h.hm; hd = h.hd;
+          } catch {
+            // Ignore parse error
+          }
+        }
+      }
+      if (hy && hm && hd) {
+        const key = `cal-${evt.id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: evt.id,
+            source: 'calendar',
+            title: evt.title,
+            category: evt.category || 'Spiritual',
+            hijriYear: hy,
+            hijriMonth: hm,
+            hijriDay: hd,
+            time: evt.time || '10:00 AM',
+            note: evt.note || '',
+            completed: !!evt.completed,
+          });
+        }
+      }
+    });
+    (routines || []).forEach((rt) => {
+      if ((rt.category === 'Spiritual' || rt.category === 'Personal') && isRoutineScheduledForDate(rt, currentDateKey)) {
+        const key = `rt-${rt.id}-${selectedHijriDay}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            id: rt.id,
+            source: 'routine',
+            title: rt.title,
+            category: 'Spiritual',
+            hijriYear: viewHijriYear,
+            hijriMonth: viewHijriMonth,
+            hijriDay: selectedHijriDay,
+            time: rt.time || '05:15 AM',
+            note: rt.notes || '',
+            completed: isRoutineCompletedForDate(rt, currentDateKey),
+          });
+        }
+      }
+    });
+    return list;
+  }, [calendarEvents, routines, viewHijriYear, viewHijriMonth, selectedHijriDay]);
+
+  const monthEvents = useMemo(() => {
+    return allUnifiedEvents.filter((e) => e.hijriYear === viewHijriYear && e.hijriMonth === viewHijriMonth);
+  }, [allUnifiedEvents, viewHijriYear, viewHijriMonth]);
+
+  const eventDaysSet = useMemo(() => {
+    const set = new Set();
+    monthEvents.forEach((e) => set.add(e.hijriDay));
+    return set;
+  }, [monthEvents]);
+
+  const categoryCounts = useMemo(() => {
+    const all = monthEvents.length;
+    const spiritual = monthEvents.filter((e) => e.category === 'Spiritual' || e.category === 'Personal').length;
+    const fasting = monthEvents.filter((e) => e.category === 'Fasting').length;
+    return { all, spiritual, fasting };
+  }, [monthEvents]);
+
+  const visibleDayEvents = useMemo(() => {
+    let evts = allUnifiedEvents.filter(
+      (e) => e.hijriYear === viewHijriYear && e.hijriMonth === viewHijriMonth && e.hijriDay === selectedHijriDay
+    );
+    if (activeCategory === 'Spiritual') {
+      evts = evts.filter((e) => e.category === 'Spiritual' || e.category === 'Personal');
+    } else if (activeCategory === 'Fasting') {
+      evts = evts.filter((e) => e.category === 'Fasting');
+    }
+    return evts;
+  }, [allUnifiedEvents, viewHijriYear, viewHijriMonth, selectedHijriDay, activeCategory]);
+
+  const handleToggle = (item) => {
+    if (item.source === 'calendar') {
+      toggleCalendarEvent(item.id);
+    } else if (item.source === 'routine') {
+      toggleRoutineCompletion(item.id, currentDateKey);
+    }
+  };
+
+  const handleSaveEvent = (e) => {
+    e.preventDefault();
+    if (!formTitle.trim()) return;
+    addCalendarEvent({
+      title: formTitle.trim(),
+      category: formCategory,
+      hijriYear: viewHijriYear,
+      hijriMonth: viewHijriMonth,
+      hijriDay: Number(formHijriDay) || selectedHijriDay,
+      time: formTime.trim() || '10:00 AM',
+      note: formNote.trim(),
+      completed: false,
+    });
+    setFormTitle('');
+    setFormNote('');
+    setIsAddModalOpen(false);
+    toast.success(t('toasts.eventAdded', 'Event added to calendar'));
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24">
+    <div className="min-h-screen bg-slate-50 font-sans pb-32 text-slate-900 relative">
       {/* TOP HEADER BAR */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
+          <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Moon className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Islamic Hijri Calendar
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')}
-            className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">{t('calendar.islamicHijriCalendar', 'Islamic Hijri Calendar')}</h1>
+</div>
+<div className="flex items-center gap-2">
+          <button onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} aria-label="Go back" data-testid="calendar-back-btn" className="p-2 rounded-full text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer">
+            <ArrowLeft className="w-5 h-5 rtl:rotate-180" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
+          <UserAvatar setActiveTab={setActiveTab} />
         </div>
       </div>
 
       {/* MAIN HIJRI CALENDAR CONTAINER */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-lg">
         {/* Month Selector & Cross-Calendar Sync */}
         <div className="flex items-center justify-between">
-          <button className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700">
-            <ChevronLeft className="w-4 h-4"/>
+          <button onClick={handlePrevMonth} aria-label="Previous month" className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer transition-colors">
+            <ChevronLeft className="w-4 h-4" />
           </button>
-          <div className="flex items-center gap-1.5">
-            <h2 className="text-lg font-bold text-slate-900">Rabi' al-Thani 1448 AH</h2>
-            <ChevronDown className="w-4 h-4 text-indigo-600"/>
-          </div>
-          <button className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700">
-            <ChevronRight className="w-4 h-4"/>
+          <button onClick={() => setIsMonthPickerOpen((v) => !v)} className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity">
+            <h2 className="text-lg font-bold text-slate-900">{currentMonthObj.nameEn} {viewHijriYear} AH</h2>
+            <ChevronDown className="w-4 h-4 text-primary" />
+          </button>
+          <button onClick={handleNextMonth} aria-label="Next month" className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer transition-colors">
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
         <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
-          <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600"/>
-          <span>October 2026 CE • Aqrab 1405 SH</span>
+          <ArrowLeftRight className="w-3.5 h-3.5 text-primary" />
+          <span>{crossCalendarSubtitle}</span>
         </div>
 
         {/* Event Filter Chips */}
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-          <button className="px-3.5 py-1.5 rounded-2xl bg-indigo-600 text-white text-xs font-semibold shadow-sm shadow-indigo-600/30 whitespace-nowrap">
-            All Events (5)
+          <button onClick={() => setActiveCategory('All')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${activeCategory === 'All' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'}`}>
+            All Events ({categoryCounts.all})
           </button>
-          <button className="px-3.5 py-1.5 rounded-2xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 whitespace-nowrap">
-            Spiritual & Prayers (3)
+          <button onClick={() => setActiveCategory('Spiritual')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${activeCategory === 'Spiritual' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'}`}>
+            Spiritual & Prayers ({categoryCounts.spiritual})
           </button>
-          <button className="px-3.5 py-1.5 rounded-2xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 whitespace-nowrap">
-            Fasting & Sunnah (2)
+          <button onClick={() => setActiveCategory('Fasting')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${activeCategory === 'Fasting' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'}`}>
+            Fasting & Sunnah ({categoryCounts.fasting})
           </button>
         </div>
 
         {/* Calendar Days & Number Grid */}
         <div className="grid grid-cols-7 gap-1 text-center pt-2">
-          {/* Weekdays header */}
-          <div className="text-xs font-semibold text-slate-500 py-1">Ahad</div>
-          <div className="text-xs font-semibold text-slate-500 py-1">Ith</div>
-          <div className="text-xs font-semibold text-slate-500 py-1">Thul</div>
-          <div className="text-xs font-semibold text-slate-500 py-1">Arba</div>
-          <div className="text-xs font-semibold text-slate-500 py-1">Kham</div>
-          <div className="text-xs font-bold text-indigo-600 py-1 bg-indigo-50 rounded-lg">Jum</div>
-          <div className="text-xs font-semibold text-slate-500 py-1">Sabt</div>
-          
-          {/* Previous Month Pad */}
-          <div className="h-10 flex items-center justify-center text-slate-400 font-normal">30</div>
-          
-          {/* Current Month Days */}
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={`d1-${i}`} className="h-10 flex items-center justify-center text-slate-800 font-medium">{i + 1}</div>
-          ))}
-          {/* Friday */}
-          <div className="h-10 flex items-center justify-center text-indigo-600 font-bold bg-indigo-50/50 rounded-lg">5</div>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={`d2-${i}`} className="h-10 flex items-center justify-center text-slate-800 font-medium">{i + 6}</div>
-          ))}
-          {/* Friday */}
-          <div className="h-10 flex items-center justify-center text-indigo-600 font-bold bg-indigo-50/50 rounded-lg">12</div>
-          
-          {/* Day 13 Active */}
-          <div className="h-10 flex items-center justify-center">
-            <div className="w-9 h-9 mx-auto rounded-full bg-indigo-600 text-white font-bold flex flex-col items-center justify-center shadow-md shadow-indigo-600/40 relative">
-              13
-              <span className="w-1 h-1 rounded-full bg-white absolute bottom-1"></span>
+          {HIJRI_WEEKDAYS.map((w, idx) => (
+            <div key={w} className={`text-xs font-semibold py-1 ${idx === 5 ? 'text-primary font-bold bg-primary/10 rounded-lg' : 'text-slate-500'}`}>
+              {w}
             </div>
-          </div>
-
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={`d3-${i}`} className="h-10 flex items-center justify-center text-slate-800 font-medium">{i + 14}</div>
           ))}
-          {/* Friday */}
-          <div className="h-10 flex items-center justify-center text-indigo-600 font-bold bg-indigo-50/50 rounded-lg">19</div>
-          
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={`d4-${i}`} className="h-10 flex items-center justify-center text-slate-800 font-medium">{i + 20}</div>
+          {monthGrid.prevSpacers.map((pad, i) => (
+            <div key={`prev-${i}`} className="h-10 flex items-center justify-center text-slate-400 font-normal">
+              {pad}
+            </div>
           ))}
-          {/* Friday */}
-          <div className="h-10 flex items-center justify-center text-indigo-600 font-bold bg-indigo-50/50 rounded-lg">26</div>
-
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={`d5-${i}`} className="h-10 flex items-center justify-center text-slate-800 font-medium">{i + 27}</div>
+          {monthGrid.currentDays.map((d) => {
+            const isSelected = d === selectedHijriDay;
+            const dayIndex = (monthGrid.firstWeekday + d - 1) % 7;
+            const isFriday = dayIndex === 5;
+            const hasEvents = eventDaysSet.has(d);
+            const isToday = viewHijriYear === todayHijri.hy && viewHijriMonth === todayHijri.hm && d === todayHijri.hd;
+            return (
+              <div key={`day-${d}`} onClick={() => setSelectedHijriDay(d)} className="h-10 flex items-center justify-center cursor-pointer pointer-events-auto">
+                {isSelected ? (
+                  <div className="w-9 h-9 mx-auto rounded-full bg-primary text-white font-bold flex flex-col items-center justify-center shadow-lg shadow-primary/30 relative">
+                    <span>{d}</span>
+                    {hasEvents && <span className="w-1 h-1 rounded-full bg-white absolute bottom-1"></span>}
+                  </div>
+                ) : isFriday ? (
+                  <div className={`w-9 h-9 mx-auto rounded-lg text-primary font-bold bg-primary/10 flex flex-col items-center justify-center relative hover:bg-primary/20 transition-colors ${
+                    isToday ? 'border border-primary' : ''
+                  }`}>
+                    <span>{d}</span>
+                    {hasEvents && <span className="w-1 h-1 rounded-full bg-primary absolute bottom-1"></span>}
+                  </div>
+                ) : (
+                  <div className={`w-9 h-9 mx-auto rounded-lg font-medium flex flex-col items-center justify-center relative hover:bg-slate-100 transition-colors ${
+                    isToday ? 'border border-primary/60 text-primary font-bold' : 'text-slate-700'
+                  }`}>
+                    <span>{d}</span>
+                    {hasEvents && <span className="w-1 h-1 rounded-full bg-primary absolute bottom-1"></span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {monthGrid.nextSpacers.map((pad, i) => (
+            <div key={`next-${i}`} className="h-10 flex items-center justify-center text-slate-400 font-normal">
+              {pad}
+            </div>
           ))}
-
-          {/* Next Month Pad */}
-          <div className="h-10 flex items-center justify-center text-slate-400 font-normal">1</div>
-          <div className="h-10 flex items-center justify-center text-slate-400 font-normal">2</div>
         </div>
       </div>
 
       {/* SELECTED HIJRI DAY & EVENTS CONTAINER */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
+      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-lg">
         {/* Day Header & Solar/CE Equivalence */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-900 leading-tight">
-            Saturday, 13 Rabi' al-Thani 1448 AH
-          </h3>
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-violet-50 border border-violet-200/80 text-violet-700">
-            24 Oct 2026 • 2 Aqrab
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-bold text-slate-900 leading-tight">{dayHeaderStr}</h3>
+          <span className="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex items-center justify-center bg-violet-100 border border-violet-200 text-violet-700 shadow-sm">
+            {dayEquivalenceBadge}
           </span>
         </div>
-        <p className="text-xs font-normal text-slate-500 mb-4">
-          First of Ayyam al-Beed (White Days) • Qiyam & Sunnah Fasting
-        </p>
+        <p className="text-xs font-normal text-slate-500 mb-4">{daySignificanceNote}</p>
 
         {/* Standardized rounded-2xl Hijri Event Tiles */}
-        {/* Tile 1 */}
-        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
-              <Sun className="w-4 h-4"/>
-            </div>
-            <div className="min-w-0">
-              <h4 className="text-xs font-semibold text-slate-900 truncate">Ayyam al-Beed (White Days Fasting)</h4>
-              <p className="text-[11px] font-normal text-slate-500">Dawn (05:12 AM) – Sunset (06:42 PM)</p>
-            </div>
+        {visibleDayEvents.length === 0 ? (
+          <div className="p-6 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+            <Moon className="w-6 h-6 mx-auto mb-2 text-primary opacity-60" />
+            <span>No events scheduled for this Hijri day. Tap `+ {t('calendar.addHijriEvent', 'Add Hijri Event')} to create one.</span>
           </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Sunnah</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 ml-1"/>
-          </div>
-        </div>
-
-        {/* Tile 2 */}
-        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-4 h-4"/>
+        ) : (
+          visibleDayEvents.map((evt) => (
+            <div key={evt.id} className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-slate-50/90 border border-slate-200/80 shadow-sm">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  evt.category === 'Fasting'
+                    ? 'bg-amber-500/10 text-amber-600'
+                    : evt.category === 'Spiritual'
+                    ? 'bg-primary/10 text-primary'
+                    : evt.category === 'Community' || evt.category === 'Personal'
+                    ? 'bg-emerald-500/10 text-emerald-600'
+                    : 'bg-violet-500/10 text-violet-600'
+                }`}>
+                  {evt.category === 'Fasting' ? <Sun className="w-4 h-4" /> : evt.category === 'Spiritual' ? <BookOpen className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0">
+                  <h4 className={`text-xs font-semibold truncate ${evt.completed ? 'line-through text-slate-400' : 'text-slate-900'}`}>{evt.title}</h4>
+                  <p className="text-[11px] font-normal text-slate-500">{evt.time}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border ${
+                  evt.category === 'Fasting'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : evt.category === 'Spiritual'
+                    ? 'bg-primary/10 text-primary border-primary/20'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>{evt.category === 'Fasting' ? t('calendar.sunnah', 'Sunnah') : evt.category}</span>
+                <button onClick={() => handleToggle(evt)} aria-label="Toggle event completion" className="p-1 cursor-pointer transition-transform active:scale-90">
+                  {evt.completed ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Clock className="w-4 h-4 text-slate-400 hover:text-primary" />}
+                </button>
+                {evt.source === 'calendar' && (
+                  <button onClick={() => { deleteCalendarEvent(evt.id); toast.success(t('calendar.eventDeleted', 'Event deleted')); }} aria-label="Delete event" className="p-1 text-slate-400 hover:text-rose-500 cursor-pointer transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="min-w-0">
-              <h4 className="text-xs font-semibold text-slate-900 truncate">Surah Al-Kahf & Tafsir Study</h4>
-              <p className="text-[11px] font-normal text-slate-500">04:45 PM – 05:45 PM</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Spiritual</span>
-            <Clock className="w-4 h-4 text-slate-400 ml-1"/>
-          </div>
-        </div>
-
-        {/* Tile 3 */}
-        <div className="p-3.5 rounded-2xl transition-all flex items-center justify-between gap-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-              <Heart className="w-4 h-4"/>
-            </div>
-            <div className="min-w-0">
-              <h4 className="text-xs font-semibold text-slate-900 truncate">Family & Community Iftar Sharing</h4>
-              <p className="text-[11px] font-normal text-slate-500">06:15 PM – 07:15 PM</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Community</span>
-            <Clock className="w-4 h-4 text-slate-400 ml-1"/>
-          </div>
-        </div>
+          ))
+        )}
 
         {/* Primary Action Button */}
-        <button className="btn-primary w-full mt-2">
-          <Plus className="w-4 h-4"/>
-          Add Hijri Event
+        <button onClick={() => { setFormHijriDay(selectedHijriDay); setIsAddModalOpen(true); }} className="w-full py-3.5 px-4 rounded-2xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer mt-2">
+          <Plus className="w-4 h-4" />
+          <span>{t('calendar.addHijriEvent', 'Add Hijri Event')}</span>
         </button>
       </div>
 
-      {/* Floating Bottom Navigation Dock */}
-      <div className="fixed bottom-6 inset-x-4 z-40">
-        <div className="relative w-full h-16 rounded-full bg-white/90 backdrop-blur-xl border border-slate-200/50 shadow-lg flex items-center justify-around px-2">
-          {/* Nav Item 1: Home */}
-          <button 
-            className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-600 active:scale-95 transition-all w-14" 
-            onClick={() => setActiveTab && setActiveTab('home')}
-          >
-            <Home className="w-6 h-6" strokeWidth={2} />
-            <span className="text-[10px] font-semibold leading-none">Home</span>
-          </button>
-          
-          {/* Nav Item 2: Finance */}
-          <button 
-            className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-600 active:scale-95 transition-all w-14 relative"
-            onClick={() => setActiveTab && setActiveTab('finance')}
-          >
-            <Wallet className="w-6 h-6" strokeWidth={2} />
-            <span className="text-[10px] font-semibold leading-none">Finance</span>
-          </button>
-          
-          {/* Center Action Button (+) */}
-          <div className="relative -top-5 flex items-center justify-center">
-            <button className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 active:scale-95 transition-transform ring-4 ring-slate-50">
-              <Plus className="w-7 h-7" strokeWidth={2.5} />
-            </button>
+      {/* Hijri Month Picker Modal */}
+      {isMonthPickerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl p-5 space-y-4 bg-white border border-slate-200 shadow-2xl text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setViewHijriYear((y) => y - 1)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 cursor-pointer">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="font-bold text-sm text-primary">{viewHijriYear} AH</span>
+                <button onClick={() => setViewHijriYear((y) => y + 1)} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 cursor-pointer">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+              <button onClick={() => setIsMonthPickerOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto scrollbar-none py-1">
+              {HIJRI_MONTHS.map((m) => (
+                <button key={m.index} onClick={() => { setViewHijriMonth(m.index); setSelectedHijriDay(1); setIsMonthPickerOpen(false); }} className={`p-2.5 rounded-xl text-xs font-semibold text-left transition-all cursor-pointer ${m.index === viewHijriMonth ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+                  <div className="truncate">{m.nameEn}</div>
+                  <div className="text-[10px] opacity-75 font-normal">{m.nameAr}</div>
+                </button>
+              ))}
+            </div>
           </div>
-          
-          {/* Nav Item 4: Tasks (Active) */}
-          <button className="flex flex-col items-center justify-center gap-1 text-indigo-600 active:scale-95 transition-all w-14 relative">
-            <div className="absolute -top-3 w-1.5 h-1.5 rounded-full bg-indigo-600"></div>
-            <CheckSquare className="w-6 h-6 fill-indigo-50" strokeWidth={2} />
-            <span className="text-[10px] font-bold leading-none">Tasks</span>
-          </button>
-          
-          {/* Nav Item 5: More */}
-          <button className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-600 active:scale-95 transition-all w-14">
-            <Grid className="w-6 h-6" strokeWidth={2} />
-            <span className="text-[10px] font-semibold leading-none">More</span>
-          </button>
         </div>
-      </div>
+      )}
+
+      {/* ADD HIJRI EVENT MODAL */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl p-5 space-y-4 bg-white border border-slate-200 shadow-2xl text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-bold text-sm text-slate-900">{t('calendar.addHijriEvent', 'Add Hijri Event')}</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEvent} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
+                <input type="text" required value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder={t('calendar.ayyamAlBeedPlaceholder', 'e.g. Ayyam al-Beed Fasting')} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">{t('calendar.category', 'Category')}</label>
+                <div className="flex items-center gap-1.5">
+                  {['Spiritual', 'Fasting', 'Community'].map((cat) => (
+                    <button type="button" key={cat} onClick={() => setFormCategory(cat)} className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${formCategory === cat ? 'bg-primary text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:text-slate-900'}`}>
+                      {t('calendar.' + cat.toLowerCase(), cat)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">{t('calendar.hijriDay', 'Hijri Day')}</label>
+                  <input type="number" min={1} max={monthGrid.totalDays} value={formHijriDay} onChange={(e) => setFormHijriDay(e.target.value)} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">{t('calendar.time', 'Time')}</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsTimePickerOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary cursor-pointer hover:bg-slate-100"
+                  >
+                    {formTime || t('calendar.selectTime', 'Select Time')}
+                  </button>
+                </div>
+              </div>
+
+              <MomentumTimePicker
+                isOpen={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                value={formTime}
+                onSelect={(newTime) => setFormTime(newTime)}
+                title={t('calendar.selectEventTime', 'Select Event Time')}
+                isDark={false}
+                outputFormat="auto"
+              />
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">{t('calendar.noteReflection', 'Note / Reflection')}</label>
+                <textarea rows={2} value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder={t('calendar.optionalDetailsIntentions', 'Optional details or intentions...')} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary resize-none" />
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer">{t('common.cancel', 'Cancel')}</button>
+                <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-semibold bg-primary text-white shadow-md hover:bg-primary/90 cursor-pointer">{t('calendar.saveHijriEvent', 'Save Hijri Event')}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

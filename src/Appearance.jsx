@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -502,7 +502,7 @@ export default function Appearance({
             className: "pt-space-xs pb-space-lg",
             children: /*#__PURE__*/_jsxDEV(LiquidButton, {
               variant: "none",
-              className: "w-full py-4 px-space-lg rounded-xl bg-gradient-to-r from-[#6366f1] via-[#756af7] to-[#8b5cf6] text-on-surface font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(99,102,241,0.4)] active:scale-[0.98] transition-all hover:brightness-110",
+              className: "w-full py-4 px-space-lg rounded-xl bg-primary text-white font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/30 active:scale-[0.98] transition-all hover:brightness-110",
               onClick: () => setActiveTab('settings'),
               type: "button",
               children: [/*#__PURE__*/_jsxDEV("span", {

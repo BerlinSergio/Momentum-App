@@ -1,8 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
-import GlassCard from "./components/ui/GlassCard";
-import AppShell from "./components/ui/AppShell";
-import React, { useEffect } from 'react';
-import LiquidButton from './components/ui/LiquidButton';
+﻿import LiquidButton from './components/ui/LiquidButton';
 import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 export default function AboutMomentum({
   setActiveTab
@@ -188,10 +184,10 @@ export default function AboutMomentum({
                   className: "flex flex-col min-w-0",
                   children: [/*#__PURE__*/_jsxDEV("h4", {
                     className: "font-headline-sm text-headline-sm text-on-surface ",
-                    children: "Zero-Knowledge Sanctuary"
+                    children: "Private Local Sanctuary"
                   }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
                     className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant mt-1 leading-relaxed",
-                    children: "Your sacred journals, financial records, and personal habit data are encrypted locally. No trackers, no data monetization."
+                    children: "Your sacred journals, financial records, and personal habit data are stored locally and privately on your device. No trackers, no data monetization."
                   }, void 0, false)]
                 }, void 0, true)]
               }, void 0, true)

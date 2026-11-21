@@ -1,392 +1,606 @@
-import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
+import UserAvatar from './components/UserAvatar';
+import { Calendar, Bell, CheckSquare } from 'lucide-react';
+import { getShamsiDate, getIslamicDateParts } from './utils/afghanCalendar';
+import { useTaskStore } from './store/useTaskStore';
+import { useLocationStore } from './store/useLocationStore';
+import { useAppTime } from './hooks/useAppTime';
+import { useNotificationStore } from './store/useNotificationStore';
 
-import { Calendar, Bell } from 'lucide-react';
+const parseTimeToMinutes = (timeStr, estimateStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const cleaned = timeStr.trim().toLowerCase();
+  if (cleaned.includes('all day') || cleaned.includes('throughout')) {
+    return { startMinutes: 0, endMinutes: 1440, isAllDay: true };
+  }
+  const match12 = cleaned.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+  if (match12) {
+    let hours = parseInt(match12[1], 10);
+    const minutes = parseInt(match12[2], 10);
+    const period = match12[3];
+    if (period) {
+      if (period.toLowerCase() === 'pm' && hours < 12) hours += 12;
+      if (period.toLowerCase() === 'am' && hours === 12) hours = 0;
+    }
+    const startMinutes = hours * 60 + minutes;
+    let duration = 45;
+    if (estimateStr) {
+      const est = estimateStr.toLowerCase();
+      if (est.includes('hour') || est.includes('hr')) {
+        duration = Math.round((parseFloat(est) || 1) * 60);
+      } else {
+        const m = est.match(/(\d+)\s*min/);
+        if (m) duration = parseInt(m[1], 10);
+      }
+    }
+    return { startMinutes, endMinutes: Math.min(startMinutes + duration, 1440), isAllDay: false };
+  }
+  return null;
+};
+
+const getCategoryMeta = (category) => {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('spirit') || cat.includes('prayer') || cat.includes('deen')) {
+    return { icon: 'bedtime', accent: 'secondary', badgeText: 'Spiritual • Daily Practice' };
+  }
+  if (cat.includes('work') || cat.includes('study') || cat.includes('biz')) {
+    return { icon: 'business_center', accent: 'primary', badgeText: 'Work • Productivity' };
+  }
+  if (cat.includes('health') || cat.includes('fit')) {
+    return { icon: 'fitness_center', accent: 'tertiary', badgeText: 'Health • Vitality' };
+  }
+  if (cat.includes('person') || cat.includes('home') || cat.includes('family')) {
+    return { icon: 'nature_people', accent: 'primary', badgeText: 'Personal • Harmony' };
+  }
+  return { icon: 'calendar_today', accent: 'primary', badgeText: category || 'Daily Routine' };
+};
 
 export default function CalendarsMainDarkMode({ setActiveTab }) {
+  const { t } = useTranslation();
+  const {
+    now,
+    currentDateKey,
+    currentYear,
+    currentMonth,
+    currentDay,
+    currentHour,
+    currentMinute,
+    effectiveTimezone,
+    formattedDate,
+    formattedTime,
+    refreshTime
+  } = useAppTime();
+  const [viewMode, setViewMode] = useState('Agenda');
+  const { tasks, toggleTaskStatus } = useTaskStore();
+  const selectedCity = useLocationStore((s) => s.selectedCity);
+  const unreadNotifCount = useNotificationStore((s) => s.notifications?.filter((n) => !n.read).length || 0);
+
+  const shamsiDate = useMemo(() => getShamsiDate(now, effectiveTimezone), [now, effectiveTimezone]);
+  const islamicDate = useMemo(() => getIslamicDateParts(now, effectiveTimezone), [now, effectiveTimezone]);
+
+  const userCityLabel = useMemo(() => {
+    if (selectedCity?.name) return selectedCity.name;
+    try {
+      const tz = effectiveTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kabul';
+      const parts = tz.split('/');
+      return parts[parts.length - 1].replace(/_/g, ' ') || 'Local Time';
+    } catch {
+      return 'Kabul';
+    }
+  }, [selectedCity, effectiveTimezone]);
+
+  const todayIsoStr = currentDateKey;
+
+  const currentMinutes = useMemo(() => {
+    return currentHour * 60 + currentMinute;
+  }, [currentHour, currentMinute]);
+
+  const agendaTasks = useMemo(() => {
+    const all = Array.isArray(tasks) ? tasks : [];
+    const filtered = all.filter((t) => {
+      if (!t.dueDate) return true;
+      return t.dueDate === todayIsoStr || t.dueDate.startsWith(todayIsoStr);
+    });
+
+    const mapped = filtered.map((t) => {
+      const parsed = parseTimeToMinutes(t.startTime, t.estimate);
+      const meta = getCategoryMeta(t.category);
+      return {
+        id: t.id,
+        title: t.title || 'Untitled Task',
+        description: t.description || '',
+        timeStr: t.startTime || 'All day',
+        category: t.category || 'General',
+        priority: t.priority || 'Medium',
+        status: t.status || 'todo',
+        completed: t.status === 'done',
+        parsed,
+        icon: meta.icon,
+        accent: meta.accent,
+        badgeText: meta.badgeText,
+      };
+    });
+
+    mapped.sort((a, b) => {
+      const aTime = a.parsed && !a.parsed.isAllDay ? a.parsed.startMinutes : 9999;
+      const bTime = b.parsed && !b.parsed.isAllDay ? b.parsed.startMinutes : 9999;
+      return aTime - bTime;
+    });
+
+    return mapped;
+  }, [tasks, todayIsoStr]);
+
+  const activeTask = useMemo(() => {
+    return agendaTasks.find((item) => {
+      if (!item.parsed || item.parsed.isAllDay) return false;
+      return currentMinutes >= item.parsed.startMinutes && currentMinutes < item.parsed.endMinutes;
+    });
+  }, [agendaTasks, currentMinutes]);
+
+  const upcomingTask = useMemo(() => {
+    if (activeTask) {
+      return agendaTasks.find((item) => {
+        if (item.id === activeTask.id || item.completed) return false;
+        if (!item.parsed || item.parsed.isAllDay) return false;
+        return item.parsed.startMinutes >= activeTask.parsed.endMinutes;
+      });
+    }
+    return agendaTasks.find((item) => {
+      if (item.completed) return false;
+      if (!item.parsed || item.parsed.isAllDay) return false;
+      return item.parsed.startMinutes > currentMinutes;
+    });
+  }, [agendaTasks, activeTask, currentMinutes]);
+
+  const weekDays = useMemo(() => {
+    const days = [];
+    const dayOfWeek = (now.getDay() + 1) % 7;
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      const isToday = d.toDateString() === now.toDateString();
+      const isl = getIslamicDateParts(d, effectiveTimezone);
+      const sh = getShamsiDate(d, effectiveTimezone);
+      days.push({
+        date: d,
+        weekdayShort: d.toLocaleDateString('en-US', { weekday: 'short', timeZone: effectiveTimezone }),
+        gregorianDay: d.getDate(),
+        hijriDay: isl.hd,
+        shamsiDay: sh.jd,
+        isToday,
+      });
+    }
+    return days;
+  }, [now, effectiveTimezone]);
+
+  const monthGridDays = useMemo(() => {
+    const year = currentYear;
+    const month = currentMonth - 1;
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      cells.push({ dayNumber: null, isCurrentMonth: false, isToday: false });
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      const isToday = d === currentDay;
+      cells.push({ dayNumber: d, isCurrentMonth: true, isToday });
+    }
+    return cells;
+  }, [currentYear, currentMonth, currentDay]);
+
+  const handleOpenAddTask = () => {
+    if (setActiveTab) {
+      setActiveTab('add_edit_task_dark_mode');
+    }
+  };
+
   return (
-    <>
+    <div className="relative w-full min-h-screen bg-transparent font-sans flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
+          <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Calendar className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-white tracking-tight">
-            Calendars & Time
+          <h1 className="text-base font-bold text-white tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+            {t('calendar.calendarsAndTime', 'Calendars & Time')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"><Bell className="w-5 h-5"/></button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
+          <button
+            type="button"
+            onClick={() => setActiveTab && setActiveTab('notifications_settings_dark_mode')}
+            aria-label="Notifications"
+            className="relative p-2 rounded-full text-slate-400 hover:text-primary transition-colors cursor-pointer pointer-events-auto"
+          >
+            <Bell className="w-5 h-5"/>
+            {unreadNotifCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-slate-900" />
+            )}
+          </button>
+          <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
+        </div>
+      </header>
+
+      {/* Main Scroll Container with Scroll Trap Fix */}
+      <main className="flex-1 overflow-y-auto w-full px-margin pb-32 space-y-4">
+        {/* Subtle Ambient Glow Orbs */}
+        <div className="relative w-full">
+          <div className="absolute -top-10 -left-6 w-52 h-52 bg-secondary-fixed/40 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute top-24 -right-8 w-60 h-60 bg-tertiary-fixed/30 rounded-full blur-3xl pointer-events-none"></div>
+
+          {/* Header Section */}
+          <div className="relative flex flex-col pt-1 pb-2">
+            <div className="flex items-center justify-between">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/80 backdrop-blur-xl shadow-sm">
+                <span className="text-[13px] text-white">✨</span>
+                <span className="font-label-sm text-label-sm text-white font-semibold tracking-wide uppercase" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>{t('calendar.triCalendarSync', 'Tri-Calendar Sync')}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high/60 backdrop-blur-xl">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-label-sm text-label-sm text-slate-300 font-medium" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>{`${userCityLabel} • ${formattedTime}`}</span>
+              </div>
+            </div>
+            <h2 className="font-headline-lg text-headline-lg text-white tracking-tight mt-3" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>{t('calendar.calendarsAndTime', 'Calendars & Time')}</h2>
+            <p className="font-body-sm text-body-sm text-slate-300 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>{t('calendar.harmonizeRhythms', 'Harmonize civil, spiritual, and solar rhythms seamlessly')}</p>
+          </div>
+
+          {/* Triple-Date Hero Glass Card with Polished Single-Line Horizontal Layout */}
+          <div className="relative rounded-2xl p-space-lg overflow-hidden bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="inline-flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-full text-primary">
+                <span className="material-symbols-outlined text-[15px]">today</span>
+                <span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider">{t('calendar.activeConfluence', 'Active Confluence')}</span>
+              </div>
+              <button type="button" onClick={() => refreshTime()} className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary text-on-primary font-label-sm text-label-sm shadow-sm transition-transform active:scale-95 cursor-pointer pointer-events-auto" id="todayJumpBtn">
+                <span className="w-1.5 h-1.5 rounded-full bg-on-primary"></span>
+                <span>{t('calendar.today', 'Today')}</span>
+              </button>
+            </div>
+
+            {/* Consistent Spacing & Padding for Single-Line Date Cards Stack */}
+            <div className="space-y-2.5 mt-2">
+              {/* 1. Gregorian Date Card */}
+              <div className="flex items-center justify-between px-3.5 py-3 rounded-2xl bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md transition-all">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0 mr-2.5">
+                  <span className="material-symbols-outlined text-[19px]">event</span>
+                </div>
+                <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">{t('calendar.civilGregorian', 'Civil • Gregorian')}</span>
+                  <span className="text-[13px] font-bold text-white whitespace-nowrap mt-0.5">{formattedDate}</span>
+                </div>
+                <span className="flex-shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-primary/20 text-primary border border-primary/30">{t('calendar.primary', 'Primary')}</span>
+              </div>
+
+              {/* 2. Islamic Hijri Date Card */}
+              <div className="flex items-center justify-between px-3.5 py-3 rounded-2xl bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md transition-all">
+                <div className="w-9 h-9 rounded-xl bg-secondary/15 flex items-center justify-center text-secondary flex-shrink-0 mr-2.5">
+                  <span className="material-symbols-outlined text-[19px]">dark_mode</span>
+                </div>
+                <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">{t('calendar.spiritualHijriQamari', 'Spiritual • Hijri Qamari')}</span>
+                  <span className="text-[13px] font-bold text-white whitespace-nowrap mt-0.5">{`${islamicDate.hd} ${islamicDate.hm} ${islamicDate.hy} AH`}</span>
+                </div>
+                <span className="flex-shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-secondary/20 text-secondary border border-secondary/30">{t('calendar.qamari', 'Qamari')}</span>
+              </div>
+
+              {/* 3. Afghan Shamsi Date Card */}
+              <div className="flex items-center justify-between px-3.5 py-3 rounded-2xl bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md transition-all">
+                <div className="w-9 h-9 rounded-xl bg-tertiary/15 flex items-center justify-center text-tertiary flex-shrink-0 mr-2.5">
+                  <span className="material-symbols-outlined text-[19px]">wb_sunny</span>
+                </div>
+                <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">{t('calendar.solarHijriShamsi', 'Solar • Hijri Shamsi')}</span>
+                  <span className="text-[13px] font-bold text-white whitespace-nowrap mt-0.5">{`${shamsiDate.jd} ${shamsiDate.monthInfo.nameEn} ${shamsiDate.jy} SH`}</span>
+                </div>
+                <span className="flex-shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-tertiary/20 text-tertiary border border-tertiary/30">{t('calendar.solar', 'Solar')}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div><main className="flex flex-col relative w-full pb-28 min-h-screen bg-surface px-margin"><div className="flex flex-col w-full pb-8 space-y-4">
-{/*  Subtle Ambient Glow Orbs  */}
-<div className="relative w-full">
-<div className="absolute -top-10 -left-6 w-52 h-52 bg-secondary-fixed/40 rounded-full blur-3xl pointer-events-none"></div>
-<div className="absolute top-24 -right-8 w-60 h-60 bg-tertiary-fixed/30 rounded-full blur-3xl pointer-events-none"></div>
-{/*  Header Section  */}
-<div className="relative flex flex-col pt-1 pb-2">
-<div className="flex items-center justify-between">
-<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md shadow-sm">
-<span className="text-[13px]">✨</span>
-<span className="font-label-sm text-label-sm text-primary font-semibold tracking-wide uppercase">Tri-Calendar Sync</span>
-</div>
-<div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high/60 backdrop-blur-md">
-<span className="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-<span className="font-label-sm text-label-sm text-slate-400 font-medium">Kabul (UTC+4:30)</span>
-</div>
-</div>
-<h2 className="font-headline-lg text-headline-lg text-white tracking-tight mt-3">Calendars & Time</h2>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">Harmonize civil, spiritual, and solar rhythms seamlessly</p>
-</div>
-{/*  Triple-Date Hero Glass Card  */}
-<div className="relative rounded-2xl p-space-lg overflow-hidden bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-{/*  Top Decorative Aura Bar  */}
-<div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
-<div className="flex items-center justify-between mb-3">
-<div className="inline-flex items-center gap-1.5 bg-primary/10 px-2.5 py-1 rounded-full text-primary">
-<span className="material-symbols-outlined text-[15px]">today</span>
-<span className="font-label-sm text-label-sm font-semibold uppercase tracking-wider">Active Confluence</span>
-</div>
-<button className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary text-on-primary font-label-sm text-label-sm shadow-sm transition-transform active:scale-95" id="todayJumpBtn">
-<span className="w-1.5 h-1.5 rounded-full bg-on-primary"></span>
-<span>Today</span>
-</button>
-</div>
-{/*  Dates Stack  */}
-<div className="space-y-3 mt-1">
-{/*  Gregorian  */}
-<div className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center gap-2.5">
-<div className="w-7 h-7 rounded-lg bg-primary-fixed flex items-center justify-center text-on-primary-fixed">
-<span className="material-symbols-outlined text-[17px]">event</span>
-</div>
-<div>
-<p className="font-label-sm text-label-sm text-slate-400 uppercase tracking-wider">Civil • Gregorian</p>
-<p className="font-headline-sm text-headline-sm text-white">Saturday, Oct 24, 2026</p>
-</div>
-</div>
-<span className="font-label-sm text-label-sm text-primary font-semibold px-2 py-0.5 rounded-md bg-primary-fixed/50">Primary</span>
-</div>
-{/*  Islamic / Hijri  */}
-<div className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center gap-2.5">
-<div className="w-7 h-7 rounded-lg bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
-<span className="material-symbols-outlined text-[17px]">bedtime</span>
-</div>
-<div>
-<p className="font-label-sm text-label-sm text-slate-400 uppercase tracking-wider">Lunar • Hijri Qamari</p>
-<p className="font-headline-sm text-headline-sm text-white">13 Rabi' al-Thani, 1448 AH</p>
-</div>
-</div>
-<span className="font-label-sm text-label-sm text-secondary font-medium px-2 py-0.5 rounded-md bg-secondary-fixed/50">Gibbous 96%</span>
-</div>
-{/*  Solar / Afghan Shamsi  */}
-<div className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center gap-2.5">
-<div className="w-7 h-7 rounded-lg bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
-<span className="material-symbols-outlined text-[17px]">wb_sunny</span>
-</div>
-<div>
-<p className="font-label-sm text-label-sm text-slate-400 uppercase tracking-wider">Solar • Hijri Shamsi</p>
-<p className="font-headline-sm text-headline-sm text-white">2 Aqrab, 1405 SH (عقرب)</p>
-</div>
-</div>
-<span className="font-label-sm text-label-sm text-tertiary font-medium px-2 py-0.5 rounded-md bg-tertiary-fixed/50">Mid-Autumn</span>
-</div>
-</div>
-</div>
-</div>
-{/*  Calendar System Selection Carousel/Stack  */}
-<div className="flex flex-col space-y-2.5">
-<div className="flex items-center justify-between px-1">
-<h3 className="font-headline-sm text-headline-sm text-white">Dedicated Systems</h3>
-<span className="font-label-sm text-label-sm text-slate-400">Tap to enter system</span>
-</div>
-{/*  Card 1: Gregorian  */}
-<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-black/30 backdrop-blur-md border border-white/10 shadow-xl" role="button" tabIndex={0}>
-<div className="flex items-center gap-3">
-<div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
-<span className="material-symbols-outlined text-[24px]">calendar_month</span>
-</div>
-<div className="min-w-0">
-<div className="flex items-center gap-1.5 mb-0.5">
-<span className="font-headline-sm text-headline-sm text-white">Gregorian</span>
-<span className="px-2 py-0.2 rounded-full bg-primary-fixed-dim/40 text-on-primary-fixed-variant font-label-sm text-[10px] font-semibold tracking-wider uppercase">Civil • Work</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 flex items-center gap-1">
-<span className="font-medium text-white">October 2026</span> • 4 agenda items this week
-          </p>
-</div>
-</div>
-<div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-<span className="material-symbols-outlined text-[18px]">chevron_right</span>
-</div>
-</div>
-{/*  Card 2: Islamic Hijri  */}
-<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-black/30 backdrop-blur-md border border-white/10 shadow-xl" role="button" tabIndex={0}>
-<div className="flex items-center gap-3">
-<div className="w-11 h-11 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-on-secondary transition-colors">
-<span className="material-symbols-outlined text-[24px]">nights_stay</span>
-</div>
-<div className="min-w-0">
-<div className="flex items-center gap-1.5 mb-0.5">
-<span className="font-headline-sm text-headline-sm text-white">Hijri Qamari</span>
-<span className="px-2 py-0.2 rounded-full bg-secondary-fixed/50 text-on-secondary-fixed-variant font-label-sm text-[10px] font-semibold tracking-wider uppercase">Spiritual • Moon</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 flex items-center gap-1">
-<span className="font-medium text-white">Rabi' al-Thani 1448</span> • White Days in 2 days
-          </p>
-</div>
-</div>
-<div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 group-hover:text-secondary transition-colors">
-<span className="material-symbols-outlined text-[18px]">chevron_right</span>
-</div>
-</div>
-{/*  Card 3: Afghan Solar  */}
-<div className="group relative flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 active:scale-[0.98] bg-black/30 backdrop-blur-md border border-white/10 shadow-xl" role="button" tabIndex={0}>
-<div className="flex items-center gap-3">
-<div className="w-11 h-11 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors">
-<span className="material-symbols-outlined text-[24px]">filter_vintage</span>
-</div>
-<div className="min-w-0">
-<div className="flex items-center gap-1.5 mb-0.5">
-<span className="font-headline-sm text-headline-sm text-white">Hijri Shamsi</span>
-<span className="px-2 py-0.2 rounded-full bg-tertiary-fixed/60 text-on-tertiary-fixed-variant font-label-sm text-[10px] font-semibold tracking-wider uppercase">Solar • Seasonal</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 flex items-center gap-1">
-<span className="font-medium text-white">Aqrab 1405 SH</span> • Autumn Harvest Season
-          </p>
-</div>
-</div>
-<div className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-slate-400 group-hover:text-tertiary transition-colors">
-<span className="material-symbols-outlined text-[18px]">chevron_right</span>
-</div>
-</div>
-</div>
-{/*  Integrated Multi-Calendar Week Strip  */}
-<div className="rounded-3xl p-5 mb-5 space-y-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-{/*  View Switcher & Month Navigation  */}
-<div className="flex items-center justify-between pb-1">
-<div className="flex items-center gap-1">
-<button className="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-white">
-<span className="material-symbols-outlined text-[16px]">chevron_left</span>
-</button>
-<span className="font-headline-sm text-headline-sm text-white px-1">October • Aqrab</span>
-<button className="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-slate-400 hover:text-white">
-<span className="material-symbols-outlined text-[16px]">chevron_right</span>
-</button>
-</div>
-{/*  Segmented Pill for Views  */}
-<div className="inline-flex p-1 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-400 shadow-sm">
-<button className="px-3 py-1 rounded-lg bg-indigo-600 text-white font-semibold text-xs shadow-sm">Week</button>
-<button className="px-3 py-1 rounded-lg text-slate-400 font-medium text-xs hover:text-slate-200 transition-colors">Month</button>
-<button className="px-3 py-1 rounded-lg text-slate-400 font-medium text-xs hover:text-slate-200 transition-colors">Agenda</button>
-</div>
-</div>
-{/*  Synchronized 7-Day Matrix  */}
-<div className="grid grid-cols-7 gap-1 text-center">
-{/*  Day 1: Wed 21  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">Wed</span>
-<span className="font-headline-sm text-headline-sm text-white mt-0.5">21</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary font-medium">10</span>
-<span className="text-outline-variant text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary font-medium">29</span>
-</div>
-</div>
-{/*  Day 2: Thu 22  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">Thu</span>
-<span className="font-headline-sm text-headline-sm text-white mt-0.5">22</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary font-medium">11</span>
-<span className="text-outline-variant text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary font-medium">30</span>
-</div>
-</div>
-{/*  Day 3: Fri 23  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl bg-secondary-fixed/20 transition-colors">
-<span className="font-label-sm text-[10px] text-secondary font-semibold uppercase">Fri</span>
-<span className="font-headline-sm text-headline-sm text-secondary font-bold mt-0.5">23</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary font-semibold">12</span>
-<span className="text-outline-variant text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary font-medium">1</span>
-</div>
-<span className="w-1 h-1 rounded-full bg-secondary mt-1"></span>
-</div>
-{/*  Day 4: Sat 24 (ACTIVE TODAY)  */}
-<div className="relative flex flex-col items-center py-2 px-1 rounded-xl bg-primary text-on-primary shadow-sm scale-105 transform z-10">
-<span className="font-label-sm text-[10px] text-on-primary/80 uppercase font-semibold">Sat</span>
-<span className="font-headline-sm text-headline-sm text-on-primary font-bold mt-0.5">24</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary-fixed font-bold">13</span>
-<span className="text-on-primary/60 text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary-fixed font-bold">2</span>
-</div>
-<span className="w-1.5 h-1.5 rounded-full bg-tertiary-fixed mt-1"></span>
-</div>
-{/*  Day 5: Sun 25  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">Sun</span>
-<span className="font-headline-sm text-headline-sm text-white mt-0.5">25</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary font-medium">14</span>
-<span className="text-outline-variant text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary font-medium">3</span>
-</div>
-</div>
-{/*  Day 6: Mon 26  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">Mon</span>
-<span className="font-headline-sm text-headline-sm text-white mt-0.5">26</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary font-medium">15</span>
-<span className="text-outline-variant text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary font-medium">4</span>
-</div>
-<span className="w-1 h-1 rounded-full bg-primary mt-1"></span>
-</div>
-{/*  Day 7: Tue 27  */}
-<div className="flex flex-col items-center py-2 px-1 rounded-xl transition-colors bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">Tue</span>
-<span className="font-headline-sm text-headline-sm text-white mt-0.5">27</span>
-<div className="flex items-center justify-center gap-0.5 mt-1">
-<span className="font-label-sm text-[9px] text-secondary font-medium">16</span>
-<span className="text-outline-variant text-[8px]">•</span>
-<span className="font-label-sm text-[9px] text-tertiary font-medium">5</span>
-</div>
-</div>
-</div>
-{/*  Micro Legend for Multi-Strip  */}
-<div className="flex items-center justify-center gap-4 pt-1 font-label-sm text-[10px] text-slate-400">
-<span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-primary"></span> Civil Date</span>
-<span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-secondary"></span> Hijri Qamari</span>
-<span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Solar Shamsi</span>
-</div>
-</div>
-{/*  Harmonized Day Timeline  */}
-<div className="space-y-3">
-<div className="flex items-center justify-between px-1">
-<div>
-<h2 className="font-headline-sm text-headline-sm text-white">Harmonized Flow</h2>
-<p className="font-body-sm text-body-sm text-slate-400">Saturday • 5 intertwined milestones</p>
-</div>
-<button className="btn-primary">
-<span className="material-symbols-outlined text-[16px]">add</span>
-<span>New Item</span>
-</button>
-</div>
-{/*  Timeline Items List  */}
-<div className="space-y-2">
-{/*  Item 1: Fajr Prayer  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex flex-col items-center pt-0.5 min-w-[54px]">
-<span className="font-label-sm text-label-sm font-bold text-white">05:12</span>
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">AM</span>
-</div>
-<div className="w-1 self-stretch rounded-full bg-secondary my-0.5"></div>
-<div className="flex-1 min-w-0">
-<div className="flex items-center gap-1.5">
-<span className="font-headline-sm text-headline-sm text-white truncate">Fajr & Morning Reflection</span>
-<span className="material-symbols-outlined text-secondary text-[16px]">bedtime</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">Congregational prayer followed by 15-min mindfulness</p>
-<div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-secondary-fixed/40 text-on-secondary-fixed font-label-sm text-[10px]">
-<span>Islamic Spiritual • 13 Rabi' II</span>
-</div>
-</div>
-</div>
-{/*  Item 2: Gregorian Work Event  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex flex-col items-center pt-0.5 min-w-[54px]">
-<span className="font-label-sm text-label-sm font-bold text-white">10:00</span>
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">AM</span>
-</div>
-<div className="w-1 self-stretch rounded-full bg-primary my-0.5"></div>
-<div className="flex-1 min-w-0">
-<div className="flex items-center gap-1.5">
-<span className="font-headline-sm text-headline-sm text-white truncate">Q4 Financial & Budget Review</span>
-<span className="material-symbols-outlined text-primary text-[16px]">business_center</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">Strategic alignment session with regional operations lead</p>
-<div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-primary-fixed/40 text-on-primary-fixed font-label-sm text-[10px]">
-<span>Civil Calendar • Q4 Milestone</span>
-</div>
-</div>
-</div>
-{/*  Item 3: Dhuhr Prayer  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex flex-col items-center pt-0.5 min-w-[54px]">
-<span className="font-label-sm text-label-sm font-bold text-white">01:05</span>
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">PM</span>
-</div>
-<div className="w-1 self-stretch rounded-full bg-secondary my-0.5"></div>
-<div className="flex-1 min-w-0">
-<div className="flex items-center gap-1.5">
-<span className="font-headline-sm text-headline-sm text-white truncate">Dhuhr Prayer & Pause</span>
-<span className="material-symbols-outlined text-secondary text-[16px]">wb_sunny</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">Midday spiritual stillness & hydration check</p>
-<div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-secondary-fixed/40 text-on-secondary-fixed font-label-sm text-[10px]">
-<span>Islamic Spiritual • Solar Zenith</span>
-</div>
-</div>
-</div>
-{/*  Item 4: Solar Seasonal Event  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex flex-col items-center pt-0.5 min-w-[54px]">
-<span className="font-label-sm text-label-sm font-bold text-white">03:30</span>
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">PM</span>
-</div>
-<div className="w-1 self-stretch rounded-full bg-tertiary my-0.5"></div>
-<div className="flex-1 min-w-0">
-<div className="flex items-center gap-1.5">
-<span className="font-headline-sm text-headline-sm text-white truncate">Autumn Tea & Family Walk</span>
-<span className="material-symbols-outlined text-tertiary text-[16px]">nature_people</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">Outdoor gathering celebrating the onset of month of Aqrab</p>
-<div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-tertiary-fixed/50 text-on-tertiary-fixed font-label-sm text-[10px]">
-<span>Solar Shamsi • 2 Aqrab Season</span>
-</div>
-</div>
-</div>
-{/*  Item 5: Isha Prayer & Study  */}
-<div className="flex items-start gap-3 p-3 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex flex-col items-center pt-0.5 min-w-[54px]">
-<span className="font-label-sm text-label-sm font-bold text-white">07:15</span>
-<span className="font-label-sm text-[10px] text-slate-400 uppercase">PM</span>
-</div>
-<div className="w-1 self-stretch rounded-full bg-secondary my-0.5"></div>
-<div className="flex-1 min-w-0">
-<div className="flex items-center gap-1.5">
-<span className="font-headline-sm text-headline-sm text-white truncate">Isha Prayer & Night Reading</span>
-<span className="material-symbols-outlined text-secondary text-[16px]">menu_book</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">Closing cycle of the day; 20 minutes philosophical prose</p>
-<div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-md bg-secondary-fixed/40 text-on-secondary-fixed font-label-sm text-[10px]">
-<span>Islamic Spiritual • Nightfall</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-{/*  Micro-Reflection Quote Pill  */}
-<div className="rounded-2xl p-4 flex items-center gap-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="w-8 h-8 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary shadow-xs shrink-0">
-<span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-</div>
-<div className="min-w-0">
-<p className="font-label-sm text-label-sm text-white font-semibold">Tri-Equilibrium Synchronized</p>
-<p className="font-body-sm text-body-sm text-slate-400 truncate">“He who orders his hours in rhythm finds stillness in motion.”</p>
-</div>
-</div>
-</div>
-</main><nav className="fixed bottom-0 w-full z-50 pb-safe px-margin pointer-events-none" data-active-classes="font-label-md"><div className="pointer-events-auto mx-auto max-w-md mb-space-md h-16 rounded-lg bg-surface-container-lowest/85 backdrop-blur-3xl shadow-[0_16px_40px_rgba(0,0,0,0.4)] flex items-center justify-around px-space-xs"><a aria-current="page" className="flex flex-col items-center justify-center min-w-[52px] h-12 transition-colors text-primary font-label-md" data-path="momentum-home" href="#"><span className="material-symbols-outlined text-[22px]">home</span><span className="font-label-sm text-label-sm mt-0.5">Home</span></a><a className="flex flex-col items-center justify-center min-w-[52px] h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="calendar-finance" href="#"><span className="material-symbols-outlined text-[22px]">payments</span><span className="font-label-sm text-label-sm mt-0.5">Finance</span></a><div className="relative flex items-center justify-center min-w-[52px] h-12"><a aria-label="Create new calendar item" className="absolute -top-5 w-14 h-14 rounded-full bg-gradient-to-tr from-primary via-secondary to-tertiary-container text-on-primary flex items-center justify-center shadow-[0_10px_24px_-2px_rgba(79,107,255,0.45)] ring-4 ring-surface" data-path="quick-create-event" href="#"><span className="material-symbols-outlined text-[28px]">add</span></a></div><a className="flex flex-col items-center justify-center min-w-[52px] h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="calendar-tasks" href="#"><span className="material-symbols-outlined text-[22px]">check_circle</span><span className="font-label-sm text-label-sm mt-0.5">Tasks</span></a><a className="flex flex-col items-center justify-center min-w-[52px] h-12 text-on-surface-variant hover:text-on-surface transition-colors" data-path="calendar-more" href="#"><span className="material-symbols-outlined text-[22px]">grid_view</span><span className="font-label-sm text-label-sm mt-0.5">More</span></a></div></nav>
-    </>
+
+        {/* Dedicated Systems */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="font-headline-sm text-headline-sm text-white font-semibold">{t('calendar.dedicatedSystems', 'Dedicated Systems')}</h2>
+            <span className="font-label-sm text-label-sm text-slate-400">{t('calendar.tapToEnterSystem', 'Tap to enter system')}</span>
+          </div>
+
+          <div className="space-y-2.5">
+            {/* 1. Gregorian (CIVIL • WORK) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab && setActiveTab('gregorian_calendar_dark_mode')}
+              className="group relative flex items-center justify-between p-3.5 rounded-2xl bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md hover:scale-[1.01] transition-all cursor-pointer pointer-events-auto"
+            >
+              <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors flex-shrink-0 mr-3">
+                <span className="material-symbols-outlined text-[24px]">calendar_month</span>
+              </div>
+              <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                <div className="flex items-center gap-2">
+                  <span className="font-headline-sm text-headline-sm text-white font-bold whitespace-nowrap">{t('calendar.gregorian', 'Gregorian')}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary font-label-sm text-[10px] font-semibold tracking-wider uppercase whitespace-nowrap">{t('calendar.civilWork', 'CIVIL • WORK')}</span>
+                </div>
+                <span className="text-[10.5px] font-medium text-on-surface-variant whitespace-nowrap mt-0.5 tracking-tight">{`${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: effectiveTimezone })} • ${t('calendar.civilWorkAgenda', 'Civil & Work Agenda')}`}</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-on-surface-variant group-hover:text-primary transition-colors flex-shrink-0">
+                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              </div>
+            </div>
+
+            {/* 2. Hijri Qamari (SPIRITUAL • MOON) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab && setActiveTab('islamic_hijri_calendar_dark_mode')}
+              className="group relative flex items-center justify-between p-3.5 rounded-2xl bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md hover:scale-[1.01] transition-all cursor-pointer pointer-events-auto"
+            >
+              <div className="w-11 h-11 rounded-xl bg-secondary/15 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-colors flex-shrink-0 mr-3">
+                <span className="material-symbols-outlined text-[24px]">nights_stay</span>
+              </div>
+              <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                <div className="flex items-center gap-2">
+                  <span className="font-headline-sm text-headline-sm text-white font-bold whitespace-nowrap">{t('calendar.hijriQamari', 'Hijri Qamari')}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-label-sm text-[10px] font-semibold tracking-wider uppercase whitespace-nowrap">{t('calendar.spiritualMoon', 'SPIRITUAL • MOON')}</span>
+                </div>
+                <span className="text-[10.5px] font-medium text-on-surface-variant whitespace-nowrap mt-0.5 tracking-tight">{`${islamicDate.hd} ${islamicDate.hm} ${islamicDate.hy} AH • ${t('calendar.lunarCyclesPrayers', 'Lunar Cycles & Prayers')}`}</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-on-surface-variant group-hover:text-secondary transition-colors flex-shrink-0">
+                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              </div>
+            </div>
+
+            {/* 3. Hijri Shamsi (SOLAR • SEASONAL) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setActiveTab && setActiveTab('afghan_solar_hijri_shamsi_calendar_dark_mode')}
+              className="group relative flex items-center justify-between p-3.5 rounded-2xl bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md hover:scale-[1.01] transition-all cursor-pointer pointer-events-auto"
+            >
+              <div className="w-11 h-11 rounded-xl bg-tertiary/15 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-white transition-colors flex-shrink-0 mr-3">
+                <span className="material-symbols-outlined text-[24px]">yard</span>
+              </div>
+              <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                <div className="flex items-center gap-2">
+                  <span className="font-headline-sm text-headline-sm text-white font-bold whitespace-nowrap">{t('calendar.hijriShamsi', 'Hijri Shamsi')}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-tertiary/15 text-tertiary font-label-sm text-[10px] font-semibold tracking-wider uppercase whitespace-nowrap">{t('calendar.solarSeasonal', 'SOLAR • SEASONAL')}</span>
+                </div>
+                <span className="text-[10.5px] font-medium text-on-surface-variant whitespace-nowrap mt-0.5 tracking-tight">{`${shamsiDate.jd} ${shamsiDate.monthInfo.nameEn} ${shamsiDate.jy} SH • ${t('calendar.solarRhythmSeasons', 'Solar Rhythm & Seasons')}`}</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-on-surface-variant group-hover:text-tertiary transition-colors flex-shrink-0">
+                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar Strip Header with Functional View Selector */}
+        <div className="rounded-2xl p-space-md bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg">
+          <div className="flex items-center justify-between pb-2 border-b border-white/20">
+            <div className="flex items-center gap-1.5">
+              <span className="font-headline-sm text-headline-sm text-on-surface font-bold px-1">
+                {`${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: effectiveTimezone })} • ${shamsiDate.monthInfo.nameEn}`}
+              </span>
+            </div>
+            {/* Functional View Selector Toggle */}
+            <div className="inline-flex p-1 rounded-xl bg-slate-800/90 border border-white/10 text-slate-400 shadow-sm font-sans">
+              {['Week', 'Month', 'Agenda'].map((mode) => {
+                const isSelected = viewMode === mode;
+                const label = mode === 'Week' ? t('calendar.week', 'Week') : mode === 'Month' ? t('calendar.month', 'Month') : t('calendar.agenda', 'Agenda');
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    className={`px-3 py-1 rounded-lg text-xs font-sans transition-all cursor-pointer pointer-events-auto ${
+                      isSelected ? 'bg-slate-700 text-primary font-bold shadow-sm' : 'text-slate-400 font-medium hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Conditional View Header Rendering */}
+          {viewMode === 'Month' && (
+            <div className="pt-3">
+              <div className="grid grid-cols-7 gap-1 text-center font-bold text-[11px] text-slate-400 mb-2">
+                <span>{t('calendar.weekdays.sun', 'Sun')}</span>
+                <span>{t('calendar.weekdays.mon', 'Mon')}</span>
+                <span>{t('calendar.weekdays.tue', 'Tue')}</span>
+                <span>{t('calendar.weekdays.wed', 'Wed')}</span>
+                <span>{t('calendar.weekdays.thu', 'Thu')}</span>
+                <span>{t('calendar.weekdays.fri', 'Fri')}</span>
+                <span>{t('calendar.weekdays.sat', 'Sat')}</span>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center font-sans">
+                {monthGridDays.map((cell, idx) => {
+                  if (!cell.dayNumber) {
+                    return <div key={`empty-${idx}`} className="h-8"></div>;
+                  }
+                  return (
+                    <div
+                      key={`day-${cell.dayNumber}`}
+                      className={`h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-all ${
+                        cell.isToday
+                          ? 'bg-primary text-white font-bold shadow-md scale-105'
+                          : 'text-white hover:bg-white/40'
+                      }`}
+                    >
+                      {cell.dayNumber}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {(viewMode === 'Week' || viewMode === 'Agenda') && (
+            <div className="pt-3">
+              <div className="grid grid-cols-7 gap-1 text-center">
+                {weekDays.map((dItem) => {
+                  const isAct = dItem.isToday;
+                  return (
+                    <div key={dItem.date.toISOString()} className={`flex flex-col items-center py-2 px-1 rounded-xl transition-all ${isAct ? 'bg-primary text-on-primary shadow-md scale-105 transform z-10' : 'bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md'}`}>
+                      <span className={`font-label-sm text-[10px] uppercase ${isAct ? 'text-on-primary/80 font-semibold' : 'text-slate-400'}`}>{dItem.weekdayShort}</span>
+                      <span className={`font-headline-sm text-headline-sm mt-0.5 font-bold ${isAct ? 'text-on-primary' : 'text-on-surface'}`}>{dItem.gregorianDay}</span>
+                      <div className="flex items-center justify-center gap-0.5 mt-1">
+                        <span className={`font-label-sm text-[9px] font-medium ${isAct ? 'text-secondary-fixed font-bold' : 'text-secondary'}`}>{dItem.hijriDay}</span>
+                        <span className={`text-[8px] ${isAct ? 'text-on-primary/60' : 'text-outline-variant'}`}>•</span>
+                        <span className={`font-label-sm text-[9px] font-medium ${isAct ? 'text-tertiary-fixed font-bold' : 'text-tertiary'}`}>{dItem.shamsiDay}</span>
+                      </div>
+                      {isAct && <span className="w-1.5 h-1.5 rounded-full bg-white mt-1 animate-pulse"></span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Dynamic View Content Section: Live Agenda Powered by Global Store */}
+        {viewMode === 'Agenda' && (
+          <div className="flex-1 overflow-y-auto pb-32 space-y-3" id="agendaViewSection">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-headline-sm text-headline-sm text-white" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>{t('calendar.harmonizedFlow', 'Harmonized Flow')}</h2>
+                <p className="font-body-sm text-body-sm text-slate-300" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>{`${now.toLocaleDateString('en-US', { weekday: 'long', timeZone: effectiveTimezone })} • ${agendaTasks.length} ${t('calendar.liveMilestones', 'Live Scheduled Milestones')}`}</p>
+              </div>
+              {/* Functional + New Item Action Button */}
+              <button
+                type="button"
+                onClick={handleOpenAddTask}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer pointer-events-auto"
+              >
+                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span>{t('calendar.newItem', 'New Item')}</span>
+              </button>
+            </div>
+
+            {/* Empty State Handling */}
+            {agendaTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 rounded-2xl bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg text-center my-4 space-y-3 font-sans">
+                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                  <CheckSquare className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-headline-sm text-white font-bold">{t('calendar.noTasksToday', 'No tasks scheduled for today')}</h3>
+                  <p className="font-body-sm text-body-sm text-slate-400 mt-1">{t('calendar.clearScheduleDesc', 'Your harmonized flow is clear. Enjoy the stillness or add a milestone.')}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddTask}
+                  className="flex items-center gap-1 px-4 py-2 rounded-full bg-primary text-on-primary font-label-sm text-label-sm shadow-md hover:scale-105 active:scale-95 transition-transform cursor-pointer pointer-events-auto"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add</span>
+                  <span>{t('calendar.addMilestone', 'Add Milestone')}</span>
+                </button>
+              </div>
+            ) : (
+              /* Timeline Items List with The Green Box & Dynamic Store Mapping */
+              <div className="space-y-2.5">
+                {agendaTasks.map((evt, idx) => {
+                  const isActive = activeTask && activeTask.id === evt.id;
+                  const isUpcoming = upcomingTask && upcomingTask.id === evt.id;
+                  const itemCardClass = isActive
+                    ? 'bg-emerald-500/20 backdrop-blur-xl border border-emerald-400/50 shadow-lg ring-2 ring-emerald-400 shadow-emerald-500/25'
+                    : isUpcoming
+                    ? 'bg-sky-500/15 backdrop-blur-xl border border-sky-400/30 shadow-md ring-1 ring-sky-400/50'
+                    : 'bg-surface-container/70 backdrop-blur-xl border border-white/10 shadow-md';
+
+                  return (
+                    <div key={evt.id || `agenda-task-${idx}`} className={`flex items-start gap-3 p-3.5 rounded-2xl transition-all duration-300 ${itemCardClass}`}>
+                      <div className="flex flex-col items-center pt-0.5 min-w-[62px]">
+                        <span className={`font-label-sm text-label-sm font-bold ${isActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-on-surface'}`}>{evt.timeStr}</span>
+                        {evt.completed && (
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase mt-0.5">{t('common.done', 'Done')}</span>
+                        )}
+                      </div>
+                      <div className={`w-1.5 self-stretch rounded-full my-0.5 ${isActive ? 'bg-emerald-500 shadow-sm shadow-emerald-500' : (evt.accent === 'primary' ? 'bg-primary' : evt.accent === 'secondary' ? 'bg-secondary' : 'bg-tertiary')}`}></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`font-headline-sm text-headline-sm truncate ${isActive ? 'text-emerald-800 dark:text-emerald-300 font-bold' : 'text-on-surface'} ${evt.completed ? 'line-through opacity-70' : ''}`}>{evt.title}</span>
+                            <span className={`material-symbols-outlined text-[16px] shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : (evt.accent === 'primary' ? 'text-primary' : evt.accent === 'secondary' ? 'text-secondary' : 'text-tertiary')}`}>{evt.icon}</span>
+                          </div>
+                          {/* Active Green Box Pulse Badge */}
+                          {isActive && (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-600 text-white uppercase tracking-wider animate-pulse flex items-center gap-1 shadow-sm shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white"></span>{t('common.active', 'Now Active')}
+                            </span>
+                          )}
+                          {/* Upcoming Badge */}
+                          {isUpcoming && (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-600 text-white uppercase tracking-wider shadow-sm flex items-center gap-1 shrink-0">
+                              {t('calendar.upNext', 'Up Next')}
+                            </span>
+                          )}
+                        </div>
+                        {evt.description && (
+                          <p className="font-body-sm text-body-sm mt-0.5 text-on-surface-variant">{evt.description}</p>
+                        )}
+                        <div className="flex items-center justify-between mt-1.5">
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container-high/60 text-on-surface-variant font-label-sm text-[10px]">
+                            <span>{evt.badgeText}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => toggleTaskStatus && toggleTaskStatus(evt.id)}
+                            className="text-[11px] font-semibold text-primary hover:underline cursor-pointer pointer-events-auto"
+                          >
+                            {evt.completed ? 'Reopen' : 'Mark Done'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === 'Week' && (
+          <div className="flex-1 overflow-y-auto pb-32 space-y-3" id="weekViewSection">
+            <div className="p-4 rounded-2xl bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg">
+              <h3 className="font-headline-sm text-headline-sm text-white font-bold mb-1">{t('calendar.weekRhythmHarmony', 'Week Rhythm & Harmony')}</h3>
+              <p className="font-body-sm text-body-sm text-slate-300">{t('calendar.confluence7Days', 'Confluence of 7 days across Civil, Spiritual, and Solar timecycles.')}</p>
+              <div className="mt-3 space-y-2">
+                {weekDays.map((wd) => (
+                  <div key={wd.date.toISOString()} className="flex items-center justify-between p-2 rounded-xl bg-black/5 dark:bg-white/5">
+                    <span className="text-xs font-semibold">{wd.weekdayShort} • {wd.gregorianDay}</span>
+                    <span className="text-[11px] text-slate-400">{t('calendar.hijriDay', 'Hijri')}: {wd.hijriDay} | {t('calendar.solarDay', 'Shamsi')}: {wd.shamsiDay}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'Month' && (
+          <div className="flex-1 overflow-y-auto pb-32 space-y-3" id="monthViewSection">
+            <div className="p-4 rounded-2xl bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg">
+              <h3 className="font-headline-sm text-headline-sm text-white font-bold mb-1">{t('calendar.monthlyAlignment', 'Monthly Alignment')}</h3>
+              <p className="font-body-sm text-body-sm text-slate-300">{t('calendar.monthlyAlignmentDesc', 'Full monthly confluence matching civil solar calendar with seasonal transitions.')}</p>
+              <div className="mt-3 flex items-center justify-around p-3 rounded-xl bg-black/5 dark:bg-white/5 text-xs">
+                <div>{t('calendar.civilGregorian', 'Civil')}: <strong className="text-primary">{now.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: effectiveTimezone })}</strong></div>
+                <div>{t('calendar.solarDay', 'Shamsi')}: <strong className="text-tertiary">{shamsiDate.monthInfo.nameEn} {shamsiDate.jy}</strong></div>
+                <div>{t('calendar.hijriDay', 'Hijri')}: <strong className="text-secondary">{islamicDate.hm} {islamicDate.hy}</strong></div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

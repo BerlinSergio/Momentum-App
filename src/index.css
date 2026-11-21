@@ -1,4 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import '@fontsource/noto-sans-arabic/arabic-400.css';
+@import '@fontsource/noto-sans-arabic/arabic-500.css';
+@import '@fontsource/noto-sans-arabic/arabic-600.css';
+@import '@fontsource/noto-sans-arabic/arabic-700.css';
+@import '@fontsource/vazirmatn/arabic-400.css';
+@import '@fontsource/vazirmatn/arabic-500.css';
+@import '@fontsource/vazirmatn/arabic-600.css';
+@import '@fontsource/vazirmatn/arabic-700.css';
 
 @font-face {
   font-family: 'ArabQuranIslamic';
@@ -10,10 +18,10 @@
 
 @font-face {
   font-family: 'BahijTitr';
-  src: url('/fonts/BahijTitr.ttf?v=forceupdate1') format('truetype');
+  src: url('/fonts/BahijTitr.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 @tailwind base;
@@ -21,11 +29,82 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply font-sans;
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
+  body {
+    @apply font-sans antialiased text-on-surface;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+
+  /* RTL and Afghan Multilingual Typography Overrides */
+  html[lang="ps-AF"],
+  html[data-locale="ps-AF"],
+  html[lang="ps-AF"] body,
+  html[data-locale="ps-AF"] body,
+  html[lang="ps-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  html[data-locale="ps-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][data-locale="ps-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][lang="ps-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  .font-pashto {
+    font-family: 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+
+  html[lang="fa-AF"],
+  html[data-locale="fa-AF"],
+  html[lang="fa-AF"] body,
+  html[data-locale="fa-AF"] body,
+  html[lang="fa-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  html[data-locale="fa-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][data-locale="fa-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][lang="fa-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  .font-dari {
+    font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined' !important;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr !important;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  [dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* Perso-Arabic scripts require normal letter spacing so cursive connections remain unbroken */
+  [dir="rtl"],
+  [dir="rtl"] * {
+    letter-spacing: normal !important;
+  }
+
+  /* Language-aware line-height and vertical rhythm for RTL scripts */
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
+    line-height: 1.35;
+  }
+  [dir="rtl"] h4, [dir="rtl"] h5, [dir="rtl"] h6 {
+    line-height: 1.45;
+  }
+  [dir="rtl"] p, [dir="rtl"] li {
+    line-height: 1.65;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading tracking-tight;
+  }
+  input, button, select, textarea {
+    font-family: inherit;
   }
 }
 
@@ -59,6 +138,7 @@
 
     /* Primary */
     --color-primary: #2a49df;
+    --color-primary-rgb: 42 73 223; /* RGB channels for Tailwind opacity modifiers */
     --color-primary-container: #4965f9;
     --color-primary-fixed: #dee0ff;
     --color-primary-fixed-dim: #bac3ff;
@@ -201,10 +281,10 @@
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-md shadow-indigo-500/20 transition-all duration-150 ease-out active:scale-95 hover:opacity-95 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 border border-transparent;
+    @apply px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-xl shadow-md shadow-primary/20 transition-all duration-150 ease-out active:scale-95 hover:opacity-95 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 border border-transparent;
   }
   .btn-secondary {
-    @apply px-4 py-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl border border-slate-300 dark:border-slate-600 transition-all duration-150 ease-out active:scale-95 hover:opacity-95 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 backdrop-blur-sm;
+    @apply px-4 py-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl border border-slate-300 dark:border-slate-600 transition-all duration-150 ease-out active:scale-95 hover:opacity-95 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 backdrop-blur-sm;
   }
   .btn-danger {
     @apply px-4 py-2 bg-rose-500/90 hover:bg-rose-600 text-white text-sm font-medium rounded-xl shadow-md shadow-rose-500/20 transition-all duration-150 ease-out active:scale-95 hover:opacity-95 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 border border-rose-400/30 backdrop-blur-sm;
@@ -245,4 +325,192 @@
 .momentum-canvas-viewport.wallpaper-active .min-h-screen {
   background-color: transparent !important;
   background-image: none !important;
+}
+/* ========================================
+   GLASSMORPHIC PHYSICS & TRANSITIONS HANDLERS
+   ======================================== */
+
+/* When Frosted Glass Effects are disabled:
+   Remove blur filters and replace translucent glass backgrounds
+   with clean, solid high-performance surfaces */
+html.disable-glass [class*="backdrop-blur"],
+.disable-glass [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.dark.disable-glass [class*="backdrop-blur-"],
+.dark.disable-glass [class*="bg-black/"],
+.dark.disable-glass [class*="bg-slate-900/40"],
+.dark.disable-glass [class*="bg-slate-900/50"],
+.dark.disable-glass [class*="bg-slate-900/60"],
+.dark.disable-glass [class*="bg-slate-900/70"],
+.dark.disable-glass [class*="bg-slate-900/80"],
+.dark.disable-glass [class*="bg-white/[0.0"] {
+  background-color: #0f172a !important; /* solid clean slate-900 surface */
+}
+
+html:not(.dark).disable-glass [class*="backdrop-blur-"],
+html:not(.dark).disable-glass [class*="bg-white/"] {
+  background-color: #ffffff !important; /* solid clean white surface */
+}
+
+/* ========================================
+   DYNAMIC GLOBAL BLUR CONTROL
+   Binds all glassmorphic elements to user-defined blurIntensity
+   ======================================== */
+:root {
+  --blur-intensity: 18px;
+}
+
+html:not(.disable-glass) [class*="backdrop-blur"],
+:not(.disable-glass) [class*="backdrop-blur"] {
+  backdrop-filter: blur(var(--blur-intensity, 18px)) !important;
+  -webkit-backdrop-filter: blur(var(--blur-intensity, 18px)) !important;
+}
+
+/* When Gentle Transitions are disabled:
+   Eliminate animation & transition delays for instantaneous performance */
+html.disable-transitions *,
+html.disable-transitions *::before,
+html.disable-transitions *::after {
+  transition-duration: 0.001ms !important;
+  transition-delay: 0s !important;
+  animation-duration: 0.001ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* System-level prefers-reduced-motion: reduce enforcement */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* When Gentle Transitions are enabled:
+   Smooth, organic cubic-bezier easing across all transitions */
+html.enable-transitions .transition-all,
+html.enable-transitions [class*="transition-"] {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================================
+   CHROMATIC AURA PALETTES
+   ======================================== */
+:root[data-aura="indigo"], .theme-indigo {
+  --color-primary: #4f46e5;
+  --color-primary-rgb: 79 70 229;
+  --color-primary-container: #6366f1;
+  --color-surface-tint: #4f46e5;
+  --aura-hex: #4f46e5;
+  --aura-glow: rgba(79, 70, 229, 0.35);
+}
+.dark[data-aura="indigo"], .dark.theme-indigo {
+  --color-primary: #6366f1;
+  --color-primary-rgb: 99 102 241;
+  --color-primary-container: #4f46e5;
+  --color-surface-tint: #818cf8;
+}
+
+:root[data-aura="oasis"], .theme-oasis {
+  --color-primary: #059669;
+  --color-primary-rgb: 5 150 105;
+  --color-primary-container: #10b981;
+  --color-surface-tint: #059669;
+  --aura-hex: #059669;
+  --aura-glow: rgba(5, 150, 105, 0.35);
+}
+.dark[data-aura="oasis"], .dark.theme-oasis {
+  --color-primary: #10b981;
+  --color-primary-rgb: 16 185 129;
+  --color-primary-container: #059669;
+  --color-surface-tint: #34d399;
+}
+
+:root[data-aura="dawn"], .theme-dawn {
+  --color-primary: #d97706;
+  --color-primary-rgb: 217 119 6;
+  --color-primary-container: #f59e0b;
+  --color-surface-tint: #d97706;
+  --aura-hex: #d97706;
+  --aura-glow: rgba(217, 119, 6, 0.35);
+}
+.dark[data-aura="dawn"], .dark.theme-dawn {
+  --color-primary: #f59e0b;
+  --color-primary-rgb: 245 158 11;
+  --color-primary-container: #d97706;
+  --color-surface-tint: #fbbf24;
+}
+
+:root[data-aura="rose"], .theme-rose {
+  --color-primary: #e11d48;
+  --color-primary-rgb: 225 29 72;
+  --color-primary-container: #f43f5e;
+  --color-surface-tint: #e11d48;
+  --aura-hex: #e11d48;
+  --aura-glow: rgba(225, 29, 72, 0.35);
+}
+.dark[data-aura="rose"], .dark.theme-rose {
+  --color-primary: #f43f5e;
+  --color-primary-rgb: 244 63 94;
+  --color-primary-container: #e11d48;
+  --color-surface-tint: #fb7185;
+}
+
+:root[data-aura="cyan"], .theme-cyan {
+  --color-primary: #0284c7;
+  --color-primary-rgb: 2 132 199;
+  --color-primary-container: #38bdf8;
+  --color-surface-tint: #0284c7;
+  --aura-hex: #0284c7;
+  --aura-glow: rgba(2, 132, 199, 0.35);
+}
+.dark[data-aura="cyan"], .dark.theme-cyan {
+  --color-primary: #38bdf8;
+  --color-primary-rgb: 56 189 248;
+  --color-primary-container: #0284c7;
+  --color-surface-tint: #7dd3fc;
+}
+
+@keyframes popupIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-popup-in {
+  animation: popupIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom right;
+}
+
+@keyframes speedDialPop {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-speed-dial-1 {
+  animation: speedDialPop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom center;
+}
+
+.animate-speed-dial-2 {
+  animation: speedDialPop 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom center;
 }

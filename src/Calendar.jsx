@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useEffect } from 'react';
@@ -282,7 +282,7 @@ export default function Calendar({
                 }, void 0, false)]
               }, void 0, true), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-sm text-label-sm scale-90 text-on-surface font-medium leading-none",
-                children: "24 Oct"
+                children: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-sm text-label-sm scale-75 text-on-surface leading-tight",
                 children: "13 R2"
@@ -294,7 +294,7 @@ export default function Calendar({
                 children: "۳"
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-sm text-label-sm scale-90 text-on-surface dark:text-on-surface-variant leading-none",
-                children: "25 Oct"
+                children: new Date(Date.now() + 86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-sm text-label-sm scale-75 text-outline leading-tight",
                 children: "14 R2"
@@ -694,7 +694,7 @@ export default function Calendar({
             }, void 0, false)]
           }, void 0, true), /*#__PURE__*/_jsxDEV("p", {
             className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant mt-1",
-            children: "24 October 2026 • 13 Rabi' al-Thani 1448 AH"
+            children: `${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} • 13 Rabi' al-Thani 1448 AH`
           }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
             className: "grid grid-cols-2 gap-space-sm mt-space-md",
             children: [/*#__PURE__*/_jsxDEV("div", {

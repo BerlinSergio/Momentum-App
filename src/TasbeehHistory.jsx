@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -63,7 +63,7 @@ const TasbeehHistory = () => {
                 children: "calendar_today"
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-lg text-label-lg text-on-surface ",
-                children: "Today • Oct 24, 2026"
+                children: "Today • Oct 26, 2026"
               }, void 0, false)]
             }, void 0, true), /*#__PURE__*/_jsxDEV(LiquidButton, {
               "aria-label": "Filter timeline",

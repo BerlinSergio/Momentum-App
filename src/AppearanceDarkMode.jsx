@@ -1,286 +1,650 @@
-import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
+import UserAvatar from './components/UserAvatar';
+import {
+  Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor, ChevronRight
+} from 'lucide-react';
+import { useThemeStore, AURA_PRESETS, applyAppearanceToDOM } from './store/useThemeStore';
+import { toast } from './components/ui/toast/index.js';
 
-import { Palette, ArrowLeft } from 'lucide-react';
+export default function AppearanceDarkMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
+  const {
+    theme: globalTheme,
+    aura: globalAura,
+    glassEffects: globalGlass,
+    gentleTransitions: globalTransitions,
+    _hasHydrated,
+    applyPreferences,
+    resetDefaults
+  } = useThemeStore();
 
-export default function AppearanceDarkMode({ setActiveTab }) {
+  const [draftTheme, setDraftTheme] = useState(globalTheme || 'dark');
+  const [draftAura, setDraftAura] = useState(globalAura || 'indigo');
+  const [draftGlassEffects, setDraftGlassEffects] = useState(globalGlass !== false);
+  const [draftGentleTransitions, setDraftGentleTransitions] = useState(globalTransitions !== false);
+  const [previewMode, setPreviewMode] = useState('dark');
+
+  const activeAuraPreset = AURA_PRESETS[draftAura] || AURA_PRESETS.indigo;
+
+  // Synchronize draft preferences when theme store completes hydration
+  useEffect(() => {
+    if (_hasHydrated) {
+      if (globalTheme) setDraftTheme(globalTheme);
+      if (globalAura) setDraftAura(globalAura);
+      if (globalGlass !== undefined) setDraftGlassEffects(globalGlass !== false);
+      if (globalTransitions !== undefined) setDraftGentleTransitions(globalTransitions !== false);
+    }
+  }, [_hasHydrated, globalTheme, globalAura, globalGlass, globalTransitions]);
+
+  // Live aura preview: update CSS variables on the root element whenever the
+  // draft aura or theme changes — before the user clicks Apply.
+  useEffect(() => {
+    applyAppearanceToDOM({
+      theme: draftTheme,
+      aura: draftAura,
+      glassEffects: draftGlassEffects,
+      gentleTransitions: draftGentleTransitions,
+    });
+  }, [draftAura, draftTheme, draftGlassEffects, draftGentleTransitions]);
+
+  const handleApply = () => {
+    applyPreferences({
+      theme: draftTheme,
+      aura: draftAura,
+      glassEffects: draftGlassEffects,
+      gentleTransitions: draftGentleTransitions,
+    });
+    toast.success(t('toasts.preferencesSaved', 'Preferences saved and applied to your ecosystem'));
+    setTimeout(() => {
+      if (draftTheme === 'dark') {
+        setActiveTab && setActiveTab('appearance_dark_mode');
+      } else if (draftTheme === 'light') {
+        setActiveTab && setActiveTab('appearance_light_mode');
+      } else {
+        const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setActiveTab && setActiveTab(prefersDark ? 'appearance_dark_mode' : 'appearance_light_mode');
+      }
+    }, 450);
+  };
+
+  const handleReset = () => {
+    resetDefaults();
+    setDraftTheme('light');
+    setDraftAura('indigo');
+    setDraftGlassEffects(true);
+    setDraftGentleTransitions(true);
+    setPreviewMode('light');
+    toast.info(t('toasts.appearanceReset', 'Appearance reset to default settings'));
+  };
+
   return (
     <>
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      {/* Top Header Bar (Standardized: Back arrow on far left, clean title, no redundant icon or avatar) */}
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
-            <Palette className="w-5 h-5 text-white" />
-          </div>
+          <button
+            type="button"
+            onClick={() => (goBack ? goBack('settings_profile_dark_mode') : (setActiveTab ? setActiveTab('settings_profile_dark_mode') : window.history.back()))}
+            aria-label="Go back"
+            className="p-2 -ml-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer pointer-events-auto"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <h1 className="text-base font-bold text-white tracking-tight">
-            Appearance
+            {t('appearance.appearance', 'Appearance')}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')} className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"><ArrowLeft className="w-5 h-5"/></button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
+      </div>
+
+      <div className="flex-1 flex flex-col relative w-full px-4 pb-36">
+        <div className="flex flex-col w-full space-y-4 pt-2">
+          {/* Top Utility Bar: Context & Reset Action */}
+          <div className="flex items-center justify-between py-1">
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-300"
+                style={{
+                  backgroundColor: activeAuraPreset.hex + '20',
+                  color: activeAuraPreset.hex,
+                }}
+              >
+                <Sparkles className="w-4 h-4" />
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                {t('appearance.visualLanguage', 'Visual Language')}
+              </span>
+            </div>
+            <button
+              id="reset-btn"
+              type="button"
+              onClick={handleReset}
+              className="text-xs font-semibold flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 backdrop-blur-xl active:scale-95 transition-all cursor-pointer shadow-sm"
+            >
+              <RotateCcw className="w-3.5 h-3.5" style={{ color: activeAuraPreset.hex }} />
+              <span>{t('appearance.resetDefault', 'Reset Default')}</span>
+            </button>
+          </div>
+          {/*  Live Mini Mockup Preview Box  */}
+<div className="relative w-full overflow-hidden rounded-3xl p-5 space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span
+                  className="flex h-2.5 w-2.5 rounded-full animate-pulse"
+                  style={{ backgroundColor: activeAuraPreset.hex }}
+                />
+                <span className="text-xs font-bold text-white">{t('appearance.canvasPreview', 'Interactive Canvas Preview')}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewMode((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-semibold shadow-sm hover:bg-white/15 active:scale-95 transition-all cursor-pointer border border-white/10 backdrop-blur-xl"
+              >
+                {previewMode === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" style={{ color: activeAuraPreset.hex }} />}
+                <span>{previewMode === 'dark' ? t('appearance.lightRadiance', 'Preview Light') : t('appearance.darkSanctuary', 'Preview Dark')}</span>
+              </button>
+            </div>
+
+            {/* Micro Phone Shell */}
+            <div
+              className={`relative w-full rounded-2xl p-4 transition-all duration-300 shadow-inner overflow-hidden border backdrop-blur-xl ${
+                previewMode === 'dark'
+                  ? 'bg-black/60 text-white border-white/10'
+                  : 'bg-white/90 text-slate-900 border-slate-200/80'
+              }`}
+            >
+              {/* Ambient Gradient Aura inside preview */}
+              <div
+                className="absolute -top-10 -right-10 w-36 h-36 rounded-full blur-2xl pointer-events-none transition-all duration-500"
+                style={{
+                  backgroundColor: activeAuraPreset.hex,
+                  opacity: previewMode === 'dark' ? 0.35 : 0.22,
+                }}
+              />
+
+              {/* Mini Header in Preview */}
+              <div className="flex items-center justify-between mb-3 relative z-10">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-white shadow-sm font-bold text-xs"
+                    style={{ backgroundColor: activeAuraPreset.hex }}
+                  >
+                    M
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold leading-none">Momentum</div>
+                    <div className={`text-[10px] mt-0.5 ${previewMode === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{t('appearance.morningSanctuary', 'Morning Sanctuary')}</div>
+                  </div>
+                </div>
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: activeAuraPreset.hex + '20',
+                    color: activeAuraPreset.hex,
+                  }}
+                >
+                  {activeAuraPreset.label}
+                </span>
+              </div>
+
+              {/* Mini Frosted Widget Card inside preview */}
+              <div
+                className={`relative rounded-xl p-3 mb-3 shadow-sm border transition-all duration-300 ${
+                  previewMode === 'dark'
+                    ? (draftGlassEffects ? 'bg-white/[0.06] border-white/10 backdrop-blur-xl' : 'bg-slate-900 border-slate-800')
+                    : (draftGlassEffects ? 'bg-white/80 border-slate-200/60 backdrop-blur-xl' : 'bg-white border-slate-200')
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold">{t('habits.dailyCentering', 'Daily Centering')}</span>
+                  <span
+                    className="text-[11px] font-semibold font-display"
+                    style={{ color: activeAuraPreset.hex }}
+                  >
+                    {t('habits.percentClear', '85% Clear')}
+                  </span>
+                </div>
+                <div className={`w-full rounded-full h-1.5 overflow-hidden ${previewMode === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`}>
+                  <div
+                    className="h-1.5 rounded-full transition-all duration-300"
+                    style={{
+                      width: '85%',
+                      backgroundColor: activeAuraPreset.hex,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  <div
+                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[9px]"
+                    style={{ backgroundColor: activeAuraPreset.hex }}
+                  >
+                    ✓
+                  </div>
+                  <span className={`text-[11px] font-medium ${previewMode === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {t('habits.pranayamaBreathwork', 'Pranayama Breathwork (12m)')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mini Bottom Navigation Dock in preview */}
+              <div
+                className={`w-full rounded-full py-1.5 px-4 flex items-center justify-between shadow-sm border backdrop-blur-xl ${
+                  previewMode === 'dark'
+                    ? 'bg-black/60 border-white/10 text-slate-400'
+                    : 'bg-white/90 border-slate-200/80 text-slate-500'
+                }`}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: activeAuraPreset.hex }} />
+                <div className="w-2 h-2 rounded-full bg-slate-400/60" />
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm"
+                  style={{ backgroundColor: activeAuraPreset.hex }}
+                >
+                  +
+                </div>
+                <div className="w-2 h-2 rounded-full bg-slate-400/60" />
+                <div className="w-2 h-2 rounded-full bg-slate-400/60" />
+              </div>
+            </div>
+          </div>
+
+          {/* Primary Theme Mode Selection (3 True Glass Cards) */}
+          <div className="rounded-3xl p-5 space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-white/10">
+              <h2 className="text-base font-bold text-white">
+                {t('appearance.displayTheme', 'Display Theme')}
+              </h2>
+              <span className="text-xs font-semibold text-slate-400">
+                {t('appearance.atmosphere', 'Atmosphere')}
+              </span>
+            </div>
+            <div className="flex flex-col gap-3" role="radiogroup" aria-label="Theme Mode Selection">
+              {/* Option 1: Light Mode */}
+              <div
+                role="radio"
+                aria-checked={draftTheme === 'light'}
+                tabIndex={0}
+                onClick={() => { setDraftTheme('light'); setPreviewMode('light'); applyPreferences({ theme: 'light' }); }}
+                className={`relative rounded-2xl p-4 cursor-pointer transition-all duration-200 select-none backdrop-blur-xl ${
+                  draftTheme === 'light'
+                    ? 'bg-white/10 border shadow-lg'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 shadow-sm'
+                }`}
+                style={draftTheme === 'light' ? {
+                  borderColor: activeAuraPreset.hex,
+                  boxShadow: `0 0 0 2px ${activeAuraPreset.hex}50`,
+                } : undefined}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+                    style={{
+                      backgroundColor: activeAuraPreset.hex + '20',
+                      color: activeAuraPreset.hex,
+                    }}
+                  >
+                    <Sun className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-7">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">{t('appearance.lightRadiance', 'Light Mode')}</span>
+                      {draftTheme === 'light' && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                          style={{
+                            backgroundColor: activeAuraPreset.hex + '15',
+                            color: activeAuraPreset.hex,
+                            borderColor: activeAuraPreset.hex + '40',
+                          }}
+                        >
+                          {t('common.selected', 'Selected')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-normal text-slate-400 mt-1 leading-relaxed">
+                      {t('appearance.lightModeDesc', 'Clean, luminous aesthetic with frosted glass and atmospheric radiance. Optimized for daylight clarity and focus.')}
+                    </p>
+                  </div>
+                  {draftTheme === 'light' && (
+                    <div
+                      className="absolute top-4 right-4 w-6 h-6 rounded-full text-white flex items-center justify-center shadow-md animate-in zoom-in-50 duration-150"
+                      style={{ backgroundColor: activeAuraPreset.hex }}
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Option 2: Dark Sanctuary */}
+              <div
+                role="radio"
+                aria-checked={draftTheme === 'dark'}
+                tabIndex={0}
+                onClick={() => { setDraftTheme('dark'); setPreviewMode('dark'); applyPreferences({ theme: 'dark' }); }}
+                className={`relative rounded-2xl p-4 cursor-pointer transition-all duration-200 select-none backdrop-blur-xl ${
+                  draftTheme === 'dark'
+                    ? 'bg-white/10 border shadow-lg'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 shadow-sm'
+                }`}
+                style={draftTheme === 'dark' ? {
+                  borderColor: activeAuraPreset.hex,
+                  boxShadow: `0 0 0 2px ${activeAuraPreset.hex}50`,
+                } : undefined}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+                    style={{
+                      backgroundColor: activeAuraPreset.hex + '20',
+                      color: activeAuraPreset.hex,
+                    }}
+                  >
+                    <Moon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-7">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">{t('appearance.darkSanctuary', 'Dark Sanctuary')}</span>
+                      {draftTheme === 'dark' && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                          style={{
+                            backgroundColor: activeAuraPreset.hex + '15',
+                            color: activeAuraPreset.hex,
+                            borderColor: activeAuraPreset.hex + '40',
+                          }}
+                        >
+                          {t('common.selected', 'Selected')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-normal text-slate-400 mt-1 leading-relaxed">
+                      {t('appearance.darkModeDesc', 'Deep nocturnal sanctuary with restful obsidian depths and low-light visual comfort for evening reflection.')}
+                    </p>
+                  </div>
+                  {draftTheme === 'dark' && (
+                    <div
+                      className="absolute top-4 right-4 w-6 h-6 rounded-full text-white flex items-center justify-center shadow-md animate-in zoom-in-50 duration-150"
+                      style={{ backgroundColor: activeAuraPreset.hex }}
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Option 3: System Rhythm */}
+              <div
+                role="radio"
+                aria-checked={draftTheme === 'system'}
+                tabIndex={0}
+                onClick={() => { setDraftTheme('system'); applyPreferences({ theme: 'system' }); }}
+                className={`relative rounded-2xl p-4 cursor-pointer transition-all duration-200 select-none backdrop-blur-xl ${
+                  draftTheme === 'system'
+                    ? 'bg-white/10 border shadow-lg'
+                    : 'bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 shadow-sm'
+                }`}
+                style={draftTheme === 'system' ? {
+                  borderColor: activeAuraPreset.hex,
+                  boxShadow: `0 0 0 2px ${activeAuraPreset.hex}50`,
+                } : undefined}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+                    style={{
+                      backgroundColor: activeAuraPreset.hex + '20',
+                      color: activeAuraPreset.hex,
+                    }}
+                  >
+                    <Monitor className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0 pr-7">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white">{t('appearance.systemRhythm', 'System Rhythm')}</span>
+                      {draftTheme === 'system' && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                          style={{
+                            backgroundColor: activeAuraPreset.hex + '15',
+                            color: activeAuraPreset.hex,
+                            borderColor: activeAuraPreset.hex + '40',
+                          }}
+                        >
+                          {t('common.selected', 'Selected')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-normal text-slate-400 mt-1 leading-relaxed">
+                      {t('appearance.systemRhythmDesc', 'Follows celestial daylight cycles. Seamlessly shifts between dawn brilliance and nocturnal twilight.')}
+                    </p>
+                  </div>
+                  {draftTheme === 'system' && (
+                    <div
+                      className="absolute top-4 right-4 w-6 h-6 rounded-full text-white flex items-center justify-center shadow-md animate-in zoom-in-50 duration-150"
+                      style={{ backgroundColor: activeAuraPreset.hex }}
+                    >
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Accent Luminescence / Chromatic Aura */}
+          <div className="rounded-3xl p-5 space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-white/10">
+              <h3 className="text-base font-bold text-white">{t('appearance.chromaticAura', 'Chromatic Aura')}</h3>
+              <span
+                className="text-xs font-bold transition-colors"
+                style={{ color: activeAuraPreset.hex }}
+              >
+                {activeAuraPreset.name}
+              </span>
+            </div>
+            <p className="text-xs font-normal text-slate-400 leading-relaxed">
+              {t('appearance.chromaticAuraDesc', 'Subtle ambient glow reflected across frosted navigation docks, buttons, and metrics.')}
+            </p>
+            {/* Color Swatches Grid */}
+            <div className="grid grid-cols-5 gap-2 pt-1" role="radiogroup" aria-label="Accent Palette Selection">
+              {Object.values(AURA_PRESETS).map((preset) => {
+                const isSelected = draftAura === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => { setDraftAura(preset.id); applyPreferences({ aura: preset.id }); }}
+                    className="flex flex-col items-center gap-1.5 focus:outline-none cursor-pointer group"
+                  >
+                    <div
+                      className={`w-11 h-11 rounded-full flex items-center justify-center text-white transition-all shadow-md ${
+                        isSelected
+                          ? 'ring-4 ring-offset-2 scale-105 ring-offset-slate-900 shadow-lg'
+                          : 'hover:scale-105 active:scale-95'
+                      }`}
+                      style={{
+                        backgroundColor: preset.hex,
+                        boxShadow: isSelected ? `0 0 16px ${preset.hex}80` : undefined,
+                      }}
+                    >
+                      {isSelected ? (
+                        <Check className="w-4 h-4 stroke-[3] text-white animate-in zoom-in-50 duration-150" />
+                      ) : null}
+                    </div>
+                    <span
+                      className={`text-[11px] text-center transition-colors ${
+                        isSelected
+                          ? 'font-bold text-white'
+                          : 'font-medium text-slate-400'
+                      }`}
+                    >
+                      {preset.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Translucency & Motion Preferences (Glassmorphic Physics) */}
+          <div className="rounded-3xl p-5 space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/40 dark:border-white/10">
+              <div>
+                <h3 className="text-base font-bold text-white">{t('appearance.glassmorphicPhysics', 'Glassmorphic Physics')}</h3>
+                <p className="text-xs font-normal text-slate-400 mt-0.5">{t('appearance.renderingEngineDesc', 'Global visual rendering engine & dynamic physics')}</p>
+              </div>
+              <span
+                className="text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors shadow-sm"
+                style={{
+                  backgroundColor: activeAuraPreset.hex + '15',
+                  color: activeAuraPreset.hex,
+                  borderColor: activeAuraPreset.hex + '35',
+                }}
+              >
+                {draftGlassEffects && draftGentleTransitions ? t('appearance.fullFidelity', 'Full Fidelity') : draftGlassEffects ? t('appearance.glassOnly', 'Glass Only') : draftGentleTransitions ? t('appearance.motionOnly', 'Motion Only') : t('appearance.performance', 'Performance')}
+              </span>
+            </div>
+            <div className="flex flex-col gap-4">
+              {/* Toggle 1: Frosted Glass Effects */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors"
+                      style={{
+                        backgroundColor: activeAuraPreset.hex + '20',
+                        color: activeAuraPreset.hex,
+                      }}
+                    >
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-bold text-white">{t('appearance.frostedGlassEffects', 'Frosted Glass Effects')}</span>
+                  </div>
+                  <p className="text-xs font-normal text-slate-400 mt-1 pl-9 leading-relaxed">
+                    {t('appearance.frostedGlassDesc', 'Render multi-layer blur filters and edge reflections over wallpaper.')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={draftGlassEffects}
+                  onClick={() => { const next = !draftGlassEffects; setDraftGlassEffects(next); applyPreferences({ glassEffects: next }); }}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none shadow-sm ${
+                    draftGlassEffects
+                      ? ''
+                      : 'bg-white/10 border border-white/10'
+                  }`}
+                  style={draftGlassEffects ? { backgroundColor: activeAuraPreset.hex } : undefined}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      draftGlassEffects ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Toggle 2: Gentle Transitions */}
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200/40 dark:border-white/10">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors"
+                      style={{
+                        backgroundColor: activeAuraPreset.hex + '20',
+                        color: activeAuraPreset.hex,
+                      }}
+                    >
+                      <Wind className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-bold text-white">{t('appearance.gentleTransitions', 'Gentle Transitions')}</span>
+                  </div>
+                  <p className="text-xs font-normal text-slate-400 mt-1 pl-9 leading-relaxed">
+                    {t('appearance.gentleTransitionsDesc', 'Calm, physics-based page morphing and organic card elevations.')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={draftGentleTransitions}
+                  onClick={() => { const next = !draftGentleTransitions; setDraftGentleTransitions(next); applyPreferences({ gentleTransitions: next }); }}
+                  className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none shadow-sm ${
+                    draftGentleTransitions
+                      ? ''
+                      : 'bg-white/10 border border-white/10'
+                  }`}
+                  style={draftGentleTransitions ? { backgroundColor: activeAuraPreset.hex } : undefined}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      draftGentleTransitions ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* {t('appearance.atmosphericCanvas', 'Atmospheric Canvas')} & Wallpaper Shortcut */}
+          <div className="rounded-3xl p-5 space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-white/10">
+              <h3 className="text-base font-bold text-white">
+                {t('appearance.atmosphericCanvas', 'Atmospheric Canvas')}
+              </h3>
+              <span className="text-xs font-semibold text-slate-400">
+                {t('appearance.defaultAmbient', 'Default Ambient')}
+              </span>
+            </div>
+            <div
+              onClick={() => setActiveTab && setActiveTab('background_wallpaper_library_dark_mode')}
+              className="relative rounded-2xl overflow-hidden bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 p-3.5 shadow-sm group cursor-pointer transition-all active:scale-[0.99] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                  <img
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    alt="Serene Horizon Wallpaper"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDssiR26j8sTUNO43pGWN3KRoiha4FHhqKVhpQeOLpkTXcgXeeGOH3ie0QZfAReV8GDn2RYUMOXjdS-L0kcA_ltLvDbZIR0RzUqYmMy43fzZklx7JqVsfEVwFEKvm4o8MOodHYI4BrOwH_GM8bZHhNPAsHOnRPklY6JbAseRtsTwr6ipWPB1lcKqd7KGMtwGem9UBz8DhNMSlU6_ifnSTbgb7lTJhLCkexS5wx6pIgUNlpHmbbjpUE"
+                  />
+                  <div
+                    className="absolute inset-0 transition-opacity duration-300"
+                    style={{ backgroundColor: activeAuraPreset.hex + '20' }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-white truncate">{t('wallpapers.sereneHorizon', 'Serene Horizon')}</span>
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: activeAuraPreset.hex }} />
+                  </div>
+                  <p className="text-xs font-normal text-slate-400 mt-0.5 truncate">
+                    {t('wallpapers.sereneHorizonDesc', 'Pastel sky and mist with 32px diffuse glass refraction.')}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1 font-semibold text-xs" style={{ color: activeAuraPreset.hex }}>
+                    <span>{t('appearance.customizeWallpaper', 'Customize Wallpaper')}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Primary Apply Action Button (In-flow, clean spacing above bottom nav) */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              className="w-full py-4 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer select-none shadow-lg hover:brightness-110"
+              style={{
+                backgroundColor: activeAuraPreset.hex,
+                boxShadow: `0 10px 25px -5px ${activeAuraPreset.hex}60`,
+              }}
+            >
+              <span>{t('appearance.applyAppearance', 'Apply Appearance Preferences')}</span>
+              <Check className="w-5 h-5" />
+            </button>
           </div>
         </div>
-      </div><main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-slate-900"><div className="flex flex-col w-full pb-12">
-{/*  Top Utility Bar: Secondary Action Context  */}
-<div className="flex items-center justify-between py-space-sm mb-space-sm">
-<div className="flex items-center gap-space-xs">
-<span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary">
-<span className="material-symbols-outlined text-[16px]" style={{fontVariationSettings: '"FILL" 1'}}>palette</span>
-</span>
-<span className="font-label-md text-label-md text-slate-400 uppercase tracking-wider">Visual Language</span>
-</div>
-<button className="font-label-md text-label-md text-primary hover:text-primary-container transition-colors px-space-sm py-1 rounded-full bg-surface-container/60 hover:bg-surface-container active:scale-95 transition-all" id="reset-btn" type="button">
-      Reset Default
-    </button>
-</div>
-{/*  Live Mini Mockup Preview Box  */}
-<div className="relative w-full overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center justify-between">
-<div className="flex items-center gap-space-xs">
-<span className="flex h-2.5 w-2.5 rounded-full bg-tertiary"></span>
-<span className="font-label-md text-label-md text-white">Interactive Canvas Preview</span>
-</div>
-{/*  Instant Toggle Preview Button  */}
-<button className="flex items-center gap-1 px-space-sm py-1 rounded-full bg-slate-800/80 text-primary font-label-sm text-label-sm shadow-sm hover:bg-slate-800 active:scale-95 transition-all" id="toggle-preview-mode" type="button">
-<span className="material-symbols-outlined text-[14px]">swap_horiz</span>
-<span id="preview-toggle-text">Preview Dark</span>
-</button>
-</div>
-{/*  The Micro Phone Shell  */}
-<div className="relative w-full rounded-DEFAULT p-space-md transition-all duration-500 bg-slate-950/80 backdrop-blur-xl shadow-xl overflow-hidden" id="preview-canvas">
-{/*  Ambient Gradient Aura inside preview  */}
-<div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-primary/15 blur-2xl pointer-events-none transition-colors duration-500" id="aura-pill"></div>
-{/*  Mini Header in Preview  */}
-<div className="flex items-center justify-between mb-space-md relative z-10">
-<div className="flex items-center gap-space-xs">
-<div className="w-6 h-6 rounded-full bg-gradient-to-tr from-primary to-tertiary flex items-center justify-center text-on-primary">
-<span className="material-symbols-outlined text-[13px]">spa</span>
-</div>
-<div>
-<div className="font-headline-sm text-headline-sm text-white leading-none" id="preview-app-title">Momentum</div>
-<div className="font-label-sm text-label-sm text-slate-400" id="preview-app-sub">Morning Sanctuary</div>
-</div>
-</div>
-<span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">Active</span>
-</div>
-{/*  Mini Frosted Widget Card inside preview  */}
-<div className="relative rounded-DEFAULT p-space-sm mb-space-md bg-slate-900/70 backdrop-blur-lg shadow-sm transition-all duration-500" id="preview-inner-card">
-<div className="flex items-center justify-between mb-2">
-<span className="font-label-md text-label-md text-white" id="preview-card-headline">Daily Centering</span>
-<span className="font-label-sm text-label-sm text-tertiary font-medium">85% Clear</span>
-</div>
-{/*  Progress Bar Mockup  */}
-<div className="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
-<div className="bg-gradient-to-r from-primary to-tertiary h-1.5 rounded-full w-[85%] transition-all duration-300" id="preview-progress-fill"></div>
-</div>
-<div className="flex items-center gap-2 mt-2">
-<span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-on-primary text-[10px]">
-<span className="material-symbols-outlined text-[10px]">check</span>
-</span>
-<span className="font-body-sm text-body-sm text-slate-400" id="preview-task-name">Pranayama Breathwork (12m)</span>
-</div>
-</div>
-{/*  Mini Bottom Navigation Dock in preview  */}
-<div className="w-full rounded-full py-1 px- space-md flex items-center justify-between bg-slate-900/90 backdrop-blur-3xl shadow-sm transition-all duration-500" id="preview-dock">
-<span className="material-symbols-outlined text-[18px] text-primary" style={{fontVariationSettings: '"FILL" 1'}}>cottage</span>
-<span className="material-symbols-outlined text-[18px] text-slate-400">checklist</span>
-<div className="w-8 h-8 -my-2 rounded-full bg-gradient-to-r from-primary via-secondary-container to-tertiary text-on-primary flex items-center justify-center shadow-md">
-<span className="material-symbols-outlined text-[16px]">add</span>
-</div>
-<span className="material-symbols-outlined text-[18px] text-slate-400">insights</span>
-<span className="material-symbols-outlined text-[18px] text-slate-400">person</span>
-</div>
-</div>
-</div>
-{/*  Primary Theme Mode Selection (3 Cards)  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center justify-between">
-<h2 className="font-headline-md text-headline-md text-white">Display Theme</h2>
-<span className="font-label-sm text-label-sm text-slate-400">Atmosphere</span>
-</div>
-<div aria-label="Theme Mode Selection" className="flex flex-col gap-space-sm" role="radiogroup">
-{/*  Option 1: Light Mode (Active)  */}
-<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl" id="theme-card-light" >
-<div className="flex items-start gap-space-md">
-<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-fixed to-primary-container/20 flex items-center justify-center text-primary shrink-0 shadow-sm">
-<span className="material-symbols-outlined text-[24px]" style={{fontVariationSettings: '"FILL" 1'}}>light_mode</span>
-</div>
-<div className="flex-1 min-w-0 pr-6">
-<div className="flex items-center gap-space-xs">
-<span className="font-headline-sm text-headline-sm text-white">Light Mode</span>
-<span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary/10 text-primary">Selected</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-1">
-              Clean, luminous aesthetic with frosted glass and atmospheric radiance. Optimized for daylight clarity and focus.
-            </p>
-</div>
-<div className="absolute top-space-md right-space-md w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-sm">
-<span className="material-symbols-outlined text-[16px]">check</span>
-</div>
-</div>
-</div>
-{/*  Option 2: Dark Mode  */}
-<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99] bg-black/30 backdrop-blur-md border border-white/10 shadow-xl" id="theme-card-dark" >
-<div className="flex items-start gap-space-md">
-<div className="w-10 h-10 rounded-full bg-inverse-surface/10 flex items-center justify-center text-white shrink-0">
-<span className="material-symbols-outlined text-[24px]">dark_mode</span>
-</div>
-<div className="flex-1 min-w-0 pr-6">
-<span className="font-headline-sm text-headline-sm text-white">Dark Sanctuary</span>
-<p className="font-body-sm text-body-sm text-slate-400 mt-1">
-              Deep nocturnal sanctuary with restful obsidian depths and low-light visual comfort for evening reflection.
-            </p>
-</div>
-<div className="hidden absolute top-space-md right-space-md w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center" id="check-dark">
-<span className="material-symbols-outlined text-[16px]">check</span>
-</div>
-</div>
-</div>
-{/*  Option 3: System Match  */}
-<div className="group relative rounded-2xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99] bg-black/30 backdrop-blur-md border border-white/10 shadow-xl" id="theme-card-system" >
-<div className="flex items-start gap-space-md">
-<div className="w-10 h-10 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-secondary shrink-0">
-<span className="material-symbols-outlined text-[24px]">routine</span>
-</div>
-<div className="flex-1 min-w-0 pr-6">
-<span className="font-headline-sm text-headline-sm text-white">System Rhythm</span>
-<p className="font-body-sm text-body-sm text-slate-400 mt-1">
-              Follows celestial daylight cycles. Seamlessly shifts between dawn brilliance and nocturnal twilight.
-            </p>
-</div>
-<div className="hidden absolute top-space-md right-space-md w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center" id="check-system">
-<span className="material-symbols-outlined text-[16px]">check</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-{/*  Accent Luminescence / Tint Presets  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center justify-between mb-space-xs">
-<h3 className="font-headline-sm text-headline-sm text-white">Chromatic Aura</h3>
-<span className="font-label-md text-label-md text-primary" id="current-accent-label">Luminous Indigo</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mb-space-md">
-      Subtle ambient glow reflected across frosted navigation docks, buttons, and metrics.
-    </p>
-{/*  Color Swatches Grid  */}
-<div aria-label="Accent Palette Selection" className="grid grid-cols-5 gap-space-sm" role="radiogroup">
-{/*  Preset 1: Indigo (Active)  */}
-<button aria-label="Luminous Indigo" className="accent-swatch group flex flex-col items-center gap-1.5 focus:outline-none"  type="button">
-<div className="w-11 h-11 rounded-full shadow-sm bg-primary flex items-center justify-center text-on-primary shadow-md ring-offset-2 ring-primary" id="swatch-indigo">
-<span className="material-symbols-outlined text-[18px]">check</span>
-</div>
-<span className="font-label-sm text-label-sm text-white text-center font-medium">Indigo</span>
-</button>
-{/*  Preset 2: Emerald  */}
-<button aria-label="Emerald Oasis" className="accent-swatch group flex flex-col items-center gap-1.5 focus:outline-none"  type="button">
-<div className="w-11 h-11 rounded-full shadow-sm bg-tertiary flex items-center justify-center text-on-tertiary shadow-sm hover:scale-105 transition-transform" id="swatch-emerald">
-<span className="material-symbols-outlined text-[18px] opacity-0 group-hover:opacity-100 transition-opacity">check</span>
-</div>
-<span className="font-label-sm text-label-sm text-slate-400 text-center">Oasis</span>
-</button>
-{/*  Preset 3: Amber  */}
-<button aria-label="Amber Dawn" className="accent-swatch group flex flex-col items-center gap-1.5 focus:outline-none"  type="button">
-<div className="w-11 h-11 rounded-full shadow-sm bg-amber-500 flex items-center justify-center text-white shadow-sm hover:scale-105 transition-transform" id="swatch-amber">
-<span className="material-symbols-outlined text-[18px] opacity-0 group-hover:opacity-100 transition-opacity">check</span>
-</div>
-<span className="font-label-sm text-label-sm text-slate-400 text-center">Dawn</span>
-</button>
-{/*  Preset 4: Rose  */}
-<button aria-label="Rose Radiance" className="accent-swatch group flex flex-col items-center gap-1.5 focus:outline-none"  type="button">
-<div className="w-11 h-11 rounded-full shadow-sm bg-rose-500 flex items-center justify-center text-white shadow-sm hover:scale-105 transition-transform" id="swatch-rose">
-<span className="material-symbols-outlined text-[18px] opacity-0 group-hover:opacity-100 transition-opacity">check</span>
-</div>
-<span className="font-label-sm text-label-sm text-slate-400 text-center">Rose</span>
-</button>
-{/*  Preset 5: Cyan  */}
-<button aria-label="Sky Cyan" className="accent-swatch group flex flex-col items-center gap-1.5 focus:outline-none"  type="button">
-<div className="w-11 h-11 rounded-full shadow-sm bg-sky-500 flex items-center justify-center text-white shadow-sm hover:scale-105 transition-transform" id="swatch-cyan">
-<span className="material-symbols-outlined text-[18px] opacity-0 group-hover:opacity-100 transition-opacity">check</span>
-</div>
-<span className="font-label-sm text-label-sm text-slate-400 text-center">Cyan</span>
-</button>
-</div>
-</div>
-{/*  Translucency & Motion Preferences  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<h3 className="font-headline-sm text-headline-sm text-white mb-space-sm">Glassmorphic Physics</h3>
-<div className="flex flex-col gap-space-md">
-{/*  Toggle 1: Frosted Translucency  */}
-<div className="flex items-center justify-between">
-<div className="pr-space-md">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-primary text-[18px]">blur_on</span>
-<span className="font-body-lg text-body-lg text-white font-semibold">Frosted Glass Effects</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">
-            Render multi-layer blur filters and edge reflections over wallpaper.
-          </p>
-</div>
-<button aria-checked="true" className="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full bg-primary p-0.5 transition-colors duration-200 ease-in-out focus:outline-none shadow-sm" id="toggle-glass"  role="switch" type="button">
-<span className="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-slate-950 shadow-md ring-0 transition duration-200 ease-in-out translate-x-5" id="knob-glass"></span>
-</button>
-</div>
-{/*  Toggle 2: Gentle Motion  */}
-<div className="flex items-center justify-between pt-space-sm">
-<div className="pr-space-md">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-secondary text-[18px]">air</span>
-<span className="font-body-lg text-body-lg text-white font-semibold">Gentle Transitions</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5">
-            Calm, physics-based page morphing and organic card elevations.
-          </p>
-</div>
-<button aria-checked="true" className="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full bg-primary p-0.5 transition-colors duration-200 ease-in-out focus:outline-none shadow-sm" id="toggle-motion"  role="switch" type="button">
-<span className="pointer-events-none inline-block h-6 w-6 transform rounded-full bg-slate-950 shadow-md ring-0 transition duration-200 ease-in-out translate-x-5" id="knob-motion"></span>
-</button>
-</div>
-</div>
-</div>
-{/*  Background Library & Wallpaper Shortcut  */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-<div className="flex items-center justify-between mb-space-xs">
-<h3 className="font-headline-sm text-headline-sm text-white">Atmospheric Canvas</h3>
-<span className="font-label-sm text-label-sm text-slate-400">Default Ambient</span>
-</div>
-<div className="relative rounded-DEFAULT overflow-hidden bg-slate-950/60 p-space-md shadow-sm group cursor-pointer hover:shadow-md transition-shadow">
-<div className="flex items-center gap-space-md">
-{/*  Thumbnail Placeholder with data-alt  */}
-<div className="relative w-16 h-16 rounded-DEFAULT overflow-hidden shrink-0 shadow-sm">
-<img className="w-full h-full object-cover" data-alt="A tranquil morning seascape with pastel watercolor gradients, soft powder blue, delicate lilac mist, and warm golden sunrise reflection on gentle ripples, shot in ethereal minimalist style with luminous airy lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDssiR26j8sTUNO43pGWN3KRoiha4FHhqKVhpQeOLpkTXcgXeeGOH3ie0QZfAReV8GDn2RYUMOXjdS-L0kcA_ltLvDbZIR0RzUqYmMy43fzZklx7JqVsfEVwFEKvm4o8MOodHYI4BrOwH_GM8bZHhNPAsHOnRPklY6JbAseRtsTwr6ipWPB1lcKqd7KGMtwGem9UBz8DhNMSlU6_ifnSTbgb7lTJhLCkexS5wx6pIgUNlpHmbbjpUE"/>
-<div className="absolute inset-0 bg-primary/10"></div>
-</div>
-<div className="flex-1 min-w-0">
-<div className="flex items-center gap-1.5">
-<span className="font-headline-sm text-headline-sm text-white truncate">Serene Horizon</span>
-<span className="material-symbols-outlined text-[14px] text-tertiary">verified</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-400 mt-0.5 truncate">
-            Pastel sky and mist with 32px diffuse glass refraction.
-          </p>
-<div className="flex items-center gap-1 mt-1 text-primary font-label-md text-label-md">
-<span>Customize Wallpaper</span>
-<span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-{/*  Primary Apply Action Button  */}
-<div className="w-full mt-auto mb-space-md">
-<button className="w-full py-4 rounded-2xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]" id="apply-btn" type="button">
-<span>Apply Appearance Preferences</span>
-<span className="material-symbols-outlined text-[20px]">check_circle</span>
-</button>
-<div className="opacity-0 transition-opacity duration-300 text-center font-label-md text-label-md text-tertiary mt-2" id="toast-message">
-      Preferences saved and applied to your ecosystem
-    </div>
-</div>
-</div>
-</main>
+      </div>
     </>
   );
 }

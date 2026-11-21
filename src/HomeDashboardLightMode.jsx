@@ -1,303 +1,687 @@
-import React from 'react';
-import { Sparkles, Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun, CheckCircle2, ChevronRight, Plus, Home, Grid, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useFinanceStore, calculateGroupedTotals, getMonthlyFinanceSummary, getSavingsTargetStats } from './store/useFinanceStore';
+import StackedCurrencyDisplay from './components/StackedCurrencyDisplay';
+import { useProfileStore } from './store/useProfileStore';
+import { useTaskStore } from './store/useTaskStore';
+import { useLocationStore } from './store/useLocationStore';
+import { useRoutineStore } from './store/useRoutineStore';
+import { useNavigationStore } from './store/useNavigationStore';
+import { usePrayerStore } from './store/usePrayerStore';
+import { useAppTime } from './hooks/useAppTime';
+import { getNextPrayerInfo } from './utils/prayerTimes';
+import UserAvatar from './components/UserAvatar';
+import WelcomeHero from './components/home/WelcomeHero';
+import { useTranslation } from 'react-i18next';
+import { useLocaleStore } from './store/useLocaleStore';
+import { useNotificationStore } from './store/useNotificationStore';
+import {
+  Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun,
+  ChevronRight, Plus, Check, Sparkles, Pencil, Target, X
+} from 'lucide-react';
 
+export default function HomeDashboardLightMode({ setActiveTab }) {
+  const { t } = useTranslation();
+  const currentLocale = useLocaleStore((s) => s.currentLocale);
+  const profile = useProfileStore();
+  const notifications = useNotificationStore((s) => s.notifications) || [];
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+  const { transactions, incomes, savingsTarget, updateSavingsTarget, _hasHydrated: financeHydrated } = useFinanceStore();
+  const { tasks, toggleTaskStatus } = useTaskStore();
+  const selectedCity = useLocationStore((s) => s.selectedCity);
+  const {
+    now,
+    currentDateKey,
+    currentMonthKey,
+    dayEpoch,
+    greeting,
+    formattedDate,
+    effectiveTimezone,
+    isToday: checkIsToday,
+  } = useAppTime();
 
-export default function HomeDashboardLightMode() {
+  const routineStreak = useRoutineStore((s) => {
+    return s.getCurrentStreak ? s.getCurrentStreak(currentDateKey) : (s.streakCount ?? 0);
+  });
+
+  const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
+  const [savingsModalMode, setSavingsModalMode] = useState('create');
+  const [targetFormAFN, setTargetFormAFN] = useState('');
+  const [targetFormUSD, setTargetFormUSD] = useState('');
+  const [contributedFormAFN, setContributedFormAFN] = useState('');
+  const [contributedFormUSD, setContributedFormUSD] = useState('');
+  const [targetValidationError, setTargetValidationError] = useState('');
+
+  const {
+    incomeGrouped: homeIncomeGrouped,
+    expensesGrouped: homeExpensesGrouped,
+    netSavedGrouped: homeSavedGrouped,
+    currencies: homeCurrencies,
+  } = useMemo(() => {
+    return getMonthlyFinanceSummary(transactions, incomes, currentMonthKey);
+  }, [transactions, incomes, currentMonthKey]);
+
+  const savingsStats = useMemo(() => {
+    return getSavingsTargetStats(savingsTarget, homeSavedGrouped, profile?.currency);
+  }, [savingsTarget, homeSavedGrouped, profile?.currency]);
+
+  const handleOpenCreateSavingsModal = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setSavingsModalMode('create');
+    setTargetFormAFN('');
+    setTargetFormUSD('');
+    setContributedFormAFN('');
+    setContributedFormUSD('');
+    setTargetValidationError('');
+    setIsTargetModalOpen(true);
+  };
+
+  const handleOpenEditSavingsModal = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setSavingsModalMode('edit');
+    setTargetValidationError('');
+
+    const afnEntry = (savingsTarget && typeof savingsTarget === 'object') ? savingsTarget.AFN : null;
+    const afnTarget = typeof afnEntry === 'number' ? afnEntry : (typeof afnEntry === 'object' && afnEntry !== null ? (afnEntry.target ?? '') : '');
+    const afnContrib = typeof afnEntry === 'object' && afnEntry !== null ? (afnEntry.current ?? afnEntry.contributed ?? '') : '';
+
+    const usdEntry = (savingsTarget && typeof savingsTarget === 'object') ? savingsTarget.USD : (typeof savingsTarget === 'number' ? savingsTarget : null);
+    const usdTarget = typeof usdEntry === 'number' ? usdEntry : (typeof usdEntry === 'object' && usdEntry !== null ? (usdEntry.target ?? '') : '');
+    const usdContrib = typeof usdEntry === 'object' && usdEntry !== null ? (usdEntry.current ?? usdEntry.contributed ?? '') : '';
+
+    setTargetFormAFN(afnTarget !== '' && afnTarget !== null && Number(afnTarget) > 0 ? String(afnTarget) : '');
+    setTargetFormUSD(usdTarget !== '' && usdTarget !== null && Number(usdTarget) > 0 ? String(usdTarget) : '');
+    setContributedFormAFN(afnContrib !== '' && afnContrib !== null ? String(afnContrib) : '');
+    setContributedFormUSD(usdContrib !== '' && usdContrib !== null ? String(usdContrib) : '');
+    setIsTargetModalOpen(true);
+  };
+
+  const handleCancelTarget = () => {
+    setIsTargetModalOpen(false);
+    setTargetValidationError('');
+  };
+
+  const handleSaveTarget = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setTargetValidationError('');
+
+    const afnTargetTrim = targetFormAFN.trim();
+    const usdTargetTrim = targetFormUSD.trim();
+
+    const afnTargetNum = afnTargetTrim !== '' ? parseFloat(afnTargetTrim) : undefined;
+    const usdTargetNum = usdTargetTrim !== '' ? parseFloat(usdTargetTrim) : undefined;
+
+    if (afnTargetNum !== undefined && (isNaN(afnTargetNum) || afnTargetNum < 0)) {
+      setTargetValidationError(t('home.invalidTargetAmount', 'AFN target amount must be a non-negative number.'));
+      return;
+    }
+    if (usdTargetNum !== undefined && (isNaN(usdTargetNum) || usdTargetNum < 0)) {
+      setTargetValidationError(t('home.invalidTargetAmount', 'USD target amount must be a non-negative number.'));
+      return;
+    }
+
+    if ((afnTargetNum === undefined || afnTargetNum <= 0) && (usdTargetNum === undefined || usdTargetNum <= 0)) {
+      setTargetValidationError(t('home.targetMustBePositive', 'Please specify a target amount greater than zero.'));
+      return;
+    }
+
+    const afnContribNum = contributedFormAFN.trim() !== '' ? Math.max(0, parseFloat(contributedFormAFN) || 0) : undefined;
+    const usdContribNum = contributedFormUSD.trim() !== '' ? Math.max(0, parseFloat(contributedFormUSD) || 0) : undefined;
+
+    const newTargets = {};
+    if (afnTargetNum !== undefined) {
+      if (afnContribNum !== undefined) {
+        newTargets.AFN = { target: afnTargetNum, current: afnContribNum };
+      } else {
+        newTargets.AFN = afnTargetNum;
+      }
+    }
+    if (usdTargetNum !== undefined) {
+      if (usdContribNum !== undefined) {
+        newTargets.USD = { target: usdTargetNum, current: usdContribNum };
+      } else {
+        newTargets.USD = usdTargetNum;
+      }
+    }
+
+    updateSavingsTarget(newTargets);
+    setIsTargetModalOpen(false);
+  };
+
+  const displayTasks = useMemo(() => {
+    void currentDateKey;
+    void dayEpoch;
+    return (tasks || []).filter((t) => {
+      if (!t.dueDate) return true;
+      return checkIsToday(t.dueDate);
+    });
+  }, [tasks, currentDateKey, dayEpoch, checkIsToday]);
+
+  const calculationMethod = usePrayerStore((s) => s.calculationMethod) || 'Karachi';
+  const madhab = usePrayerStore((s) => s.madhab) || 'Hanafi';
+  const highLatitudeRule = usePrayerStore((s) => s.highLatitudeRule) || 'recommended';
+  const polarCircleResolution = usePrayerStore((s) => s.polarCircleResolution) || 'AqrabBalad';
+  const prayerAdjustments = usePrayerStore((s) => s.prayerAdjustments);
+
+  const prayerSchedule = useMemo(() => {
+    const lat = selectedCity?.latitude != null ? Number(selectedCity.latitude) : 34.5553;
+    const lng = selectedCity?.longitude != null ? Number(selectedCity.longitude) : 69.2075;
+    const timezone = selectedCity?.timezone || 'Asia/Kabul';
+    const nowInstance = (now instanceof Date && !isNaN(now.getTime())) ? now : new Date();
+
+    const info = getNextPrayerInfo({
+      baseDate: nowInstance,
+      latitude: lat,
+      longitude: lng,
+      timezone,
+      calculationMethod,
+      madhab,
+      highLatitudeRule,
+      polarCircleResolution,
+      adjustments: prayerAdjustments,
+    });
+
+    const diffMs = info.diffMs || 0;
+    const totalMinutes = Math.floor(diffMs / 60000);
+    const remHours = Math.floor(totalMinutes / 60);
+    const remMinutes = totalMinutes % 60;
+    const countdownText = remHours > 0 ? `${remHours}h ${remMinutes}m` : `${remMinutes}m`;
+    const nowEpoch = nowInstance.getTime();
+
+    const prayers = (info.prayers || []).map((p, idx) => ({
+      ...p,
+      isNext: idx === info.nextIndex && !info.isTomorrow,
+      isPassed: p.prayerDate ? p.prayerDate.getTime() <= nowEpoch : false,
+    }));
+
+    return {
+      prayers,
+      nextPrayer: info.nextPrayer || { name: 'Fajr', time: '05:00 AM' },
+      countdownText,
+      isTomorrow: info.isTomorrow,
+    };
+  }, [now, selectedCity, calculationMethod, madhab, highLatitudeRule, polarCircleResolution, prayerAdjustments]);
+
+  const userFirstName = useMemo(() => {
+    return profile?.fullName?.trim() ? profile.fullName.trim().split(' ')[0] : '';
+  }, [profile]);
+
+  if (!financeHydrated) {
+    return (
+      <div className="w-full min-h-[500px] flex items-center justify-center bg-transparent">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <>
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+    <div className="relative w-full pb-32 lg:pb-6 bg-transparent font-sans">
+      {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
+      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
         <div className="flex items-center gap-3">
-          <img 
-            src="/logo.png" 
-            alt="Momentum Logo" 
-            className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-indigo-600/30" 
-          />
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Momentum
-          </h1>
+          <img src="/logo.png" alt="Momentum Logo" className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/20" />
+          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"><Bell className="w-5 h-5"/></button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
-        </div>
-      </div>
-
-      <main className="flex-1 flex flex-col w-full pb-[120px] bg-transparent relative z-10">
-        
-        {/* User Greeting Section - No Overlap */}
-        <div className="px-5 pt-3 pb-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-indigo-950 tracking-tight flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-              Good morning, Aisha <span>👋</span>
-            </h1>
-            <p className="text-xs font-normal text-slate-800 mt-0.5" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Stay consistent. Small steps every day.</p>
-            <span className="text-[11px] font-semibold text-indigo-950 font-semibold font-semibold uppercase tracking-wider block mt-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
-              Monday, 24 Oct
-            </span>
-          </div>
-          <div className="w-12 h-12 rounded-full ring-2 ring-indigo-100 shadow-sm overflow-hidden flex-shrink-0 bg-slate-200 flex items-center justify-center">
-            {/* Fallback image if not present */}
-            <span className="text-lg font-bold text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>A</span>
-          </div>
-        </div>
-
-        {/* FINANCIAL HEALTH HERO CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-indigo-600" />
-              <h2 className="text-sm font-bold text-slate-900">Financial Health</h2>
-            </div>
-            <span className="text-xs font-semibold text-indigo-600">October</span>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-2.5 pt-1">
-            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <span className="text-[11px] font-medium text-slate-500 block">Income</span>
-              <p className="text-base font-bold text-slate-900 mt-0.5">$6,200</p>
-              <span className="text-[10px] font-semibold text-emerald-600 inline-flex items-center gap-0.5 mt-0.5">↗ +8.4%</span>
-            </div>
-            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <span className="text-[11px] font-medium text-slate-500 block">Expenses</span>
-              <p className="text-base font-bold text-slate-900 mt-0.5">$3,450</p>
-              <span className="text-[10px] font-medium text-slate-500 inline-flex items-center gap-0.5 mt-0.5">✔ Safe limit</span>
-            </div>
-            <div className="p-3 rounded-2xl text-center bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <span className="text-[11px] font-medium text-indigo-700 block">Saved</span>
-              <p className="text-base font-bold text-indigo-700 mt-0.5">+$2,750</p>
-              <span className="text-[10px] font-semibold text-indigo-600 inline-flex items-center gap-0.5 mt-0.5">44.3%</span>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="font-medium text-slate-600">Savings Target ($3,000)</span>
-              <span className="font-bold text-indigo-600">91.6%</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500" style={{ width: '91.6%' }}></div>
-            </div>
-          </div>
-        </div>
-
-        {/* QUICK ACTIONS GRID */}
-        <div className="grid grid-cols-4 gap-3 mx-5 mb-5">
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <CreditCard className="w-5 h-5 text-indigo-600" />
-            <span className="text-xs font-semibold text-slate-700">Log Cost</span>
+          <button type="button" onClick={() => setActiveTab && setActiveTab('notifications_settings_light_mode')} aria-label="Notifications" className="relative p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer">
+            <Bell className="w-5 h-5"/>
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
           </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <CheckSquare className="w-5 h-5 text-violet-600" />
-            <span className="text-xs font-semibold text-slate-700">Add Task</span>
-          </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <Moon className="w-5 h-5 text-teal-600" />
-            <span className="text-xs font-semibold text-slate-700">Prayers</span>
-          </button>
-          <button className="p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <Sparkles className="w-5 h-5 text-amber-500" />
-            <span className="text-xs font-semibold text-slate-700">Reflect</span>
-          </button>
+          <UserAvatar setActiveTab={setActiveTab} />
         </div>
+      </header>
 
-        {/* ROUTINE & PRAYER CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl relative overflow-hidden space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-600" />
-              <h2 className="text-sm font-bold text-slate-900">Routine & Prayer</h2>
-            </div>
-            <button className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">Edit</button>
-          </div>
+      <main className="w-full bg-transparent relative z-10 pointer-events-auto">
+        {/* Premium Glass Welcome Hero */}
+        <WelcomeHero isDark={false} setActiveTab={setActiveTab} className="mb-4 lg:mb-5" />
 
-          <div className="p-3.5 rounded-2xl flex items-center justify-between relative z-10 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100/80">
-                <Sun className="w-4 h-4"/>
+        {/* Responsive Dashboard Layout: 12-Column Grid on Desktop (>= 1024px), Clean Single Column Stack on Mobile (< 1024px) */}
+        <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
+          {/* ── ROW 1: FINANCIAL HEALTH (cols 1-7) & QUICK ACTIONS (cols 8-12) ── */}
+
+          {/* FINANCIAL HEALTH HERO CARD (Mobile: Order 1, Desktop: Left Row 1) */}
+          <div className="w-full order-1 lg:order-none lg:col-span-7 lg:col-start-1 lg:row-start-1 flex flex-col">
+            <motion.div
+              onClick={() => setActiveTab && setActiveTab('finance_expense_tracker_light_mode')}
+              whileHover={{ scale: 1.008 }}
+              whileTap={{ scale: 0.99 }}
+              transition={{ duration: 0.16 }}
+              className="h-full mx-5 lg:mx-0 p-5 rounded-3xl flex flex-col justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg cursor-pointer hover:bg-white/90 transition-colors pointer-events-auto select-none"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <h2 className="text-sm font-bold text-slate-900">{t('home.financialHealth', 'Financial Health')}</h2>
+                </div>
+                <span className="text-xs font-semibold text-primary">
+                  {new Intl.DateTimeFormat(currentLocale === 'ps-AF' ? 'ps-AF' : currentLocale === 'fa-AF' ? 'fa-AF' : 'en-US', { month: 'long', timeZone: effectiveTimezone }).format(now)}
+                </span>
               </div>
-              <div>
-                <span className="text-[11px] font-medium text-slate-500">Next: Dhuhr in 1h 45m</span>
-                <h3 className="text-base font-bold text-slate-900">1:05 PM</h3>
+
+              <div className="grid grid-cols-3 gap-2.5 my-3">
+                <div className="p-3 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm flex flex-col justify-between items-center min-h-[92px]">
+                  <span className="text-[11px] font-medium text-slate-600 block">{t('home.income', 'Income')}</span>
+                  <StackedCurrencyDisplay grouped={homeIncomeGrouped} amount={homeIncomeGrouped} preferredCurrency={savingsStats.currencyCode} align="center" isDark={false} primaryClass="text-xs sm:text-sm font-bold text-slate-900 mt-0.5" secondaryClass="text-[10px] sm:text-xs text-slate-600 font-medium" />
+                  <span className="text-[10px] font-semibold text-emerald-500 inline-flex items-center justify-center gap-0.5 mt-0.5">{t('home.inflow', 'Inflow')}</span>
+                </div>
+                <div className="p-3 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm flex flex-col justify-between items-center min-h-[92px]">
+                  <span className="text-[11px] font-medium text-slate-600 block">{t('home.expenses', 'Expenses')}</span>
+                  <StackedCurrencyDisplay grouped={homeExpensesGrouped} amount={homeExpensesGrouped} preferredCurrency={savingsStats.currencyCode} align="center" isDark={false} primaryClass="text-xs sm:text-sm font-bold text-slate-900 mt-0.5" secondaryClass="text-[10px] sm:text-xs text-slate-600 font-medium" />
+                  <span className="text-[10px] font-medium text-slate-600 inline-flex items-center justify-center gap-0.5 mt-0.5">{t('home.outflow', 'Outflow')}</span>
+                </div>
+                <div className="p-3 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm flex flex-col justify-between items-center min-h-[92px]">
+                  <span className="text-[11px] font-medium text-primary block">{t('home.saved', 'Saved')}</span>
+                  <StackedCurrencyDisplay grouped={homeSavedGrouped} amount={homeSavedGrouped} preferredCurrency={savingsStats.currencyCode} align="center" showSign={true} isDark={false} primaryClass="text-xs sm:text-sm font-bold text-primary mt-0.5" secondaryClass="text-[10px] sm:text-xs text-primary/80 font-medium" />
+                  <span className="text-[10px] font-semibold text-primary inline-flex items-center justify-center gap-0.5 mt-0.5">{t('home.net', 'Net')}</span>
+                </div>
               </div>
-            </div>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white shadow-sm">Upcoming</span>
+
+              <div className="pt-1">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  {savingsStats.hasTarget ? (
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium text-slate-600 truncate">
+                        {t('home.savingsTarget', 'Savings Target')} ({savingsStats.formattedTarget})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleOpenEditSavingsModal}
+                        title={t('home.editTarget', 'Edit Target')}
+                        className="p-1 rounded-md text-slate-400 hover:text-primary hover:bg-slate-100 transition-colors cursor-pointer select-none"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium text-slate-500 italic truncate">
+                        {t('home.noSavingsTarget', 'No savings target set')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleOpenCreateSavingsModal}
+                        className="text-xs font-semibold text-primary hover:underline cursor-pointer select-none"
+                      >
+                        {t('home.setTarget', 'Set Target')}
+                      </button>
+                    </div>
+                  )}
+                  <span className="font-bold text-primary shrink-0 ml-2">
+                    {savingsStats.hasTarget ? savingsStats.displayRate : '0%'}
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-400 transition-all duration-500"
+                    style={{ width: `${savingsStats.barWidth}%` }}
+                  />
+                </div>
+              </div>
+            </motion.div>
           </div>
 
-          <div className="relative pt-2 pb-1">
-            {/* Clean Mosque Silhouette Artwork Vector */}
-            <div className="absolute right-0 bottom-0 left-0 h-28 pointer-events-none z-0 flex items-end justify-end pr-2 overflow-hidden">
-              <svg 
-                viewBox="0 0 300 100" 
-                fill="currentColor" 
-                className="w-64 h-24 text-indigo-100/80"
-                preserveAspectRatio="none"
+          {/* ── QUICK ACTIONS (Mobile: Order 2, Desktop: Right Row 1) ── */}
+          <div className="w-full order-2 lg:order-none lg:col-span-5 lg:col-start-8 lg:row-start-1 flex flex-col">
+            {/* Desktop: Enclosed Glass Card with Balanced Proportions matching Financial Health */}
+            <div className="hidden lg:flex h-full p-5 rounded-3xl flex-col justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <h2 className="text-sm font-bold text-slate-900">{t('home.quickActions', 'Quick Actions')}</h2>
+                </div>
+                <span className="text-xs font-semibold text-primary">{t('sidebar.quickAccess', 'Quick Access')}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5 flex-1 pt-3">
+                <motion.button
+                  type="button"
+                  onClick={() => setActiveTab && setActiveTab('add_edit_expense_light_mode')}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="p-3 rounded-2xl flex flex-col items-center justify-center text-center gap-1.5 h-full min-h-[72px] sm:min-h-[76px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/60 hover:border-primary/40 shadow-sm transition-all cursor-pointer pointer-events-auto select-none"
+                >
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  <span className="text-xs font-semibold text-slate-700">{t('home.logCost', 'Log Cost')}</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => { useTaskStore.getState().setEditingTaskId(null); setActiveTab && setActiveTab('add_edit_task_light_mode'); }}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="p-3 rounded-2xl flex flex-col items-center justify-center text-center gap-1.5 h-full min-h-[72px] sm:min-h-[76px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/60 hover:border-primary/40 shadow-sm transition-all cursor-pointer pointer-events-auto select-none"
+                >
+                  <CheckSquare className="w-5 h-5 text-violet-500" />
+                  <span className="text-xs font-semibold text-slate-700">{t('home.addTask', 'Add Task')}</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => setActiveTab && setActiveTab('prayer_times_light_mode')}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="p-3 rounded-2xl flex flex-col items-center justify-center text-center gap-1.5 h-full min-h-[72px] sm:min-h-[76px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/60 hover:border-primary/40 shadow-sm transition-all cursor-pointer pointer-events-auto select-none"
+                >
+                  <Moon className="w-5 h-5 text-teal-500" />
+                  <span className="text-xs font-semibold text-slate-700">{t('home.prayers', 'Prayers')}</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => setActiveTab && setActiveTab('tasbeeh_main_light_mode')}
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="p-3 rounded-2xl flex flex-col items-center justify-center text-center gap-1.5 h-full min-h-[72px] sm:min-h-[76px] bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/60 hover:border-primary/40 shadow-sm transition-all cursor-pointer pointer-events-auto select-none"
+                >
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <span className="text-xs font-semibold text-slate-700">{t('home.reflect', 'Reflect')}</span>
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Mobile: 4-Item Horizontal Action Row (< 1024px) */}
+            <div className="lg:hidden grid grid-cols-4 gap-3 mx-5">
+              <motion.button
+                type="button"
+                onClick={() => setActiveTab && setActiveTab('add_edit_expense_light_mode')}
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.03 }}
+                className="p-3.5 rounded-2xl transition-colors flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-md cursor-pointer pointer-events-auto select-none"
               >
-                {/* Left Minaret */}
-                <rect x="50" y="30" width="8" height="70" rx="2" />
-                <path d="M54 15 L48 30 L60 30 Z" />
-                <circle cx="54" cy="13" r="2" />
-
-                {/* Small Left Dome */}
-                <path d="M75 100 C75 55, 115 55, 115 100 Z" />
-                <path d="M95 45 L93 55 L97 55 Z" />
-
-                {/* Grand Center Dome */}
-                <path d="M110 100 C110 35, 175 35, 175 100 Z" />
-                <path d="M142.5 25 L140 37 L145 37 Z" />
-                <circle cx="142.5" cy="22" r="2.5" />
-
-                {/* Small Right Dome */}
-                <path d="M170 100 C170 58, 205 58, 205 100 Z" />
-                <path d="M187.5 48 L185.5 58 L189.5 58 Z" />
-
-                {/* Right Tall Minaret */}
-                <rect x="220" y="20" width="10" height="80" rx="2" />
-                <path d="M225 5 L218 20 L232 20 Z" />
-                <circle cx="225" cy="3" r="2.5" />
-              </svg>
-            </div>
-
-            {/* The 5 Prayer Time Columns (Semi-transparent / clear backdrop so mosque is visible behind) */}
-            <div className="grid grid-cols-5 gap-2 relative z-10 text-center">
-              {/* Fajr */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Fajr</span>
-                <p className="text-xs font-bold text-slate-800 mt-0.5">5:12 AM</p>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mx-auto mt-1"/>
-              </div>
-
-              {/* Dhuhr (Active) */}
-              <div className="p-2.5 rounded-2xl text-indigo-700 ring-1 ring-indigo-300 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] font-semibold text-indigo-600 block">Dhuhr</span>
-                <p className="text-xs font-bold text-indigo-700 mt-0.5">1:05 PM</p>
-                <Clock className="w-3.5 h-3.5 text-indigo-600 mx-auto mt-1"/>
-              </div>
-
-              {/* Asr */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Asr</span>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">4:28 PM</p>
-                <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
-              </div>
-
-              {/* Maghrib */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Maghrib</span>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">6:42 PM</p>
-                <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
-              </div>
-
-              {/* Isha */}
-              <div className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-                <span className="text-[10px] text-slate-500 font-medium block">Isha</span>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">8:05 PM</p>
-                <div className="w-2 h-2 rounded-full bg-slate-300 mx-auto mt-2"></div>
-              </div>
+                <CreditCard className="w-5 h-5 text-primary" />
+                <span className="text-xs font-semibold text-slate-700">{t('home.logCost', 'Log Cost')}</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => { useTaskStore.getState().setEditingTaskId(null); setActiveTab && setActiveTab('add_edit_task_light_mode'); }}
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.03 }}
+                className="p-3.5 rounded-2xl transition-colors flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-md cursor-pointer pointer-events-auto select-none"
+              >
+                <CheckSquare className="w-5 h-5 text-violet-500" />
+                <span className="text-xs font-semibold text-slate-700">{t('home.addTask', 'Add Task')}</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => setActiveTab && setActiveTab('prayer_times_light_mode')}
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.03 }}
+                className="p-3.5 rounded-2xl transition-colors flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-md cursor-pointer pointer-events-auto select-none"
+              >
+                <Moon className="w-5 h-5 text-teal-500" />
+                <span className="text-xs font-semibold text-slate-700">{t('home.prayers', 'Prayers')}</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => setActiveTab && setActiveTab('tasbeeh_main_light_mode')}
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.03 }}
+                className="p-3.5 rounded-2xl transition-colors flex flex-col items-center justify-center text-center gap-2 group bg-white/80 backdrop-blur-xl border border-white/50 shadow-md cursor-pointer pointer-events-auto select-none"
+              >
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                <span className="text-xs font-semibold text-slate-700">{t('home.reflect', 'Reflect')}</span>
+              </motion.button>
             </div>
           </div>
-        </div>
 
-        {/* TODAY'S TASKS */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-3 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-indigo-600" />
-              <h2 className="text-sm font-bold text-slate-900">Today's Tasks</h2>
-            </div>
-            <button className="btn-primary">
-              <Plus className="w-3.5 h-3.5" />
-              <span className="text-xs font-semibold">Add Task</span>
-            </button>
-          </div>
+          {/* ── ROW 2 & 3: TODAY'S TASKS (cols 1-7) & ROUTINE/STREAK STACK (cols 8-12) ── */}
 
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
-                  <Check className="w-3 h-3" />
+          {/* TODAY'S TASKS (Mobile: Order 4, Desktop: Left Row 2 & 3) */}
+          <div className="w-full order-4 lg:order-none lg:col-span-7 lg:col-start-1 lg:row-start-2 lg:row-span-2 flex flex-col">
+            <div className="h-full mx-5 lg:mx-0 p-5 rounded-3xl relative overflow-hidden flex flex-col justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-violet-500" />
+                  <h2 className="text-sm font-bold text-slate-900">{t('home.todaysTasks', "Today's Tasks")}</h2>
                 </div>
-                <span className="text-sm font-semibold text-slate-900 line-through opacity-60 truncate">Drink 500ml water</span>
+                <button type="button" onClick={() => { useTaskStore.getState().setEditingTaskId(null); setActiveTab && setActiveTab('add_edit_task_light_mode'); }} className="text-xs font-semibold text-primary hover:text-primary flex items-center gap-1 cursor-pointer pointer-events-auto">
+                  <Plus className="w-3.5 h-3.5" /> {t('home.addTask', 'Add Task')}
+                </button>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-500 text-[11px] font-medium">
-                <Clock className="w-3.5 h-3.5" />
-                <span>10:00 AM</span>
+
+              <div className="flex-1 flex flex-col justify-center min-h-0">
+                {displayTasks.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-2.5 bg-violet-500/10 text-violet-500 border border-violet-500/20 shadow-inner">
+                      <CheckSquare className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-800">{t('home.noTasksToday', 'No tasks scheduled for today')}</p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-xs">{t('home.allCaughtUp', 'You are all caught up! Enjoy your free time or add a new task to stay organized.')}</p>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1 max-h-[220px] xl:max-h-[240px]">
+                    {displayTasks.map((task) => (
+                      <motion.div
+                        key={task.id}
+                        onClick={() => {
+                          setActiveTab && setActiveTab('task_details_light_mode', { taskId: task.id });
+                        }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ duration: 0.14 }}
+                        className="p-3.5 rounded-2xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm transition-colors hover:bg-white/90 cursor-pointer pointer-events-auto select-none"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          <motion.button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleTaskStatus(task.id); }}
+                            aria-label="Toggle task status"
+                            whileTap={{ scale: 0.82 }}
+                            transition={{ duration: 0.1 }}
+                            className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-all cursor-pointer pointer-events-auto shrink-0 ${
+                              task.status === 'done' || task.status === 'completed'
+                                ? 'bg-primary border-primary text-white shadow-sm'
+                                : 'border-slate-300 hover:border-primary text-transparent'
+                            }`}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </motion.button>
+                          <span className={`text-xs font-medium truncate ${task.status === 'done' || task.status === 'completed' ? 'line-through text-slate-600' : 'text-slate-700'}`}>
+                            {task.title}
+                          </span>
+                        </div>
+                        {task.priority && (
+                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full flex-shrink-0 ${
+                            String(task.priority).toLowerCase() === 'urgent' || String(task.priority).toLowerCase() === 'high'
+                              ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30'
+                              : String(task.priority).toLowerCase() === 'medium'
+                              ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
+                              : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
+                          }`}>{task.priority}</span>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-transparent group-hover:border-indigo-400 transition-all shrink-0">
-                  <Check className="w-3 h-3" />
+          {/* ROUTINE & PRAYER SECTION (Mobile: Order 3, Desktop: Right Row 2) */}
+          <div className="w-full order-3 lg:order-none lg:col-span-5 lg:col-start-8 lg:row-start-2 flex flex-col">
+            <div className="mx-5 lg:mx-0 p-5 rounded-3xl relative overflow-hidden space-y-3.5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+              <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <h2 className="text-sm font-bold text-slate-900">{t('home.routineAndPrayer', 'Routine & Prayer')}</h2>
                 </div>
-                <span className="text-sm font-semibold text-slate-900 truncate">Review quarterly budget</span>
+                <button type="button" onClick={() => setActiveTab && setActiveTab('prayer_times_light_mode')} className="text-xs font-semibold text-primary hover:text-primary cursor-pointer pointer-events-auto">
+                  {t('common.edit', 'Edit')}
+                </button>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-500 text-[11px] font-medium">
-                <Clock className="w-3.5 h-3.5" />
-                <span>11:30 AM</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer group bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 rounded-full bg-white border border-slate-300 flex items-center justify-center text-transparent group-hover:border-indigo-400 transition-all shrink-0">
-                  <Check className="w-3 h-3" />
+              <div className="p-3.5 rounded-2xl flex items-center justify-between relative z-10 bg-white/80 backdrop-blur-xl border border-white/50 shadow-md">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/20 text-primary flex items-center justify-center shadow-sm border border-primary/30 shrink-0">
+                    <Sun className="w-4 h-4"/>
+                  </div>
+                  <div className="flex flex-col justify-center min-w-0">
+                    <span className="text-[11px] font-medium text-slate-600 leading-tight block whitespace-nowrap">{t('home.nextPrayerIn', { name: prayerSchedule.nextPrayer.name, time: prayerSchedule.countdownText })}</span>
+                    <span className="text-base font-bold text-slate-900 font-display leading-tight mt-0.5">{prayerSchedule.nextPrayer.time}</span>
+                  </div>
                 </div>
-                <span className="text-sm font-semibold text-slate-900 truncate">Read 20 min Quran & reflection</span>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary text-white shadow-sm shrink-0 flex items-center justify-center self-center">{t('home.upcoming', 'Upcoming')}</span>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0 text-slate-500 text-[11px] font-medium">
-                <Clock className="w-3.5 h-3.5" />
-                <span>8:00 PM</span>
+              <div className="grid grid-cols-5 gap-2 w-full relative z-10">
+                {prayerSchedule.prayers.map((prayer) => (
+                  <div
+                    key={prayer.id}
+                    className={`py-2 px-1 rounded-2xl text-center border transition-all flex flex-col items-center justify-center min-h-[50px] ${
+                      prayer.isNext
+                        ? 'bg-primary/20 border-primary shadow-sm shadow-primary/20'
+                        : 'bg-slate-100/80 border-slate-200/80'
+                    }`}
+                  >
+                    <span className={`text-[10px] block font-medium leading-tight ${prayer.isNext ? 'text-primary font-bold' : 'text-slate-600'}`}>
+                      {prayer.name}
+                    </span>
+                    <span className={`text-[11px] block mt-1 font-bold font-display leading-tight ${prayer.isNext ? 'text-slate-900' : prayer.isPassed ? 'text-slate-600 line-through' : 'text-slate-700'}`}>
+                      {prayer.time.split(' ')[0]}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* MINDFUL STREAK BANNER */}
-        <div className="block mx-5 mb-28 p-4 rounded-3xl flex items-start gap-3.5 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-600 shrink-0 shadow-sm border border-slate-200/60">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-sm font-bold text-slate-900">Mindful Streak: 14 Days</span>
-            <span className="text-xs font-normal text-slate-500 pr-2">"Peace comes from within. Do not seek it without."</span>
-          </div>
-          <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-indigo-600 shrink-0 shadow-sm mt-1 border border-slate-200/60">
-            <ChevronRight className="w-4 h-4" />
+          {/* HABIT STREAK HERO BANNER (Mobile: Order 5, Desktop: Right Row 3) */}
+          <div className="w-full order-5 lg:order-none lg:col-span-5 lg:col-start-8 lg:row-start-3 flex flex-col">
+            <div onClick={() => { if (typeof setActiveTab === 'function') { setActiveTab('daily_routine_light_mode'); } else { useNavigationStore.getState().setActiveTab('daily_routine_light_mode'); } }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (typeof setActiveTab === 'function') { setActiveTab('daily_routine_light_mode'); } else { useNavigationStore.getState().setActiveTab('daily_routine_light_mode'); } } }} aria-label="View Daily Routine" className="h-full mx-5 lg:mx-0 p-4 rounded-3xl bg-white/90 backdrop-blur-xl border border-white/60 shadow-lg flex items-center justify-between cursor-pointer hover:bg-white hover:border-primary/40 active:scale-[0.99] transition-all pointer-events-auto">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-primary/20 text-primary flex items-center justify-center font-bold text-lg shadow-inner border border-primary/30 shrink-0">
+                  🔥
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-slate-900 truncate">{routineStreak > 0 ? t('home.routineStreak', { count: routineStreak }) : t('home.startHabitStreak', 'Start Your Habit Streak')}</h3>
+                  <p className="text-xs text-slate-700 mt-0.5 truncate">{t('home.consistencyMastery', 'Consistency creates mastery')}</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+            </div>
           </div>
         </div>
       </main>
 
-      {/* FLOATING BOTTOM DOCK */}
-      <nav className="fixed bottom-0 w-full z-50 pb-safe pointer-events-none">
-        <div className="px-5 pb-5 pt-2">
-          <div className="pointer-events-auto mx-auto max-w-md h-16 px-2 rounded-full bg-white/90 backdrop-blur-3xl shadow-lg border border-slate-200/50 flex items-center justify-between">
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full transition-all text-indigo-600">
-              <Home className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-bold">Home</span>
-            </button>
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full text-slate-500 transition-all hover:text-slate-800">
-              <Wallet className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-semibold">Finance</span>
-            </button>
-            <div className="flex items-center justify-center px-2">
-              <button className="w-14 h-14 -mt-6 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/40 hover:scale-105 active:scale-95 transition-transform ring-4 ring-white">
-                <Plus className="w-6 h-6" />
+      {/* Savings Target Modal */}
+      {isTargetModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200 pointer-events-auto"
+          onClick={handleCancelTarget}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 border bg-white/80 backdrop-blur-2xl border-white/60 text-slate-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {savingsModalMode === 'create'
+                      ? t('home.setSavingsTarget', 'Set Savings Target')
+                      : t('home.editSavingsTarget', 'Edit Savings Target')}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {savingsModalMode === 'create'
+                      ? t('home.createTargetSubtitle', 'Define a new savings goal')
+                      : t('home.editTargetSubtitle', 'Update your savings goal and progress')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelTarget}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full text-slate-500 transition-all hover:text-slate-800">
-              <CheckSquare className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-semibold">Tasks</span>
-            </button>
-            <button className="flex flex-col items-center justify-center flex-1 h-full rounded-full text-slate-500 transition-all hover:text-slate-800">
-              <Grid className="w-5 h-5 mb-1" />
-              <span className="text-[10px] font-semibold">More</span>
-            </button>
+
+            {targetValidationError && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {targetValidationError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTarget} className="space-y-3 pt-2">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">
+                  AFN Target (افـ)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={targetFormAFN}
+                  onChange={(e) => { setTargetFormAFN(e.target.value); setTargetValidationError(''); }}
+                  placeholder="0"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm border font-semibold outline-none focus:border-primary bg-white/70 border-slate-200/80 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">
+                  AFN Contributed Savings (افـ)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={contributedFormAFN}
+                  onChange={(e) => setContributedFormAFN(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm border font-semibold outline-none focus:border-primary bg-white/70 border-slate-200/80 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">
+                  USD Target ($)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  value={targetFormUSD}
+                  onChange={(e) => { setTargetFormUSD(e.target.value); setTargetValidationError(''); }}
+                  placeholder="0"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm border font-semibold outline-none focus:border-primary bg-white/70 border-slate-200/80 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">
+                  USD Contributed Savings ($)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  value={contributedFormUSD}
+                  onChange={(e) => setContributedFormUSD(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm border font-semibold outline-none focus:border-primary bg-white/70 border-slate-200/80 text-slate-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelTarget}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer text-slate-600 hover:bg-slate-100"
+                >
+                  {t('common.cancel', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-white shadow-md shadow-primary/25 hover:bg-primary/90 cursor-pointer"
+                >
+                  {t('common.save', 'Save')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </nav>
-    </>
+      )}
+    </div>
   );
 }

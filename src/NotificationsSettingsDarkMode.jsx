@@ -1,268 +1,796 @@
-import React from 'react';
-
-import { 
-  ArrowLeft, Bell, CheckCircle2, Sparkles, Moon, ArrowRight, MoonStar as Mosque 
+import React, { useState, useEffect } from 'react';
+import UserAvatar from './components/UserAvatar';
+import { useTranslation } from 'react-i18next';
+import { useSettingsStore } from './store/useSettingsStore';
+import { usePrayerStore } from './store/usePrayerStore';
+import { useNotificationStore } from './store/useNotificationStore';
+import {
+  checkNotificationPermission,
+  requestNotificationPermission,
+  sendTestNotification,
+  handleNotificationRoute,
+  isNotificationSupported,
+} from './utils/nativeNotifications';
+import { toast as globalToast } from './components/ui/toast/index.js';
+import {
+  ArrowLeft,
+  Bell,
+  CheckCircle2,
+  Sparkles,
+  Moon,
+  ArrowRight,
+  MoonStar as Mosque,
+  Sliders,
+  CheckCheck,
+  Trash2,
+  Calendar,
+  Flame,
+  AlertCircle,
+  ExternalLink,
+  RefreshCw,
+  X,
 } from 'lucide-react';
 
-export default function NotificationsSettingsDarkMode({ setActiveTab }) {
+const OFFSET_OPTIONS = [
+  { value: 0, label: 'Exact (0m)', sub: 'At adhan' },
+  { value: 5, label: '5m before', sub: 'Gentle buzz' },
+  { value: 10, label: '10m before', sub: 'Ablution prep' },
+  { value: 15, label: '15m before', sub: 'Early pause' },
+];
+
+const ALERT_TYPES = [
+  { key: 'muted', label: 'Muted Chime' },
+  { key: 'full', label: 'Full Adhan' },
+  { key: 'vibration', label: 'Vibration' },
+];
+
+function Toggle({ checked, onChange, size = 'md' }) {
+  const isLg = size === 'lg';
   return (
-    <div className="min-h-screen bg-slate-950 pb-10">
+    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only peer"
+      />
+      <div
+        className={
+          isLg
+            ? 'w-12 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[\'\'] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500 shadow-inner'
+            : 'w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[\'\'] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500 shadow-inner'
+        }
+      />
+    </label>
+  );
+}
+
+function formatRelativeTime(isoString) {
+  if (!isoString) return '';
+  const now = Date.now();
+  const then = new Date(isoString).getTime();
+  const diffSec = Math.floor((now - then) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  return `${diffDays}d ago`;
+}
+
+function getSourceIcon(sourceType) {
+  switch (sourceType) {
+    case 'task':
+      return { icon: CheckCircle2, color: 'text-blue-400 bg-blue-900/30 border-blue-700/40' };
+    case 'routine':
+      return { icon: Flame, color: 'text-amber-400 bg-amber-900/30 border-amber-700/40' };
+    case 'prayer':
+      return { icon: Mosque, color: 'text-emerald-400 bg-emerald-900/30 border-emerald-700/40' };
+    case 'calendar':
+      return { icon: Calendar, color: 'text-purple-400 bg-purple-900/30 border-purple-700/40' };
+    default:
+      return { icon: Bell, color: 'text-indigo-400 bg-indigo-900/30 border-indigo-700/40' };
+  }
+}
+
+export default function NotificationsSettingsDarkMode({
+  setActiveTab,
+  goBack,
+  initialSubTab = 'notifications',
+}) {
+  const { t } = useTranslation();
+  const [subTab, setSubTab] = useState(initialSubTab); // 'notifications' | 'preferences'
+  const [filter, setFilter] = useState('all'); // 'all' | 'unread'
+  const [permissionStatus, setPermissionStatus] = useState('prompt');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // In-App Notification Store
+  const notifications = useNotificationStore((s) => s.notifications) || [];
+  const markAsRead = useNotificationStore((s) => s.markAsRead);
+  const markAllAsRead = useNotificationStore((s) => s.markAllAsRead);
+  const removeNotification = useNotificationStore((s) => s.removeNotification);
+  const clearAllNotifications = useNotificationStore((s) => s.clearAllNotifications);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const filteredNotifications = filter === 'unread'
+    ? notifications.filter((n) => !n.read)
+    : notifications;
+
+  // Settings Store
+  const masterEnabled = useSettingsStore((s) => s.masterEnabled);
+  const dueTaskAlerts = useSettingsStore((s) => s.dueTaskAlerts);
+  const dailyHabitCheckin = useSettingsStore((s) => s.dailyHabitCheckin);
+  const overdueMilestonePushes = useSettingsStore((s) => s.overdueMilestonePushes);
+  const morningIntention = useSettingsStore((s) => s.morningIntention);
+  const middayPause = useSettingsStore((s) => s.middayPause);
+  const eveningWinddown = useSettingsStore((s) => s.eveningWinddown);
+  const dailyRadianceQuote = useSettingsStore((s) => s.dailyRadianceQuote);
+  const zenFocusDND = useSettingsStore((s) => s.zenFocusDND);
+  const alertType = useSettingsStore((s) => s.alertType || s.adhanMode) || 'muted';
+  const prayerAlertsEnabled = useSettingsStore((s) => s.prayerAlertsEnabled !== false);
+  const enabledPrayerAlerts = useSettingsStore((s) => s.enabledPrayerAlerts) || ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+  const toggleSetting = useSettingsStore((s) => s.toggleSetting);
+  const setAlertType = useSettingsStore((s) => s.setAlertType);
+  const setAdhanMode = useSettingsStore((s) => s.setAdhanMode);
+  const setPrayerAlertsEnabled = useSettingsStore((s) => s.setPrayerAlertsEnabled);
+  const togglePrayerAlert = useSettingsStore((s) => s.togglePrayerAlert);
+
+  // Prayer Store
+  const prayers = usePrayerStore((s) => s.prayers);
+  const adhanOffset = usePrayerStore((s) => s.adhanOffset);
+  const setAdhanOffset = usePrayerStore((s) => s.setAdhanOffset);
+  const setPrayerStoreAlertType = usePrayerStore((s) => s.setAlertType);
+  const setPrayerStoreAlertsEnabled = usePrayerStore((s) => s.setPrayerAlertsEnabled);
+  const toggleStorePrayerAlert = usePrayerStore((s) => s.togglePrayerAlert);
+
+  useEffect(() => {
+    checkNotificationPermission().then((perm) => {
+      setPermissionStatus(perm);
+    });
+  }, []);
+
+  const handleRequestPermission = async () => {
+    try {
+      const res = await requestNotificationPermission();
+      setPermissionStatus(res);
+      if (res === 'granted') {
+        globalToast.success(t('notifications.permissionGranted', 'Desktop notifications enabled'));
+      } else if (res === 'denied') {
+        globalToast.error(t('notifications.permissionDenied', 'Notifications blocked in browser settings'));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSendTest = async () => {
+    setIsSendingTest(true);
+    try {
+      const res = await sendTestNotification();
+      setPermissionStatus(res.permission);
+      globalToast.success(t('notifications.testDispatched', 'Test notification dispatched!'));
+    } catch (err) {
+      globalToast.error('Failed to send test: ' + err.message);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  const handleNotificationClick = (item) => {
+    markAsRead(item.id);
+    if (item.targetScreen) {
+      handleNotificationRoute({ targetScreen: item.targetScreen, params: item.params });
+    }
+  };
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      globalToast.success(t('toasts.settingsSynced', 'Settings securely synced ✓'));
+    }, 400);
+  };
+
+  const handleTogglePrayerAlertsMaster = () => {
+    const next = !prayerAlertsEnabled;
+    if (setPrayerAlertsEnabled) setPrayerAlertsEnabled(next);
+    if (setPrayerStoreAlertsEnabled) setPrayerStoreAlertsEnabled(next);
+  };
+
+  const handleSelectAlertType = (key) => {
+    if (setAlertType) setAlertType(key);
+    if (setAdhanMode) setAdhanMode(key);
+    if (setPrayerStoreAlertType) setPrayerStoreAlertType(key);
+  };
+
+  const handleTogglePrayerAlert = (prayerName) => {
+    if (togglePrayerAlert) togglePrayerAlert(prayerName);
+    if (toggleStorePrayerAlert) toggleStorePrayerAlert(prayerName);
+  };
+
+  const prayerOrder = [
+    { id: 'fajr', name: 'Fajr', fallback: '05:12' },
+    { id: 'dhuhr', name: 'Dhuhr', fallback: '12:30' },
+    { id: 'asr', name: 'Asr', fallback: '03:45' },
+    { id: 'maghrib', name: 'Maghrib', fallback: '06:15' },
+    { id: 'isha', name: 'Isha', fallback: '07:45' },
+  ];
+
+  const prayerBubbles = prayerOrder.map((item) => {
+    const match = (prayers || []).find((pr) => pr.id === item.id || pr.name?.toLowerCase() === item.id);
+    const cleanTime = match?.time ? match.time.replace(/ AM| PM/gi, '').trim() : item.fallback;
+    return { ...item, time: cleanTime };
+  });
+
+  const activeAlertsCount = enabledPrayerAlerts.length;
+
+  return (
+    <div className="min-h-screen bg-slate-950/90 text-white pb-40 relative font-sans">
       {/* TOP HEADER BAR */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-slate-900/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-5 py-3 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
+          <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30 relative">
             <Bell className="w-5 h-5 text-white" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-slate-900">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </div>
-          <h1 className="text-base font-bold text-white tracking-tight">
-            Notification & Calm Alerts
-          </h1>
+          <div>
+            <h1 className="text-base font-bold text-white tracking-tight leading-tight">
+              {t('notifications.title', 'Notifications')}
+            </h1>
+            <p className="text-[11px] text-slate-400">
+              {unreadCount > 0
+                ? t('notifications.unreadBadge', { count: unreadCount, defaultValue: `${unreadCount} unread` })
+                : t('notifications.allCaughtUp', 'All caught up')}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}
-            className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"
+          <button
+            type="button"
+            onClick={() => (goBack ? goBack('settings_profile_dark_mode') : (setActiveTab ? setActiveTab('settings_profile_dark_mode') : window.history.back()))}
+            aria-label="Back"
+            className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
+          <UserAvatar setActiveTab={setActiveTab} />
         </div>
       </div>
 
-      {/* MASTER NOTIFICATION TOGGLE CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl flex items-center justify-between gap-4 text-white bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-indigo-950/40 border border-indigo-900/60 text-indigo-400 flex items-center justify-center shadow-xs flex-shrink-0">
-            <Bell className="w-5 h-5"/>
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-white leading-snug">Allow Momentum Notifications</h2>
-            <p className="text-xs font-normal text-slate-400 mt-0.5 leading-relaxed">
-              Mindful chimes, prayer calls, and gentle daily agenda alerts.
-            </p>
-          </div>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-          <input type="checkbox" defaultChecked className="sr-only peer" />
-          <div className="w-12 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-        </label>
-      </div>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4">
+        {/* SEGMENTED TAB SELECTOR: NOTIFICATIONS FEED vs PREFERENCES */}
+        <div className="p-1 rounded-2xl bg-slate-900/90 border border-white/10 flex items-center gap-1 mb-5">
+          <button
+            type="button"
+            onClick={() => setSubTab('notifications')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              subTab === 'notifications'
+                ? 'bg-slate-800 text-white shadow-xs border border-white/10'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span>{t('notifications.center', 'Notification Center')}</span>
+            {unreadCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary text-white">
+                {unreadCount}
+              </span>
+            )}
+          </button>
 
-      {/* PRAYER & ADHAN ALERTS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-950/60 text-indigo-400 flex items-center justify-center">
-              <Mosque className="w-4 h-4"/>
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-white">Prayer & Adhan Alerts</h3>
-              <p className="text-[11px] font-normal text-slate-400">5 daily prayers configured</p>
-            </div>
-          </div>
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/40 border border-emerald-500/30 text-emerald-400">Active</span>
-        </div>
-
-        <div className="p-1 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex items-center gap-1">
-          <button className="flex-1 py-1.5 rounded-xl bg-slate-700 text-white text-xs font-semibold shadow-xs text-center">Muted Chime</button>
-          <button className="flex-1 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white text-center">Full Adhan</button>
-          <button className="flex-1 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white text-center">Vibration</button>
+          <button
+            type="button"
+            onClick={() => setSubTab('preferences')}
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              subTab === 'preferences'
+                ? 'bg-slate-800 text-white shadow-xs border border-white/10'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>{t('notifications.preferences', 'Preferences')}</span>
+          </button>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs font-semibold text-white">Timing Offset</span>
-            <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">Exact time</button>
-          </div>
-          <p className="text-[11px] font-normal text-slate-400">Prepare your mind and ablutions peacefully before entry time.</p>
-
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <div className="p-3 rounded-2xl text-white flex items-center justify-between cursor-pointer bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-              <div>
-                <p className="text-xs font-bold text-white">Exact (0m)</p>
-                <span className="text-[10px] font-medium text-indigo-400">At adhan</span>
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* TAB 1: IN-APP NOTIFICATION CENTER FEED                              */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {subTab === 'notifications' && (
+          <div className="space-y-4">
+            {/* Action Bar: Filter Pills + Mark Read / Clear */}
+            <div className="flex items-center justify-between gap-2 px-1">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setFilter('all')}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    filter === 'all'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-900 text-slate-400 border border-white/10 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {t('notifications.all', 'All')} ({notifications.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter('unread')}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    filter === 'unread'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-slate-900 text-slate-400 border border-white/10 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {t('notifications.unread', 'Unread')} ({unreadCount})
+                </button>
               </div>
-              <CheckCircle2 className="w-4 h-4 text-indigo-400"/>
-            </div>
-            <div className="p-3 rounded-2xl text-slate-300 flex items-center justify-between cursor-pointer bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-              <div>
-                <p className="text-xs font-semibold text-white">5m before</p>
-                <span className="text-[10px] font-normal text-slate-400">Gentle buzz</span>
+
+              <div className="flex items-center gap-1.5">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      markAllAsRead();
+                      globalToast.info(t('notifications.markAllAsRead', 'Mark all as read'));
+                    }}
+                    title={t('notifications.markAllAsRead', 'Mark all as read')}
+                    className="p-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-indigo-400 hover:bg-slate-800 border border-transparent hover:border-white/10 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t('notifications.markAllAsRead', 'Mark all read')}</span>
+                  </button>
+                )}
+
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearAllNotifications();
+                      globalToast.info(t('notifications.clearAll', 'Notifications cleared'));
+                    }}
+                    title={t('notifications.clearAll', 'Clear all')}
+                    className="p-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-slate-800 border border-transparent hover:border-white/10 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t('notifications.clearAll', 'Clear all')}</span>
+                  </button>
+                )}
               </div>
-              <div className="w-4 h-4 rounded-full border border-slate-600"></div>
             </div>
-            <div className="p-3 rounded-2xl text-slate-300 flex items-center justify-between cursor-pointer bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-              <div>
-                <p className="text-xs font-semibold text-white">10m before</p>
-                <span className="text-[10px] font-normal text-slate-400">Ablution prep</span>
+
+            {/* Desktop Notification Permission Banner */}
+            {permissionStatus !== 'granted' && (
+              <div className="p-4 rounded-3xl bg-indigo-950/60 border border-indigo-700/50 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Bell className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">
+                      {t('notifications.enableDesktopTitle', 'Enable Desktop Notifications')}
+                    </h3>
+                    <p className="text-[11px] text-indigo-300 mt-0.5 leading-relaxed">
+                      {t('notifications.enableDesktopDesc', 'Receive reminders on your Windows computer for scheduled tasks, daily routines, and prayer times.')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer text-center"
+                >
+                  {t('notifications.enableButton', 'Enable Desktop Reminders')}
+                </button>
               </div>
-              <div className="w-4 h-4 rounded-full border border-slate-600"></div>
-            </div>
-            <div className="p-3 rounded-2xl text-slate-300 flex items-center justify-between cursor-pointer bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-              <div>
-                <p className="text-xs font-semibold text-white">15m before</p>
-                <span className="text-[10px] font-normal text-slate-400">Early pause</span>
+            )}
+
+            {/* Notifications List */}
+            {filteredNotifications.length === 0 ? (
+              <div className="p-8 rounded-3xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-md text-center flex flex-col items-center justify-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-500 flex items-center justify-center">
+                  <Bell className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white">
+                    {t('notifications.noNotifications', 'No notifications yet')}
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-sm">
+                    {t('notifications.allCaughtUp', 'You are completely caught up. Mindful peace.')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendTest}
+                  disabled={isSendingTest}
+                  className="mt-2 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-xs font-bold text-slate-200 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-spin' : ''}`} />
+                  <span>{t('notifications.sendTest', 'Send Test Notification')}</span>
+                </button>
               </div>
-              <div className="w-4 h-4 rounded-full border border-slate-600"></div>
-            </div>
-          </div>
-        </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredNotifications.map((item) => {
+                  const { icon: SourceIcon, color } = getSourceIcon(item.sourceType);
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => handleNotificationClick(item)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer relative group flex items-start gap-3.5 ${
+                        item.read
+                          ? 'bg-slate-900/50 hover:bg-slate-900/80 border-white/5 shadow-xs'
+                          : 'bg-slate-900/90 hover:bg-slate-800/90 border-indigo-500/40 shadow-md ring-1 ring-indigo-500/20'
+                      }`}
+                    >
+                      {/* Left category badge */}
+                      <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${color}`}>
+                        <SourceIcon className="w-4.5 h-4.5" />
+                      </div>
 
-        <div className="grid grid-cols-5 gap-1.5 pt-1 text-center">
-          <div className="p-2 rounded-xl text-slate-200 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400 block">Fajr</span>
-            <span className="text-xs font-bold text-indigo-400 mt-0.5 block">05:12</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mx-auto mt-1 block"></span>
-          </div>
-          <div className="p-2 rounded-xl text-slate-200 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400 block">Dhuhr</span>
-            <span className="text-xs font-bold text-indigo-400 mt-0.5 block">12:30</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mx-auto mt-1 block"></span>
-          </div>
-          <div className="p-2 rounded-xl text-slate-200 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400 block">Asr</span>
-            <span className="text-xs font-bold text-indigo-400 mt-0.5 block">15:45</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mx-auto mt-1 block"></span>
-          </div>
-          <div className="p-2 rounded-xl text-slate-200 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400 block">Maghrib</span>
-            <span className="text-xs font-bold text-indigo-400 mt-0.5 block">18:18</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mx-auto mt-1 block"></span>
-          </div>
-          <div className="p-2 rounded-xl text-slate-200 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400 block">Isha</span>
-            <span className="text-xs font-bold text-indigo-400 mt-0.5 block">19:42</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mx-auto mt-1 block"></span>
-          </div>
-        </div>
-      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pr-6">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {t(`notifications.${item.sourceType}`, item.sourceType)}
+                          </span>
+                          <span className="text-[10px] text-slate-500">•</span>
+                          <span className="text-[10px] text-slate-400">
+                            {formatRelativeTime(item.timestamp)}
+                          </span>
+                        </div>
+                        <h4 className={`text-xs font-bold leading-tight ${item.read ? 'text-slate-300' : 'text-white'}`}>
+                          {item.title}
+                        </h4>
+                        {item.body && (
+                          <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2 leading-relaxed">
+                            {item.body}
+                          </p>
+                        )}
+                      </div>
 
-      {/* TASKS & HABIT REMINDERS CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-indigo-400"/>
-          <h3 className="text-xs font-bold text-white">Tasks & Habit Reminders</h3>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Due Task Alerts</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">15 mins before due</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
+                      {/* Right actions: Unread dot + Dismiss button */}
+                      <div className="flex items-center gap-1.5 self-center">
+                        {!item.read && (
+                          <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeNotification(item.id);
+                          }}
+                          aria-label={t('notifications.dismiss', 'Dismiss')}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-all cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Daily Habit Check-in</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">Everyday at 08:30 PM</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Overdue Milestone Pushes</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">Gentle nudges for pending target goals</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
-          </div>
-        </div>
-      </div>
+        )}
 
-      {/* MINDFULNESS & ROUTINES CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-teal-400"/>
-          <h3 className="text-xs font-bold text-white">Mindfulness & Routines</h3>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Morning Intention & Fajr</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">05:00 AM • Soft morning rise</p>
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* TAB 2: NOTIFICATION PREFERENCES & SYSTEM CONFIG                     */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {subTab === 'preferences' && (
+          <div className="space-y-5">
+            {/* MASTER NOTIFICATION TOGGLE CARD */}
+            <div className="p-5 rounded-3xl flex items-center justify-between gap-4 text-white bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-primary/20 border border-primary/30 text-primary flex items-center justify-center shadow-xs flex-shrink-0">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white leading-snug">
+                    {t('prayer.allowNotifications', 'Allow Momentum Notifications')}
+                  </h2>
+                  <p className="text-xs font-normal text-slate-400 mt-0.5 leading-relaxed">
+                    {t('prayer.mindfulChimes', 'Mindful chimes, prayer calls, and gentle daily agenda alerts.')}
+                  </p>
+                </div>
+              </div>
+              <Toggle
+                size="lg"
+                checked={masterEnabled}
+                onChange={() => toggleSetting('masterEnabled')}
+              />
             </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Midday Pause & Hydration</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">01:00 PM • 3 deep breaths chime</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Evening Wind-down & Murāqabah</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">09:30 PM • Gratitude journaling alert</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold text-white">Daily Radiance Quote</p>
-              <p className="text-[11px] font-normal text-slate-400 mt-0.5">08:00 AM • Curated wisdom nugget</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-            </label>
-          </div>
-        </div>
-      </div>
 
-      {/* ZEN FOCUS / DO NOT DISTURB CARD */}
-      <div className="block mx-5 mb-6 p-5 rounded-3xl flex items-center justify-between gap-3.5 text-white bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700 text-indigo-400 flex items-center justify-center flex-shrink-0 shadow-2xs">
-            <Moon className="w-5 h-5"/>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold text-white">Zen Focus / Do Not Disturb</h4>
-            <p className="text-[11px] font-normal text-slate-400 mt-0.5 leading-relaxed">
-              Silence all civil alerts between 10:30 PM and 04:30 AM while preserving Fajr Adhan.
-            </p>
-          </div>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-          <input type="checkbox" defaultChecked className="sr-only peer" />
-          <div className="w-12 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 shadow-inner"></div>
-        </label>
-      </div>
+            {/* SYSTEM VERIFICATION & TEST NOTIFICATION CARD */}
+            <div className="p-5 rounded-3xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-900/30 border border-indigo-700/40 text-indigo-400 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">
+                      {t('notifications.sendTest', 'Send Test Notification')}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      {permissionStatus === 'granted'
+                        ? t('notifications.permissionGranted', 'Desktop notifications enabled')
+                        : permissionStatus === 'denied'
+                        ? t('notifications.permissionDenied', 'Notifications blocked in browser settings')
+                        : t('notifications.permissionPrompt', 'Desktop notifications pending permission')}
+                    </p>
+                  </div>
+                </div>
 
-      {/* PROPERLY POSITIONED BOTTOM ACTION BUTTON */}
-      <div className="px-5 pb-12 text-center space-y-2.5">
-        <button className="btn-primary w-full">
-          Save Notification Settings
-          <ArrowRight className="w-4 h-4"/>
-        </button>
-        <p className="text-[11px] font-normal text-slate-500">
-          Preferences sync securely across your connected devices.
-        </p>
+                <button
+                  type="button"
+                  onClick={handleSendTest}
+                  disabled={isSendingTest}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all active:scale-95 shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-spin' : ''}`} />
+                  <span>{isSendingTest ? 'Sending...' : t('notifications.sendTest', 'Send Test')}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* PRAYER & ADHAN ALERTS CARD */}
+            <div className="p-5 rounded-3xl space-y-4 bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
+                    <Mosque className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">
+                      {t('prayer.prayerAdhanAlerts', 'Prayer & Adhan Alerts')}
+                    </h3>
+                    <p className="text-[11px] font-normal text-slate-400">
+                      {prayerAlertsEnabled ? `${activeAlertsCount} of 5 daily prayers active` : t('prayer.prayerAlertsPaused', 'Prayer alerts paused')}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTogglePrayerAlertsMaster}
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-all cursor-pointer active:scale-95 border ${
+                    prayerAlertsEnabled
+                      ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-400 hover:bg-emerald-900/60'
+                      : 'bg-slate-800 border-white/10 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  {prayerAlertsEnabled ? t('common.active', 'Active') : t('common.inactive', 'Inactive')}
+                </button>
+              </div>
+
+              {/* Child Controls Container (Disabled if master is Inactive) */}
+              <div className={`space-y-4 transition-opacity duration-200 ${prayerAlertsEnabled ? '' : 'opacity-50 pointer-events-none'}`}>
+                {/* Adhan Alert Type Segmented Control */}
+                <div className="p-1 rounded-2xl bg-slate-800/80 border border-white/10 flex items-center gap-1">
+                  {ALERT_TYPES.map((m) => {
+                    const isActive = alertType === m.key;
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => handleSelectAlertType(m.key)}
+                        className={`flex-1 py-1.5 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-slate-700 text-white font-bold shadow-xs border border-white/15'
+                            : 'text-slate-400 hover:text-white font-medium'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Timing Offset Radio Group */}
+                <div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-semibold text-white">{t('prayer.timingOffset', 'Timing Offset')}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAdhanOffset(0)}
+                      className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                    >
+                      {t('prayer.exactTime', 'Exact time')}
+                    </button>
+                  </div>
+                  <p className="text-[11px] font-normal text-slate-400">{t('prayer.prepareMindAblution', 'Prepare your mind and ablutions peacefully before entry time.')}</p>
+
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    {OFFSET_OPTIONS.map((opt) => {
+                      const isSelected = adhanOffset === opt.value;
+                      return (
+                        <div
+                          key={opt.value}
+                          onClick={() => setAdhanOffset(opt.value)}
+                          className={`p-3 rounded-2xl flex items-center justify-between cursor-pointer transition-all active:scale-95 ${
+                            isSelected
+                              ? 'border-2 border-indigo-500 bg-indigo-950/50 shadow-sm'
+                              : 'border border-white/10 bg-slate-800/50 shadow-xs hover:border-white/20'
+                          }`}
+                        >
+                          <div>
+                            <p className={`text-xs font-bold ${isSelected ? 'text-indigo-300' : 'text-slate-200'}`}>{opt.label}</p>
+                            <span className={`text-[10px] font-medium ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{opt.sub}</span>
+                          </div>
+                          {isSelected ? (
+                            <CheckCircle2 className="w-4.5 h-4.5 text-indigo-400 flex-shrink-0" />
+                          ) : (
+                            <div className="w-4.5 h-4.5 rounded-full border border-slate-600 flex-shrink-0" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Dynamic Interactive Prayer Alert Bubbles */}
+                <div className="grid grid-cols-5 gap-1.5 pt-1 text-center">
+                  {prayerBubbles.map((p) => {
+                    const isAlertActive = enabledPrayerAlerts.some(
+                      (name) => name.toLowerCase() === p.name.toLowerCase() || name.toLowerCase() === p.id.toLowerCase()
+                    );
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleTogglePrayerAlert(p.name)}
+                        className={`p-2 rounded-xl text-center transition-all cursor-pointer active:scale-95 ${
+                          isAlertActive
+                            ? 'bg-indigo-950/60 border border-indigo-500/40 text-indigo-300 shadow-xs'
+                            : 'bg-transparent border border-transparent text-slate-500 opacity-60 hover:opacity-100 hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <span className={`text-[10px] block transition-colors ${isAlertActive ? 'font-semibold text-indigo-400' : 'font-medium text-slate-500'}`}>
+                          {p.name}
+                        </span>
+                        <span className={`text-xs block mt-0.5 transition-colors ${isAlertActive ? 'font-bold text-indigo-300' : 'font-medium text-slate-500'}`}>
+                          {p.time}
+                        </span>
+                        <span className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 block transition-all ${isAlertActive ? 'bg-indigo-400' : 'bg-transparent'}`} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* TASKS & HABIT REMINDERS CARD */}
+            <div className="p-5 rounded-3xl space-y-4 bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+                <h3 className="text-xs font-bold text-white">
+                  {t('prayer.tasksHabitReminders', 'Tasks & Habit Reminders')}
+                </h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">
+                      {t('prayer.dueTaskAlerts', 'Due Task Alerts')}
+                    </p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.dueTaskOffset', '15 mins before due')}</p>
+                  </div>
+                  <Toggle checked={dueTaskAlerts} onChange={() => toggleSetting('dueTaskAlerts')} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">{t('prayer.dailyHabitCheckin', 'Daily Habit Check-in')}</p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.dailyHabitCheckinTime', 'Everyday at 08:30 PM')}</p>
+                  </div>
+                  <Toggle checked={dailyHabitCheckin} onChange={() => toggleSetting('dailyHabitCheckin')} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">
+                      {t('prayer.overdueMilestonePushes', 'Overdue Milestone Pushes')}
+                    </p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.gentleNudgesGoals', 'Gentle nudges for pending target goals')}</p>
+                  </div>
+                  <Toggle checked={overdueMilestonePushes} onChange={() => toggleSetting('overdueMilestonePushes')} />
+                </div>
+              </div>
+            </div>
+
+            {/* MINDFULNESS & ROUTINES CARD */}
+            <div className="p-5 rounded-3xl space-y-4 bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-teal-400" />
+                <h3 className="text-xs font-bold text-white">
+                  {t('prayer.mindfulnessRoutines', 'Mindfulness & Routines')}
+                </h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">
+                      {t('prayer.morningIntention', 'Morning Intention & Fajr')}
+                    </p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.softMorningRise', '05:00 AM • Soft morning rise')}</p>
+                  </div>
+                  <Toggle checked={morningIntention} onChange={() => toggleSetting('morningIntention')} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">
+                      {t('prayer.middayPause', 'Midday Pause & Hydration')}
+                    </p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.deepBreathsChime', '01:00 PM • 3 deep breaths chime')}</p>
+                  </div>
+                  <Toggle checked={middayPause} onChange={() => toggleSetting('middayPause')} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">
+                      {t('prayer.eveningWindDown', 'Evening Wind-down & Murāqabah')}
+                    </p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.gratitudeAlert', '09:30 PM • Gratitude journaling alert')}</p>
+                  </div>
+                  <Toggle checked={eveningWinddown} onChange={() => toggleSetting('eveningWinddown')} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-white">{t('prayer.dailyRadianceQuote', 'Daily Radiance Quote')}</p>
+                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.curatedWisdom', '08:00 AM • Curated wisdom nugget')}</p>
+                  </div>
+                  <Toggle checked={dailyRadianceQuote} onChange={() => toggleSetting('dailyRadianceQuote')} />
+                </div>
+              </div>
+            </div>
+
+            {/* ZEN FOCUS / DO NOT DISTURB CARD */}
+            <div className="p-5 rounded-3xl flex items-center justify-between gap-3.5 text-white bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-white/10 text-primary flex items-center justify-center flex-shrink-0 shadow-2xs">
+                  <Moon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">
+                    {t('prayer.zenFocusDnd', 'Zen Focus / Do Not Disturb')}
+                  </h4>
+                  <p className="text-[11px] font-normal text-slate-400 mt-0.5 leading-relaxed">
+                    {t('prayer.zenFocusDesc', 'Silence all civil alerts between 10:30 PM and 04:30 AM while preserving Fajr Adhan.')}
+                  </p>
+                </div>
+              </div>
+              <Toggle size="lg" checked={zenFocusDND} onChange={() => toggleSetting('zenFocusDND')} />
+            </div>
+
+            {/* SAVE BUTTON */}
+            <div className="pt-2 pb-10 text-center space-y-2.5">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="btn-primary w-full flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-75 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>{t('common.saving', 'Saving Preferences...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{t('prayer.saveNotificationSettings', 'Save Notification Settings')}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+              <p className="text-[11px] font-normal text-slate-400">
+                {t('settings.preferencesSyncSecurely', 'Preferences sync securely across your connected devices.')}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

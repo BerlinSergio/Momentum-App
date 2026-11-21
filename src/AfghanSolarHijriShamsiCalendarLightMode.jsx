@@ -1,464 +1,506 @@
-import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
+import UserAvatar from './components/UserAvatar';
+import {
+  Calendar, ArrowLeft, ChevronLeft, ChevronRight, Plus, Clock, Trash2, X, Sparkles, Sun, CalendarClock
+} from 'lucide-react';
+import { useCalendarStore } from './store/useCalendarStore';
+import { useAppTime } from './hooks/useAppTime';
+import {
+  AFGHAN_WEEKDAYS,
+  AFGHAN_SOLAR_MONTHS,
+  getShamsiDate,
+  getIslamicDateParts,
+  generateShamsiMonthGrid,
+  toPersianDigits
+} from './utils/afghanCalendar';
+import { MomentumTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
 
-import { Calendar, ArrowLeft } from 'lucide-react';
+export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
+  const { now, effectiveTimezone } = useAppTime();
+  const todayShamsi = useMemo(() => getShamsiDate(now, effectiveTimezone), [now, effectiveTimezone]);
+  const [viewYear, setViewYear] = useState(todayShamsi.jy);
+  const [viewMonth, setViewMonth] = useState(todayShamsi.jm);
+  const [selectedDay, setSelectedDay] = useState(todayShamsi.jd);
 
-export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab }) {
+  const { events, addEvent, deleteEvent } = useCalendarStore();
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newTime, setNewTime] = useState('10:00 AM');
+  const [newCategory, setNewCategory] = useState('Reminder');
+  const [newNote, setNewNote] = useState('');
+  const [newDay, setNewDay] = useState(todayShamsi.jd);
+  const [newMonth, setNewMonth] = useState(todayShamsi.jm);
+
+  const monthGrid = useMemo(() => {
+    return generateShamsiMonthGrid(viewYear, viewMonth, todayShamsi);
+  }, [viewYear, viewMonth, todayShamsi]);
+
+  const monthInfo = monthGrid.monthInfo;
+
+  const handlePrevMonth = () => {
+    if (viewMonth === 1) {
+      setViewMonth(12);
+      setViewYear((prev) => prev - 1);
+    } else {
+      setViewMonth((prev) => prev - 1);
+    }
+    setSelectedDay(1);
+  };
+
+  const handleNextMonth = () => {
+    if (viewMonth === 12) {
+      setViewMonth(1);
+      setViewYear((prev) => prev + 1);
+    } else {
+      setViewMonth((prev) => prev + 1);
+    }
+    setSelectedDay(1);
+  };
+
+  const handleOpenAddModal = () => {
+    setNewDay(selectedDay);
+    setNewMonth(viewMonth);
+    setNewTitle('');
+    setNewTime('10:00 AM');
+    setNewCategory('Reminder');
+    setNewNote('');
+    setIsAddModalOpen(true);
+  };
+
+  const handleCreateEvent = (e) => {
+    if (e) e.preventDefault();
+    if (!newTitle.trim()) return;
+    addEvent({
+      title: newTitle.trim(),
+      shamsiYear: viewYear,
+      shamsiMonth: Number(newMonth) || viewMonth,
+      shamsiDay: Number(newDay) || selectedDay,
+      time: newTime || '10:00 AM',
+      category: newCategory,
+      note: newNote.trim(),
+    });
+    setIsAddModalOpen(false);
+    toast.success(t('toasts.eventAdded', 'Event added to calendar'));
+  };
+
+  const selectedDayItem = useMemo(() => {
+    const found = monthGrid.currentMonthDays.find((d) => d.shamsiDay === selectedDay);
+    if (found) return found;
+    return monthGrid.currentMonthDays[0] || null;
+  }, [monthGrid, selectedDay]);
+
+  const selectedIslamic = useMemo(() => {
+    if (!selectedDayItem || !selectedDayItem.gregorianDate) return { formatted: '' };
+    return getIslamicDateParts(selectedDayItem.gregorianDate, effectiveTimezone);
+  }, [selectedDayItem, effectiveTimezone]);
+
+  const selectedWeekdayInfo = useMemo(() => {
+    if (!selectedDayItem) return AFGHAN_WEEKDAYS[0];
+    return AFGHAN_WEEKDAYS[selectedDayItem.afghanWeekday] || AFGHAN_WEEKDAYS[0];
+  }, [selectedDayItem]);
+
+  const dailyEvents = useMemo(() => {
+    return (events || []).filter(
+      (e) => Number(e.shamsiYear) === viewYear && Number(e.shamsiMonth) === viewMonth && Number(e.shamsiDay) === selectedDay
+    );
+  }, [events, viewYear, viewMonth, selectedDay]);
+
+  const daysWithEvents = useMemo(() => {
+    const set = new Set();
+    (events || []).forEach((e) => {
+      if (Number(e.shamsiYear) === viewYear && Number(e.shamsiMonth) === viewMonth) {
+        set.add(Number(e.shamsiDay));
+      }
+    });
+    return set;
+  }, [events, viewYear, viewMonth]);
+
+  const daylightHoursText = useMemo(() => {
+    if (viewMonth >= 1 && viewMonth <= 3) return '12h 45m Daylight';
+    if (viewMonth >= 4 && viewMonth <= 6) return '14h 20m Daylight';
+    if (viewMonth >= 7 && viewMonth <= 9) return '10h 52m Daylight';
+    return '9h 48m Daylight';
+  }, [viewMonth]);
+
   return (
     <>
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/30">
+          <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Calendar className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-indigo-950 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Afghan Solar Calendar
+          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+            {t('calendar.afghanSolarCalendar', 'Afghan Solar Calendar')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setActiveTab && setActiveTab('home_dashboard_light_mode')} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"><ArrowLeft className="w-5 h-5"/></button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
+          <button type="button" onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} aria-label="Go back" data-testid="calendar-back-btn" className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"><ArrowLeft className="w-5 h-5 rtl:rotate-180"/></button>
+          <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
+        </div>
+      </div>
+      <main className="flex flex-col relative w-full pb-safe min-h-screen px-4 pt-2">
+        <div className="flex flex-col w-full pb-28 space-y-4">
+          {/* Atmospheric Backdrop Glow & Seasonal Top Banner */}
+          <div className="relative w-full rounded-3xl p-5 overflow-hidden bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg space-y-4">
+            <div className="flex flex-row justify-between items-center w-full gap-2 p-1">
+              <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold flex items-center gap-1 shrink-0 shadow-sm">
+                <span>{monthInfo.seasonIcon}</span>
+                <span className="truncate">{monthInfo.season}</span>
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium shrink-0 text-center">
+                {t('calendar.monthOf12', 'Month {{month}} of 12', { month: monthInfo.index })}
+              </span>
+              <div className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold text-center truncate shadow-sm">
+                <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="text-xs text-center truncate max-w-[120px]">{monthInfo.seasonNote}</span>
+              </div>
+            </div>
+
+            {/* Month & Year Interactive Controls */}
+            <div className="flex items-center justify-between pt-1">
+              <button type="button" onClick={handlePrevMonth} aria-label="Previous Month" className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex flex-col items-center text-center px-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">{monthInfo.nameEn} {viewYear} SH</h2>
+                  <span className="text-base font-semibold text-primary">{monthInfo.nameFa} {toPersianDigits(viewYear)}</span>
+                </div>
+                <p className="text-xs font-normal mt-0.5 text-slate-500">
+                  {monthInfo.zodiac} ({monthInfo.namePs}) • {t('calendar.daysCount', '{{count}} Days', { count: monthInfo.daysCount })}
+                </p>
+              </div>
+              <button type="button" onClick={handleNextMonth} aria-label="Next Month" className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Live Solar Calendar Grid */}
+          <div className="rounded-3xl p-5 flex flex-col bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg space-y-2">
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-1 text-center mb-1 pb-1 border-b border-slate-200/60">
+              {AFGHAN_WEEKDAYS.map((wd) => (
+                <div key={wd.key} className={`flex flex-col py-1 ${wd.isFriday ? ('bg-primary/10 text-primary rounded-lg') : ('text-slate-600')}`}>
+                  <span className="text-xs font-semibold uppercase">{wd.en}</span>
+                  <span className="text-[11px] font-medium font-bahij" dir="rtl">{wd.fa}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Day Cells Grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {/* Leading Previous Month Spacer Cells */}
+              {monthGrid.prevSpacers.map((sp, idx) => (
+                <div key={'prev-' + idx} className="aspect-square p-1 flex flex-col items-center justify-center text-center rounded-2xl opacity-30 select-none bg-slate-50 border border-slate-100 text-slate-400">
+                  <span className="text-xs font-bold font-mono leading-none">{sp.shamsiDayFa}</span>
+                  <div className="flex items-center justify-center gap-0.5 text-[9px] leading-none mt-1 opacity-75">
+                    <span>{sp.gregorianDay}</span>
+                    <span>•</span>
+                    <span>{sp.hijriDay}</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Active Current Month Days */}
+              {monthGrid.currentMonthDays.map((day) => {
+                const isSelected = day.shamsiDay === selectedDay;
+                const hasEvent = daysWithEvents.has(day.shamsiDay);
+                return (
+                  <button
+                    key={'day-' + day.shamsiDay}
+                    type="button"
+                    onClick={() => setSelectedDay(day.shamsiDay)}
+                    className={`aspect-square p-1 flex flex-col items-center justify-center text-center rounded-2xl transition-all cursor-pointer relative select-none ${
+                      day.isToday
+                        ? 'bg-gradient-to-br from-primary via-primary to-primary text-white shadow-md ring-2 ring-primary'
+                        : isSelected
+                        ? 'bg-primary/10 border-2 border-primary text-slate-900 shadow-md'
+                        : 'bg-white/80 backdrop-blur-xl border border-white/50 text-slate-700 hover:bg-slate-100/90 shadow-sm'
+                    }`}
+                  >
+                    {hasEvent ? (
+                      <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                        day.isToday ? 'bg-amber-300' : 'bg-primary'
+                      }`} />
+                    ) : null}
+                    <span className={`text-sm font-bold font-mono leading-none text-center ${
+                      day.isToday ? 'text-white' : (isSelected ? 'text-primary' : (day.isFriday ? 'text-primary' : ''))
+                    }`}>
+                      {day.shamsiDayFa}
+                    </span>
+                    <div className={`flex items-center justify-center gap-0.5 text-[9px] leading-none mt-1 ${
+                      day.isToday ? 'text-white/85' : 'text-slate-500'
+                    }`}>
+                      <span>{day.gregorianDay}</span>
+                      <span>•</span>
+                      <span>{day.hijriDay}</span>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Trailing Next Month Spacer Cells */}
+              {monthGrid.nextSpacers.map((sp, idx) => (
+                <div key={'next-' + idx} className="aspect-square p-1 flex flex-col items-center justify-center text-center rounded-2xl opacity-30 select-none bg-slate-50 border border-slate-100 text-slate-400">
+                  <span className="text-xs font-bold font-mono leading-none">{sp.shamsiDayFa}</span>
+                  <div className="flex items-center justify-center gap-0.5 text-[9px] leading-none mt-1 opacity-75">
+                    <span>{sp.gregorianDay}</span>
+                    <span>•</span>
+                    <span>{sp.hijriDay}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Selected Date Details Card */}
+          <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+            <div className="flex flex-row justify-between items-start w-full gap-3">
+              <div className="flex flex-col items-start min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0"></span>
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 truncate">
+                    {selectedWeekdayInfo.longEn}, {selectedDay} {monthInfo.nameEn} {viewYear}
+                  </h3>
+                </div>
+                <p className="text-xs font-medium text-slate-500 mt-1 pl-4.5">
+                  {selectedDayItem ? selectedDayItem.gregorianDate.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : ''} • {selectedIslamic.formatted}
+                </p>
+              </div>
+              <span className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold shrink-0 self-start shadow-sm whitespace-nowrap">
+                {selectedDayItem?.isToday ? `امروز • ${t('calendar.todayUpper', 'TODAY')}` : `${selectedWeekdayInfo.fa} • روز ${toPersianDigits(selectedDay)}`}
+              </span>
+            </div>
+
+            {/* Astronomical & Seasonal Insights */}
+            <div className="flex items-center gap-6 pt-1 border-t border-slate-200/60">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" />
+                <span className="text-xs font-semibold text-slate-800">{daylightHoursText}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-semibold text-slate-800">{monthInfo.seasonNote}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cultural & National Occasions Ahead */}
+          <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
+              <span className="text-base font-bold tracking-tight text-slate-900">{t('calendar.afghanSolarHighlights', 'Afghan Solar Highlights')}</span>
+              <span className="text-xs font-medium text-slate-500">{monthInfo.nameEn} ({monthInfo.nameFa}) {t('calendar.festivals', 'Festivals')}</span>
+            </div>
+            <div className="space-y-3">
+              {monthInfo.events.map((evt, idx) => (
+                <div key={idx} onClick={() => setSelectedDay(evt.day)} className="flex items-start gap-3 cursor-pointer group">
+                  <div className="rounded-2xl w-12 h-12 bg-primary/10 border border-primary/20 text-primary flex flex-col items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <span className="text-sm font-bold leading-none">{toPersianDigits(evt.day)}</span>
+                    <span className="text-[9px] uppercase mt-0.5">{monthInfo.nameEn}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-xs font-bold text-slate-900 truncate">{evt.title}</h4>
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                        {evt.badge}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-600 line-clamp-2 mt-0.5">{evt.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Scheduled Routines for Selected Day */}
+          <div className="rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
+              <span className="text-base font-bold tracking-tight text-slate-900">{t('calendar.dailySchedule', 'Daily Schedule')} ({selectedWeekdayInfo.fa}، {toPersianDigits(selectedDay)} {monthInfo.nameFa})</span>
+              <span className="text-xs font-semibold text-slate-500">{dailyEvents.length} {t('calendar.reminders', 'Reminders')}</span>
+            </div>
+            <div className="space-y-2">
+              {dailyEvents.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
+                  {t('calendar.noScheduledTasksForDay', "No scheduled tasks for this day. Tap 'Add Solar Event' below to schedule a reminder.")}
+                </div>
+              ) : (
+                dailyEvents.map((evt) => (
+                  <div key={evt.id} className="p-3 rounded-2xl bg-white/80 border border-slate-200/70 shadow-sm flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <CalendarClock className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-900 truncate">{evt.title}</span>
+                        <span className="text-[11px] text-slate-500">{evt.time} • {evt.category}{evt.note ? ` • ${evt.note}` : ''}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteEvent(evt.id);
+                        toast.success(t('calendar.eventDeleted', 'Event deleted'));
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Action Button: Add Solar Event */} 
+          <button
+            type="button"
+            onClick={handleOpenAddModal}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-primary to-primary-container hover:brightness-105 text-white font-bold text-sm shadow-lg shadow-primary/30 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer select-none"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('calendar.scheduleAfghanEvent', 'Schedule Afghan Solar Event')}</span>
+          </button>
+        </div>
+      </main>
+
+      {/* Add Afghan Solar Event Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm rounded-3xl p-6 bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">{t('calendar.newSolarReminder', 'New Solar Reminder')}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateEvent} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder={t('calendar.eventTitlePlaceholder', 'e.g. Nawruz Family Gathering')}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.month', 'Month')}</label>
+                  <select
+                    value={newMonth}
+                    onChange={(e) => setNewMonth(Number(e.target.value))}
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
+                  >
+                    {AFGHAN_SOLAR_MONTHS.map((m) => (
+                      <option key={m.index} value={m.index}>
+                        {m.nameEn} ({m.nameFa})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.solarDay', 'Solar Day')}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={newDay}
+                    onChange={(e) => setNewDay(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('common.time', 'Time')}</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsTimePickerOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary cursor-pointer hover:bg-slate-100"
+                  >
+                    {newTime || '10:00 AM'}
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('common.category', 'Category')}</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
+                  >
+                    <option value="Reminder">{t('calendar.reminders', 'Reminder')}</option>
+                    <option value="National">{t('calendar.national', 'National')}</option>
+                    <option value="Religious">{t('calendar.religious', 'Religious')}</option>
+                    <option value="Cultural">{t('calendar.cultural', 'Cultural')}</option>
+                    <option value="Family">{t('calendar.family', 'Family')}</option>
+                    <option value="Personal">{t('calendar.personal', 'Personal')}</option>
+                  </select>
+                </div>
+              </div>
+
+              <MomentumTimePicker
+                isOpen={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                value={newTime}
+                onSelect={(selectedT) => setNewTime(selectedT)}
+                title={t('calendar.selectEventTime', 'Select Event Time')}
+                isDark={false}
+                outputFormat="auto"
+              />
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.notesOptional', 'Notes (Optional)')}</label>
+                <textarea
+                  rows="2"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder={t('calendar.addNotesPlaceholder', 'Add brief notes or details...')}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer select-none"
+                >
+                  {t('common.cancel', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary text-white font-semibold text-xs shadow-md shadow-primary/20 transition-all cursor-pointer select-none"
+                >
+                  {t('calendar.saveEvent', 'Save Event')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div><main className="flex flex-col relative w-full pb-safe min-h-screen bg-surface px-margin"><div className="flex flex-col w-full pb-28 space-y-4">
-{/*  Subtle Atmospheric Backdrop Glow  */}
-<div className="relative w-full rounded-2xl p-space-lg overflow-hidden bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-<div className="absolute -top-12 -right-12 w-48 h-48 bg-primary-fixed-dim/40 rounded-full blur-3xl pointer-events-none"></div>
-<div className="absolute -bottom-10 -left-10 w-44 h-44 bg-secondary-fixed/50 rounded-full blur-3xl pointer-events-none"></div>
-{/*  Seasonal & Cultural Top Banner  */}
-<div className="relative z-10 flex items-center justify-between">
-<div className="flex items-center gap-space-xs">
-<span className="px-space-md py-1 rounded-full bg-surface-container-high/80 text-secondary font-label-md text-label-md flex items-center gap-1 shadow-sm">
-<span>🍂</span>
-<span>پاییز • Autumn</span>
-</span>
-<span className="px-space-md py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">
-          Month 8 of 12
-        </span>
-</div>
-<div className="flex items-center gap-1 px-space-md py-1 rounded-full bg-surface-container-lowest/80 text-on-surface-variant font-label-sm text-label-sm shadow-sm">
-<span className="material-symbols-outlined text-[16px] text-tertiary">water_drop</span>
-<span>Aquifer Season</span>
-</div>
-</div>
-{/*  Month & Year Controls  */}
-<div className="flex items-center justify-between mt-4">
-  <button aria-label="Previous Month" className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
-    <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-  </button>
-  <div className="flex flex-col items-center text-center px-2">
-    <div className="flex items-center gap-2">
-      <h2 className="text-xl font-bold tracking-tight text-slate-900">Aqrab 1405 SH</h2>
-      <span className="text-sm font-medium tracking-wide text-slate-500 font-bahij">عقرب ۱۴۰۵</span>
-    </div>
-    <p className="text-xs font-normal mt-0.5 text-slate-500">
-      Scorpio (<span className="font-bahij">لړم</span>) • Oct 23 – Nov 21, 2026 • 30 Days
-    </p>
-  </div>
-  <button aria-label="Next Month" className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
-    <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-  </button>
-</div>
-{/*  Solar Calendar Grid (30 Days)  */}
-{/*  Solar Calendar Grid (30 Days)  */}
-<div className="rounded-3xl p-5 mb-4 flex flex-col bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-{/*  Afghan Weekday Headers: Saturday (Shanbeh) through Friday (Jom'eh)  */}
-<div className="grid grid-cols-7 gap-1 text-center mb-2 pb-1">
-<div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-600 uppercase">Sh</span>
-<span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">شنبه</span>
-</div>
-<div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-600 uppercase">Yak</span>
-<span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">یکشنبه</span>
-</div>
-<div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-600 uppercase">Do</span>
-<span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">دوشنبه</span>
-</div>
-<div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-600 uppercase">Seh</span>
-<span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">سه‌شنبه</span>
-</div>
-<div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-600 uppercase">Ch</span>
-<span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">چهارشنبه</span>
-</div>
-<div className="flex flex-col py-1">
-<span className="text-xs font-normal text-slate-600 uppercase">Panj</span>
-<span className="text-xs font-normal font-bahij text-slate-600" dir="rtl">پنج‌شنبه</span>
-</div>
-{/*  Friday Weekend Highlight  */}
-<div className="flex flex-col py-1 rounded-lg bg-secondary-fixed/30 text-secondary">
-<span className="text-xs font-bold text-indigo-600">Jom</span>
-<span className="text-xs font-bold font-bahij text-indigo-600" dir="rtl">جمعه</span>
-</div>
-</div>
-{/*  Calendar 30-Day Grid Layout (1405 SH Aqrab starts Friday: offset 6)  */}
-<div className="grid grid-cols-7 gap-1">
-{/*  Trailing previous month spacers (Hamal/Mizan tail)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">25</span>
-        <span className="text-[10px] leading-tight opacity-90">17</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">26</span>
-        <span className="text-[10px] leading-tight opacity-90">18</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">27</span>
-        <span className="text-[10px] leading-tight opacity-90">19</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">28</span>
-        <span className="text-[10px] leading-tight opacity-90">20</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">29</span>
-        <span className="text-[10px] leading-tight opacity-90">21</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">30</span>
-        <span className="text-[10px] leading-tight opacity-90">22</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-{/*  Day 1 (Friday - Start of Aqrab 1405)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">23</span>
-        <span className="text-[9px] opacity-60 text-slate-400">12</span>
-      </div>
-{/*  Day 2 (Saturday - TODAY)  */}
-<div className="min-h-[58px] p-1.5 rounded-xl bg-gradient-to-br from-primary via-primary-container to-secondary text-on-primary shadow-md relative overflow-hidden ring-2 ring-primary-fixed">
-<div className="flex items-center justify-between">
-<span className="font-headline-sm text-headline-sm font-bold text-on-primary">۲</span>
-<span className="px-1 py-0.2 rounded-full bg-surface-container-lowest/20 text-[9px] font-bold">TODAY</span>
-</div>
-<div className="flex items-center justify-between text-[10px] text-on-primary/90 mt-1">
-<span className="font-label-sm font-semibold">24 Oct</span>
-<span className="text-[9px]">13 R2</span>
-</div>
-</div>
-{/*  Day 3 (Sunday - UN Day)  */}
-<div className="min-h-[58px] p-1.5 rounded-xl flex flex-col justify-between relative cursor-pointer bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-<div className="flex items-center justify-between">
-<span className="font-headline-sm text-headline-sm text-on-surface">۳</span>
-<span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-</div>
-<div className="flex items-center justify-between text-[10px] text-on-surface-variant">
-<span className="font-label-sm">25</span>
-<span className="text-[9px] text-outline">14</span>
-</div>
-</div>
-{/*  Day 4  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۴</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">26</span>
-        <span className="text-[9px] opacity-60 text-slate-400">15</span>
-      </div>
-{/*  Day 5  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۵</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">27</span>
-        <span className="text-[9px] opacity-60 text-slate-400">16</span>
-      </div>
-{/*  Day 6  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۶</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">28</span>
-        <span className="text-[9px] opacity-60 text-slate-400">17</span>
-      </div>
-{/*  Day 7 (Farmers Day)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۷</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">29</span>
-        <span className="text-[9px] opacity-60 text-slate-400">18</span>
-      </div>
-{/*  Day 8 (Friday Weekend)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۸</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">30</span>
-        <span className="text-[9px] opacity-60 text-slate-400">19</span>
-      </div>
-{/*  Day 9 to Day 15  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۹</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">31</span>
-        <span className="text-[9px] opacity-60 text-slate-400">20</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۰</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">1 Nov</span>
-        <span className="text-[9px] opacity-60 text-slate-400">21</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۱</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">2</span>
-        <span className="text-[9px] opacity-60 text-slate-400">22</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۲</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">3</span>
-        <span className="text-[9px] opacity-60 text-slate-400">23</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۳</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">4</span>
-        <span className="text-[9px] opacity-60 text-slate-400">24</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۴</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">5</span>
-        <span className="text-[9px] opacity-60 text-slate-400">25</span>
-      </div>
-{/*  Day 15 (Friday)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۵</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">6</span>
-        <span className="text-[9px] opacity-60 text-slate-400">26</span>
-      </div>
-{/*  Day 16 to Day 22  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۶</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">7</span>
-        <span className="text-[9px] opacity-60 text-slate-400">27</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۷</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">8</span>
-        <span className="text-[9px] opacity-60 text-slate-400">28</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۸</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">9</span>
-        <span className="text-[9px] opacity-60 text-slate-400">29</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۱۹</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">10</span>
-        <span className="text-[9px] opacity-60 text-slate-400">30</span>
-      </div>
-{/*  Day 20 (Literature Day)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۰</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">11</span>
-        <span className="text-[9px] opacity-60 text-slate-400">1 J1</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۱</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">12</span>
-        <span className="text-[9px] opacity-60 text-slate-400">2</span>
-      </div>
-{/*  Day 22 (Friday)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۲</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">13</span>
-        <span className="text-[9px] opacity-60 text-slate-400">3</span>
-      </div>
-{/*  Day 23 to Day 29  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۳</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">14</span>
-        <span className="text-[9px] opacity-60 text-slate-400">4</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۴</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">15</span>
-        <span className="text-[9px] opacity-60 text-slate-400">5</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۵</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">16</span>
-        <span className="text-[9px] opacity-60 text-slate-400">6</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۶</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">17</span>
-        <span className="text-[9px] opacity-60 text-slate-400">7</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۷</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">18</span>
-        <span className="text-[9px] opacity-60 text-slate-400">8</span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۸</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">19</span>
-        <span className="text-[9px] opacity-60 text-slate-400">9</span>
-      </div>
-{/*  Day 29 (Friday)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۲۹</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">20</span>
-        <span className="text-[9px] opacity-60 text-slate-400">10</span>
-      </div>
-{/*  Day 30 (Last Day of Aqrab)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all hover:bg-slate-100 cursor-pointer">
-        <span className="text-xs font-bold font-mono text-slate-700">۳۰</span>
-        <span className="text-[10px] leading-tight opacity-90 text-slate-500">21</span>
-        <span className="text-[9px] opacity-60 text-slate-400">11</span>
-      </div>
-{/*  Spacers for next month (Qaws / Sagittarius)  */}
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">1</span>
-        <span className="text-[10px] leading-tight opacity-90">22</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">2</span>
-        <span className="text-[10px] leading-tight opacity-90">23</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">3</span>
-        <span className="text-[10px] leading-tight opacity-90">24</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">4</span>
-        <span className="text-[10px] leading-tight opacity-90">25</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">5</span>
-        <span className="text-[10px] leading-tight opacity-90">26</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-<div className="min-h-[58px] p-1 flex flex-col items-center justify-between rounded-xl transition-all opacity-40 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-        <span className="text-xs font-bold font-mono">6</span>
-        <span className="text-[10px] leading-tight opacity-90">27</span>
-        <span className="text-[9px] opacity-60"></span>
-      </div>
-</div>
-</div>
-
-
-{/*  Selected Date Details: 2 Aqrab 1405 SH  */}
-<div className="rounded-3xl p-5 mb-4 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-{/*  Header of Selected Date  */}
-<div className="flex items-start justify-between">
-<div>
-<div className="flex items-center gap-2">
-<span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
-<h3 className="text-base font-bold tracking-tight text-slate-900">Shanbeh, 2 Aqrab 1405</h3>
-</div>
-<p className="font-body-sm text-body-sm text-slate-700 font-medium mt-0.5">
-          24 October 2026 • 13 Rabi' al-Thani 1448 AH
-        </p>
-</div>
-<span className="px-space-md py-1 rounded-full bg-secondary-fixed/50 text-secondary font-label-sm text-label-sm font-semibold">
-        امروز
-      </span>
-</div>
-{/* Solar & Astronomical Insight Pill Grid (Flattened) */}
-<div className="flex items-center gap-6 pt-2">
-  <div className="flex items-center gap-2">
-    <span className="material-symbols-outlined text-primary text-[20px]">wb_twilight</span>
-    <span className="text-sm font-semibold text-slate-900">10h 52m Daylight</span>
-  </div>
-  <div className="flex items-center gap-2">
-    <span className="material-symbols-outlined text-secondary text-[20px]">agriculture</span>
-    <span className="text-sm font-semibold text-slate-900">Mid-Autumn Harvest</span>
-  </div>
-</div>
-</div>
-
-{/* Cultural & National Occasions Ahead */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-<div className="space-y-2 pt-1">
-<div className="flex items-center justify-between">
-<span className="text-base font-bold tracking-tight text-slate-900">Afghan Solar Highlights</span>
-<span className="text-xs font-medium text-slate-600">Aqrab Festivals</span>
-</div>
-{/*  Card 1  */}
-<div className="flex items-start gap-3">
-<div className="rounded-2xl w-12 h-12 bg-indigo-50 border border-indigo-200/80 text-indigo-600 flex flex-col items-center justify-center shrink-0">
-<span className="font-headline-sm text-[13px] font-bold text-indigo-600 leading-none">۳</span>
-<span className="font-label-sm text-[9px] text-indigo-600 uppercase">Aqrab</span>
-</div>
-<div className="min-w-0 flex-1">
-<div className="flex items-center gap-1.5">
-<h4 className="font-label-md text-label-md text-slate-900 truncate">UN Day in Afghanistan</h4>
-<span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">Tomorrow</span>
-</div>
-<p className="font-body-sm text-body-sm text-slate-700 font-medium line-clamp-1">
-            Youth development roundtables & regional humanitarian dialogues.
-          </p>
-</div>
-</div>
-{/*  Card 2  */}
-<div className="flex items-start gap-3">
-<div className="rounded-2xl w-12 h-12 bg-indigo-50 border border-indigo-200/80 text-indigo-600 flex flex-col items-center justify-center shrink-0">
-<span className="font-headline-sm text-[13px] font-bold text-indigo-600 leading-none">۷</span>
-<span className="font-label-sm text-[9px] text-indigo-600 uppercase">Aqrab</span>
-</div>
-<div className="min-w-0 flex-1">
-<h4 className="font-label-md text-label-md text-slate-900 truncate">Pomegranate Harvest Festival</h4>
-<p className="font-body-sm text-body-sm text-slate-700 font-medium line-clamp-1">
-            جشن انار قندهار و تاشقرغان • Cultural agro-expos and market fairs.
-          </p>
-</div>
-</div>
-{/*  Card 3  */}
-<div className="flex items-start gap-3">
-<div className="rounded-2xl w-12 h-12 bg-slate-100 text-slate-500 flex flex-col items-center justify-center shrink-0">
-<span className="font-headline-sm text-[13px] font-bold text-slate-900 leading-none">۲۰</span>
-<span className="font-label-sm text-[9px] text-slate-900 uppercase">Aqrab</span>
-</div>
-<div className="min-w-0 flex-1">
-<h4 className="font-label-md text-label-md text-slate-900 truncate">Eastern Literature & Iqbal Day</h4>
-<p className="font-body-sm text-body-sm text-slate-700 font-medium line-clamp-1">
-            Poetic recitations across Kabul, Balkh, and Herat universities.
-          </p>
-</div>
-</div>
-</div>
-</div>
-
-{/* Scheduled Routines for 2 Aqrab */}
-<div className="rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-md border border-white/80 shadow-lg">
-<div className="space-y-2 pt-2">
-<div className="flex items-center justify-between">
-<span className="text-base font-bold tracking-tight text-slate-900">Daily Schedule (امروز)</span>
-<span className="text-xs font-medium text-slate-600">2 Reminders</span>
-</div>
-<div className="space-y-1.5">
-<div className="flex items-center justify-between py-1">
-<div className="flex items-center gap-space-sm">
-<span className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-<span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
-</span>
-<span className="font-body-md text-body-md text-slate-900 font-medium">Kabul Central Market Logistics Check</span>
-</div>
-<span className="font-label-sm text-label-sm text-primary font-semibold">11:30 AM</span>
-</div>
-<div className="flex items-center justify-between py-1">
-<div className="flex items-center gap-space-sm">
-<span className="w-5 h-5 rounded-full bg-secondary/20 flex items-center justify-center">
-<span className="w-2.5 h-2.5 rounded-full bg-secondary"></span>
-</span>
-<span className="font-body-md text-body-md text-slate-900 font-medium">Garden & Orchard Winterization Prep</span>
-</div>
-<span className="font-label-sm text-label-sm text-secondary font-semibold">04:30 PM</span>
-</div>
-</div>
-</div>
-</div>
-
-{/* Primary Momentum Gradient Action Trigger */}
-<div className="pt-2">
-<button className="btn-primary w-full">
-<span className="material-symbols-outlined w-5 h-5 flex-shrink-0 text-white text-[20px] flex items-center justify-center">add_circle</span>
-<span className="text-center leading-snug text-sm sm:text-base">Add Solar Event / National Reminder</span>
-</button>
-</div>
-</div></div></main>
+      )}
     </>
   );
 }

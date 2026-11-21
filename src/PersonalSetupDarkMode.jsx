@@ -1,5 +1,11 @@
-import React from 'react';
-
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useProfileStore } from './store/useProfileStore';
+import { useSettingsStore } from './store/useSettingsStore';
+import { useLocationStore, CITIES_DATA } from './store/useLocationStore';
+import { useTranslation } from 'react-i18next';
+import { useLocaleStore } from './store/useLocaleStore';
+import { SUPPORTED_LOCALES } from './i18n/localeUtils';
+import { toast } from './components/ui/toast/index.js';
 import { 
   User, 
   CheckCircle2, 
@@ -7,135 +13,494 @@ import {
   Compass, 
   MapPin, 
   Lock, 
-  ArrowRight 
+  ArrowRight,
+  Check,
+  Loader2,
+  AlertCircle,
+  Globe
 } from 'lucide-react';
 
+const CURRENCIES = {
+  AFN: { symbol: '؋', name: 'Afghan Afghani', label: 'Default Base Currency (؋ AFN)', fullCode: 'AFN / ؋ (Afghan Afghani)' },
+  USD: { symbol: '$', name: 'US Dollar', label: 'Default Base Currency ($ USD)', fullCode: 'USD / $ (US Dollar)' },
+  EUR: { symbol: '€', name: 'Euro', label: 'Default Base Currency (€ EUR)', fullCode: 'EUR / € (Euro)' },
+  GBP: { symbol: '£', name: 'British Pound', label: 'Default Base Currency (£ GBP)', fullCode: 'GBP / £ (British Pound)' },
+};
+
+const BASE_TIMEZONES = [
+  { id: 'Asia/Kabul', label: 'Asia/Kabul', name: 'Afghanistan Time' },
+  { id: 'Asia/Dubai', label: 'Asia/Dubai', name: 'Gulf Standard Time' },
+  { id: 'Asia/Tehran', label: 'Asia/Tehran', name: 'Iran Standard Time' },
+  { id: 'Asia/Karachi', label: 'Asia/Karachi', name: 'Pakistan Standard Time' },
+  { id: 'Asia/Riyadh', label: 'Asia/Riyadh', name: 'Arabia Standard Time' },
+  { id: 'Asia/Istanbul', label: 'Asia/Istanbul', name: 'Turkey Time' },
+  { id: 'Europe/London', label: 'Europe/London', name: 'Greenwich Mean Time' },
+  { id: 'America/New_York', label: 'America/New_York', name: 'Eastern Time' },
+];
+
+const CITY_OPTIONS = [
+  { id: 'kabul', name: 'Kabul', country: 'Afghanistan', full: 'Kabul, Afghanistan', desc: 'Afghanistan • 34.55° N, 69.21° E' },
+  { id: 'herat', name: 'Herat', country: 'Afghanistan', full: 'Herat, Afghanistan', desc: 'Afghanistan • 34.35° N, 62.20° E' },
+  { id: 'mazar', name: 'Mazar-i-Sharif', country: 'Afghanistan', full: 'Mazar-i-Sharif, Afghanistan', desc: 'Afghanistan • 36.71° N, 67.11° E' },
+  { id: 'kandahar', name: 'Kandahar', country: 'Afghanistan', full: 'Kandahar, Afghanistan', desc: 'Afghanistan • 31.63° N, 65.74° E' },
+  { id: 'jalalabad', name: 'Jalalabad', country: 'Afghanistan', full: 'Jalalabad, Afghanistan', desc: 'Afghanistan • 34.43° N, 70.45° E' },
+  { id: 'makkah', name: 'Makkah', country: 'Saudi Arabia', full: 'Makkah, Saudi Arabia', desc: 'Saudi Arabia • 21.39° N, 39.86° E' },
+  { id: 'madinah', name: 'Madinah', country: 'Saudi Arabia', full: 'Madinah, Saudi Arabia', desc: 'Saudi Arabia • 24.52° N, 39.57° E' },
+  { id: 'dubai', name: 'Dubai', country: 'United Arab Emirates', full: 'Dubai, UAE', desc: 'UAE • 25.20° N, 55.27° E' },
+  { id: 'istanbul', name: 'Istanbul', country: 'Turkey', full: 'Istanbul, Turkey', desc: 'Turkey • 41.01° N, 28.98° E' },
+  { id: 'tehran', name: 'Tehran', country: 'Iran', full: 'Tehran, Iran', desc: 'Iran • 35.69° N, 51.39° E' },
+];
+
 export default function PersonalSetupDarkMode({ setActiveTab }) {
+  const { t } = useTranslation();
+  const currentLocale = useLocaleStore((s) => s.currentLocale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
+
+  const profile = useProfileStore();
+  const updateProfile = useProfileStore((s) => s.updateProfile);
+
+  const baseCurrency = useSettingsStore((s) => s.baseCurrency) || 'AFN';
+  const setBaseCurrency = useSettingsStore((s) => s.setBaseCurrency);
+  const globalTimezone = useSettingsStore((s) => s.timezone) || profile.timezone || 'Asia/Kabul';
+  const setTimezone = useSettingsStore((s) => s.setTimezone);
+  const globalCity = useSettingsStore((s) => s.city) || profile.city || 'Kabul, Afghanistan';
+  const setCity = useSettingsStore((s) => s.setCity);
+  const storedUserName = useSettingsStore((s) => s.userName);
+  const setUserName = useSettingsStore((s) => s.setUserName);
+
+  const [name, setName] = useState(storedUserName || profile.fullName || '');
+  const [currCode, setCurrCode] = useState(baseCurrency);
+  const [isLocating, setIsLocating] = useState(false);
+  const [isTzOpen, setIsTzOpen] = useState(false);
+  const [isCityOpen, setIsCityOpen] = useState(false);
+
+  const isMountedRef = useRef(true);
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const showToast = (message, type = 'success') => {
+    if (type === 'error') toast.error(message);
+    else if (type === 'warning') toast.warning(message);
+    else if (type === 'info') toast.info(message);
+    else toast.success(message);
+  };
+
+  // Dynamic timezone resolution
+  const getTimezoneDesc = (tzId) => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tzId, timeZoneName: 'shortOffset' }).formatToParts(new Date());
+      const part = parts.find((p) => p.type === 'timeZoneName');
+      if (part?.value) return part.value.replace('GMT', 'UTC');
+    } catch (_err) {
+      void _err;
+    }
+    return 'UTC';
+  };
+
+  const detectedDeviceTz = typeof Intl !== 'undefined' && Intl.DateTimeFormat
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : 'Asia/Kabul';
+
+  const timezoneOptions = useMemo(() => {
+    const list = [...BASE_TIMEZONES];
+    if (detectedDeviceTz && !list.some((item) => item.id === detectedDeviceTz)) {
+      list.unshift({
+        id: detectedDeviceTz,
+        label: detectedDeviceTz,
+        name: 'Device Local Timezone',
+      });
+    }
+    return list.map((item) => {
+      const offset = getTimezoneDesc(item.id);
+      return {
+        ...item,
+        desc: `${item.name} (${offset})`,
+      };
+    });
+  }, [detectedDeviceTz]);
+
+  const activeCurr = CURRENCIES[currCode] || CURRENCIES.AFN;
+  const isValidName = name.trim().length > 1;
+
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    setName(val);
+    if (setUserName) setUserName(val);
+    updateProfile({ fullName: val });
+  };
+
+  const handleCurrencySelect = (code) => {
+    setCurrCode(code);
+    if (setBaseCurrency) setBaseCurrency(code);
+    updateProfile({ currency: (CURRENCIES[code] || CURRENCIES.AFN).fullCode });
+  };
+
+  const handleAutoDetect = (e) => {
+    if (e) e.stopPropagation();
+    if (isLocating) return;
+    setIsLocating(true);
+    setIsCityOpen(false);
+
+    const onLocationFailure = (errorMsg = t('onboarding.locationUnavailable', 'Location detection unavailable. Please select city manually.')) => {
+      if (!isMountedRef.current) return;
+      setIsLocating(false);
+      showToast(errorMsg, 'error');
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          if (!isMountedRef.current) return;
+          try {
+            const { latitude, longitude } = position.coords;
+            const res = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+            );
+            if (!isMountedRef.current) return;
+            if (res.ok) {
+              const data = await res.json();
+              const cName = data.city || data.locality || data.principalSubdivision;
+              const country = data.countryName;
+              if (cName && country) {
+                const resolved = `${cName}, ${country}`;
+                if (setCity) setCity(resolved);
+                updateProfile({ city: resolved });
+                try {
+                  useLocationStore.getState().setGpsLocation({
+                    latitude,
+                    longitude,
+                    city: cName,
+                    country: country,
+                  });
+                } catch (e) {
+                  void e;
+                }
+                setIsLocating(false);
+                showToast(t('onboarding.locationDetected', 'Location detected: {{location}} ✓', { location: resolved }), 'success');
+                return;
+              }
+            }
+            onLocationFailure(t('onboarding.geocodingUnavailable', 'Reverse-geocoding service unavailable.'));
+          } catch {
+            onLocationFailure(t('onboarding.networkErrorLocation', 'Network error while resolving location.'));
+          }
+        },
+        (geoError) => {
+          let msg = t('onboarding.locationUnavailable', 'Location detection unavailable. Please select city manually.');
+          if (geoError?.code === 1) {
+            msg = t('onboarding.locationPermissionDenied', 'Location permission denied. Please select city manually.');
+          } else if (geoError?.code === 3) {
+            msg = t('onboarding.locationTimeout', 'Location request timed out. Please select city manually.');
+          }
+          onLocationFailure(msg);
+        },
+        { timeout: 5000, enableHighAccuracy: false }
+      );
+    } else {
+      onLocationFailure(t('onboarding.geolocationNotSupported', 'Geolocation is not supported on this device.'));
+    }
+  };
+
+  const handleSelectTimezone = (tz) => {
+    const offset = getTimezoneDesc(tz.id);
+    const formatted = `${tz.label} (${offset})`;
+    if (setTimezone) setTimezone(formatted);
+    updateProfile({ timezone: formatted });
+    setIsTzOpen(false);
+  };
+
+  const handleSelectCity = (cityItem) => {
+    if (setCity) setCity(cityItem.full);
+    updateProfile({ city: cityItem.full });
+    try {
+      const matched = CITIES_DATA.find(
+        (c) => c.name.toLowerCase() === cityItem.name.toLowerCase() || cityItem.full.toLowerCase().includes(c.name.toLowerCase())
+      );
+      if (matched) {
+        useLocationStore.getState().setSelectedCity(matched);
+      }
+    } catch (e) {
+      void e;
+    }
+    setIsCityOpen(false);
+    showToast(t('onboarding.citySelected', 'City selected: {{city}} ✓', { city: cityItem.full }), 'success');
+  };
+
+  const getCityDesc = (cityStr) => {
+    const match = CITY_OPTIONS.find((c) => c.full.toLowerCase() === (cityStr || '').toLowerCase() || c.name.toLowerCase() === (cityStr || '').toLowerCase());
+    return match ? match.desc : 'Afghanistan • 34.55° N, 69.21° E';
+  };
+
+  const handleContinue = () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setTimeout(() => { isSubmittingRef.current = false; }, 800);
+
+    const finalName = name.trim();
+    updateProfile({
+      fullName: finalName,
+      currency: activeCurr.fullCode,
+      timezone: globalTimezone,
+      city: globalCity,
+      onboardingStep: 'security_setup',
+    });
+    if (setUserName) setUserName(finalName);
+    if (setBaseCurrency) setBaseCurrency(currCode);
+    if (setTimezone) setTimezone(globalTimezone);
+    if (setCity) setCity(globalCity);
+
+    if (setActiveTab) {
+      setActiveTab('pin_setup_change_dark_mode');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-between pb-8 pt-3">
-      <div className="w-full">
-        {/* TOP BRANDING & WELCOME HEADER */}
-        <div className="pt-8 pb-5 px-5 text-center flex flex-col items-center">
-          {/* Momentum App Icon / Logo Badge */}
-          <img 
-            src="/logo.png" 
-            alt="Momentum Logo" 
-            className="w-16 h-16 object-cover rounded-2xl aspect-square flex-shrink-0 shadow-lg shadow-indigo-900/40 mb-4 ring-4 ring-slate-950"
-          />
-
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Welcome to Momentum
-          </h1>
-          <p className="text-xs font-normal text-slate-400 max-w-xs mx-auto mt-1.5 leading-relaxed">
-            Personalize your space for mindful routines, accurate prayer schedules, and daily finances.
-          </p>
-        </div>
-
-        {/* STANDARDIZED SETUP CONFIGURATION CARD */}
-        <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
+    <div className="w-full min-h-full px-4 pt-6 pb-8 flex flex-col items-center justify-between select-none">
+      <div className="w-full max-w-sm flex flex-col items-center space-y-4">
+        {/* PROGRESS STEPPER ({t('onboarding.step1of2', 'Step 1 of 2')}w-full flex items-center justify-between px-1">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-[11px] font-bold text-primary uppercase tracking-widest">{t('onboarding.step1of2', 'Step 1 of 2')}text-[11px] font-semibold text-slate-400">{t('onboarding.personalSetup', 'Personal Setup')}text-center space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-white">{t('onboarding.welcomeTitle', 'Welcome to Momentum')}</h1>
+<p className="text-xs text-slate-300 font-normal">
+            {t('onboarding.welcomeSubtitle', 'Personalize your experience with clean, local defaults.')}w-full space-y-3.5 pt-1">
           
-          {/* SECTION A: YOUR NAME ROW */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-950/40 text-indigo-400 flex items-center justify-center flex-shrink-0">
+          {/* 0. LANGUAGE SELECTION */}
+          <div className="space-y-1.5" data-testid="onboarding-language-picker">
+            <label className="text-[10px] font-bold tracking-wider text-slate-300 uppercase px-1 flex items-center justify-between">
+              <span>{t('onboarding.chooseLanguage')}</span>
+<span className="text-primary font-mono text-[9px]">{currentLocale.toUpperCase()}</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {SUPPORTED_LOCALES.map((loc) => {
+                const isSelected = currentLocale === loc.code;
+                return (
+                  <button
+                    key={loc.code}
+                    type="button"
+                    onClick={() => setLocale(loc.code)}
+                    className={`py-2 px-1.5 rounded-xl border text-center transition-all cursor-pointer pointer-events-auto flex flex-col items-center justify-center ${
+                      isSelected
+                        ? 'bg-primary/20 border-primary text-white shadow-sm shadow-primary/20'
+                        : 'bg-black/40 border-white/10 text-slate-400 hover:text-white hover:border-white/20'
+                    }`}
+                  >
+                    <span className="text-xs font-bold leading-tight">{loc.nativeName}</span>
+                    <span className="text-[9px] text-slate-400 font-mono mt-0.5">{loc.code === 'en' ? 'EN' : loc.code === 'ps-AF' ? 'پښتو' : 'دری'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 1. DISPLAY NAME CARD */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold tracking-wider text-slate-300 uppercase px-1">
+              {t('onboarding.displayName', 'Your Display Name')}
+            </label>
+            <div className="relative flex items-center">
+              <div className="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
                 <User className="w-4 h-4"/>
               </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Your Name</span>
-                <p className="text-sm font-semibold text-white mt-0.5">Aisha Mohammed</p>
-              </div>
+              <input
+                type="text"
+                value={name}
+                onChange={handleNameChange}
+                placeholder={t('onboarding.enterYourName', 'Enter your name')} 
+                className="w-full h-12 pl-10 pr-10 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-white placeholder-slate-500 text-sm font-medium outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all shadow-sm"
+              />
+              {isValidName && (
+                <div className="absolute right-3.5 flex items-center pointer-events-none text-teal-400">
+                  <CheckCircle2 className="w-4 h-4"/>
+                </div>
+              )}
             </div>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 shadow-2xs">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400"/>
-              Verified
-            </span>
           </div>
 
-          {/* SECTION B: PREFERRED CURRENCY SELECTOR */}
-          <div className="p-4 rounded-2xl space-y-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-violet-950/40 text-violet-400 font-bold text-sm flex items-center justify-center flex-shrink-0">
-                  ؋
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Preferred Currency</span>
-                  <h3 className="text-sm font-semibold text-white mt-0.5">Afghan Afghani</h3>
-                  <span className="text-[11px] font-normal text-slate-400">Default Base Currency (؋ AFN)</span>
-                </div>
-              </div>
-              <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0"/>
-            </div>
-
+          {/* 2. BASE CURRENCY CARD */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold tracking-wider text-slate-300 uppercase px-1">
+              {t('onboarding.preferredCurrency', 'Preferred Currency')}
+            </label>
             {/* Quick Currency Selector Grid */}
-            <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-700/60">
-              <button className="py-2 px-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs shadow-xs text-center">
-                ؋ AFN
-              </button>
-              <button className="py-2 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 font-medium text-xs text-center transition-colors">
-                $ USD
-              </button>
-              <button className="py-2 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 font-medium text-xs text-center transition-colors">
-                € EUR
-              </button>
-              <button className="py-2 px-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 font-medium text-xs text-center transition-colors">
-                £ GBP
-              </button>
+            <div className="grid grid-cols-4 gap-2">
+              {Object.keys(CURRENCIES).map((code) => {
+                const item = CURRENCIES[code];
+                const isSelected = currCode === code;
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => handleCurrencySelect(code)}
+                    className={`h-11 rounded-2xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-primary/20 border-primary text-primary font-bold shadow-md shadow-primary/20 scale-[1.02]'
+                        : 'bg-black/40 border-white/10 text-slate-300 hover:bg-white/5 font-medium'
+                    }`}
+                  >
+                    <span className="text-xs font-bold leading-tight">{code}</span>
+                    <span className="text-[10px] opacity-75 font-serif leading-none mt-0.5">{item.symbol}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* SECTION C: PRAYER & CALENDAR TIMEZONE */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-950/40 text-amber-400 flex items-center justify-center flex-shrink-0">
-                <Compass className="w-4 h-4"/>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Prayer & Calendar Timezone</span>
-                <p className="text-sm font-semibold text-white mt-0.5">Asia/Kabul</p>
-                <span className="text-[11px] font-normal text-slate-400">Afghanistan Time (UTC +04:30)</span>
-              </div>
+          {/* 3. TIMEZONE CARD */}
+          <div className="space-y-1.5 relative">
+            <div className="flex items-center justify-between px-1">
+              <label className="text-[10px] font-bold tracking-wider text-slate-300 uppercase">
+                {t('onboarding.timezone', 'Timezone')}
+              </label>
+              <span className="text-[9px] font-semibold text-teal-400 tracking-wide uppercase">
+                {getTimezoneDesc(globalTimezone.split(' ')[0])}
+              </span>
             </div>
-            <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0"/>
-          </div>
 
-          {/* SECTION D: CURRENT CITY & DETECTION */}
-          <div className="p-3.5 rounded-2xl flex items-center justify-between bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-rose-950/40 text-rose-400 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-4 h-4"/>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Current City</span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-teal-950/40 border border-teal-500/30 text-teal-400">
-                    Auto-detected
-                  </span>
+            <div className="relative">
+              <div 
+                data-testid="tz-trigger"
+                onClick={() => { setIsTzOpen(!isTzOpen); setIsCityOpen(false); }}
+                className="p-3 rounded-2xl flex items-center justify-between bg-black/40 backdrop-blur-xl border border-white/10 shadow-sm cursor-pointer active:scale-[0.99] transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-950/40 text-indigo-400 flex items-center justify-center flex-shrink-0">
+                    <Compass className="w-4 h-4"/>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">{globalTimezone}</p>
+                    <span className="text-[10px] font-normal text-slate-400">{getTimezoneDesc(globalTimezone.split(' ')[0])}</span>
+                  </div>
                 </div>
-                <p className="text-sm font-semibold text-white mt-0.5">Kabul, Afghanistan</p>
+                <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isTzOpen ? 'rotate-180 text-primary' : ''}`}/>
               </div>
+
+              {/* Inline Overlaid Timezone Dropdown Menu */}
+              {isTzOpen && (
+                <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-[100] p-1.5 rounded-2xl max-h-48 overflow-y-auto bg-slate-900 border border-slate-700/80 shadow-2xl space-y-1">
+                  {timezoneOptions.map((tz) => {
+                    const isSelected = globalTimezone.includes(tz.id);
+                    return (
+                      <div
+                        key={tz.id}
+                        onClick={() => handleSelectTimezone(tz)}
+                        className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-primary/20 text-white font-semibold border border-primary/40'
+                            : 'text-slate-300 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <div>
+                          <p className="text-xs font-semibold text-white">{tz.label}</p>
+                          <span className="text-[10px] text-slate-400">{tz.desc}</span>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">
-              Change
-            </button>
           </div>
+
+          {/* 4. CITY SELECTION CARD */}
+          <div className="space-y-1.5 relative">
+            <div className="flex items-center justify-between px-1">
+              <label className="text-[10px] font-bold tracking-wider text-slate-300 uppercase">
+                {t('onboarding.locationCoordinates', 'Location & Coordinates')}
+              </label>
+              <button
+                type="button"
+                onClick={handleAutoDetect}
+                disabled={isLocating}
+                className="text-[10px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                {isLocating ? (
+                  <>
+                    <Loader2 className="w-2.5 h-2.5 animate-spin"/>
+                    <span>{t('onboarding.detecting', 'Detecting...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Compass className="w-2.5 h-2.5" />
+                    <span>{t('onboarding.autoDetect', 'Auto-Detect')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="relative">
+              <div 
+                data-testid="city-trigger"
+                onClick={() => { setIsCityOpen(!isCityOpen); setIsTzOpen(false); }}
+                className="p-3 rounded-2xl flex items-center justify-between bg-black/40 backdrop-blur-xl border border-white/10 shadow-sm cursor-pointer active:scale-[0.99] transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-rose-950/40 text-rose-400 flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-4 h-4"/>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">{globalCity}</p>
+                    <span className="text-[10px] font-normal text-slate-400">{getCityDesc(globalCity)}</span>
+                  </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isCityOpen ? 'rotate-180 text-primary' : ''}`}/>
+              </div>
+
+              {/* Inline Overlaid City Dropdown Menu */}
+              {isCityOpen && (
+                <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-[100] p-1.5 rounded-2xl max-h-48 overflow-y-auto bg-slate-900 border border-slate-700/80 shadow-2xl space-y-1">
+                  {CITY_OPTIONS.map((city) => {
+                    const isSelected = globalCity?.toLowerCase().includes(city.name.toLowerCase());
+                    return (
+                      <div
+                        key={city.id}
+                        onClick={() => handleSelectCity(city)}
+                        className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-primary/20 text-white font-semibold border border-primary/40'
+                            : 'text-slate-300 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <div>
+                          <p className="text-xs font-semibold text-white">{city.full}</p>
+                          <span className="text-[10px] text-slate-400">{city.desc}</span>
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
         {/* ENCRYPTION & LOCAL STORAGE NOTICE */}
-        <div className="mx-5 mb-6 flex items-start gap-2.5 px-2 text-slate-500">
-          <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500"/>
-          <p className="text-[11px] font-normal leading-relaxed">
-            Stored locally & encrypted securely. You can modify prayer calculation algorithms & currency anytime in Settings.
+        <div className={`flex items-center gap-1.5 px-2 text-slate-200/90 drop-shadow-sm transition-opacity duration-200 ${isTzOpen || isCityOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <Lock className="w-3 h-3 flex-shrink-0 text-slate-200"/>
+          <p className="text-[10px] font-medium leading-tight text-slate-200/90">
+            {t('onboarding.storedLocally', 'Stored locally on your device. You can modify settings anytime.')}
           </p>
         </div>
-      </div>
 
-      <div className="px-5 w-full">
-        <button onClick={() => setActiveTab && setActiveTab('home')} className="w-full h-14 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg shadow-indigo-950/60 hover:scale-[1.02] active:scale-[0.98] transition-all">
-          <span>Continue to Dashboard</span>
-          <ArrowRight className="w-4 h-4 stroke-[2.2]"/>
-        </button>
-      </div>
+        <div className="w-full max-w-sm pt-4">
+          <button
+            type="button"
+            onClick={handleContinue}
+            className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <span>{t('onboarding.continue', 'Continue')}</span>
+            <ArrowRight className="w-5 h-5 stroke-[2.2]"/>
+          </button>
+        </div>
     </div>
   );
 }

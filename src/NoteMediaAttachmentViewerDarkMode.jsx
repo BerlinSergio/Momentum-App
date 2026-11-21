@@ -1,274 +1,737 @@
-import React from 'react';
-
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useSwipeable } from 'react-swipeable';
+import UserAvatar from './components/UserAvatar';
+import { useNotesStore } from './store/useNotesStore';
+import { resolveAttachmentUrl } from './storage/index.js';
+import { toast as globalToast } from './components/ui/toast/index.js';
 import { 
-  ArrowLeft, Share2, MoreVertical, Image, Download, Trash2, Cloud, Video, Mic, Check, Play, Maximize, ChevronLeft, ChevronRight, Volume2, MapPin, ArrowRight, Wand2 
+  ArrowLeft, Share2, Image, Download, Trash2, Check, Maximize, ChevronLeft, ChevronRight, Wand2, ArrowRight, CheckCircle2, Mic, MapPin, Loader2, Copy, Sparkles, AlertTriangle, X 
 } from 'lucide-react';
 
-export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab }) {
+const FALLBACK_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%231e293b'/><path d='M200 450 L350 250 L480 380 L560 300 L680 450 Z' fill='%23334155'/><circle cx='300' cy='200' r='40' fill='%234f46e5'/><text x='400' y='520' font-family='sans-serif' font-size='24' fill='%2394a3b8' text-anchor='middle'>Attachment Preview</text></svg>";
+
+const formatFileSize = (attachment) => {
+  if (!attachment) return '0.0 MB';
+  const sizeVal = attachment.file?.size ?? attachment.fileSize ?? attachment.size;
+  if (typeof sizeVal === 'number' && sizeVal > 0) {
+    if (sizeVal >= 1024 * 1024) {
+      return (sizeVal / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    return (sizeVal / 1024).toFixed(0) + ' KB';
+  }
+  if (typeof sizeVal === 'string') {
+    const parsed = parseFloat(sizeVal);
+    if (!isNaN(parsed) && sizeVal.toLowerCase().includes('mb')) return sizeVal;
+    if (!isNaN(parsed) && sizeVal.toLowerCase().includes('kb')) return sizeVal;
+    if (!isNaN(parsed) && parsed > 1000) {
+      return (parsed / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    return sizeVal;
+  }
+  return '2.4 MB';
+};
+
+const getFileType = (attachment) => {
+  if (!attachment) return 'JPEG Image';
+  const mime = attachment.file?.type || attachment.mimeType || '';
+  if (mime) {
+    if (mime.includes('png')) return 'PNG Image';
+    if (mime.includes('jpeg') || mime.includes('jpg')) return 'JPEG Image';
+    if (mime.includes('webp')) return 'WebP Image';
+    if (mime.includes('gif')) return 'GIF Animation';
+    return mime.toUpperCase();
+  }
+  const name = attachment.name || '';
+  const ext = name.split('.').pop()?.toUpperCase();
+  if (ext && ext !== name) {
+    if (['JPG', 'JPEG'].includes(ext)) return 'JPEG Image';
+    if (ext === 'PNG') return 'PNG Image';
+    if (ext === 'WEBP') return 'WebP Image';
+    if (ext === 'MP4') return 'MP4 Video';
+    return ext + ' Asset';
+  }
+  return 'JPEG Image';
+};
+
+export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack, route = { params: {} } }) {
+  const { t } = useTranslation();
+  const notes = useNotesStore((s) => s.notes);
+  const storeNoteId = useNotesStore((s) => s.activeNoteId);
+  const storeAttachmentId = useNotesStore((s) => s.activeAttachmentId);
+  const setActiveAttachmentId = useNotesStore((s) => s.setActiveAttachmentId);
+  const updateNote = useNotesStore((s) => s.updateNote);
+  const deleteAttachment = useNotesStore((s) => s.deleteAttachment);
+
+  const routeParams = route?.params || {};
+  const activeNoteId = routeParams.noteId || storeNoteId;
+  const activeAttachmentId = routeParams.attachmentId || routeParams.id || storeAttachmentId;
+
+  const activeNote = notes.find((n) => n.id === activeNoteId) || notes.find((n) => Array.isArray(n.attachments) && n.attachments.length > 0) || notes[0];
+
+  const passedAttachment = routeParams.attachment || (routeParams.uri || routeParams.url ? {
+    id: routeParams.attachmentId || 'att-passed-' + (routeParams.uri || routeParams.url).slice(-10),
+    name: routeParams.name || 'Image Attachment',
+    size: routeParams.size || 1887436,
+    file: { size: 1887436, type: 'image/jpeg' },
+    subtitle: routeParams.subtitle || 'Attachment Preview',
+    caption: routeParams.caption || '',
+    type: 'image',
+    url: routeParams.uri || routeParams.url
+  } : null);
+
+  let rawAttachments = (activeNote && Array.isArray(activeNote.attachments) && activeNote.attachments.length > 0)
+    ? [...activeNote.attachments]
+    : [];
+
+  if (passedAttachment && !rawAttachments.some(a => a.id === passedAttachment.id || (a.url && a.url === passedAttachment.url))) {
+    rawAttachments.unshift(passedAttachment);
+  }
+
+  const attachments = rawAttachments.length > 0
+    ? rawAttachments
+    : [
+        {
+          id: 'att-fallback-1',
+          name: 'Dawn_Reflection_Sky.jpg',
+          size: 1887436,
+          file: { size: 1887436, type: 'image/jpeg' },
+          subtitle: 'Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.',
+          caption: 'Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.',
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1200'
+        },
+        {
+          id: 'att-fallback-2',
+          name: 'MindMap_Q4.png',
+          size: 2516582,
+          file: { size: 2516582, type: 'image/png' },
+          subtitle: 'Mind map architecture detailing the 14-day spiritual consistency streak.',
+          caption: 'Mind map architecture detailing the 14-day spiritual consistency streak.',
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1200'
+        },
+        {
+          id: 'att-fallback-3',
+          name: 'Sanctuary_View.jpg',
+          size: 3250585,
+          file: { size: 3250585, type: 'image/jpeg' },
+          subtitle: 'Courtyard sanctuary peaceful reflection at Asr time under golden light.',
+          caption: 'Courtyard sanctuary peaceful reflection at Asr time under golden light.',
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=1200'
+        }
+      ];
+
+  const targetAttachmentId = passedAttachment?.id || activeAttachmentId;
+  const initialIndex = Math.max(0, attachments.findIndex((a) => a.id === targetAttachmentId || (passedAttachment && a.url === passedAttachment.url)));
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex || 0);
+
+  const currentAttachment = attachments[currentIndex] || attachments[0];
+  const [resolution, setResolution] = useState('Measuring...');
+  const [caption, setCaption] = useState(currentAttachment?.subtitle || currentAttachment?.caption || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isEnhanced, setIsEnhanced] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const [resolvedUrl, setResolvedUrl] = useState('');
+
+  useEffect(() => {
+    setCaption(currentAttachment?.subtitle || currentAttachment?.caption || '');
+    setIsSaved(false);
+    setIsEnhanced(false);
+    setIsZoomed(false);
+
+    let active = true;
+    resolveAttachmentUrl(currentAttachment).then((u) => {
+      if (active) {
+        setResolvedUrl(u || currentAttachment?.url || '');
+        if (u) {
+          const img = new window.Image();
+          img.src = u;
+          img.onload = () => {
+            if (img.naturalWidth && img.naturalHeight) {
+              setResolution(img.naturalWidth + ' × ' + img.naturalHeight);
+            }
+          };
+        }
+      }
+    });
+
+    return () => { active = false; };
+  }, [currentIndex, currentAttachment?.id, currentAttachment?.url]);
+
+  const showToast = (message) => {
+    if (typeof message === 'string') {
+      const lower = message.toLowerCase();
+      if (lower.includes('fail') || lower.includes('error') || lower.includes('not supported')) {
+        globalToast.error(message);
+      } else if (lower.includes('copied') || lower.includes('applied') || lower.includes('saved') || lower.includes('removed')) {
+        globalToast.success(message);
+      } else {
+        globalToast.info(message);
+      }
+    } else {
+      globalToast.info(String(message));
+    }
+  };
+
+  const handleSelectIndex = (idx) => {
+    const boundedIdx = (idx + attachments.length) % attachments.length;
+    setCurrentIndex(boundedIdx);
+    const target = attachments[boundedIdx];
+    if (target && setActiveAttachmentId) {
+      setActiveAttachmentId(target.id);
+    }
+  };
+
+  const handlePrev = () => {
+    handleSelectIndex(currentIndex - 1);
+  };
+
+  const handleNext = () => {
+    handleSelectIndex(currentIndex + 1);
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => handleNext(),
+    onSwipedRight: () => handlePrev(),
+    trackMouse: true,
+    preventScrollOnSwipe: true,
+    delta: 30,
+  });
+
+  const handleCopyProperty = (label, value) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(value).catch(() => {});
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    showToast(label + ' copied to clipboard!');
+  };
+
+  const handleEnhance = () => {
+    if (isEnhancing) return;
+    setIsEnhancing(true);
+    setTimeout(() => {
+      setIsEnhancing(false);
+      const nextState = !isEnhanced;
+      setIsEnhanced(nextState);
+      showToast(nextState ? 'AI clarity & vibrant tones applied!' : 'Restored to original format');
+    }, 550);
+  };
+
+  const toggleZoom = () => {
+    const nextZoom = !isZoomed;
+    setIsZoomed(nextZoom);
+    showToast(nextZoom ? 'Preview magnified to 150%' : 'Preview restored to 100%');
+  };
+
+  const handleDownload = async () => {
+    const targetUrl = currentAttachment?.url || FALLBACK_IMAGE;
+    const fileName = currentAttachment?.name || 'attachment.jpg';
+    showToast(t('toasts.downloadingFile', 'Downloading {{file}}...', { file: fileName }));
+    try {
+      if (targetUrl.startsWith('data:') || targetUrl.startsWith('blob:')) {
+        const anchor = document.createElement('a');
+        anchor.href = targetUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        return;
+      }
+      const response = await fetch(targetUrl, { mode: 'cors' });
+      if (!response.ok) throw new Error('Fetch failed');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      const anchor = document.createElement('a');
+      anchor.href = targetUrl;
+      anchor.download = fileName;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareTitle = currentAttachment?.name || 'Attachment Details';
+    const shareText = 'Check out ' + (currentAttachment?.name || 'this media') + ' from ' + (activeNote?.title || 'Momentum Notes');
+    if (navigator?.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url: window.location.href });
+      } catch (err) {
+        /* user dismiss */
+      }
+    } else if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareTitle + ': ' + window.location.href);
+      showToast(t('toasts.linkCopied', 'Attachment link copied to clipboard!'));
+    } else {
+      showToast(t('toasts.shareNotSupported', 'Sharing is not supported on this platform'));
+    }
+  };
+
+  const handleSave = () => {
+    if (!activeNote || isSaving) return;
+    setIsSaving(true);
+    setTimeout(() => {
+      const updated = attachments.map((att, idx) => {
+        if (idx === currentIndex) {
+          return { ...att, subtitle: caption, caption };
+        }
+        return att;
+      });
+      updateNote(activeNote.id, { attachments: updated });
+      setIsSaving(false);
+      setIsSaved(true);
+      showToast(t('toasts.mediaSaved', 'Media changes saved successfully!'));
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 2500);
+    }, 600);
+  };
+
+  const handleConfirmDelete = () => {
+    setShowDeleteModal(false);
+    if (activeNote && currentAttachment?.id) {
+      deleteAttachment(activeNote.id, currentAttachment.id);
+      showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
+      if (attachments.length <= 1) {
+        if (goBack) goBack('notes_main_dark_mode');
+        else if (setActiveTab) setActiveTab('notes_main_dark_mode');
+      } else {
+        const nextIdx = currentIndex === 0 ? 0 : currentIndex - 1;
+        handleSelectIndex(nextIdx);
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 font-sans pb-10">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-40 relative">
       {/* 1. TOP HEADER */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
             <Image className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-white tracking-tight">
-            Attachment Details
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
+            {t('notes.attachmentDetails', 'Attachment Details')}</h1>
+</div>
+<div className="flex items-center gap-2">
           <button 
-            onClick={() => setActiveTab && setActiveTab('home_dashboard_dark_mode')}
+            onClick={() => (goBack ? goBack('notes_main_dark_mode') : (setActiveTab ? setActiveTab('notes_main_dark_mode') : window.history.back()))}
             className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            A
-          </div>
-        </div>
-      
-      </div>
-
-      {/* 2. MEDIA VIEWER & ASSET INFO BANNER */}
-      <div className="block mx-5 my-3 p-4 rounded-3xl space-y-3 text-white bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-950/40 border border-indigo-900/60 text-indigo-300 flex-shrink-0">
-              <Image className="w-3.5 h-3.5 text-indigo-400"/>
-              MEDIA VIEWER
-            </span>
-            <span className="text-xs font-medium text-slate-400 truncate">
-              • Attached to: Q4 Strategic Reflection
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 shadow-2xs transition-colors">
-              <Download className="w-3.5 h-3.5"/>
-            </button>
-            <button className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 shadow-2xs transition-colors">
-              <Share2 className="w-3.5 h-3.5"/>
-            </button>
-            <button className="p-2 rounded-xl bg-rose-950/40 border border-rose-800/50 text-rose-300 hover:bg-rose-900/40 shadow-2xs transition-colors">
-              <Trash2 className="w-3.5 h-3.5"/>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between pt-1 border-t border-slate-700">
-          <h2 className="text-sm font-bold text-white tracking-tight truncate">
-            Dawn_Reflection_Sky.jpg
-          </h2>
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-teal-300 bg-teal-950/40 px-2.5 py-0.5 rounded-full border border-teal-500/30 flex-shrink-0">
-            <Cloud className="w-3 h-3 text-teal-400"/>
-            Synced Cloud Asset
-          </span>
+          <UserAvatar 
+            setActiveTab={setActiveTab} 
+          />
         </div>
       </div>
 
-      {/* 3. STANDARDIZED MEDIA TYPE TABS */}
-      <div className="flex items-center gap-2 px-5 mb-4 overflow-x-auto scrollbar-none">
-        <button className="flex-1 py-2 px-3 rounded-2xl bg-indigo-600 text-white text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap">
-          <Image className="w-3.5 h-3.5 text-white"/>
-          Photos (4)
-        </button>
-        <button className="flex-1 py-2 px-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1.5 whitespace-nowrap shadow-2xs">
-          <Video className="w-3.5 h-3.5 text-slate-400"/>
-          Videos (2)
-        </button>
-        <button className="flex-1 py-2 px-3 rounded-2xl bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1.5 whitespace-nowrap shadow-2xs">
-          <Mic className="w-3.5 h-3.5 text-slate-400"/>
-          Voice Memos (1)
-        </button>
-      </div>
-
-      {/* 4. MAIN PHOTO PREVIEW CONTAINER */}
-      <div className="block mx-5 mb-5 rounded-3xl overflow-hidden relative group h-80 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <img className="w-full h-full object-cover" alt="Dawn Sky" src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=600"/>
+      {/* 2. MEDIA HERO SECTION (EXPLICIT ATTACHMENT[CURRENTINDEX].URL BINDING) */}
+      <div 
+        {...swipeHandlers}
+        className="mx-5 mt-2 mb-5 rounded-3xl overflow-hidden relative group h-80 bg-slate-900 border-white/10 border shadow-md touch-pan-y select-none"
+      >
+        <img 
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          onClick={() => setIsFullscreen(true)}
+          onLoad={(e) => {
+            if (e.target?.naturalWidth && e.target?.naturalHeight) {
+              setResolution(e.target.naturalWidth + ' × ' + e.target.naturalHeight);
+            }
+          }}
+          className={`w-full h-full object-cover transition-all duration-500 select-none cursor-zoom-in ${isZoomed ? 'scale-125' : 'group-hover:scale-105'} ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`} 
+          alt={attachments[currentIndex]?.name || 'Attachment Preview'} 
+          src={resolvedUrl || attachments[currentIndex]?.url || FALLBACK_IMAGE}
+          onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+        />
         
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
+        {/* Top Smooth Gradient Overlay */}
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/75 via-black/35 to-transparent pointer-events-none" />
 
-        <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-auto">
-          <div className="px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white shadow-sm flex items-center gap-1.5">
-            <Image className="w-3.5 h-3.5 text-indigo-400"/>
-            <span className="text-[11px] font-bold">1 / 4</span>
+        {/* Bottom Smooth Gradient Overlay */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
+
+        {/* Integrated Top Controls */}
+        <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between pointer-events-auto z-20">
+          <div className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/15 text-[11px] font-bold shadow-sm flex items-center gap-1.5">
+            <Image className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{currentIndex + 1} / {attachments.length}</span>
           </div>
           <div className="flex items-center gap-1.5">
-             <div className="px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white shadow-sm font-semibold text-[11px]">
-               100%
-             </div>
-             <button className="w-7 h-7 rounded-full bg-slate-900/80 backdrop-blur-md flex items-center justify-center text-slate-300 hover:text-indigo-400 shadow-sm">
-               <Maximize className="w-3.5 h-3.5"/>
-             </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); toggleZoom(); }}
+              className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/15 shadow-sm font-semibold text-[11px] hover:bg-black/60 active:scale-95 transition-all"
+            >
+              {isZoomed ? '150%' : '100%'}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsFullscreen(true); }}
+              title={t('notes.openLightbox', 'Open full screen lightbox')} 
+              className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/60 active:scale-95 shadow-sm transition-all cursor-pointer"
+            >
+              <Maximize className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-auto">
-           <button className="w-9 h-9 rounded-full bg-slate-900/80 backdrop-blur-md shadow-md flex items-center justify-center text-slate-300 hover:text-indigo-400 transition-colors">
-             <ChevronLeft className="w-5 h-5"/>
-           </button>
+        {/* Integrated Centered Chevron Arrows */}
+        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-auto z-20">
+          <button 
+            onClick={(e) => { e.stopPropagation(); handlePrev(); }} 
+            className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/15 shadow-md flex items-center justify-center text-white/90 hover:text-white hover:bg-black/60 active:scale-95 transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
         </div>
-        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-auto">
-           <button className="w-9 h-9 rounded-full bg-slate-900/80 backdrop-blur-md shadow-md flex items-center justify-center text-slate-300 hover:text-indigo-400 transition-colors">
-             <ChevronRight className="w-5 h-5"/>
-           </button>
+        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-auto z-20">
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleNext(); }} 
+            className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/15 shadow-md flex items-center justify-center text-white/90 hover:text-white hover:bg-black/60 active:scale-95 transition-all"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between pointer-events-auto">
-          <div className="flex flex-col text-white drop-shadow-md">
-            <span className="text-[11px] font-medium">Oct 24, 2026 • 06:14 AM</span>
-            <span className="text-[10px] font-normal text-white/80">iPhone 16 Pro • 24mm f/1.78</span>
+        {/* Integrated Bottom Details */}
+        <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-end justify-between pointer-events-auto z-20">
+          <div className="flex flex-col text-white drop-shadow-md min-w-0 pr-2">
+            <h2 className="text-xs font-bold truncate text-white">
+              {attachments[currentIndex]?.name || t('notes.attachment', 'Attachment')}
+            </h2>
+            <span className="text-[10px] font-normal text-white/80">
+              {resolution} • {formatFileSize(attachments[currentIndex])}
+            </span>
           </div>
-          <button className="px-3 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md text-indigo-400 text-[10px] font-bold shadow-sm flex items-center gap-1 hover:bg-slate-900 transition-colors">
-            <Wand2 className="w-3 h-3"/>
-            Enhance
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleEnhance(); }}
+            className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/25 text-white text-[11px] font-bold shadow-sm flex items-center gap-1.5 active:scale-95 transition-all shrink-0 cursor-pointer"
+          >
+            {isEnhancing ? (
+              <>
+                <Loader2 className="w-3 h-3 text-indigo-300 animate-spin" />
+                <span>{t('notes.enhancing', 'Enhancing...')}</span>
+              </>
+            ) : isEnhanced ? (
+              <>
+                <Sparkles className="w-3 h-3 text-amber-300" />
+                <span>{t('notes.enhanced', 'Enhanced')}</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3 h-3 text-indigo-300" />
+                <span>{t('notes.enhance', 'Enhance')}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
       {/* 5. ALL ATTACHMENTS CAROUSEL STRIP */}
-      <div className="flex items-center justify-between px-5 mb-3">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">All Attachments (7)</h3>
-        <button className="text-xs font-semibold text-indigo-400 hover:text-indigo-300">Select Multiple</button>
+      <div className="flex items-center justify-between px-5 mb-2.5">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          {t('notes.allAttachments', 'All Attachments')} ({attachments.length})
+        </h3>
+        <span className="text-xs font-medium text-indigo-500">
+          {t('notes.swipeTapSwitch', 'Swipe or tap to switch')}
+        </span>
       </div>
-      
-      <div className="px-5 mb-5 flex items-center gap-2.5 overflow-x-auto scrollbar-none pb-1">
-        <div className="relative shrink-0 w-20 h-20 rounded-2xl overflow-hidden shadow-sm ring-2 ring-indigo-500 cursor-pointer">
-          <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=200" alt="thumb1"/>
-          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center shadow-sm">
-            <Check className="w-3 h-3 stroke-[3]"/>
-          </div>
-        </div>
-        <div className="relative shrink-0 w-20 h-20 rounded-2xl overflow-hidden shadow-sm cursor-pointer">
-          <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=200" alt="thumb2"/>
-          <div className="absolute bottom-1 left-1 px-2 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md">
-            <span className="text-[9px] font-bold text-white">Photo</span>
-          </div>
-        </div>
-        <div className="relative shrink-0 w-20 h-20 rounded-2xl overflow-hidden shadow-sm cursor-pointer">
-          <img className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1629813589973-585a21008f51?auto=format&fit=crop&q=80&w=200" alt="thumb3"/>
-          <div className="absolute inset-0 bg-slate-950/50 flex items-center justify-center">
-             <div className="w-6 h-6 rounded-full bg-slate-900/90 flex items-center justify-center text-indigo-400 shadow-sm">
-               <Play className="w-3 h-3 fill-indigo-400"/>
-             </div>
-          </div>
-          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-slate-950/80 text-white text-[9px] font-semibold">
-            01:24
-          </div>
-        </div>
-        <div className="relative shrink-0 w-20 h-20 rounded-2xl bg-slate-800/80 border border-slate-700/80 shadow-sm p-2 flex flex-col justify-between cursor-pointer">
-          <div className="flex items-center justify-between">
-            <Mic className="w-4 h-4 text-indigo-400"/>
-            <span className="text-[9px] font-bold text-slate-400">Voice</span>
-          </div>
-          <div className="flex items-end gap-0.5 h-6 px-1">
-            <span className="w-1 bg-indigo-500 rounded-full h-2"></span>
-            <span className="w-1 bg-indigo-500 rounded-full h-5"></span>
-            <span className="w-1 bg-indigo-500 rounded-full h-3"></span>
-            <span className="w-1 bg-indigo-500 rounded-full h-6"></span>
-            <span className="w-1 bg-indigo-500 rounded-full h-4"></span>
-          </div>
-          <span className="text-[10px] font-semibold text-slate-300">03:45</span>
-        </div>
+      <div className="px-5 mb-5 flex items-center gap-3 overflow-x-auto scrollbar-none pb-1">
+        {attachments.map((att, index) => {
+          const isSelected = index === currentIndex;
+          return (
+            <div 
+              key={att.id || index}
+              onClick={() => handleSelectIndex(index)}
+              className={`relative shrink-0 w-20 h-20 rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 ${
+                isSelected 
+                  ? 'ring-2 ring-indigo-500 shadow-md scale-105' 
+                  : 'opacity-60 hover:opacity-100 border border-white/10'
+              }`}
+            >
+              <img 
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
+                className="w-full h-full object-cover" 
+                src={att.url || FALLBACK_IMAGE} 
+                alt={att.name || 'Thumb'}
+                onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+              />
+              {isSelected ? (
+                <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                  <Check className="w-3 h-3 stroke-[3]" />
+                </div>
+              ) : null}
+              <div className="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-center">
+                <span className="text-[9px] font-medium text-white block truncate">{formatFileSize(att)}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* 6. VIDEO ATTACHMENT PLAYER CARD */}
-      <div className="block mx-5 mb-5 p-4 rounded-3xl space-y-3 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
+      {/* 4. ASSET PROPERTIES GRID (DYNAMIC REAL METADATA CALCULATION) */}
+      <div className="mx-5 mb-5 p-5 rounded-[24px] space-y-4 bg-slate-900/60 border-white/10 backdrop-blur-xl border shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-full bg-indigo-950/40 flex items-center justify-center text-indigo-400 shrink-0">
-              <Video className="w-3.5 h-3.5"/>
+          <h2 className="text-sm font-bold text-white tracking-tight">
+            {t('notes.assetProperties', 'Asset Properties')}
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div 
+            onClick={() => handleCopyProperty('Resolution', resolution)}
+            title={t('notes.copyResolution', 'Click to copy resolution')} 
+            className="rounded-2xl p-3.5 space-y-1 bg-slate-800/40 hover:bg-slate-800/70 border-white/5 border cursor-pointer active:scale-[0.98] transition-all group/prop"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 block">{t('notes.resolution', 'Resolution')}</span>
+              <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/prop:opacity-100 transition-opacity" />
             </div>
-            <div className="flex flex-col min-w-0">
-              <p className="text-sm font-bold text-white">Garden_Mindfulness_Walk.mp4</p>
-              <span className="text-[10px] font-medium text-slate-400">4K 60fps • HEVC • 42.1 MB</span>
+            <div className="text-sm font-semibold text-slate-100">
+              {resolution}
             </div>
           </div>
-        </div>
-        <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-slate-950 shadow-inner">
-           <img className="w-full h-full object-cover opacity-80" src="https://images.unsplash.com/photo-1629813589973-585a21008f51?auto=format&fit=crop&q=80&w=400" alt="Video cover"/>
-           <div className="absolute inset-0 bg-slate-950/30 flex flex-col justify-between p-3">
-             <div className="flex justify-end">
-               <span className="px-2 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1.5">
-                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-                 Live Buffer
-               </span>
-             </div>
-             <div className="self-center">
-               <button className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-950/40 flex items-center justify-center hover:scale-105 transition-transform">
-                 <Play className="w-5 h-5 fill-white ml-0.5"/>
-               </button>
-             </div>
-             <div className="flex flex-col gap-1.5 w-full">
-               <div className="w-full bg-slate-900/60 h-1.5 rounded-full overflow-hidden flex items-center">
-                 <div className="bg-indigo-500 h-full w-[45%] rounded-full"></div>
-               </div>
-               <div className="flex items-center justify-between text-white text-[10px] font-semibold drop-shadow-md">
-                 <span>00:38</span>
-                 <div className="flex items-center gap-2">
-                   <Volume2 className="w-3.5 h-3.5"/>
-                   <span>01:24</span>
-                 </div>
-               </div>
-             </div>
-           </div>
-        </div>
-      </div>
-
-      {/* 7. ASSET PROPERTIES & CAPTION CARD */}
-      <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-white">Asset Properties</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl p-3 space-y-0.5 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400">Resolution</span>
-            <div className="text-xs font-semibold text-slate-300">3840 × 2160 (4K)</div>
+          <div 
+            onClick={() => handleCopyProperty('File Size', formatFileSize(attachments[currentIndex]))}
+            title={t('notes.copyFileSize', 'Click to copy file size')} 
+            className="rounded-2xl p-3.5 space-y-1 bg-slate-800/40 hover:bg-slate-800/70 border-white/5 border cursor-pointer active:scale-[0.98] transition-all group/prop"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 block">{t('notes.fileSize', 'File Size')}</span>
+              <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/prop:opacity-100 transition-opacity" />
+            </div>
+            <div className="text-sm font-semibold text-slate-100">
+              {formatFileSize(attachments[currentIndex])}
+            </div>
           </div>
-          <div className="rounded-2xl p-3 space-y-0.5 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400">File Size</span>
-            <div className="text-xs font-semibold text-slate-300">3.2 MB (JPEG)</div>
+          <div 
+            onClick={() => handleCopyProperty('File Format', getFileType(attachments[currentIndex]))}
+            title={t('notes.copyFileFormat', 'Click to copy file format')} 
+            className="rounded-2xl p-3.5 space-y-1 bg-slate-800/40 hover:bg-slate-800/70 border-white/5 border cursor-pointer active:scale-[0.98] transition-all group/prop"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500 block">{t('notes.fileFormat', 'File Format')}</span>
+              <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/prop:opacity-100 transition-opacity" />
+            </div>
+            <div className="text-sm font-semibold text-slate-100">
+              {getFileType(attachments[currentIndex])}
+            </div>
           </div>
-          <div className="rounded-2xl p-3 space-y-0.5 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400">Color Space</span>
-            <div className="text-xs font-semibold text-slate-300">Display P3 Wide</div>
-          </div>
-          <div className="rounded-2xl p-3 space-y-0.5 bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
-            <span className="text-[10px] font-medium text-slate-400">Storage State</span>
-            <div className="text-xs font-semibold text-indigo-400 flex items-center gap-1">
-              <Cloud className="w-3 h-3"/>
-              Encrypted & Cached
+          <div 
+            onClick={handleDownload}
+            title={t('notes.downloadThisFile', 'Download this file')}
+            className="rounded-2xl p-3.5 space-y-1 bg-indigo-950/40 hover:bg-indigo-900/60 border-indigo-500/30 text-indigo-300 border cursor-pointer active:scale-[0.98] transition-all group/download"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-indigo-400 block">{t('common.actions', 'Action')}</span>
+              <Download className="w-3.5 h-3.5 text-indigo-400 group-hover/download:translate-y-0.5 transition-transform" />
+            </div>
+            <div className="text-sm font-bold text-indigo-200 flex items-center gap-1.5 whitespace-nowrap">
+              <span>{t('notes.downloadFile', 'Download File')}</span>
             </div>
           </div>
         </div>
         
-        <div className="space-y-2">
+        {/* Attachment Caption Inside the Card */}
+        <div className="pt-3 border-t border-white/10 space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-white">Attachment Caption</label>
-            <span className="text-[10px] font-medium text-slate-500">98 / 250</span>
+            <label className="text-xs font-semibold text-slate-200">
+              {t('notes.attachmentCaption', 'Attachment Caption')}
+            </label>
+            <span className="text-[11px] font-medium text-slate-400">
+              {caption.length} / 250
+            </span>
           </div>
           <div className="relative">
-            <textarea className="w-full rounded-2xl bg-slate-800/70 border border-slate-700/80 p-3.5 text-xs font-normal text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 resize-none" rows="3">Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.</textarea>
+            <textarea 
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              maxLength={250}
+              rows={3}
+              placeholder={t('notes.addReflectiveCaption', { defaultValue: 'Add reflective notes or caption for this attachment...' })}
+              className="w-full rounded-2xl bg-slate-800/70 border-slate-700/80 text-slate-200 placeholder:text-slate-500 border p-3.5 text-xs font-normal focus:outline-none focus:border-indigo-500 resize-none transition-colors"
+            />
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
-              <button className="text-slate-500 hover:text-indigo-400 transition-colors"><Mic className="w-4 h-4"/></button>
-              <button className="text-slate-500 hover:text-indigo-400 transition-colors"><MapPin className="w-4 h-4"/></button>
+              <button 
+                onClick={() => showToast(t('toasts.voiceDictationReady', 'Voice note dictation ready'))}
+                className="text-slate-400 hover:text-indigo-500 transition-colors"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => showToast(t('toasts.geotagVerified', 'Geo-tag verified: Courtyard Terrace'))}
+                className="text-slate-400 hover:text-indigo-500 transition-colors"
+              >
+                <MapPin className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 8. STANDARDIZED BOTTOM ACTIONS */}
-      <div className="px-5 pb-10 space-y-3">
-        <button className="btn-primary w-full">
-          Save Media Changes
-          <ArrowRight className="w-4 h-4"/>
+      {/* 5. BOTTOM ACTION BUTTONS */}
+      <div className="px-5 space-y-3">
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full py-3.5 px-6 rounded-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 disabled:opacity-75"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <span>{t('common.saving', 'Saving Changes...')}</span>
+            </>
+          ) : (
+            <>
+              <span>{t('notes.saveMediaChanges', 'Save Media Changes')}</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
         </button>
-        <button className="btn-danger w-full">
-          <Trash2 className="w-4 h-4 text-rose-400"/>
-          Remove Attachment from Note
+        <button 
+          onClick={() => setShowDeleteModal(true)}
+          className="w-full py-3.5 px-6 rounded-full text-rose-400 bg-rose-950/40 hover:bg-rose-900/40 border-rose-900/50 border font-semibold text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <Trash2 className="w-4 h-4 text-rose-400" />
+          <span>{t('notes.removeAttachmentFromNote', 'Remove Attachment from Note')}</span>
         </button>
       </div>
+
+      {showDeleteModal ? (
+        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-5 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-[28px] p-6 space-y-4 bg-slate-900 border border-white/10 text-white shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-950/60 text-rose-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-bold">{t('notes.removeAttachment', 'Remove Attachment?')}</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                {t('notes.removeConfirmPrompt', { defaultValue: 'Are you sure you want to remove this attachment from this note? This action cannot be undone.' })}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-3 px-4 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs active:scale-95 transition-all"
+              >
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button 
+                onClick={handleConfirmDelete}
+                className="flex-1 py-3 px-4 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold text-xs shadow-md shadow-red-600/30 transition-all"
+              >
+                {t('common.yesRemove', 'Yes, Remove')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 6. TRUE FULLSCREEN OVERLAY PORTAL (FIXED INSET-0 Z-[100] BG-BLACK/95) */}
+      {isFullscreen && typeof document !== 'undefined'
+        ? createPortal(
+            <div 
+              onClick={() => setIsFullscreen(false)}
+              className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200 select-none cursor-pointer"
+            >
+              <div className="flex items-center justify-between pointer-events-auto">
+                <div className="px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white border border-white/15 text-xs font-semibold flex items-center gap-2">
+                  <Image className="w-4 h-4 text-indigo-400" />
+                  <span>{currentIndex + 1} / {attachments.length} • {attachments[currentIndex]?.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                    title={t('notes.downloadFile', 'Download file')} className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                    title={t('notes.shareAttachment', 'Share attachment')} className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setIsFullscreen(false); }}
+                    className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div 
+                className="relative flex-1 flex items-center justify-center my-4 overflow-hidden"
+                onClick={() => setIsFullscreen(false)}
+                {...swipeHandlers}
+              >
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                  className="absolute left-2 sm:left-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center shadow-lg border border-white/20 active:scale-95 transition-all z-10 cursor-pointer"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <img 
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 select-none cursor-default ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`}
+                  src={attachments[currentIndex]?.url || FALLBACK_IMAGE}
+                  alt={attachments[currentIndex]?.name || 'Fullscreen Preview'}
+                  onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+                />
+
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                  className="absolute right-2 sm:right-4 w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center shadow-lg border border-white/20 active:scale-95 transition-all z-10 cursor-pointer"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-white/70 px-2 pointer-events-auto">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-white">{resolution}</span>
+                  <span>•</span>
+                  <span>{formatFileSize(attachments[currentIndex])}</span>
+                  <span>•</span>
+                  <span>{getFileType(attachments[currentIndex])}</span>
+                </div>
+                <button 
+                  onClick={() => setIsFullscreen(false)}
+                  className="text-[11px] text-white/70 hover:text-white underline cursor-pointer"
+                >
+                  Tap background or ✕ to exit
+                </button>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

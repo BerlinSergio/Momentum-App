@@ -1,4 +1,4 @@
-import GlassInput from "./components/ui/GlassInput";
+﻿import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
@@ -11,36 +11,36 @@ const IncomeManagement = ({
   const filters = [{
     name: 'All Sources',
     count: 5,
-    activeClass: 'bg-primary text-on-surface shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
+    activeClass: 'bg-primary text-on-surface shadow-md shadow-primary/30',
     inactiveClass: 'bg-surface-container-highest backdrop-blur-md border text-on-surface-variant shadow-sm active:bg-surface-container transition-colors'
   }, {
     name: 'Salary',
     count: 1,
-    activeClass: 'bg-primary text-on-surface shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
+    activeClass: 'bg-primary text-on-surface shadow-md shadow-primary/30',
     inactiveClass: 'bg-surface-container-highest backdrop-blur-md border text-on-surface-variant shadow-sm active:bg-surface-container transition-colors'
   }, {
     name: 'Freelance',
     count: 2,
-    activeClass: 'bg-primary text-on-surface shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
+    activeClass: 'bg-primary text-on-surface shadow-md shadow-primary/30',
     inactiveClass: 'bg-surface-container-highest backdrop-blur-md border text-on-surface-variant shadow-sm active:bg-surface-container transition-colors'
   }, {
     name: 'Business',
     count: 1,
-    activeClass: 'bg-primary text-on-surface shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
+    activeClass: 'bg-primary text-on-surface shadow-md shadow-primary/30',
     inactiveClass: 'bg-surface-container-highest backdrop-blur-md border text-on-surface-variant shadow-sm active:bg-surface-container transition-colors'
   }, {
     name: 'Bonus',
     count: 1,
-    activeClass: 'bg-primary text-on-surface shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
+    activeClass: 'bg-primary text-on-surface shadow-md shadow-primary/30',
     inactiveClass: 'bg-surface-container-highest backdrop-blur-md border text-on-surface-variant shadow-sm active:bg-surface-container transition-colors'
   }, {
     name: 'Other',
     count: 0,
-    activeClass: 'bg-primary text-on-surface shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
+    activeClass: 'bg-primary text-on-surface shadow-md shadow-primary/30',
     inactiveClass: 'bg-surface-container-highest backdrop-blur-md border text-outline dark:text-outline shadow-sm active:bg-surface-container opacity-60'
   }];
   return /*#__PURE__*/_jsxDEV("div", {
-    className: "bg-surface-container font-body-md text-on-surface min-h-screen relative flex flex-col selection:bg-primary/30 selection:text-indigo-200",
+    className: "bg-surface-container font-body-md text-on-surface min-h-screen relative flex flex-col selection:bg-primary/30 selection:text-primary/70",
     children: [/*#__PURE__*/_jsxDEV("div", {
       className: "fixed inset-0 pointer-events-none -z-10 overflow-hidden",
       children: [/*#__PURE__*/_jsxDEV("div", {
@@ -110,7 +110,7 @@ const IncomeManagement = ({
               variant: "pill",
               children: [/*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-md text-label-md text-primary",
-                children: "October 2026"
+                children: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "material-symbols-outlined text-[16px] text-primary",
                 children: "keyboard_arrow_down"
@@ -224,7 +224,7 @@ const IncomeManagement = ({
         }, void 0, true), /*#__PURE__*/_jsxDEV("section", {
           className: "flex items-center gap-2.5 mb-space-md",
           children: [/*#__PURE__*/_jsxDEV(LiquidButton, {
-            className: "flex-1 h-12 rounded-xl bg-gradient-to-r from-primary via-sky-500 to-teal-400 text-on-surface font-headline-sm text-headline-sm flex items-center justify-center gap-2 shadow-[0_6px_20px_rgba(79,70,229,0.35)] active:scale-98 transition-transform",
+            className: "flex-1 h-12 rounded-xl bg-gradient-to-r from-primary via-sky-500 to-teal-400 text-on-surface font-headline-sm text-headline-sm flex items-center justify-center gap-2 shadow-md shadow-primary/30 active:scale-98 transition-transform",
             type: "button",
             variant: "subtle",
             children: [/*#__PURE__*/_jsxDEV("span", {
@@ -294,7 +294,7 @@ const IncomeManagement = ({
               className: "flex items-center justify-between px-1",
               children: [/*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-md text-label-md text-on-surface-variant dark:text-on-surface-variant tracking-wider uppercase",
-                children: "This Month • October 2026"
+                children: `This Month • ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-sm text-label-sm text-on-surface-variant dark:text-on-surface-variant",
                 children: "4 Transactions"
