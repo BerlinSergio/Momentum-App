@@ -641,6 +641,9 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
 
   const handleDeleteNote = async () => {
     setIsMenuOpen(false);
+    // Capture the selected saved note before awaiting the confirmation.
+    // React can re-render this editor while the dialog is open.
+    const targetId = currentNote?.id && currentNote.id !== 'new' ? currentNote.id : null;
     const confirmed = await confirm({
       variant: 'destructive',
       title: t('notes.deleteNoteTitle', 'Delete Note?'),
@@ -648,14 +651,29 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
       confirmText: t('common.delete', 'Delete'),
       cancelText: t('common.cancel', 'Cancel'),
     });
-    if (confirmed) {
-      if (currentNote.id && currentNote.id !== 'new') {
-        deleteNote(currentNote.id);
+    if (!confirmed) return;
+
+    if (!targetId) {
+      // A new, unsaved draft has nothing to remove from storage.
+      if (goBack) goBack('notes_main_dark_mode');
+      else if (setActiveTab) setActiveTab('notes_main_dark_mode');
+      else window.history.back();
+      return;
+    }
+
+    try {
+      const removed = deleteNote(targetId);
+      if (!removed) {
+        toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+        return;
       }
       showToast(t('toasts.noteDeleted', 'Note deleted'));
       if (goBack) goBack('notes_main_dark_mode');
       else if (setActiveTab) setActiveTab('notes_main_dark_mode');
       else window.history.back();
+    } catch (error) {
+      console.error('[Momentum Notes] Deletion failed:', error);
+      toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
     }
   };
 
@@ -674,13 +692,13 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-base font-semibold text-white tracking-tight">
+            <h1 className="text-sm sm:text-base font-semibold text-white tracking-tight truncate min-w-0">
               {isEditing ? (isNew ? t('notes.newNote', 'New Note') : t('notes.editNote', 'Edit Note')) : t('notes.note', 'Note')}
             </h1>
           </div>
 
           {/* Right Section (Actions: Clean, Distraction-Free Header) */}
-          <div className="flex flex-row items-center gap-2.5 sm:gap-3">
+          <div className="flex flex-row items-center gap-1.5 sm:gap-3 shrink-0">
             {/* 1. Primary Clean Edit / Done Action */}
             {!isEditing ? (
               <button
@@ -717,7 +735,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
                 <MoreVertical className="w-4.5 h-4.5" />
               </button>
               {isMenuOpen && (
-                <div className="absolute right-0 top-11 w-48 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute end-0 top-11 w-48 max-w-[min(12rem,calc(100vw-2rem))] rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
                   <button 
                     type="button" 
                     onClick={() => { handleTogglePin(); setIsMenuOpen(false); }} 

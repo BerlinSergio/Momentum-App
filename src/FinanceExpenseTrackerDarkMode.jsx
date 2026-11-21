@@ -575,7 +575,7 @@ export default function FinanceExpenseTrackerDarkMode({ setActiveTab, initialTab
               <ChevronDown className={`w-3.5 h-3.5 text-primary transition-transform ${isMonthOpen ? 'rotate-180' : ''}`}/>
             </button>
             {isMonthOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-44 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
+              <div className="absolute end-0 top-full mt-1.5 w-44 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
                 {MONTH_OPTIONS.map((m) => (
                   <button
                     key={m}
@@ -849,7 +849,7 @@ export default function FinanceExpenseTrackerDarkMode({ setActiveTab, initialTab
                     <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}/>
                   </button>
                   {isCategoryOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 w-48 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto pointer-events-auto">
+                    <div className="absolute start-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto pointer-events-auto">
                       {CATEGORY_OPTIONS.map((cat) => (
                         <button
                           key={cat}
@@ -888,7 +888,7 @@ export default function FinanceExpenseTrackerDarkMode({ setActiveTab, initialTab
                     <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isSortOpen ? 'rotate-180' : ''}`}/>
                   </button>
                   {isSortOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 w-48 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
+                    <div className="absolute start-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
                       {SORT_OPTIONS.map((s) => (
                         <button
                           key={s}

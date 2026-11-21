@@ -263,18 +263,27 @@ export function initializeNativeLifecycle() {
   }
 
   // 3. Keyboard Visibility Helpers
-  try {
-    Keyboard.addListener('keyboardWillShow', (info) => {
-      document.body.classList.add('keyboard-open');
-      document.documentElement.style.setProperty('--keyboard-height', `${info.keyboardHeight}px`);
-    });
+  // @capacitor/keyboard has no web implementation. Calling addListener() on
+  // browsers rejects asynchronously, so a synchronous try/catch is not enough.
+  // Register only inside the native Capacitor shell and handle async failures.
+  if (isNativePlatform()) {
+    try {
+      Promise.resolve(Keyboard.addListener('keyboardWillShow', (info) => {
+        document.body.classList.add('keyboard-open');
+        document.documentElement.style.setProperty('--keyboard-height', `${info.keyboardHeight}px`);
+      })).catch((error) => {
+        console.warn('[NativeLifecycle] keyboardWillShow unavailable:', error);
+      });
 
-    Keyboard.addListener('keyboardWillHide', () => {
-      document.body.classList.remove('keyboard-open');
-      document.documentElement.style.setProperty('--keyboard-height', '0px');
-    });
-  } catch {
-    // Non-blocking
+      Promise.resolve(Keyboard.addListener('keyboardWillHide', () => {
+        document.body.classList.remove('keyboard-open');
+        document.documentElement.style.setProperty('--keyboard-height', '0px');
+      })).catch((error) => {
+        console.warn('[NativeLifecycle] keyboardWillHide unavailable:', error);
+      });
+    } catch (error) {
+      console.warn('[NativeLifecycle] Keyboard listeners unavailable:', error);
+    }
   }
 
   // 4. Initial Status Bar sync

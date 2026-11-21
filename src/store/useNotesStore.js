@@ -451,13 +451,23 @@ export const useNotesStore = create(
           })
         ),
 
-      deleteNote: (noteId) =>
+      deleteNote: (noteId) => {
+        // A delete must act only on an existing saved note. Do not claim
+        // success when the editor holds an unsaved/stale note ID.
+        if (!noteId || noteId === 'new') return false;
+        if (!get().notes.some((note) => note.id === noteId)) return false;
         set(
           produce((state) => {
-            state.notes = state.notes.filter((n) => n.id !== noteId);
+            state.notes = state.notes.filter((note) => note.id !== noteId);
+            if (state.activeNoteId === noteId) {
+              state.activeNoteId = null;
+              state.activeAttachmentId = null;
+            }
             state.reflectionStreak = calculateReflectionStreak(state.notes);
           })
-        ),
+        );
+        return !get().notes.some((note) => note.id === noteId);
+      },
 
       togglePin: (noteId) =>
         set(
