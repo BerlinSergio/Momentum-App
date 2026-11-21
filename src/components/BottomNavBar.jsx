@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { Glass } from '@samasante/liquid-glass';
 import { 
   Home, 
   CreditCard, 
@@ -11,6 +12,61 @@ import { useNavigationStore } from '../store/useNavigationStore';
 import { useTranslation } from 'react-i18next';
 import { resolveActionContext, executeCreationAction } from '../utils/actionContextResolver';
 import QuickActionsSheet from './QuickActionsSheet';
+
+/**
+ * Active selection ONLY — the dock and the floating central (+) remain unchanged.
+ * A restrained liquid-glass lens sits beneath crisp icon/label content.
+ * DOM-only mode avoids video/screenshot rendering or new context/providers.
+ */
+const ACTIVE_TAB_GLASS_OPTICS = {
+  strength: 0.13,
+  depth: 0.95,
+  curvature: 0.5,
+  dispersion: 0.2,
+  bend: 0.4,
+  bendWidth: 0.07,
+  sheen: 1.2,
+  sheenWidth: 3.5,
+  specular: 1.6,
+  glow: 0.10,
+  frost: 1,
+};
+
+function ActiveTabGlass({ isDark }) {
+  return (
+    <motion.div
+      layoutId="activeBottomTabPill"
+      aria-hidden="true"
+      data-testid="active-bottom-tab-liquid-glass"
+      className="absolute inset-[2px] z-0 pointer-events-none overflow-hidden rounded-[1.1rem]"
+      transition={{ type: 'spring', damping: 28, stiffness: 330 }}
+    >
+      <Glass
+        radius={17}
+        optics={ACTIVE_TAB_GLASS_OPTICS}
+        className="absolute inset-0 h-full w-full rounded-[1.1rem]"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          background: isDark
+            ? 'rgba(116, 108, 225, 0.20)'
+            : 'rgba(235, 232, 255, 0.47)',
+        }}
+      >
+        <span className="block h-full w-full" />
+      </Glass>
+      <span
+        className={`absolute inset-0 rounded-[1.1rem] border-[1.5px] ${
+          isDark
+            ? 'border-indigo-100/65 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18),0_1px_7px_rgba(0,0,0,0.23)]'
+            : 'border-slate-800/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.88),0_1px_7px_rgba(63,49,121,0.12)]'
+        }`}
+      />
+    </motion.div>
+  );
+}
 
 /**
  * Standardized Global Bottom Navigation Bar for Momentum.
@@ -60,9 +116,11 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
   const getNormalizedTab = (tab) => {
     if (!tab) return 'home';
     const t = tab.toLowerCase();
-    if (t.includes('home') || t.includes('dashboard')) return 'home';
+    // Match specific modules first: finance_dashboard must highlight Finance,
+    // not Home merely because its route name contains "dashboard".
     if (t.includes('finance') || t.includes('expense') || t.includes('income')) return 'finance';
     if (t.includes('task') || t.includes('routine')) return 'tasks';
+    if (t.includes('home') || t.includes('dashboard')) return 'home';
     if (
       t.includes('more') || 
       t.includes('setting') || 
@@ -181,42 +239,32 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
         <motion.button
           type="button"
           data-testid="mobile-tab-home"
+          aria-current={currentTab === 'home' ? 'page' : undefined}
           onClick={() => handleTabClick('home')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
             currentTab === 'home' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
           }`}
         >
-          {currentTab === 'home' && (
-            <motion.div
-              layoutId="activeBottomTabPill"
-              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            />
-          )}
-          <Home size={20} strokeWidth={2} className="mb-1" />
-          <span className="text-xs tracking-tight mt-0.5">{t('nav.home')}</span>
+          {currentTab === 'home' && <ActiveTabGlass isDark={isDark} />}
+          <Home size={20} strokeWidth={2} className="relative z-10 mb-1" />
+          <span className="relative z-10 text-xs tracking-tight mt-0.5">{t('nav.home')}</span>
         </motion.button>
 
         {/* 2. FINANCE TAB */}
         <motion.button
           type="button"
           data-testid="mobile-tab-finance"
+          aria-current={currentTab === 'finance' ? 'page' : undefined}
           onClick={() => handleTabClick('finance')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
             currentTab === 'finance' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
           }`}
         >
-          {currentTab === 'finance' && (
-            <motion.div
-              layoutId="activeBottomTabPill"
-              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            />
-          )}
-          <CreditCard size={20} strokeWidth={2} className="mb-1" />
-          <span className="text-xs tracking-tight mt-0.5">{t('nav.finance')}</span>
+          {currentTab === 'finance' && <ActiveTabGlass isDark={isDark} />}
+          <CreditCard size={20} strokeWidth={2} className="relative z-10 mb-1" />
+          <span className="relative z-10 text-xs tracking-tight mt-0.5">{t('nav.finance')}</span>
         </motion.button>
 
         {/* 3. CONTEXTUAL PLUS BUTTON */}
@@ -242,42 +290,32 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
         <motion.button
           type="button"
           data-testid="mobile-tab-tasks"
+          aria-current={currentTab === 'tasks' ? 'page' : undefined}
           onClick={() => handleTabClick('tasks')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
             currentTab === 'tasks' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
           }`}
         >
-          {currentTab === 'tasks' && (
-            <motion.div
-              layoutId="activeBottomTabPill"
-              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            />
-          )}
-          <CheckSquare size={20} strokeWidth={2} className="mb-1" />
-          <span className="text-xs tracking-tight mt-0.5">{t('nav.tasks')}</span>
+          {currentTab === 'tasks' && <ActiveTabGlass isDark={isDark} />}
+          <CheckSquare size={20} strokeWidth={2} className="relative z-10 mb-1" />
+          <span className="relative z-10 text-xs tracking-tight mt-0.5">{t('nav.tasks')}</span>
         </motion.button>
 
         {/* 5. MORE TAB */}
         <motion.button
           type="button"
           data-testid="mobile-tab-more"
+          aria-current={currentTab === 'more' ? 'page' : undefined}
           onClick={() => handleTabClick('more')}
           whileTap={{ scale: 0.92 }}
           className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
             currentTab === 'more' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
           }`}
         >
-          {currentTab === 'more' && (
-            <motion.div
-              layoutId="activeBottomTabPill"
-              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            />
-          )}
-          <LayoutGrid size={20} strokeWidth={2} className="mb-1" />
-          <span className="text-xs tracking-tight mt-0.5">{t('nav.more')}</span>
+          {currentTab === 'more' && <ActiveTabGlass isDark={isDark} />}
+          <LayoutGrid size={20} strokeWidth={2} className="relative z-10 mb-1" />
+          <span className="relative z-10 text-xs tracking-tight mt-0.5">{t('nav.more')}</span>
         </motion.button>
       </nav>
 
