@@ -673,13 +673,13 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-base font-semibold text-slate-900 tracking-tight">
+            <h1 className="text-sm sm:text-base font-semibold text-slate-900 tracking-tight truncate min-w-0">
               {isEditing ? (isNew ? t('notes.newNote', 'New Note') : t('notes.editNote', 'Edit Note')) : t('notes.note', 'Note')}
             </h1>
           </div>
 
           {/* Right Section (Actions: Clean, Distraction-Free Header) */}
-          <div className="flex flex-row items-center gap-2.5 sm:gap-3">
+          <div className="flex flex-row items-center gap-1.5 sm:gap-3 shrink-0">
             {/* 1. Primary Clean Edit / Done Action */}
             {!isEditing ? (
               <button
@@ -716,7 +716,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
                 <MoreVertical className="w-4.5 h-4.5" />
               </button>
               {isMenuOpen && (
-                <div className="absolute right-0 top-11 w-48 rounded-2xl bg-white/95 border border-slate-200/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute end-0 top-11 w-48 max-w-[min(12rem,calc(100vw-2rem))] rounded-2xl bg-white/95 border border-slate-200/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
                   <button 
                     type="button" 
                     onClick={() => { handleTogglePin(); setIsMenuOpen(false); }} 
