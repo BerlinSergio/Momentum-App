@@ -18,6 +18,7 @@ const path = require('node:path');
 
 const APP_URL = process.env.MOMENTUM_URL || 'http://localhost:5173';
 const QUICK = process.env.MOBILE_QA_QUICK === '1';
+const CAPTURE_ALL = process.env.MOBILE_QA_CAPTURE_ALL === '1';
 const WIDTHS = QUICK ? [390] : [320, 360, 390, 412];
 const LOCALES = QUICK ? ['ps-AF'] : ['en', 'ps-AF', 'fa-AF'];
 const MODES = ['light', 'dark'];
@@ -147,6 +148,11 @@ async function main() {
             });
             const label = width + '_' + locale + '_' + mode + '_' + screen;
             await snapshot(label, measure);
+            // Optional visual review pack: one full Pashto viewport per screen/theme.
+            // Kept outside version control under scratch/.
+            if (CAPTURE_ALL && width === 390 && locale === 'ps-AF') {
+              await page.screenshot({ path: path.join(SHOTS, 'ALL_' + safeFile(label) + '.png') });
+            }
             if (records.length % 50 === 0) {
               console.log('Audited ' + records.length + ' mobile route/locale/theme/size combinations; failures=' + failures.length);
             }
