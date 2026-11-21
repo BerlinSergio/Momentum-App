@@ -48,6 +48,29 @@ async function main() {
     });
     await delay(650);
 
+    // Verify the shared confirmation sheet resolves its promise on a real
+    // mobile button tap, independently of the Notes screen.
+    for (const [action, expected] of [['cancel', false], ['confirm', true]]) {
+      step = 'modal-promise-' + action;
+      await page.evaluate(() => {
+        window.__qaConfirmationResult = undefined;
+        window.momentumConfirm({
+          title: 'QA confirmation',
+          description: 'Confirmation button should work',
+          confirmText: 'Confirm',
+          cancelText: 'Cancel',
+          variant: 'destructive',
+        }).then((value) => { window.__qaConfirmationResult = value; });
+      });
+      const selector = '[data-testid="momentum-dialog-' + action + '-btn"]';
+      await page.waitForSelector(selector, { visible: true, timeout: 6000 });
+      await page.click(selector);
+      await page.waitForFunction(() => typeof window.__qaConfirmationResult === 'boolean');
+      const value = await page.evaluate(() => window.__qaConfirmationResult);
+      assert.equal(value, expected, 'Global confirmation must resolve ' + action);
+    }
+    console.log('PASS: shared confirmation sheet buttons resolve promises');
+
     async function openDeleteMenu() {
       await page.waitForSelector('[aria-label="Note options"]', { visible: true, timeout: 12000 });
       await page.click('[aria-label="Note options"]');
