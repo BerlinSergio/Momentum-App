@@ -4,7 +4,7 @@ import UserAvatar from './components/UserAvatar';
 import {
   Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor, ChevronRight
 } from 'lucide-react';
-import { useThemeStore, AURA_PRESETS, applyAppearanceToDOM } from './store/useThemeStore';
+import { useThemeStore, AURA_PRESETS } from './store/useThemeStore';
 import { toast } from './components/ui/toast/index.js';
 
 export default function AppearanceDarkMode({ setActiveTab, goBack }) {
@@ -37,16 +37,8 @@ export default function AppearanceDarkMode({ setActiveTab, goBack }) {
     }
   }, [_hasHydrated, globalTheme, globalAura, globalGlass, globalTransitions]);
 
-  // Live aura preview: update CSS variables on the root element whenever the
-  // draft aura or theme changes — before the user clicks Apply.
-  useEffect(() => {
-    applyAppearanceToDOM({
-      theme: draftTheme,
-      aura: draftAura,
-      glassEffects: draftGlassEffects,
-      gentleTransitions: draftGentleTransitions,
-    });
-  }, [draftAura, draftTheme, draftGlassEffects, draftGentleTransitions]);
+  // Keep draft settings inside this screen's preview until Apply is pressed.
+  // Navigating away or Back must never commit a preview theme globally.
 
   const handleApply = () => {
     applyPreferences({
@@ -55,17 +47,9 @@ export default function AppearanceDarkMode({ setActiveTab, goBack }) {
       glassEffects: draftGlassEffects,
       gentleTransitions: draftGentleTransitions,
     });
+    // Global appearance store updates the displayed component in place.
+    // Do not push a themed Appearance screen onto navigation history.
     toast.success(t('toasts.preferencesSaved', 'Preferences saved and applied to your ecosystem'));
-    setTimeout(() => {
-      if (draftTheme === 'dark') {
-        setActiveTab && setActiveTab('appearance_dark_mode');
-      } else if (draftTheme === 'light') {
-        setActiveTab && setActiveTab('appearance_light_mode');
-      } else {
-        const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setActiveTab && setActiveTab(prefersDark ? 'appearance_dark_mode' : 'appearance_light_mode');
-      }
-    }, 450);
   };
 
   const handleReset = () => {
