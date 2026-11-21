@@ -251,7 +251,7 @@
   body {
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
-    min-height: max(884px, 100dvh);
+    min-height: 100dvh;
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -513,4 +513,26 @@ html.enable-transitions [class*="transition-"] {
 .animate-speed-dial-2 {
   animation: speedDialPop 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transform-origin: bottom center;
+}
+
+/* Mobile-only layout safety rails. Keep menus free to escape cards while preventing
+   saved note text, images and fixed minimum heights from widening the screen. */
+@media (max-width: 639px) {
+  .momentum-canvas-viewport {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .momentum-canvas-viewport .note-sheet-card,
+  .momentum-canvas-viewport .note-sheet-card :where(p, blockquote, figure, pre) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .momentum-canvas-viewport .note-sheet-card :where(img, video) {
+    max-width: 100%;
+    height: auto;
+  }
+  .momentum-canvas-viewport .note-sheet-card pre {
+    overflow-x: auto;
+  }
 }
