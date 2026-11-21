@@ -1,46 +1,51 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useThemeStore, applyAppearanceToDOM } from '../store/useThemeStore';
+import { resolveThemeMode } from '../utils/themeNavigation.js';
 
-const ThemeContext = createContext();
+const ThemeContext = createContext(null);
 
+/**
+ * Compatibility facade over the one persisted appearance store.
+ * Navigating to a screen must never choose or persist the user's theme.
+ */
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('momentum_theme');
-      if (savedTheme) {
-        return savedTheme;
-      }
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'dark';
-  });
+  const selectedTheme = useThemeStore((state) => state.theme);
+  const setSelectedTheme = useThemeStore((state) => state.setTheme);
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false
+  );
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('momentum_theme', theme);
-  }, [theme]);
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => setSystemDark(media.matches);
+    onChange();
+    media.addEventListener?.('change', onChange);
+    return () => media.removeEventListener?.('change', onChange);
+  }, []);
 
-  const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  useEffect(() => {
+    // Keep the root class, wallpaper tokens and system mode in sync.
+    // This also runs after the persisted appearance store finishes rehydrating.
+    applyAppearanceToDOM(useThemeStore.getState());
+  }, [selectedTheme, systemDark]);
 
-  // Auto-detect theme from screen name (used by App.jsx)
-  const syncThemeToScreen = (screenName) => {
-    if (screenName && screenName.includes('_light_mode')) {
-      setTheme('light');
-    } else if (screenName && screenName.includes('_dark_mode')) {
-      setTheme('dark');
-    }
-  };
+  const theme = selectedTheme === 'system'
+    ? (systemDark ? 'dark' : 'light')
+    : resolveThemeMode(selectedTheme);
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, syncThemeToScreen }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const value = useMemo(() => ({
+    theme,
+    selectedTheme,
+    setTheme: setSelectedTheme,
+    toggleTheme: () => setSelectedTheme(theme === 'dark' ? 'light' : 'dark'),
+    // Retained for old callers only; a route is not a theme preference.
+    syncThemeToScreen: () => {},
+  }), [theme, selectedTheme, setSelectedTheme]);
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
