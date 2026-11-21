@@ -61,7 +61,7 @@ export default function AddEditRoutineLightMode({ setActiveTab, goBack }) {
         </div>
       </div>
 
-      <main className="flex-1 w-full max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-32">
+      <main className="flex-1 w-full min-w-0 max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-32">
         {/* Validation Error Banner */}
         {form.errorMessage && (
           <div 
@@ -82,8 +82,8 @@ export default function AddEditRoutineLightMode({ setActiveTab, goBack }) {
         )}
 
         {/* Header Status Bar */}
-        <div className="flex flex-row items-center justify-between w-full px-1 pt-1">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-row flex-wrap items-center justify-between gap-2 w-full px-1 pt-1">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             <span className="h-8 px-3 rounded-full bg-slate-100 text-slate-800 font-medium text-xs shadow-sm flex items-center justify-center gap-1.5 border border-slate-200/60 whitespace-nowrap shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
               {form.isEditing ? `ROUTINE #${form.existingRoutine?.id.toUpperCase()}` : t('routines.newRoutineUpper', 'NEW ROUTINE')}
@@ -138,7 +138,7 @@ export default function AddEditRoutineLightMode({ setActiveTab, goBack }) {
                 value={form.title}
                 onChange={(e) => form.handleTitleChange(e.target.value)}
                 placeholder={t('routines.routineNamePlaceholder', 'e.g. Evening Reading & Quran Reflection')}
-                className="flex-1 bg-transparent border-none text-slate-900 placeholder-slate-400 focus:outline-none text-base"
+                className="min-w-0 w-0 flex-1 bg-transparent border-none text-slate-900 placeholder-slate-400 focus:outline-none text-base"
                 autoComplete="off"
               />
             </div>
