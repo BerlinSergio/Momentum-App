@@ -640,6 +640,9 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
 
   const handleDeleteNote = async () => {
     setIsMenuOpen(false);
+    // Capture the selected saved note before awaiting the confirmation.
+    // React can re-render this editor while the dialog is open.
+    const targetId = currentNote?.id && currentNote.id !== 'new' ? currentNote.id : null;
     const confirmed = await confirm({
       variant: 'destructive',
       title: t('notes.deleteNoteTitle', 'Delete Note?'),
@@ -647,14 +650,29 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       confirmText: t('common.delete', 'Delete'),
       cancelText: t('common.cancel', 'Cancel'),
     });
-    if (confirmed) {
-      if (currentNote.id && currentNote.id !== 'new') {
-        deleteNote(currentNote.id);
+    if (!confirmed) return;
+
+    if (!targetId) {
+      // A new, unsaved draft has nothing to remove from storage.
+      if (goBack) goBack('notes_main_light_mode');
+      else if (setActiveTab) setActiveTab('notes_main_light_mode');
+      else window.history.back();
+      return;
+    }
+
+    try {
+      const removed = deleteNote(targetId);
+      if (!removed) {
+        toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+        return;
       }
       showToast(t('toasts.noteDeleted', 'Note deleted'));
       if (goBack) goBack('notes_main_light_mode');
       else if (setActiveTab) setActiveTab('notes_main_light_mode');
       else window.history.back();
+    } catch (error) {
+      console.error('[Momentum Notes] Deletion failed:', error);
+      toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
     }
   };
 
