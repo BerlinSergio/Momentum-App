@@ -1,5 +1,51 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { createIndexedDbStorage } from '../storage/index.js';
+import { createCredential, removeCredential } from '../utils/credentialService.js';
+
+const sanitizeSecurityPayload = (payload) => {
+  if (!payload) return payload;
+  try {
+    let parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (parsed?.state) {
+      const hasPin = Boolean(
+        parsed.state.hasPin ||
+        (parsed.state.pin && String(parsed.state.pin).trim().length === 4)
+      );
+      parsed = {
+        ...parsed,
+        state: {
+          ...parsed.state,
+          pin: '',
+          alphanumeric: '',
+          hasPin,
+        },
+      };
+    }
+    return typeof payload === 'string' ? JSON.stringify(parsed) : parsed;
+  } catch {
+    return payload;
+  }
+};
+
+const rawSecurityStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-security-storage',
+  mirrorToLocalStorage: false,
+});
+
+const securityStorage = {
+  getItem: async (name) => {
+    return rawSecurityStorage.getItem(name);
+  },
+  setItem: async (name, value) => {
+    const sanitized = sanitizeSecurityPayload(value);
+    return rawSecurityStorage.setItem(name, sanitized);
+  },
+  removeItem: async (name) => {
+    return rawSecurityStorage.removeItem(name);
+  },
+};
+const getSafeStorage = () => securityStorage;
 
 export const getFormattedTimestamp = (date = new Date()) => {
   const hours = date.getHours();
@@ -46,7 +92,7 @@ const INITIAL_STATE = {
   lockReflections: true,
   allowQuickDhikr: true,
   passcodeType: 'pin', // 'pin' | 'alphanumeric'
-  pin: '',
+  pin: '', // Never stored in plaintext
   hasPin: false,
   isLocked: false,
   alphanumeric: '',
@@ -68,7 +114,8 @@ const getInitialSecurityState = () => {
           return {
             ...INITIAL_STATE,
             ...parsed.state,
-            pin: effectivePin,
+            pin: '', // Purged from memory representation
+            alphanumeric: '',
             hasPin,
             isLocked,
             _hasHydrated: false,
@@ -85,13 +132,33 @@ const getInitialSecurityState = () => {
 const syncSecurityStorage = (patch) => {
   try {
     if (typeof localStorage !== 'undefined') {
+      let parsed = { state: {}, version: 0 };
       const raw = localStorage.getItem('momentum-security-storage');
-      const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
+      if (raw) {
+        try {
+          parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== 'object') {
+            parsed = { state: {}, version: 0 };
+          }
+        } catch {
+          parsed = { state: {}, version: 0 };
+        }
+      }
+      const safePatch = { ...patch };
+      delete safePatch.pin;
+      delete safePatch.alphanumeric;
+
       parsed.state = {
         ...(parsed.state || {}),
-        ...patch,
+        ...safePatch,
+        pin: '',
+        alphanumeric: '',
       };
-      localStorage.setItem('momentum-security-storage', JSON.stringify(parsed));
+      const serialized = JSON.stringify(parsed);
+      localStorage.setItem('momentum-security-storage', serialized);
+      securityStorage.setItem('momentum-security-storage', serialized).catch((err) => {
+        console.warn('[Momentum Security] IndexedDB sync error:', err);
+      });
     }
   } catch (e) {
     console.warn('[Momentum Security] Direct localStorage sync error:', e);
@@ -110,6 +177,13 @@ export const useSecurityStore = create(
         set((state) => {
           const next = typeof locked === 'function' ? locked(state.isLocked) : !!locked;
           return { isLocked: next };
+        }),
+
+      setHasPin: (hasPin) =>
+        set((state) => {
+          const next = typeof hasPin === 'function' ? hasPin(state.hasPin) : !!hasPin;
+          syncSecurityStorage({ hasPin: next });
+          return { hasPin: next };
         }),
 
       setAppLockActive: (isActive) =>
@@ -169,91 +243,83 @@ export const useSecurityStore = create(
           return { allowQuickDhikr: next };
         }),
 
-      // PIN mutators explicitly using set({ pin: newPin }) + immediate storage backup
+      // Safe PIN mutators: stores cryptographic verifier in credentialService, NEVER plaintext in store/storage
       setPin: (newPin) => {
-        const pinStr = String(newPin);
+        const pinStr = String(newPin || '');
         const hasPin = pinStr.trim().length === 4;
+        if (hasPin) {
+          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
+        }
         set({
-          pin: pinStr,
+          pin: '',
           hasPin,
           passcodeType: 'pin',
           lastModified: getFormattedTimestamp(),
         });
-        try {
-          if (typeof localStorage !== 'undefined') {
-            const raw = localStorage.getItem('momentum-security-storage');
-            const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-            parsed.state = {
-              ...(parsed.state || {}),
-              pin: pinStr,
-              hasPin,
-              passcodeType: 'pin',
-              lastModified: getFormattedTimestamp(),
-            };
-            localStorage.setItem('momentum-security-storage', JSON.stringify(parsed));
-          }
-        } catch (e) {
-          console.warn('[Momentum Security] Direct localStorage sync error:', e);
-        }
+        syncSecurityStorage({
+          hasPin,
+          passcodeType: 'pin',
+          lastModified: getFormattedTimestamp(),
+        });
       },
 
       changePin: (newPin) => {
-        const pinStr = String(newPin);
+        const pinStr = String(newPin || '');
         const hasPin = pinStr.trim().length === 4;
+        if (hasPin) {
+          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
+        }
         set({
-          pin: pinStr,
+          pin: '',
           hasPin,
           passcodeType: 'pin',
           lastModified: getFormattedTimestamp(),
         });
-        try {
-          if (typeof localStorage !== 'undefined') {
-            const raw = localStorage.getItem('momentum-security-storage');
-            const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-            parsed.state = {
-              ...(parsed.state || {}),
-              pin: pinStr,
-              hasPin,
-              passcodeType: 'pin',
-              lastModified: getFormattedTimestamp(),
-            };
-            localStorage.setItem('momentum-security-storage', JSON.stringify(parsed));
-          }
-        } catch (e) {
-          console.warn('[Momentum Security] Direct localStorage sync error:', e);
-        }
+        syncSecurityStorage({
+          hasPin,
+          passcodeType: 'pin',
+          lastModified: getFormattedTimestamp(),
+        });
       },
 
       updatePin: (newPin) => {
-        const pinStr = String(newPin);
+        const pinStr = String(newPin || '');
         const hasPin = pinStr.trim().length === 4;
+        if (hasPin) {
+          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
+        }
         set({
-          pin: pinStr,
+          pin: '',
           hasPin,
           passcodeType: 'pin',
           lastModified: getFormattedTimestamp(),
         });
-        try {
-          if (typeof localStorage !== 'undefined') {
-            const raw = localStorage.getItem('momentum-security-storage');
-            const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-            parsed.state = {
-              ...(parsed.state || {}),
-              pin: pinStr,
-              hasPin,
-              passcodeType: 'pin',
-              lastModified: getFormattedTimestamp(),
-            };
-            localStorage.setItem('momentum-security-storage', JSON.stringify(parsed));
-          }
-        } catch (e) {
-          console.warn('[Momentum Security] Direct localStorage sync error:', e);
-        }
+        syncSecurityStorage({
+          hasPin,
+          passcodeType: 'pin',
+          lastModified: getFormattedTimestamp(),
+        });
       },
 
-      setAlphanumeric: (newPasscode) =>
+      removePin: () => {
+        removeCredential().catch((err) => console.warn('[useSecurityStore] removeCredential err:', err));
         set({
-          alphanumeric: String(newPasscode),
+          pin: '',
+          hasPin: false,
+          isLocked: false,
+          isAppLockActive: false,
+          lastModified: getFormattedTimestamp(),
+        });
+        syncSecurityStorage({
+          hasPin: false,
+          isAppLockActive: false,
+          lastModified: getFormattedTimestamp(),
+        });
+      },
+
+      setAlphanumeric: () =>
+        set({
+          alphanumeric: '',
           passcodeType: 'alphanumeric',
           lastModified: getFormattedTimestamp(),
         }),
@@ -278,17 +344,21 @@ export const useSecurityStore = create(
     }),
     {
       name: 'momentum-security-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
       skipHydration: true,
       merge: (persistedState, currentState) => {
-        const effectivePin = persistedState?.pin !== undefined && persistedState?.pin !== null ? String(persistedState.pin) : currentState.pin;
-        const hasPin = persistedState?.hasPin !== undefined ? !!persistedState.hasPin : !!(effectivePin && String(effectivePin).trim().length === 4);
-        const isAppLockActive = persistedState?.isAppLockActive !== undefined ? !!persistedState.isAppLockActive : currentState.isAppLockActive;
+        const hasPin = persistedState?.hasPin !== undefined
+          ? !!persistedState.hasPin
+          : (currentState.hasPin || (persistedState?.pin && String(persistedState.pin).trim().length === 4));
+        const isAppLockActive = persistedState?.isAppLockActive !== undefined
+          ? !!persistedState.isAppLockActive
+          : currentState.isAppLockActive;
         const isLocked = isAppLockActive && hasPin ? (currentState.isLocked ?? true) : false;
         return {
           ...currentState,
           ...(persistedState || {}),
-          pin: effectivePin,
+          pin: '',
+          alphanumeric: '',
           hasPin,
           isAppLockActive,
           isLocked,

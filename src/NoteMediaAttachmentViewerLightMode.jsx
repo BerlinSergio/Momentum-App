@@ -1,8 +1,12 @@
-﻿import React, { useState, useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useSwipeable } from 'react-swipeable';
 import UserAvatar from './components/UserAvatar';
 import { useNotesStore } from './store/useNotesStore';
+import { resolveAttachmentUrl } from './storage/index.js';
+import { toast as globalToast } from './components/ui/toast/index.js';
 import { 
   ArrowLeft, Share2, Image, Download, Trash2, Check, Maximize, ChevronLeft, ChevronRight, Wand2, ArrowRight, CheckCircle2, Mic, MapPin, Loader2, Copy, Sparkles, AlertTriangle, X 
 } from 'lucide-react';
@@ -53,13 +57,17 @@ const getFileType = (attachment) => {
 };
 
 export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBack, route = { params: {} } }) {
+  const { t } = useTranslation();
   const notes = useNotesStore((s) => s.notes);
-  const routeParams = route?.params || {};
-  const activeNoteId = routeParams.noteId || useNotesStore((s) => s.activeNoteId);
-  const activeAttachmentId = routeParams.attachmentId || routeParams.id || useNotesStore((s) => s.activeAttachmentId);
+  const storeNoteId = useNotesStore((s) => s.activeNoteId);
+  const storeAttachmentId = useNotesStore((s) => s.activeAttachmentId);
   const setActiveAttachmentId = useNotesStore((s) => s.setActiveAttachmentId);
   const updateNote = useNotesStore((s) => s.updateNote);
   const deleteAttachment = useNotesStore((s) => s.deleteAttachment);
+
+  const routeParams = route?.params || {};
+  const activeNoteId = routeParams.noteId || storeNoteId;
+  const activeAttachmentId = routeParams.attachmentId || routeParams.id || storeAttachmentId;
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || notes.find((n) => Array.isArray(n.attachments) && n.attachments.length > 0) || notes[0];
 
@@ -131,7 +139,8 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
   const [isEnhanced, setIsEnhanced] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [toast, setToast] = useState(null);
+
+  const [resolvedUrl, setResolvedUrl] = useState('');
 
   useEffect(() => {
     setCaption(currentAttachment?.subtitle || currentAttachment?.caption || '');
@@ -139,23 +148,38 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
     setIsEnhanced(false);
     setIsZoomed(false);
 
-    const currentUrl = currentAttachment?.url;
-    if (currentUrl) {
-      const img = new window.Image();
-      img.src = currentUrl;
-      img.onload = () => {
-        if (img.naturalWidth && img.naturalHeight) {
-          setResolution(img.naturalWidth + ' × ' + img.naturalHeight);
+    let active = true;
+    resolveAttachmentUrl(currentAttachment).then((u) => {
+      if (active) {
+        setResolvedUrl(u || currentAttachment?.url || '');
+        if (u) {
+          const img = new window.Image();
+          img.src = u;
+          img.onload = () => {
+            if (img.naturalWidth && img.naturalHeight) {
+              setResolution(img.naturalWidth + ' × ' + img.naturalHeight);
+            }
+          };
         }
-      };
-    }
+      }
+    });
+
+    return () => { active = false; };
   }, [currentIndex, currentAttachment?.id, currentAttachment?.url]);
 
   const showToast = (message) => {
-    setToast(message);
-    setTimeout(() => {
-      setToast(null);
-    }, 2400);
+    if (typeof message === 'string') {
+      const lower = message.toLowerCase();
+      if (lower.includes('fail') || lower.includes('error') || lower.includes('not supported')) {
+        globalToast.error(message);
+      } else if (lower.includes('copied') || lower.includes('applied') || lower.includes('saved') || lower.includes('removed')) {
+        globalToast.success(message);
+      } else {
+        globalToast.info(message);
+      }
+    } else {
+      globalToast.info(String(message));
+    }
   };
 
   const handleSelectIndex = (idx) => {
@@ -214,7 +238,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
   const handleDownload = async () => {
     const targetUrl = currentAttachment?.url || FALLBACK_IMAGE;
     const fileName = currentAttachment?.name || 'attachment.jpg';
-    showToast('Downloading ' + fileName + '...');
+    showToast(t('toasts.downloadingFile', 'Downloading {{file}}...', { file: fileName }));
     try {
       if (targetUrl.startsWith('data:') || targetUrl.startsWith('blob:')) {
         const anchor = document.createElement('a');
@@ -259,9 +283,9 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
       }
     } else if (navigator?.clipboard?.writeText) {
       await navigator.clipboard.writeText(shareTitle + ': ' + window.location.href);
-      showToast('Attachment link copied to clipboard!');
+      showToast(t('toasts.linkCopied', 'Attachment link copied to clipboard!'));
     } else {
-      showToast('Sharing is not supported on this platform');
+      showToast(t('toasts.shareNotSupported', 'Sharing is not supported on this platform'));
     }
   };
 
@@ -278,7 +302,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
       updateNote(activeNote.id, { attachments: updated });
       setIsSaving(false);
       setIsSaved(true);
-      showToast('Media changes saved successfully!');
+      showToast(t('toasts.mediaSaved', 'Media changes saved successfully!'));
       setTimeout(() => {
         setIsSaved(false);
       }, 2500);
@@ -289,7 +313,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
     setShowDeleteModal(false);
     if (activeNote && currentAttachment?.id) {
       deleteAttachment(activeNote.id, currentAttachment.id);
-      showToast('Attachment removed from note');
+      showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
       if (attachments.length <= 1) {
         if (goBack) goBack('notes_main_light_mode');
         else if (setActiveTab) setActiveTab('notes_main_light_mode');
@@ -302,14 +326,6 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-40 relative">
-      {/* FLOATING TOAST NOTIFICATION */}
-      {toast ? (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[110] px-4 py-2 rounded-full bg-slate-900 text-white border-slate-700 border shadow-xl flex items-center gap-2 backdrop-blur-md transition-all">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-xs font-medium tracking-wide">{toast}</span>
-        </div>
-      ) : null}
-
       {/* 1. TOP HEADER */}
       <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
         <div className="flex items-center gap-3">
@@ -317,10 +333,9 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
             <Image className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: "0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)" }}>
-            Attachment Details
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
+            {t('notes.attachmentDetails', 'Attachment Details')}</h1>
+</div>
+<div className="flex items-center gap-2">
           <button 
             onClick={() => (goBack ? goBack('notes_main_light_mode') : (setActiveTab ? setActiveTab('notes_main_light_mode') : window.history.back()))}
             className="p-2 rounded-full text-slate-600 hover:bg-slate-200 transition-colors"
@@ -349,7 +364,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           }}
           className={`w-full h-full object-cover transition-all duration-500 select-none cursor-zoom-in ${isZoomed ? 'scale-125' : 'group-hover:scale-105'} ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`} 
           alt={attachments[currentIndex]?.name || 'Attachment Preview'} 
-          src={attachments[currentIndex]?.url || FALLBACK_IMAGE}
+          src={resolvedUrl || attachments[currentIndex]?.url || FALLBACK_IMAGE}
           onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
         />
         
@@ -374,7 +389,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); setIsFullscreen(true); }}
-              title="Open full screen lightbox" 
+              title={t('notes.openLightbox', 'Open full screen lightbox')} 
               className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/90 hover:text-white hover:bg-black/60 active:scale-95 shadow-sm transition-all cursor-pointer"
             >
               <Maximize className="w-4 h-4" />
@@ -404,7 +419,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
         <div className="absolute bottom-3.5 left-3.5 right-3.5 flex items-end justify-between pointer-events-auto z-20">
           <div className="flex flex-col text-white drop-shadow-md min-w-0 pr-2">
             <h2 className="text-xs font-bold truncate text-white">
-              {attachments[currentIndex]?.name || 'Dawn_Reflection_Sky.jpg'}
+              {attachments[currentIndex]?.name || t('notes.attachment', 'Attachment')}
             </h2>
             <span className="text-[10px] font-normal text-white/80">
               {resolution} • {formatFileSize(attachments[currentIndex])}
@@ -417,33 +432,32 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
             {isEnhancing ? (
               <>
                 <Loader2 className="w-3 h-3 text-indigo-300 animate-spin" />
-                <span>Enhancing...</span>
+                <span>{t('notes.enhancing', 'Enhancing...')}</span>
               </>
             ) : isEnhanced ? (
               <>
                 <Sparkles className="w-3 h-3 text-amber-300" />
-                <span>Enhanced</span>
+                <span>{t('notes.enhanced', 'Enhanced')}</span>
               </>
             ) : (
               <>
-                <Wand2 className="w-3 h-3 text-indigo-300" />
-                <span>Enhance</span>
+                <Sparkles className="w-3 h-3 text-indigo-300" />
+                <span>{t('notes.enhance', 'Enhance')}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* 3. ALL ATTACHMENTS CAROUSEL STRIP (ONCLICK SETCURRENTINDEX(INDEX)) */}
+      {/* 5. ALL ATTACHMENTS CAROUSEL STRIP */}
       <div className="flex items-center justify-between px-5 mb-2.5">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-          All Attachments ({attachments.length})
+          {t('notes.allAttachments', 'All Attachments')} ({attachments.length})
         </h3>
         <span className="text-xs font-medium text-indigo-500">
-          Swipe or tap to switch
+          {t('notes.swipeTapSwitch', 'Swipe or tap to switch')}
         </span>
       </div>
-      
       <div className="px-5 mb-5 flex items-center gap-3 overflow-x-auto scrollbar-none pb-1">
         {attachments.map((att, index) => {
           const isSelected = index === currentIndex;
@@ -482,18 +496,17 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
       <div className="mx-5 mb-5 p-5 rounded-[24px] space-y-4 bg-white border-slate-100 border shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-800 tracking-tight">
-            Asset Properties
+            {t('notes.assetProperties', 'Asset Properties')}
           </h2>
         </div>
-
         <div className="grid grid-cols-2 gap-4">
           <div 
             onClick={() => handleCopyProperty('Resolution', resolution)}
-            title="Click to copy resolution" 
+            title={t('notes.copyResolution', 'Click to copy resolution')} 
             className="rounded-2xl p-3.5 space-y-1 bg-slate-50 hover:bg-slate-100/70 border-slate-100 border cursor-pointer active:scale-[0.98] transition-all group/prop"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 block">Resolution</span>
+              <span className="text-xs font-medium text-slate-500 block">{t('notes.resolution', 'Resolution')}</span>
               <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/prop:opacity-100 transition-opacity" />
             </div>
             <div className="text-sm font-semibold text-slate-800">
@@ -502,11 +515,11 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           </div>
           <div 
             onClick={() => handleCopyProperty('File Size', formatFileSize(attachments[currentIndex]))}
-            title="Click to copy file size" 
+            title={t('notes.copyFileSize', 'Click to copy file size')} 
             className="rounded-2xl p-3.5 space-y-1 bg-slate-50 hover:bg-slate-100/70 border-slate-100 border cursor-pointer active:scale-[0.98] transition-all group/prop"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 block">File Size</span>
+              <span className="text-xs font-medium text-slate-500 block">{t('notes.fileSize', 'File Size')}</span>
               <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/prop:opacity-100 transition-opacity" />
             </div>
             <div className="text-sm font-semibold text-slate-800">
@@ -515,11 +528,11 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           </div>
           <div 
             onClick={() => handleCopyProperty('File Format', getFileType(attachments[currentIndex]))}
-            title="Click to copy file format" 
+            title={t('notes.copyFileFormat', 'Click to copy file format')} 
             className="rounded-2xl p-3.5 space-y-1 bg-slate-50 hover:bg-slate-100/70 border-slate-100 border cursor-pointer active:scale-[0.98] transition-all group/prop"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 block">File Format</span>
+              <span className="text-xs font-medium text-slate-500 block">{t('notes.fileFormat', 'File Format')}</span>
               <Copy className="w-3 h-3 text-slate-400 opacity-0 group-hover/prop:opacity-100 transition-opacity" />
             </div>
             <div className="text-sm font-semibold text-slate-800">
@@ -528,15 +541,15 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           </div>
           <div 
             onClick={handleDownload}
-            title="Download this file" 
+            title={t('notes.downloadThisFile', 'Download this file')}
             className="rounded-2xl p-3.5 space-y-1 bg-indigo-50 hover:bg-indigo-100/90 border-indigo-200/80 text-indigo-700 border cursor-pointer active:scale-[0.98] transition-all group/download"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-indigo-600 block">Action</span>
+              <span className="text-xs font-medium text-indigo-600 block">{t('common.actions', 'Action')}</span>
               <Download className="w-3.5 h-3.5 text-indigo-600 group-hover/download:translate-y-0.5 transition-transform" />
             </div>
             <div className="text-sm font-bold text-indigo-700 flex items-center gap-1.5 whitespace-nowrap">
-              <span>Download File</span>
+              <span>{t('notes.downloadFile', 'Download File')}</span>
             </div>
           </div>
         </div>
@@ -545,7 +558,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
         <div className="pt-3 border-t border-slate-100 space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-700">
-              Attachment Caption
+              {t('notes.attachmentCaption', 'Attachment Caption')}
             </label>
             <span className="text-[11px] font-medium text-slate-400">
               {caption.length} / 250
@@ -557,18 +570,18 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
               onChange={(e) => setCaption(e.target.value)}
               maxLength={250}
               rows={3}
-              placeholder="Add reflective notes or caption for this attachment..."
+              placeholder={t('notes.addReflectiveCaption', { defaultValue: 'Add reflective notes or caption for this attachment...' })}
               className="w-full rounded-2xl bg-slate-50 border-slate-200/80 text-slate-800 placeholder:text-slate-400 border p-3.5 text-xs font-normal focus:outline-none focus:border-indigo-500 resize-none transition-colors"
             />
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
               <button 
-                onClick={() => showToast('Voice note dictation ready')}
+                onClick={() => showToast(t('toasts.voiceDictationReady', 'Voice note dictation ready'))}
                 className="text-slate-400 hover:text-indigo-500 transition-colors"
               >
                 <Mic className="w-4 h-4" />
               </button>
               <button 
-                onClick={() => showToast('Geo-tag verified: Courtyard Terrace')}
+                onClick={() => showToast(t('toasts.geotagVerified', 'Geo-tag verified: Courtyard Terrace'))}
                 className="text-slate-400 hover:text-indigo-500 transition-colors"
               >
                 <MapPin className="w-4 h-4" />
@@ -578,7 +591,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
         </div>
       </div>
 
-      {/* 5. BOTTOM ACTION BUTTONS (MODERNIZED & WELL-PADDED) */}
+      {/* 5. BOTTOM ACTION BUTTONS */}
       <div className="px-5 space-y-3">
         <button 
           onClick={handleSave}
@@ -588,16 +601,11 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           {isSaving ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin text-white" />
-              <span>Saving Changes...</span>
-            </>
-          ) : isSaved ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-              <span>Media Changes Saved!</span>
+              <span>{t('common.saving', 'Saving Changes...')}</span>
             </>
           ) : (
             <>
-              <span>Save Media Changes</span>
+              <span>{t('notes.saveMediaChanges', 'Save Media Changes')}</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -607,11 +615,10 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           className="w-full py-3.5 px-6 rounded-full text-red-500 bg-red-50 hover:bg-red-100 border-red-200/60 border font-semibold text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
         >
           <Trash2 className="w-4 h-4 text-red-500" />
-          <span>Remove Attachment from Note</span>
+          <span>{t('notes.removeAttachmentFromNote', 'Remove Attachment from Note')}</span>
         </button>
       </div>
 
-      {/* CONFIRMATION MODAL DIALOG */}
       {showDeleteModal ? (
         <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-5 animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-[28px] p-6 space-y-4 bg-white border border-slate-100 text-slate-900 shadow-2xl">
@@ -619,9 +626,9 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div className="text-center space-y-1.5">
-              <h3 className="text-base font-bold">Remove Attachment?</h3>
+              <h3 className="text-base font-bold">{t('notes.removeAttachment', 'Remove Attachment?')}</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Are you sure you want to remove <span className="font-semibold text-slate-700">"{attachments[currentIndex]?.name}"</span> from this note? This action cannot be undone.
+                {t('notes.removeConfirmPrompt', { defaultValue: 'Are you sure you want to remove this attachment from this note? This action cannot be undone.' })}
               </p>
             </div>
             <div className="flex items-center gap-3 pt-2">
@@ -629,13 +636,13 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
                 onClick={() => setShowDeleteModal(false)}
                 className="flex-1 py-3 px-4 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs active:scale-95 transition-all"
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </button>
               <button 
                 onClick={handleConfirmDelete}
                 className="flex-1 py-3 px-4 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold text-xs shadow-md shadow-red-600/30 transition-all"
               >
-                Yes, Remove
+                {t('common.yesRemove', 'Yes, Remove')}
               </button>
             </div>
           </div>
@@ -657,15 +664,13 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleDownload(); }}
-                    title="Download file"
-                    className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
+                    title={t('notes.downloadFile', 'Download file')} className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleShare(); }}
-                    title="Share attachment"
-                    className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
+                    title={t('notes.shareAttachment', 'Share attachment')} className="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all shadow-lg border border-white/20 cursor-pointer"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>

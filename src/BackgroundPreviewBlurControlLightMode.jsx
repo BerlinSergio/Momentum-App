@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useWallpaper } from './context/WallpaperContext';
 import { useThemeStore } from './store/useThemeStore';
 import { getWallpaperPair } from './data/defaultWallpapers';
 import { Sliders, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { toast } from './components/ui/toast/index.js';
 
 export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const { currentWallpaper, blurLevel, setBlurLevel } = useWallpaper();
   const activeBackgroundId = useThemeStore((s) => s.activeBackgroundId);
   const customWallpaper = useThemeStore((s) => s.customWallpaper);
@@ -27,8 +30,6 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
   const [draftBlur, setDraftBlur] = useState(blurIntensity || blurLevel || 18);
   const [draftSyncWithDark, setDraftSyncWithDark] = useState(syncWithDarkMode);
   const [draftDimWallpaper, setDraftDimWallpaper] = useState(dimWallpaper);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
 
   const handleApply = () => {
     applyPreferences({
@@ -39,18 +40,14 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
     if (setBlurLevel) {
       setBlurLevel(draftBlur);
     }
-    setToastMessage(`Blur intensity of ${draftBlur}px applied to all screens!`);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2500);
+    toast.success(`Blur intensity of ${draftBlur}px applied to all screens!`);
   };
 
   const handleReset = () => {
     setDraftBlur(18);
     setDraftSyncWithDark(true);
     setDraftDimWallpaper(true);
-    setToastMessage('Blur intensity reset to default 18px');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    toast.info(t('toasts.blurReset', 'Blur intensity reset to default 18px'));
   };
 
   return (
@@ -62,7 +59,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
             <Sliders className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Background Blur Control
+            {t('appearance.backgroundBlurControl', 'Background Blur Control')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -106,7 +103,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
               >
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-                  <span className="text-xs text-slate-700 font-semibold">{isNoneActive ? 'Pure Minimal Solid Simulator' : 'Live Canvas Simulator'}</span>
+                  <span className="text-xs text-slate-700 font-semibold">{isNoneActive ? t('wallpapers.pureMinimalSolidSimulator', 'Pure Minimal Solid Simulator') : t('wallpapers.liveCanvasSimulator', 'Live Canvas Simulator')}</span>
                 </div>
                 <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
                   <span className="material-symbols-outlined text-[13px] text-primary">{isNoneActive ? 'format_paint' : 'wallpaper'}</span>
@@ -122,7 +119,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                   style={{ backdropFilter: `blur(${draftBlur}px)`, WebkitBackdropFilter: `blur(${draftBlur}px)` }}
                 >
                   <span className="material-symbols-outlined text-primary text-[15px]" style={{ fontVariationSettings: '"FILL" 1' }}>wb_twilight</span>
-                  <p className="text-xs text-slate-800 font-medium">Good morning, Aisha <span className="text-slate-400 mx-1">•</span> <span className="text-primary font-bold">Fajr in 12m</span></p>
+                  <p className="text-xs text-slate-800 font-medium">Aisha <span className="text-slate-400 mx-1">•</span> <span className="text-primary font-bold">{t('prayer.fajrIn12m', 'Fajr in 12m')}</span></p>
                 </div>
 
                 {/* Mock Card 1: Daily Task Widget */}
@@ -135,13 +132,13 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                       <span className="material-symbols-outlined text-white text-[16px]">check</span>
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-slate-900 truncate">Review financial milestones</h4>
+                      <h4 className="text-xs font-bold text-slate-900 truncate">{t('tasks.reviewFinancialMilestones', 'Review financial milestones')}</h4>
                       <p className="text-[11px] text-slate-600 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px] text-teal-600">schedule</span> Focus routine • 15 mins
+                        <span className="material-symbols-outlined text-[13px] text-teal-600">schedule</span> {t('tasks.focusRoutine15m', 'Focus routine • 15 mins')}
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold shrink-0">Priority</span>
+                  <span className="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold shrink-0">{t('tasks.priority', 'Priority')}</span>
                 </div>
 
                 {/* Mock Card 2: Prayer Times Card with Serene Motifs */}
@@ -155,7 +152,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-teal-600 text-[18px]">bedtime</span>
-                      <span className="text-xs font-bold text-slate-900">Next: Fajr Prayer</span>
+                      <span className="text-xs font-bold text-slate-900">{t('prayer.nextFajrPrayer', 'Next: Fajr Prayer')}</span>
                     </div>
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">05:14 AM</span>
                   </div>
@@ -163,8 +160,8 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                     <div className="bg-primary h-full rounded-full w-4/5"></div>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600">Calm focus window</span>
-                    <span className="font-bold text-primary">82% completed</span>
+                    <span className="text-slate-600">{t('prayer.calmFocusWindow', 'Calm focus window')}</span>
+                    <span className="font-bold text-primary">{t('tasbeeh.percentCompleted', '{{percent}}% completed', { percent: 82 })}</span>
                   </div>
                 </div>
 
@@ -175,14 +172,14 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                 >
                   <div className="flex items-center gap-1 text-primary">
                     <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: '"FILL" 1' }}>home</span>
-                    <span className="text-xs font-bold">Home</span>
+                    <span className="text-xs font-bold">{t('nav.home', 'Home')}</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30 -my-2">
                     <span className="material-symbols-outlined text-[18px]">add</span>
                   </div>
                   <div className="flex items-center gap-1 text-slate-500">
                     <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                    <span className="text-xs font-medium">Planner</span>
+                    <span className="text-xs font-medium">{t('nav.planner', 'Planner')}</span>
                   </div>
                 </div>
               </div>
@@ -205,7 +202,7 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
           <div className="w-full flex flex-col rounded-3xl p-5 mb-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
             {/* Header of Controller Card */}
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base font-bold text-slate-900">Background Blur Intensity</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('appearance.backgroundBlurIntensity', 'Background Blur Intensity')}</h2>
               <span className="px-3.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold tracking-tight shadow-xs">
                 {draftBlur} px
               </span>
@@ -285,8 +282,8 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                     <span className="material-symbols-outlined text-[18px]">sync_alt</span>
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900">Sync Blur with Dark Mode</div>
-                    <div className="text-[11px] text-slate-500">Auto-scales depth when dark theme triggers</div>
+                    <div className="text-xs font-bold text-slate-900">{t('wallpapers.syncBlurDarkMode', 'Sync Blur with Dark Mode')}</div>
+                    <div className="text-[11px] text-slate-500">{t('wallpapers.syncBlurDarkModeDesc', 'Auto-scales depth when dark theme triggers')}</div>
                   </div>
                 </div>
                 <input
@@ -304,8 +301,8 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                     <span className="material-symbols-outlined text-[18px]">brightness_medium</span>
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900">Dim wallpaper slightly</div>
-                    <div className="text-[11px] text-slate-500">+10% subtle scrim to enhance readability</div>
+                    <div className="text-xs font-bold text-slate-900">{t('wallpapers.dimWallpaper', 'Dim wallpaper slightly')}</div>
+                    <div className="text-[11px] text-slate-500">{t('wallpapers.dimWallpaperDesc', '+10% subtle scrim to enhance readability')}</div>
                   </div>
                 </div>
                 <input
@@ -326,26 +323,18 @@ export default function BackgroundPreviewBlurControlLightMode({ setActiveTab, go
                 type="button"
               >
                 <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-                <span>Reset Blur</span>
+                <span>{t('wallpapers.resetBlur', 'Reset Blur')}</span>
               </button>
               <button
                 onClick={handleApply}
                 className="flex-1 h-12 rounded-xl bg-primary hover:brightness-105 active:scale-[0.99] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transition-all"
                 type="button"
               >
-                <span>Apply to All</span>
+                <span>{t('wallpapers.applyToAll', 'Apply to All')}</span>
                 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
               </button>
             </div>
           </div>
-
-          {/* Toast Confirmation Feedback */}
-          {showToast && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center gap-2 shadow-2xl z-[90] animate-in fade-in slide-in-from-bottom duration-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>{toastMessage}</span>
-            </div>
-          )}
         </div>
       </main>
     </>

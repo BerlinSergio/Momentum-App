@@ -1,18 +1,17 @@
-﻿import { useSecurityStore } from './store/useSecurityStore';
-import GlassInput from "./components/ui/GlassInput";
-import GlassCard from "./components/ui/GlassCard";
-import AppShell from "./components/ui/AppShell";
-import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSecurityStore } from './store/useSecurityStore';
 import LiquidButton from './components/ui/LiquidButton';
+import { toast } from './components/ui/toast/index.js';
 import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 export default function BiometricSettings({
   setActiveTab
 }) {
+  const { t } = useTranslation();
   const {
     isAppLockActive,
     lockReflections,
     biometricsEnabled,
-    pin,
+    hasPin,
     setAppLockActive,
     setLockReflections,
     setBiometricsEnabled,
@@ -95,11 +94,11 @@ export default function BiometricSettings({
                 children: "verified_user"
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-sm text-label-sm tracking-widest uppercase",
-                children: biometricsEnabled ? "HARDWARE ENCLAVE BOUND" : "HARDWARE ENCLAVE PAUSED"
+                children: biometricsEnabled ? "BIOMETRIC PROTECTION ACTIVE" : "BIOMETRIC PROTECTION PAUSED"
               }, void 0, false)]
             }, void 0, true), /*#__PURE__*/_jsxDEV("h2", {
               className: "font-headline-md text-headline-md text-on-surface tracking-tight mt-space-xs",
-              children: biometricsEnabled ? "Biometric Sanctuary Active" : "Biometric Sanctuary Paused"
+              children: biometricsEnabled ? "Biometric Protection Active" : "Biometric Protection Paused"
             }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
               className: "font-body-md text-body-md text-on-surface dark:text-on-surface-variant max-w-xs mt-space-xs",
               children: biometricsEnabled ? "Unlock Momentum instantly using Face ID or Touch ID sensor on this device." : "Biometric unlock is currently disabled. Momentum will require your PIN."
@@ -115,7 +114,7 @@ export default function BiometricSettings({
                   children: "Enable Biometric Authentication"
                 }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                   className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant mt-0.5",
-                  children: "Apple Face ID / Android Biometric API v3.2 Enrolled"
+                  children: "Platform Biometric Authentication (WebAuthn)"
                 }, void 0, false)]
               }, void 0, true), /*#__PURE__*/_jsxDEV(LiquidButton, {
                 variant: "primary",
@@ -138,7 +137,7 @@ export default function BiometricSettings({
                 }, void 0, false)
               }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
                 className: "font-label-md text-label-md text-secondary tracking-normal",
-                children: biometricsEnabled ? "Secure hardware keypair authenticated and active" : "Biometric authentication currently switched off"
+                children: biometricsEnabled ? "Biometric authentication configured and active" : "Biometric authentication currently switched off"
               }, void 0, false)]
             }, void 0, true)]
           }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
@@ -156,7 +155,7 @@ export default function BiometricSettings({
                 }, void 0, false)]
               }, void 0, true), /*#__PURE__*/_jsxDEV("span", {
                 className: "px-2.5 py-0.5 rounded-full bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none text-on-surface dark:text-on-surface-variant font-label-sm text-label-sm",
-                children: pin ? "Configured (••••)" : "Not Set"
+                children: hasPin ? "Configured (••••)" : "Not Set"
               }, void 0, false)]
             }, void 0, true), /*#__PURE__*/_jsxDEV("p", {
               className: "font-body-sm text-body-sm text-on-surface dark:text-on-surface-variant leading-relaxed",
@@ -264,7 +263,7 @@ export default function BiometricSettings({
               id: "save-preferences-btn",
               type: "button",
               variant: "primary",
-              onClick: () => { updatePreferences({ biometricsEnabled, isAppLockActive, lockReflections }); alert('Biometric preferences saved.'); },
+              onClick: () => { updatePreferences({ biometricsEnabled, isAppLockActive, lockReflections }); toast.success(t('toasts.appLockSaved', 'App Lock preferences saved')); },
               children: /*#__PURE__*/_jsxDEV("div", {
                 className: "w-full h-full bg-white/80 text-on-surface shadow-sm /80 dark:shadow-none border-0 backdrop-blur-sm rounded-[11px] py-3.5 px-space-md flex items-center justify-center gap-2 group-hover:bg-transparent transition-all",
                 children: [/*#__PURE__*/_jsxDEV("span", {

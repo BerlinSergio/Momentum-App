@@ -77,6 +77,9 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
         inter: ['Inter', 'sans-serif'],
+        pashto: ['"Noto Sans Arabic"', 'sans-serif'],
+        dari: ['Vazirmatn', 'sans-serif'],
+        arabic: ['"Noto Sans Arabic"', 'Vazirmatn', 'sans-serif'],
         display: ['"Space Grotesk"', 'sans-serif'],
         heading: ['"Plus Jakarta Sans"', 'sans-serif'],
         bahij: ['BahijTitr', 'sans-serif'],

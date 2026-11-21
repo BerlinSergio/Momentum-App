@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Zap, BookOpen, X, ChevronRight, PenTool } from 'lucide-react';
 
 /**
  * NewNoteActionSheet
  * Sleek bottom sheet modal for choosing note creation mode:
- * 1. ⚡️ Quick Note (fleeting thoughts, checklists, sketches)
- * 2. 📖 Long Note / Journal (deep reflections, Quranic study, rich formatted notes)
+ * 1. ⚡️ {t('notes.quickNote', 'Quick Note')}notes.longNote', 'Long Note')} / Journal (deep reflections, Quranic study, rich formatted notes)
  */
 export default function NewNoteActionSheet({
   isOpen,
@@ -14,6 +14,7 @@ export default function NewNoteActionSheet({
   onSelectLongNote,
   isDarkMode = true,
 }) {
+  const { t } = useTranslation();
   // Close on Escape key press
   useEffect(() => {
     if (!isOpen) return;
@@ -79,14 +80,14 @@ export default function NewNoteActionSheet({
                   isDarkMode ? 'text-white' : 'text-slate-900'
                 }`}
               >
-                Create New Note
+                {t('notes.createNote', 'Create New Note')}
               </h3>
               <p
-                className={`text-xs ${
+                className={`text-xs font-normal ${
                   isDarkMode ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                Select the format that fits your thought
+                {t('notes.selectFormat', 'Select the format that fits your thought')}
               </p>
             </div>
           </div>
@@ -106,9 +107,7 @@ export default function NewNoteActionSheet({
 
         {/* Options List */}
         <div className="space-y-3 pt-1">
-          {/* Option 1: ⚡️ Quick Note */}
-          <button
-            type="button"
+          {/* Option 1: ⚡️ {t('notes.quickNote', 'Quick Note')}button"
             onClick={onSelectQuickNote}
             className={`w-full p-4 rounded-2xl flex items-center justify-between text-left transition-all duration-200 cursor-pointer select-none group border active:scale-[0.98] ${
               isDarkMode
@@ -133,16 +132,16 @@ export default function NewNoteActionSheet({
                       isDarkMode ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ⚡️ Quick Note
+                    ⚡️ {t('notes.quickNote', 'Quick Note')}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       isDarkMode
                         ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                         : 'bg-amber-100 text-amber-800 border border-amber-200'
                     }`}
                   >
-                    Fleeting
+                    {t('notes.fleeting', 'Fleeting')}
                   </span>
                 </div>
                 <p
@@ -150,12 +149,12 @@ export default function NewNoteActionSheet({
                     isDarkMode ? 'text-slate-400' : 'text-slate-600'
                   }`}
                 >
-                  Fleeting thoughts, quick checklists, scratchpads & sketches
+                  {t('notes.quickNoteDesc', 'Fleeting thoughts, quick checklists, scratchpads & sketches')}
                 </p>
               </div>
             </div>
             <ChevronRight
-              className={`w-5 h-5 shrink-0 group-hover:translate-x-1 transition-all duration-200 ${
+              className={`w-5 h-5 shrink-0 transition-all duration-200 group-hover:translate-x-1 ${
                 isDarkMode
                   ? 'text-slate-500 group-hover:text-amber-400'
                   : 'text-slate-400 group-hover:text-amber-600'
@@ -163,7 +162,7 @@ export default function NewNoteActionSheet({
             />
           </button>
 
-          {/* Option 2: 📖 Long Note / Journal */}
+          {/* Option 2: 📖 {t('notes.longNote', 'Long Note')} / Journal */}
           <button
             type="button"
             onClick={onSelectLongNote}
@@ -190,16 +189,16 @@ export default function NewNoteActionSheet({
                       isDarkMode ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    📖 Long Note / Journal
+                    📖 {t('notes.longNote', 'Long Note')}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide ${
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       isDarkMode
                         ? 'bg-primary/15 text-primary border border-primary/30'
                         : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
                     }`}
                   >
-                    Deep Study
+                    {t('notes.deepStudy', 'Deep Study')}
                   </span>
                 </div>
                 <p
@@ -207,12 +206,12 @@ export default function NewNoteActionSheet({
                     isDarkMode ? 'text-slate-400' : 'text-slate-600'
                   }`}
                 >
-                  In-depth reflections, Quranic study, rich formatting & attachments
+                  {t('notes.longNoteDesc', 'In-depth reflections, Quranic study, rich formatting & attachments')}
                 </p>
               </div>
             </div>
             <ChevronRight
-              className={`w-5 h-5 shrink-0 group-hover:translate-x-1 transition-all duration-200 ${
+              className={`w-5 h-5 shrink-0 transition-all duration-200 group-hover:translate-x-1 ${
                 isDarkMode
                   ? 'text-slate-500 group-hover:text-primary'
                   : 'text-slate-400 group-hover:text-primary'
@@ -232,7 +231,7 @@ export default function NewNoteActionSheet({
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
             }`}
           >
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </button>
         </div>
       </div>

@@ -1,8 +1,9 @@
-﻿import GlassInput from "./components/ui/GlassInput";
+import GlassInput from "./components/ui/GlassInput";
 import GlassCard from "./components/ui/GlassCard";
 import AppShell from "./components/ui/AppShell";
 import React, { useState, useEffect } from 'react';
 import LiquidButton from './components/ui/LiquidButton';
+import { confirm } from './components/ui/confirmation/index.js';
 import { jsxDEV as _jsxDEV, Fragment as _Fragment } from "react/jsx-dev-runtime";
 const AddExpenseModal = ({
   setActiveTab
@@ -32,8 +33,15 @@ const AddExpenseModal = ({
       }, 500);
     }, 600);
   };
-  const handleDelete = () => {
-    if (window.confirm('Delete this expense transaction of $' + amount + '?')) {
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      variant: 'destructive',
+      titleKey: 'confirm.deleteExpenseTitle',
+      messageKey: 'confirm.deleteExpenseDescription',
+      confirmLabelKey: 'confirm.delete',
+      cancelLabelKey: 'confirm.cancel',
+    });
+    if (confirmed) {
       setActiveTab('dashboard');
     }
   };

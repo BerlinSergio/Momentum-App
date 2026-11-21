@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   ShieldCheck,
   Fingerprint,
@@ -9,24 +10,31 @@ import {
   Sparkles,
 } from 'lucide-react';
 import useSecurityStore from '../store/useSecurityStore';
+import { useTranslation } from 'react-i18next';
 import { authenticateBiometrics } from '../utils/biometricAuth';
+import {
+  verifyCredential,
+  getLockoutState,
+  recordFailedAttempt,
+  clearLockoutState,
+} from '../utils/credentialService';
+import { flushPendingNotificationRoute } from '../utils/nativeNotifications';
 
 export default function AppLockGuard({ children }) {
+  const { t } = useTranslation();
   const isAppLockActive = useSecurityStore((s) => s.isAppLockActive);
   const biometricsEnabled = useSecurityStore((s) => s.biometricsEnabled);
-  const lockTiming = useSecurityStore((s) => s.lockTiming);
-  const pin = useSecurityStore((s) => s.pin || '');
-  const hasPin = useSecurityStore((s) => (s.hasPin !== undefined ? !!s.hasPin : !!(s.pin && String(s.pin).trim().length === 4)));
   const hideInMultitasking = useSecurityStore((s) => s.hideInMultitasking);
+  const hasPin = useSecurityStore((s) => s.hasPin);
   const _hasHydrated = useSecurityStore((s) => s._hasHydrated);
   const storeIsLocked = useSecurityStore((s) => s.isLocked);
   const setStoreLocked = useSecurityStore((s) => s.setLocked);
 
-  const [isLocked, setIsLocked] = useState(() => (storeIsLocked !== undefined ? storeIsLocked : isAppLockActive && hasPin));
+  const isLocked = isAppLockActive && hasPin && (storeIsLocked !== undefined ? storeIsLocked : true);
   const [enteredPin, setEnteredPin] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutState, setLockoutState] = useState(() => getLockoutState());
   const [isShaking, setIsShaking] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isTabHidden, setIsTabHidden] = useState(false);
@@ -34,67 +42,67 @@ export default function AppLockGuard({ children }) {
   const lastHiddenTimeRef = useRef(0);
   const hasTriggeredInitialBioRef = useRef(false);
 
+  // Monitor and tick active lockout countdown
+  useEffect(() => {
+    if (!lockoutState.isLockedOut) return;
+
+    const interval = setInterval(() => {
+      const current = getLockoutState();
+      setLockoutState(current);
+      if (current.isLockedOut) {
+        setAuthError(t('lockGuard.tooManyAttempts', { seconds: current.remainingSeconds }));
+      } else {
+        setAuthError('');
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lockoutState.isLockedOut]);
+
   // Trigger biometric authentication
   const triggerBiometrics = useCallback(async () => {
-    if (isAuthenticating || isSuccess) return;
+    if (isAuthenticating || isSuccess || lockoutState.isLockedOut) return;
     setIsAuthenticating(true);
     setAuthError('');
 
     try {
-      const result = await authenticateBiometrics({
-        title: 'Momentum Vault',
-      });
+      const result = await authenticateBiometrics();
 
       setIsAuthenticating(false);
 
       if (result.success) {
         setIsSuccess(true);
+        clearLockoutState();
+        setLockoutState({ isLockedOut: false, remainingSeconds: 0, failedAttempts: 0 });
         setAuthError('');
         setTimeout(() => {
-          setIsLocked(false);
           setStoreLocked(false);
           setIsSuccess(false);
-          setFailedAttempts(0);
           setEnteredPin('');
+          flushPendingNotificationRoute();
         }, 320);
       } else {
         const errorMsg = result.cancelled
-          ? 'Biometric scan cancelled. Enter PIN to unlock.'
-          : (result.error || 'Biometric verification failed.');
+          ? t('lockGuard.biometricCancelled', 'Biometric scan cancelled. Enter PIN to unlock.')
+          : (result.error || t('lockGuard.biometricFailed', 'Biometric authentication failed.'));
         setAuthError(errorMsg);
-        setFailedAttempts((prev) => prev + 1);
       }
     } catch {
       setIsAuthenticating(false);
-      setAuthError('Authentication error. Enter PIN to unlock.');
+      setAuthError(t('lockGuard.authError', 'Authentication error. Enter PIN to unlock.'));
     }
-  }, [isAuthenticating, isSuccess, setStoreLocked]);
-
-  // Sync lock status if app lock active state changes or no PIN set
-  useEffect(() => {
-    if (_hasHydrated && (!isAppLockActive || !hasPin)) {
-      setIsLocked(false);
-      setStoreLocked(false);
-    }
-  }, [_hasHydrated, isAppLockActive, hasPin, setStoreLocked]);
-
-  // Sync with store isLocked
-  useEffect(() => {
-    if (storeIsLocked !== undefined) {
-      setIsLocked(storeIsLocked);
-    }
-  }, [storeIsLocked]);
+  }, [isAuthenticating, isSuccess, lockoutState.isLockedOut, setStoreLocked]);
 
   // Optional automatic biometric prompt once on mount if enabled
   useEffect(() => {
-    if (_hasHydrated && isAppLockActive && isLocked && biometricsEnabled && !hasTriggeredInitialBioRef.current) {
+    if (_hasHydrated && isAppLockActive && isLocked && biometricsEnabled && !hasTriggeredInitialBioRef.current && !lockoutState.isLockedOut) {
       hasTriggeredInitialBioRef.current = true;
       const timer = setTimeout(() => {
         triggerBiometrics();
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [_hasHydrated, isAppLockActive, isLocked, biometricsEnabled, triggerBiometrics]);
+  }, [_hasHydrated, isAppLockActive, isLocked, biometricsEnabled, lockoutState.isLockedOut, triggerBiometrics]);
 
   // Listen for backgrounding / tab switching according to lockTiming
   useEffect(() => {
@@ -105,7 +113,7 @@ export default function AppLockGuard({ children }) {
       } else {
         setIsTabHidden(false);
         const activeSecurity = useSecurityStore.getState();
-        if (!activeSecurity.isAppLockActive || !activeSecurity.hasPin) return;
+        if (!activeSecurity.isAppLockActive) return;
 
         const elapsed = Date.now() - (lastHiddenTimeRef.current || 0);
         let shouldLock = false;
@@ -121,7 +129,6 @@ export default function AppLockGuard({ children }) {
         }
 
         if (shouldLock) {
-          setIsLocked(true);
           setStoreLocked(true);
           setEnteredPin('');
           setAuthError('');
@@ -134,44 +141,65 @@ export default function AppLockGuard({ children }) {
   }, [setStoreLocked]);
 
   // Handle PIN input digit addition
-  const handleDigitPress = useCallback((digit) => {
-    if (enteredPin.length >= 4 || isSuccess) return;
+  const handleDigitPress = useCallback(async (digit) => {
+    if (lockoutState.isLockedOut || enteredPin.length >= 4 || isSuccess) return;
     const nextPin = enteredPin + digit;
     setEnteredPin(nextPin);
     setAuthError('');
 
     if (nextPin.length === 4) {
-      // Validate PIN against store or fallback
-      const currentStoredPin = useSecurityStore.getState().pin;
-      const expectedPin = currentStoredPin || pin || '1234';
-      if (nextPin === expectedPin) {
-        setIsSuccess(true);
-        setTimeout(() => {
-          setIsLocked(false);
-          setStoreLocked(false);
-          setIsSuccess(false);
-          setEnteredPin('');
-          setAuthError('');
-          setFailedAttempts(0);
-        }, 320);
-      } else {
+      try {
+        // Centralized cryptographic verification against PBKDF2 verifier
+        const result = await verifyCredential(nextPin);
+
+        if (result.success) {
+          setIsSuccess(true);
+          clearLockoutState();
+          setLockoutState({ isLockedOut: false, remainingSeconds: 0, failedAttempts: 0 });
+
+          setTimeout(() => {
+            setStoreLocked(false);
+            setIsSuccess(false);
+            setEnteredPin('');
+            setAuthError('');
+            flushPendingNotificationRoute();
+          }, 320);
+        } else {
+          setIsShaking(true);
+          const nextLockout = recordFailedAttempt();
+          setLockoutState(nextLockout);
+
+          if (nextLockout.isLockedOut) {
+            setAuthError(`Too many failed attempts. Try again in ${nextLockout.remainingSeconds}s.`);
+          } else if (result.noCredential) {
+            setAuthError('No credential configured. App locked.');
+          } else {
+            const count = nextLockout.failedAttempts;
+            setAuthError(`Incorrect PIN (${count}/5)`);
+          }
+
+          setTimeout(() => {
+            setIsShaking(false);
+            setEnteredPin('');
+          }, 450);
+        }
+      } catch {
         setIsShaking(true);
-        setAuthError('Incorrect PIN');
-        setFailedAttempts((prev) => prev + 1);
+        setAuthError('Authentication verification error.');
         setTimeout(() => {
           setIsShaking(false);
           setEnteredPin('');
         }, 450);
       }
     }
-  }, [enteredPin, isSuccess, pin, setStoreLocked]);
+  }, [enteredPin, isSuccess, lockoutState.isLockedOut, setStoreLocked]);
 
   const handleBackspace = useCallback(() => {
-    if (enteredPin.length > 0) {
+    if (enteredPin.length > 0 && !lockoutState.isLockedOut) {
       setEnteredPin((prev) => prev.slice(0, -1));
       setAuthError('');
     }
-  }, [enteredPin]);
+  }, [enteredPin, lockoutState.isLockedOut]);
 
   // Keyboard support for desktop users
   useEffect(() => {
@@ -189,23 +217,19 @@ export default function AppLockGuard({ children }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLocked, handleDigitPress, handleBackspace]);
 
-  // If app lock is not active or no PIN set, render normal children
-  if (!isAppLockActive || !hasPin) {
-    return <>{children}</>;
-  }
-
   // Multitasking Privacy Blur Overlay
+  const isInputDisabled = isSuccess || lockoutState.isLockedOut;
   const privacyVeil = hideInMultitasking && isTabHidden ? (
     <div className="fixed inset-0 z-[999999] bg-black/95 backdrop-blur-3xl flex items-center justify-center pointer-events-none">
       <div className="flex flex-col items-center gap-3 text-white/50">
         <ShieldCheck className="w-12 h-12 text-primary animate-pulse" />
-        <span className="text-xs uppercase tracking-widest font-semibold">Momentum Privacy Shield</span>
+        <span className="text-xs uppercase tracking-widest font-semibold">{t('lockGuard.privacyShield', 'Momentum Privacy Shield')}</span>
       </div>
     </div>
   ) : null;
 
-  // Unlocked state: render children
-  if (!isLocked) {
+  // If app lock is not active, PIN is not set, or app is currently unlocked, render normal children
+  if (!isAppLockActive || !hasPin || !isLocked) {
     return (
       <>
         {privacyVeil}
@@ -214,23 +238,10 @@ export default function AppLockGuard({ children }) {
     );
   }
 
-  // Locked State: Render impenetrable Security Gate
   return (
     <>
-      <style>{`
-        @keyframes momentumVaultShake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-8px); }
-          40% { transform: translateX(8px); }
-          60% { transform: translateX(-6px); }
-          80% { transform: translateX(6px); }
-        }
-        .momentum-shake {
-          animation: momentumVaultShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-        }
-      `}</style>
       {privacyVeil}
-      <div className="fixed inset-0 z-[999] w-screen h-screen min-h-screen bg-slate-950 text-white flex flex-col justify-between items-center p-6 select-none font-sans overflow-y-auto">
+      <div data-testid="app-lock-screen" className="fixed inset-0 z-[999] w-screen h-screen min-h-screen bg-slate-950 text-white flex flex-col justify-between items-center p-6 select-none font-sans overflow-y-auto">
         {/* Ambient Chromatic Orbs */}
         <div className="absolute top-1/4 -left-20 w-72 h-72 bg-primary/20 rounded-full blur-[100px] pointer-events-none"></div>
         <div className="absolute bottom-1/4 -right-20 w-72 h-72 bg-teal-500/15 rounded-full blur-[100px] pointer-events-none"></div>
@@ -242,8 +253,8 @@ export default function AppLockGuard({ children }) {
               <ShieldCheck className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Momentum Vault</span>
-              <p className="text-[9px] text-teal-400 font-mono">ENCLAVE SECURED</p>
+              <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400 block">{t('lockGuard.securityTitle', 'Momentum Security')}</span>
+              <span className="text-[9px] text-teal-400 font-mono block">{t('lockGuard.passcodeProtected', 'PASSCODE PROTECTED')}</span>
             </div>
           </div>
           <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
@@ -263,12 +274,14 @@ export default function AppLockGuard({ children }) {
               )}
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white uppercase">
-              Momentum Vault
+              {t('lockGuard.lockTitle', 'Momentum Lock')}
             </h1>
             <p className="text-xs text-slate-400 mt-1 max-w-[260px] leading-relaxed">
               {isSuccess
-                ? 'Vault unlocked. Decrypting enclave...'
-                : 'Enter your 4-digit PIN to access your account'}
+                ? t('lockGuard.pinVerified', 'PIN verified. Unlocking...')
+                : lockoutState.isLockedOut
+                ? t('lockGuard.temporaryLockout', 'Temporarily locked for security. Please wait.')
+                : t('lockGuard.enterPin', 'Enter your 4-digit PIN to access your account')}
             </p>
           </div>
 
@@ -303,69 +316,81 @@ export default function AppLockGuard({ children }) {
                 </div>
               ) : isSuccess ? (
                 <span className="text-xs font-semibold text-emerald-400 animate-pulse">
-                  PIN Verified • Access Granted
+                  {t('lockGuard.accessGranted', 'PIN Verified • Access Granted')}
                 </span>
               ) : null}
             </div>
           </div>
 
-          {/* Numeric Keypad */}
+          {/* Numeric Keypad Grid */}
           <div className="grid grid-cols-3 gap-3 w-full max-w-[280px] mx-auto pt-1">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <button
+              <motion.button
                 key={num}
                 type="button"
                 onClick={() => handleDigitPress(String(num))}
-                disabled={isSuccess}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-primary/20 active:border-primary/40 border border-white/10 text-xl font-semibold text-white transition-all flex items-center justify-center active:scale-95 cursor-pointer shadow-sm select-none disabled:opacity-50"
+                disabled={isInputDisabled}
+                whileTap={isInputDisabled ? undefined : { scale: 0.90 }}
+                transition={{ duration: 0.1, ease: 'easeOut' }}
+                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-primary/20 active:border-primary/40 border border-white/10 text-xl font-semibold text-white transition-colors flex items-center justify-center cursor-pointer shadow-sm select-none disabled:opacity-30 disabled:pointer-events-none"
               >
                 {num}
-              </button>
+              </motion.button>
             ))}
 
             {/* Bottom Row */}
             {biometricsEnabled ? (
-              <button
+              <motion.button
                 type="button"
                 onClick={triggerBiometrics}
-                disabled={isSuccess || isAuthenticating}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-primary/20 border border-white/10 text-primary transition-all flex items-center justify-center cursor-pointer active:scale-95 select-none disabled:opacity-50"
-                title="Unlock with Biometrics"
+                disabled={isInputDisabled || isAuthenticating}
+                whileTap={isInputDisabled || isAuthenticating ? undefined : { scale: 0.90 }}
+                transition={{ duration: 0.1, ease: 'easeOut' }}
+                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-primary/20 border border-white/10 text-primary transition-colors flex items-center justify-center cursor-pointer select-none disabled:opacity-30 disabled:pointer-events-none"
+                title={t('lockGuard.useBiometrics', 'Unlock with Biometrics')}
               >
                 <Fingerprint className={`w-6 h-6 text-primary ${isAuthenticating ? 'animate-pulse' : ''}`} />
-              </button>
+              </motion.button>
             ) : (
-              <button
+              <motion.button
                 type="button"
                 onClick={() => {
-                  setEnteredPin('');
-                  setAuthError('');
+                  if (!lockoutState.isLockedOut) {
+                    setEnteredPin('');
+                    setAuthError('');
+                  }
                 }}
-                disabled={isSuccess || enteredPin.length === 0}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 text-slate-400 hover:text-white text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center cursor-pointer active:scale-95 select-none disabled:opacity-30"
+                disabled={isInputDisabled || enteredPin.length === 0}
+                whileTap={isInputDisabled || enteredPin.length === 0 ? undefined : { scale: 0.90 }}
+                transition={{ duration: 0.1, ease: 'easeOut' }}
+                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 text-slate-400 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors flex items-center justify-center cursor-pointer select-none disabled:opacity-30 disabled:pointer-events-none"
               >
-                Clear
-              </button>
+                {t('lockGuard.clear', 'Clear')}
+              </motion.button>
             )}
 
-            <button
+            <motion.button
               type="button"
               onClick={() => handleDigitPress('0')}
-              disabled={isSuccess}
-              className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-primary/20 active:border-primary/40 border border-white/10 text-xl font-semibold text-white transition-all flex items-center justify-center active:scale-95 cursor-pointer shadow-sm select-none disabled:opacity-50"
+              disabled={isInputDisabled}
+              whileTap={isInputDisabled ? undefined : { scale: 0.90 }}
+              transition={{ duration: 0.1, ease: 'easeOut' }}
+              className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-primary/20 active:border-primary/40 border border-white/10 text-xl font-semibold text-white transition-colors flex items-center justify-center cursor-pointer shadow-sm select-none disabled:opacity-30 disabled:pointer-events-none"
             >
               0
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               type="button"
               onClick={handleBackspace}
-              disabled={isSuccess || enteredPin.length === 0}
-              className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-95 select-none disabled:opacity-30"
-              title="Delete"
+              disabled={isInputDisabled || enteredPin.length === 0}
+              whileTap={isInputDisabled || enteredPin.length === 0 ? undefined : { scale: 0.90 }}
+              transition={{ duration: 0.1, ease: 'easeOut' }}
+              className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 text-slate-400 hover:text-white transition-colors flex items-center justify-center cursor-pointer select-none disabled:opacity-30 disabled:pointer-events-none"
+              title={t('common.delete', 'Delete')}
             >
               <Delete className="w-5 h-5" />
-            </button>
+            </motion.button>
           </div>
         </div>
 
@@ -373,7 +398,7 @@ export default function AppLockGuard({ children }) {
         <div className="text-center pb-2 z-10 max-w-sm">
           <p className="text-[10px] text-slate-500 font-mono flex items-center justify-center gap-1.5">
             <Sparkles className="w-3 h-3 text-primary" />
-            <span>AES-256 GCM Zero-Knowledge Hardware Vault</span>
+            <span>{t('lockGuard.pbkdfVerification', 'PBKDF2-SHA256 Protected Verification')}</span>
           </p>
         </div>
       </div>

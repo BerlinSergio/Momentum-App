@@ -2,25 +2,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { produce } from 'immer';
 import { v4 as uuidv4 } from 'uuid';
+import { isToday } from '../utils/timeService';
+import { createIndexedDbStorage } from '../storage/index.js';
 
-const getSafeStorage = () => {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const testKey = '__momentum_tasbeeh_test__';
-      window.localStorage.setItem(testKey, testKey);
-      window.localStorage.removeItem(testKey);
-      return window.localStorage;
-    }
-  } catch (e) {
-    console.warn('LocalStorage unavailable, falling back to memory store:', e);
-  }
-  const memoryStore = new Map();
-  return {
-    getItem: (key) => memoryStore.get(key) || null,
-    setItem: (key, value) => { memoryStore.set(key, String(value)); },
-    removeItem: (key) => { memoryStore.delete(key); },
-  };
-};
+const tasbeehStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-tasbeeh-storage' });
+const getSafeStorage = () => tasbeehStorage;
 
 const playFeedbackAudio = () => {
   try {
@@ -39,7 +25,7 @@ const playFeedbackAudio = () => {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.04);
-  } catch (e) {
+  } catch {
     // Ignore autoplay restriction or audio context errors
   }
 };
@@ -49,7 +35,7 @@ const triggerFeedbackHaptic = (isTarget = false) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(isTarget ? [40, 50, 40] : 15);
     }
-  } catch (e) {
+  } catch {
     // Ignore vibration error
   }
 };
@@ -63,24 +49,26 @@ export const DEFAULT_TASBEEH_PRESETS = [
   { id: 'p6', arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', transliteration: 'SubhanAllah wa bi-Hamdih', meaning: 'Glory be to Allah and Praise Him', target: 33 },
 ];
 
-const getSeedDate = (hoursAgo = 0) => {
-  return new Date(Date.now() - hoursAgo * 3600 * 1000).toISOString();
-};
-
 export const DEFAULT_TASBEEH_LOGS = [];
 
-export const computeTodayTotal = (historyLogs = [], currentCount = 0) => {
-  const now = new Date();
+export const computeTodayTotal = (historyLogs = [], currentCount = 0, timeZone) => {
   const todayLogsSum = (historyLogs || []).reduce((sum, log) => {
     if (!log || !log.date) return sum;
-    const d = new Date(log.date);
-    if (isNaN(d.getTime())) return sum;
-    if (
-      d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      d.getDate() === now.getDate()
-    ) {
-      return sum + (Number(log.count) || 0);
+    try {
+      if (isToday(log.date, timeZone)) {
+        return sum + (Number(log.count) || 0);
+      }
+    } catch {
+      const now = new Date();
+      const d = new Date(log.date);
+      if (
+        !isNaN(d.getTime()) &&
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      ) {
+        return sum + (Number(log.count) || 0);
+      }
     }
     return sum;
   }, 0);
@@ -328,7 +316,7 @@ export const useTasbeehStore = create(
     }),
     {
       name: 'momentum-tasbeeh-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           state.setHasHydrated(true);

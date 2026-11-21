@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { getLocalDateKey } from '../utils/timeService.js';
+import { createIndexedDbStorage } from '../storage/index.js';
 
 export const CURRENCY_SYMBOLS = {
   USD: '$',
@@ -82,6 +84,149 @@ export const calculateGroupedTotals = (items = [], filterFn = null) => {
   return result;
 };
 
+/**
+ * Authoritative pure selector for computing monthly finance summaries.
+ * Deduplicates transactions and incomes, filters by periodKey (YYYY-MM),
+ * and computes grouped income, expenses, and net saved.
+ */
+export const getMonthlyFinanceSummary = (transactions = [], incomes = [], periodKey = '') => {
+  const list = [...(transactions || [])];
+  (incomes || []).forEach((inc) => {
+    if (!list.some((tx) => String(tx.id) === String(inc.id))) {
+      list.push({ ...inc, type: 'income' });
+    }
+  });
+
+  const monthItems = list.filter((tx) => {
+    if (!periodKey || periodKey === 'all') return true;
+    if (!tx.date) return true;
+    return String(tx.date).startsWith(periodKey);
+  });
+
+  const incomeGrouped = calculateGroupedTotals(monthItems.filter((tx) => tx.type === 'income'));
+  const expensesGrouped = calculateGroupedTotals(monthItems.filter((tx) => tx.type === 'expense'));
+
+  const currencySet = new Set([...Object.keys(incomeGrouped), ...Object.keys(expensesGrouped)]);
+  const currencies = Array.from(currencySet);
+
+  const netSavedGrouped = {};
+  (currencies.length > 0 ? currencies : ['AFN']).forEach((cur) => {
+    const inc = incomeGrouped[cur] || 0;
+    const exp = expensesGrouped[cur] || 0;
+    netSavedGrouped[cur] = inc - exp;
+  });
+
+  return {
+    monthItems,
+    incomeGrouped,
+    expensesGrouped,
+    netSavedGrouped,
+    currencies: currencies.length > 0 ? currencies : ['AFN'],
+  };
+};
+
+/**
+ * Authoritative pure selector for computing Savings Target progress.
+ * Validates target amount, safe division, non-negative rate display,
+ * visual fill cap [0, 100], and handles missing/zero targets gracefully.
+ */
+export const getSavingsTargetStats = (savingsTarget, netSavedGrouped = {}, preferredCurrency = 'AFN') => {
+  let currencyCode = 'AFN';
+  const raw = String(preferredCurrency || 'AFN');
+  if (raw.includes('USD') || raw.includes('$')) currencyCode = 'USD';
+  else if (raw.includes('EUR') || raw.includes('€')) currencyCode = 'EUR';
+  else if (raw.includes('GBP') || raw.includes('£')) currencyCode = 'GBP';
+  else if (raw.includes('PKR') || raw.includes('₨')) currencyCode = 'PKR';
+  else if (raw.includes('IRR') || raw.includes('﷼')) currencyCode = 'IRR';
+  else if (raw.includes('AFN') || raw.includes('؋')) currencyCode = 'AFN';
+
+  // Discover candidate target currencies with positive targets
+  let targetCurrencies = [];
+  if (savingsTarget && typeof savingsTarget === 'object') {
+    targetCurrencies = Object.keys(savingsTarget).filter((k) => {
+      const v = savingsTarget[k];
+      if (typeof v === 'number') return v > 0;
+      if (typeof v === 'object' && v !== null) {
+        return (Number(v.target) || 0) > 0 || (Number(v.amount) || 0) > 0;
+      }
+      return false;
+    });
+  }
+
+  const presentCurrencies = Object.keys(netSavedGrouped || {}).filter((c) => netSavedGrouped[c] !== 0);
+
+  let activeCurrency = currencyCode;
+  if (targetCurrencies.includes(currencyCode)) {
+    activeCurrency = currencyCode;
+  } else if (targetCurrencies.length > 0) {
+    activeCurrency = targetCurrencies[0];
+  } else if (presentCurrencies.includes(currencyCode)) {
+    activeCurrency = currencyCode;
+  } else if (presentCurrencies.length > 0) {
+    activeCurrency = presentCurrencies[0];
+  }
+
+  let storeTarget = null;
+  let explicitContributed = null;
+
+  if (typeof savingsTarget === 'number' && savingsTarget > 0) {
+    storeTarget = savingsTarget;
+  } else if (savingsTarget && typeof savingsTarget === 'object') {
+    const entry = savingsTarget[activeCurrency] ?? savingsTarget[currencyCode] ?? null;
+    if (typeof entry === 'number') {
+      storeTarget = entry;
+    } else if (typeof entry === 'object' && entry !== null) {
+      storeTarget = entry.target !== undefined ? entry.target : (entry.amount !== undefined ? entry.amount : null);
+      if (entry.current !== undefined) explicitContributed = Number(entry.current) || 0;
+      else if (entry.contributed !== undefined) explicitContributed = Number(entry.contributed) || 0;
+    }
+  }
+
+  const hasTarget = storeTarget !== null && Number(storeTarget) > 0;
+  const targetAmount = hasTarget ? Number(storeTarget) : 0;
+
+  // Actual saved: if explicit contribution is set on the goal, use that!
+  // Otherwise fall back to netSavedGrouped (monthly net cash flow)
+  let actualSaved = 0;
+  if (explicitContributed !== null) {
+    actualSaved = explicitContributed;
+  } else if (netSavedGrouped && netSavedGrouped[activeCurrency] !== undefined) {
+    actualSaved = Number(netSavedGrouped[activeCurrency]) || 0;
+  } else if (typeof netSavedGrouped === 'number') {
+    actualSaved = netSavedGrouped;
+  }
+
+  let rawRate = 0;
+  if (hasTarget && targetAmount > 0) {
+    rawRate = (actualSaved / targetAmount) * 100;
+  }
+
+  const numericRate = !isFinite(rawRate) || isNaN(rawRate) ? 0 : Math.max(0, rawRate);
+  const roundedRate = Math.round(numericRate * 10) / 10;
+  const displayRate = roundedRate === 0
+    ? '0%'
+    : (roundedRate % 1 === 0 ? `${roundedRate.toFixed(0)}%` : `${roundedRate.toFixed(1)}%`);
+
+  // Cap visual fill width strictly to [0, 100] without falsifying numerical percentage
+  const barWidth = Math.min(100, Math.max(0, roundedRate));
+  const formattedTarget = formatSingleCurrency(targetAmount, activeCurrency, { decimals: 0 });
+  const formattedSaved = formatSingleCurrency(actualSaved, activeCurrency, { decimals: 0 });
+
+  return {
+    hasTarget,
+    currencyCode: activeCurrency,
+    currencySymbol: getCurrencySymbol(activeCurrency),
+    targetAmount,
+    actualSaved,
+    explicitContributed,
+    numericRate,
+    displayRate,
+    barWidth,
+    formattedTarget,
+    formattedSaved,
+  };
+};
+
 const getDynamicDateInOffsetMonth = (offsetMonths = 0, day = 1) => {
   const now = new Date();
   now.setDate(1);
@@ -92,7 +237,7 @@ const getDynamicDateInOffsetMonth = (offsetMonths = 0, day = 1) => {
   return `${year}-${month}-${d}`;
 };
 
-const initialIncomes = [
+export const DEMO_FINANCE_INCOMES = [
   {
     id: 'inc-sched',
     title: 'TechCorp Salary',
@@ -221,7 +366,7 @@ const initialIncomes = [
   },
 ];
 
-const initialExpenses = [
+export const DEMO_FINANCE_EXPENSES = [
   {
     id: 'exp-1',
     title: 'Downtown Apartment Rent',
@@ -284,47 +429,42 @@ const initialExpenses = [
   },
 ];
 
-const initialAccounts = [
+export const DEMO_FINANCE_ACCOUNTS = [
   { id: 'acc-usd', name: 'USD Checking Account', balance: 2500, currency: 'USD', type: 'bank' },
   { id: 'acc-afn', name: 'AFN Business Account', balance: 20000, currency: 'AFN', type: 'cash' },
 ];
 
+export const initialIncomes = DEMO_FINANCE_INCOMES;
+export const initialExpenses = DEMO_FINANCE_EXPENSES;
+export const initialAccounts = DEMO_FINANCE_ACCOUNTS;
+
 export const initialMonthlyBudgetCap = {
-  AFN: 50000,
-  USD: 1000,
+  AFN: 0,
+  USD: 0,
 };
 
 export const initialSavingsTarget = {
-  AFN: 60000,
-  USD: 1000,
-  EUR: 1000,
-  GBP: 800,
-  PKR: 100000,
-  IRR: 50000000,
+  AFN: 0,
+  USD: 0,
 };
 
-const getSafeFinanceStorage = () => {
-  if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
-  if (typeof localStorage !== 'undefined') return localStorage;
-  const memoryStore = new Map();
-  return {
-    getItem: (key) => memoryStore.get(key) || null,
-    setItem: (key, value) => { memoryStore.set(key, String(value)); },
-    removeItem: (key) => { memoryStore.delete(key); },
-  };
-};
+const financeStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-finance-storage' });
 
 const syncFinanceToLocalStorage = (slice) => {
   try {
-    const storageObj = typeof window !== 'undefined' && window.localStorage ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
-    if (storageObj) {
-      const raw = storageObj.getItem('momentum-finance-storage');
-      const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-      parsed.state = { ...(parsed.state || {}), ...slice };
-      storageObj.setItem('momentum-finance-storage', JSON.stringify(parsed));
-    }
+    const currentState = useFinanceStore.getState?.() || {};
+    const payload = {
+      state: {
+        ...currentState,
+        ...slice,
+        editingTransaction: null,
+        editingIncome: null,
+      },
+      version: 0,
+    };
+    financeStorage.setItem('momentum-finance-storage', JSON.stringify(payload)).catch(() => {});
   } catch (e) {
-    console.warn('[Momentum Finance] Direct localStorage sync error:', e);
+    console.warn('[Momentum Finance] Persistence sync error:', e);
   }
 };
 
@@ -336,14 +476,14 @@ const getInitialFinanceState = () => {
         const parsed = JSON.parse(raw);
         if (parsed?.state) {
           return {
-            accounts: Array.isArray(parsed.state.accounts) ? parsed.state.accounts : [...initialAccounts],
+            accounts: Array.isArray(parsed.state.accounts) ? parsed.state.accounts : [],
             transactions: Array.isArray(parsed.state.transactions) ? parsed.state.transactions : [],
             incomes: Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [],
             editingIncome: null,
             editingTransaction: null,
             budgets: Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [],
-            monthlyBudgetCap: parsed.state.monthlyBudgetCap || { ...initialMonthlyBudgetCap },
-            savingsTarget: parsed.state.savingsTarget || { ...initialSavingsTarget },
+            monthlyBudgetCap: parsed.state.monthlyBudgetCap !== undefined ? parsed.state.monthlyBudgetCap : { AFN: 0, USD: 0 },
+            savingsTarget: parsed.state.savingsTarget !== undefined ? parsed.state.savingsTarget : null,
             pendingTransactionType: parsed.state.pendingTransactionType || 'expense',
             _hasHydrated: true,
           };
@@ -359,30 +499,32 @@ const getInitialFinanceState = () => {
         const parsed = JSON.parse(raw);
         if (parsed?.state) {
           return {
-            accounts: Array.isArray(parsed.state.accounts) ? parsed.state.accounts : [...initialAccounts],
+            accounts: Array.isArray(parsed.state.accounts) ? parsed.state.accounts : [],
             transactions: Array.isArray(parsed.state.transactions) ? parsed.state.transactions : [],
             incomes: Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [],
             editingIncome: null,
             editingTransaction: null,
             budgets: Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [],
-            monthlyBudgetCap: parsed.state.monthlyBudgetCap || { ...initialMonthlyBudgetCap },
-            savingsTarget: parsed.state.savingsTarget || { ...initialSavingsTarget },
+            monthlyBudgetCap: parsed.state.monthlyBudgetCap !== undefined ? parsed.state.monthlyBudgetCap : { AFN: 0, USD: 0 },
+            savingsTarget: parsed.state.savingsTarget !== undefined ? parsed.state.savingsTarget : null,
             pendingTransactionType: parsed.state.pendingTransactionType || 'expense',
             _hasHydrated: true,
           };
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignore parse failure on fallback
+    }
   }
   return {
-    accounts: [...initialAccounts],
-    transactions: [...initialExpenses, ...initialIncomes],
-    incomes: [...initialIncomes],
+    accounts: [],
+    transactions: [],
+    incomes: [],
     editingIncome: null,
     editingTransaction: null,
     budgets: [],
-    monthlyBudgetCap: { ...initialMonthlyBudgetCap },
-    savingsTarget: { ...initialSavingsTarget },
+    monthlyBudgetCap: { AFN: 0, USD: 0 },
+    savingsTarget: null,
     pendingTransactionType: 'expense',
     _hasHydrated: true,
   };
@@ -463,19 +605,114 @@ export const useFinanceStore = create(
         }),
       setSavingsTarget: (target) =>
         set((state) => {
-          const nextTarget = typeof target === 'number'
-            ? target
-            : { ...(typeof state.savingsTarget === 'object' ? state.savingsTarget : initialSavingsTarget), ...target };
+          let nextTarget = null;
+          if (target === null) {
+            nextTarget = null;
+          } else if (typeof target === 'number') {
+            nextTarget = target;
+          } else if (typeof target === 'object') {
+            const currentObj = (state.savingsTarget && typeof state.savingsTarget === 'object')
+              ? state.savingsTarget
+              : {};
+            nextTarget = { ...currentObj };
+            Object.entries(target).forEach(([cur, val]) => {
+              if (val === null || val === undefined) {
+                delete nextTarget[cur];
+              } else if (typeof val === 'number') {
+                const prev = nextTarget[cur];
+                if (typeof prev === 'object' && prev !== null) {
+                  nextTarget[cur] = { ...prev, target: val };
+                } else {
+                  nextTarget[cur] = val;
+                }
+              } else if (typeof val === 'object') {
+                const prev = (typeof nextTarget[cur] === 'object' && nextTarget[cur] !== null)
+                  ? nextTarget[cur]
+                  : { target: typeof nextTarget[cur] === 'number' ? nextTarget[cur] : 0, current: 0 };
+                nextTarget[cur] = { ...prev, ...val };
+              }
+            });
+          }
           syncFinanceToLocalStorage({ savingsTarget: nextTarget });
           return { savingsTarget: nextTarget };
         }),
+
       updateSavingsTarget: (newTargets) =>
         set((state) => {
-          const nextTarget = typeof newTargets === 'number'
-            ? newTargets
-            : { ...(typeof state.savingsTarget === 'object' ? state.savingsTarget : initialSavingsTarget), ...newTargets };
+          let nextTarget = null;
+          if (newTargets === null) {
+            nextTarget = null;
+          } else if (typeof newTargets === 'number') {
+            nextTarget = newTargets;
+          } else if (typeof newTargets === 'object') {
+            const currentObj = (state.savingsTarget && typeof state.savingsTarget === 'object')
+              ? state.savingsTarget
+              : {};
+            nextTarget = { ...currentObj };
+            Object.entries(newTargets).forEach(([cur, val]) => {
+              if (val === null || val === undefined) {
+                delete nextTarget[cur];
+              } else if (typeof val === 'number') {
+                const prev = nextTarget[cur];
+                if (typeof prev === 'object' && prev !== null) {
+                  nextTarget[cur] = { ...prev, target: val };
+                } else {
+                  nextTarget[cur] = val;
+                }
+              } else if (typeof val === 'object') {
+                const prev = (typeof nextTarget[cur] === 'object' && nextTarget[cur] !== null)
+                  ? nextTarget[cur]
+                  : { target: typeof nextTarget[cur] === 'number' ? nextTarget[cur] : 0, current: 0 };
+                nextTarget[cur] = { ...prev, ...val };
+              }
+            });
+          }
           syncFinanceToLocalStorage({ savingsTarget: nextTarget });
           return { savingsTarget: nextTarget };
+        }),
+
+      contributeToSavingsTarget: (currency = 'AFN', amount = 0) =>
+        set((state) => {
+          const currentObj = (state.savingsTarget && typeof state.savingsTarget === 'object')
+            ? { ...state.savingsTarget }
+            : {};
+          const curEntry = currentObj[currency];
+          let curTarget = 0;
+          let curSaved = 0;
+          if (typeof curEntry === 'number') {
+            curTarget = curEntry;
+          } else if (typeof curEntry === 'object' && curEntry !== null) {
+            curTarget = Number(curEntry.target ?? curEntry.amount ?? 0);
+            curSaved = Number(curEntry.current ?? curEntry.contributed ?? 0);
+          }
+          const nextSaved = Math.max(0, curSaved + Number(amount));
+          currentObj[currency] = {
+            target: curTarget,
+            current: nextSaved,
+          };
+          syncFinanceToLocalStorage({ savingsTarget: currentObj });
+          return { savingsTarget: currentObj };
+        }),
+
+      setSavingsContribution: (currency = 'AFN', amount = 0) =>
+        set((state) => {
+          const currentObj = (state.savingsTarget && typeof state.savingsTarget === 'object')
+            ? { ...state.savingsTarget }
+            : {};
+          const curEntry = currentObj[currency];
+          let curTarget = 0;
+          if (typeof curEntry === 'number') {
+            curTarget = curEntry;
+          } else if (typeof curEntry === 'object' && curEntry !== null) {
+            curTarget = Number(curEntry.target ?? curEntry.amount ?? 0);
+          }
+          const nextSaved = Math.max(0, Number(amount));
+          currentObj[currency] = {
+            target: curTarget,
+            current: nextSaved,
+          };
+          syncFinanceToLocalStorage({ savingsTarget: currentObj });
+          return { savingsTarget: currentObj };
         }),
 
       // Direct setters to allow full control and clearing with guaranteed immediate disk write
@@ -516,7 +753,7 @@ export const useFinanceStore = create(
             type: 'income',
             category: income.category || 'General',
             currency: income.currency || 'AFN',
-            date: income.date || new Date().toISOString().split('T')[0],
+            date: income.date || getLocalDateKey(),
             recurrence: income.recurrence || 'One-time deposit',
             status: income.status || 'Cleared',
             incomeType: ['Salary', 'Freelance'].includes(income.category) ? 'active' : 'passive',
@@ -560,7 +797,7 @@ export const useFinanceStore = create(
             type: transaction.type || 'expense',
             category: transaction.category || 'General',
             currency: transaction.currency || 'AFN',
-            date: transaction.date || new Date().toISOString().split('T')[0],
+            date: transaction.date || getLocalDateKey(),
             note: transaction.note || transaction.notes || '',
             notes: transaction.notes || transaction.note || '',
             payerName: transaction.payerName || '',
@@ -644,7 +881,7 @@ export const useFinanceStore = create(
     }),
     {
       name: 'momentum-finance-storage',
-      storage: createJSONStorage(getSafeFinanceStorage),
+      storage: createJSONStorage(() => financeStorage),
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(persistedState || {}),
@@ -711,7 +948,7 @@ if (typeof window !== 'undefined' && window.localStorage) {
     } else {
       useFinanceStore.setState({ _hasHydrated: true });
     }
-  } catch (e) {
+  } catch {
     useFinanceStore.setState({ _hasHydrated: true });
   }
 }

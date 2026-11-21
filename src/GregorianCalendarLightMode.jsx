@@ -1,4 +1,5 @@
-﻿import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
   ArrowLeft, Calendar, ChevronLeft, ChevronDown, ChevronRight,
@@ -8,8 +9,11 @@ import {
 import { useCalendarStore } from './store/useCalendarStore.js';
 import { useTaskStore } from './store/useTaskStore.js';
 import { useFinanceStore } from './store/useFinanceStore.js';
-import { useRoutineStore } from './store/useRoutineStore.js';
+import { useRoutineStore, isRoutineScheduledForDate, isRoutineCompletedForDate } from './store/useRoutineStore.js';
+import { useAppTime } from './hooks/useAppTime.js';
 import { getShamsiDate, getIslamicDateParts } from './utils/afghanCalendar.js';
+import { MomentumDatePicker, MomentumTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -30,15 +34,18 @@ function getDayOfYearStats(date) {
 }
 
 export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
-  const today = useMemo(() => new Date(), []);
-  const [viewYear, setViewYear] = useState(() => today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(() => today.getMonth());
-  const [selectedDay, setSelectedDay] = useState(() => today.getDate());
+  const { t } = useTranslation();
+  const { currentYear, currentMonth, currentDay, effectiveTimezone } = useAppTime();
+  const [viewYear, setViewYear] = useState(() => currentYear);
+  const [viewMonth, setViewMonth] = useState(() => currentMonth - 1);
+  const [selectedDay, setSelectedDay] = useState(() => currentDay);
   const [activeCategory, setActiveCategory] = useState('All');
   const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
 
   // Add Event Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formCategory, setFormCategory] = useState('Work');
   const [formDate, setFormDate] = useState('');
@@ -78,12 +85,12 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
   }, [viewYear, viewMonth, selectedDay]);
 
   const selectedIslamic = useMemo(() => {
-    return getIslamicDateParts(selectedDate);
-  }, [selectedDate]);
+    return getIslamicDateParts(selectedDate, effectiveTimezone);
+  }, [selectedDate, effectiveTimezone]);
 
   const selectedShamsi = useMemo(() => {
-    return getShamsiDate(selectedDate);
-  }, [selectedDate]);
+    return getShamsiDate(selectedDate, effectiveTimezone);
+  }, [selectedDate, effectiveTimezone]);
 
   const dayOfYearStats = useMemo(() => {
     return getDayOfYearStats(selectedDate);
@@ -203,11 +210,13 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
         }
       }
     });
-    const todayY = today.getFullYear();
-    const todayM = today.getMonth() + 1;
-    const todayD = today.getDate();
+    const todayY = currentYear;
+    const todayM = currentMonth;
+    const todayD = currentDay;
+    const routineDateKey = `${todayY}-${String(todayM).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`;
     (routines || []).forEach((r) => {
-      const key = `${r.title.toLowerCase().trim()}_${todayY}-${todayM}-${todayD}`;
+      if (!isRoutineScheduledForDate(r, routineDateKey)) return;
+      const key = `${r.title.toLowerCase().trim()}_${routineDateKey}`;
       if (!seen.has(key)) {
         seen.add(key);
         list.push({
@@ -215,19 +224,19 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
           sourceId: r.id,
           source: 'routine',
           title: r.title,
-          date: `${todayY}-${String(todayM).padStart(2, '0')}-${String(todayD).padStart(2, '0')}`,
+          date: routineDateKey,
           gregorianYear: todayY,
           gregorianMonth: todayM,
           gregorianDay: todayD,
           time: r.time || 'Daily Routine',
           category: r.category && r.category.toLowerCase().includes('work') ? 'Work' : 'Personal',
-          completed: !!r.completed,
+          completed: isRoutineCompletedForDate(r, routineDateKey),
           note: r.notes || '',
         });
       }
     });
     return list;
-  }, [calendarEvents, tasks, transactions, routines, today]);
+  }, [calendarEvents, tasks, transactions, routines, currentYear, currentMonth, currentDay]);
 
   const monthEvents = useMemo(() => {
     return allGlobalEvents.filter((e) => {
@@ -287,7 +296,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
     if (evt.source === 'task') {
       toggleTaskStatus(evt.sourceId);
     } else if (evt.source === 'routine') {
-      toggleRoutineCompletion(evt.sourceId);
+      toggleRoutineCompletion(evt.sourceId, evt.date);
     } else if (evt.source === 'calendar') {
       toggleCalendarEvent(evt.sourceId);
     }
@@ -296,10 +305,13 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
   const handleDeleteEvent = (evt) => {
     if (evt.source === 'task') {
       deleteTask(evt.sourceId);
+      toast.success(t('toasts.taskDeleted', 'Task deleted'));
     } else if (evt.source === 'finance') {
       deleteTransaction(evt.sourceId);
+      toast.success(t('toasts.transactionDeleted', 'Transaction deleted'));
     } else if (evt.source === 'calendar') {
       deleteCalendarEvent(evt.sourceId);
+      toast.success(t('toasts.eventDeleted', 'Event deleted'));
     }
   };
 
@@ -364,6 +376,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
     setViewMonth(targetMonth - 1);
     setSelectedDay(targetDay);
     setIsAddModalOpen(false);
+    toast.success(t('toasts.eventAdded', 'Event added to calendar'));
   };
 
   return (
@@ -375,11 +388,11 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
             <Calendar className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Gregorian Calendar
+            {t('calendar.gregorianCalendar', 'Gregorian Calendar')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors"><ArrowLeft className="w-5 h-5"/></button>
+          <button type="button" aria-label="Go back" data-testid="calendar-back-btn" onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"><ArrowLeft className="w-5 h-5 rtl:rotate-180 transition-transform"/></button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
       </div>
@@ -406,7 +419,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
               <div className="p-4 rounded-2xl bg-white/95 border border-slate-200 shadow-2xl space-y-3 z-30 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                   <button onClick={() => setViewYear((y) => y - 1)} className="px-2 py-1 text-xs rounded bg-slate-100 text-slate-600 hover:bg-slate-200">&larr; {viewYear - 1}</button>
-                  <span className="text-sm font-bold text-slate-900">Select Month</span>
+                  <span className="text-sm font-bold text-slate-900">{t('calendar.selectMonth', 'Select Month')}</span>
                   <button onClick={() => setViewYear((y) => y + 1)} className="px-2 py-1 text-xs rounded bg-slate-100 text-slate-600 hover:bg-slate-200">{viewYear + 1} &rarr;</button>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
@@ -426,16 +439,16 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
           {/* Category Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
             <button onClick={() => setActiveCategory('All')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex-shrink-0 transition-all ${activeCategory === 'All' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              All Events {categoryCounts.all}
+              {t('calendar.allEvents', 'All Events')} {categoryCounts.all}
             </button>
             <button onClick={() => setActiveCategory('Work')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex-shrink-0 transition-all ${activeCategory === 'Work' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              Work & Tasks {categoryCounts.work}
+              {t('calendar.workTasks', 'Work & Tasks')} {categoryCounts.work}
             </button>
             <button onClick={() => setActiveCategory('Finance')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex-shrink-0 transition-all ${activeCategory === 'Finance' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              Finance {categoryCounts.finance}
+              {t('calendar.finance', 'Finance')} {categoryCounts.finance}
             </button>
             <button onClick={() => setActiveCategory('Personal')} className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold flex-shrink-0 transition-all ${activeCategory === 'Personal' ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              Personal {categoryCounts.personal}
+              {t('calendar.personal', 'Personal')} {categoryCounts.personal}
             </button>
           </div>
 
@@ -458,6 +471,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
             {calendarGrid.currentDays.map((d) => {
               const isSelected = d === selectedDay;
               const hasEvents = daysWithEvents.has(d);
+              const isToday = viewYear === currentYear && (viewMonth + 1) === currentMonth && d === currentDay;
               if (isSelected) {
                 return (
                   <button key={`curr-${d}`} onClick={() => setSelectedDay(d)} className="aspect-square w-9 h-9 mx-auto rounded-full bg-primary text-white font-bold flex flex-col items-center justify-center shadow-md shadow-primary/40 relative">
@@ -467,7 +481,13 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
                 );
               }
               return (
-                <button key={`curr-${d}`} onClick={() => setSelectedDay(d)} className="aspect-square flex flex-col items-center justify-center rounded-full text-slate-800 font-medium hover:bg-slate-100 transition-colors relative">
+                <button
+                  key={`curr-${d}`}
+                  onClick={() => setSelectedDay(d)}
+                  className={`aspect-square flex flex-col items-center justify-center rounded-full font-medium hover:bg-slate-100 transition-colors relative ${
+                    isToday ? 'border border-primary/60 text-primary font-bold' : 'text-slate-800'
+                  }`}
+                >
                   <span>{d}</span>
                   {hasEvents && <span className="w-1 h-1 rounded-full bg-primary mt-0.5"></span>}
                 </button>
@@ -495,7 +515,13 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
               </span>
             </div>
             <p className="text-xs font-normal text-slate-500">
-              Day {dayOfYearStats.dayOfYear} of {dayOfYearStats.totalDays} • Week {dayOfYearStats.weekNumber} • {dayOfYearStats.daysRemaining} days remaining in {viewYear}
+              {t('calendar.dayOfYearStats', 'Day {{day}} of {{total}} • Week {{week}} • {{remaining}} days remaining in {{year}}', {
+                day: dayOfYearStats.dayOfYear,
+                total: dayOfYearStats.totalDays,
+                week: dayOfYearStats.weekNumber,
+                remaining: dayOfYearStats.daysRemaining,
+                year: viewYear
+              })}
             </p>
           </div>
 
@@ -503,8 +529,8 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
           {filteredEvents.length === 0 ? (
             <div className="py-8 text-center flex flex-col items-center justify-center space-y-2">
               <CalendarDays className="w-10 h-10 text-slate-400 stroke-1" />
-              <p className="text-xs font-medium text-slate-500">No events scheduled for this day</p>
-              <p className="text-[11px] text-slate-400">Tap below to add a new Gregorian event</p>
+              <p className="text-xs font-medium text-slate-500">{t('calendar.noEventsDay', 'No events scheduled for this day')}</p>
+              <p className="text-[11px] text-slate-400">{t('calendar.tapAddGregorianEvent', 'Tap below to add a new Gregorian event')}</p>
             </div>
           ) : (
             filteredEvents.map((evt) => {
@@ -524,12 +550,12 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
                   </div>
                   <div className="flex items-center flex-shrink-0 gap-1.5">
                     <span className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold ${isFinance ? 'bg-teal-50 text-teal-700 border border-teal-200' : isPersonal ? 'bg-violet-50 text-violet-700 border border-violet-200' : 'bg-primary/10 text-primary border border-primary/20'}`}>
-                      {evt.category || 'Work'}
+                      {evt.category ? t('calendar.' + evt.category.toLowerCase(), evt.category) : t('calendar.work', 'Work')}
                     </span>
-                    <button onClick={() => handleToggleEvent(evt)} className="p-1 rounded-lg hover:bg-black/5 transition-colors" title="Toggle status">
+                    <button onClick={() => handleToggleEvent(evt)} className="p-1 rounded-lg hover:bg-black/5 transition-colors" title={t('calendar.toggleStatus', 'Toggle status')}>
                       {evt.completed ? <CheckCircle2 className="w-4 h-4 text-teal-600"/> : <Clock className="w-4 h-4 text-slate-400"/>}
                     </button>
-                    <button onClick={() => handleDeleteEvent(evt)} className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete event">
+                    <button onClick={() => handleDeleteEvent(evt)} className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title={t('calendar.deleteEvent', 'Delete event')}>
                       <Trash2 className="w-3.5 h-3.5"/>
                     </button>
                   </div>
@@ -539,51 +565,90 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
           )}
 
           {/* Add Gregorian Event Button */}
-          <button onClick={handleOpenAddModal} className="btn-primary w-full mt-2">
+          <button
+            type="button"
+            data-testid="add-event-btn"
+            aria-label="Add Event"
+            onClick={handleOpenAddModal} 
+            className="btn-primary w-full mt-2"
+          >
             <Plus className="w-4 h-4" />
-            Add Gregorian Event
+            <span>{t('calendar.addGregorianEvent', 'Add Gregorian Event')}</span>
           </button>
         </div>
       </main>
 
-      {/* Add Event Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl p-5 shadow-2xl relative bg-white border border-slate-200 text-slate-900 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Add Gregorian Event</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors"><X className="w-4 h-4" /></button>
-            </div>
+        {/* Add Event Modal */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-sm rounded-3xl p-5 shadow-2xl relative bg-white border border-slate-200 text-slate-900 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">{t('calendar.addGregorianEvent', 'Add Gregorian Event')}</h3>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors"><X className="w-4 h-4" /></button>
+              </div>
             <form onSubmit={handleSaveEvent} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Event Title</label>
-                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="e.g. Quarterly Investment Review" required autoFocus className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary" />
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
+                <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder={t('calendar.eventTitlePlaceholder', 'e.g. Quarterly Investment Review')} required autoFocus className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t('calendar.category', 'Category')}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['Work', 'Finance', 'Personal'].map((cat) => (
-                    <button type="button" key={cat} onClick={() => setFormCategory(cat)} className={`py-1.5 text-xs font-semibold rounded-xl border transition-all ${formCategory === cat ? 'bg-primary text-white border-primary shadow-sm shadow-primary/30' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}>{cat}</button>
+                    <button type="button" key={cat} onClick={() => setFormCategory(cat)} className={`py-1.5 text-xs font-semibold rounded-xl border transition-all ${formCategory === cat ? 'bg-primary text-white border-primary shadow-sm shadow-primary/30' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}>{t('calendar.' + cat.toLowerCase(), cat)}</button>
                   ))}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Date</label>
-                  <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-primary" />
+                  <label className="block text-xs font-medium text-slate-600 mb-1">{t('calendar.date', 'Date')}</label>
+                  <button
+                    type="button"
+                    data-testid="event-date-tile"
+                    onClick={() => setIsDatePickerOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-primary cursor-pointer hover:bg-slate-100"
+                  >
+                    {formDate || t('calendar.selectDate', 'Select Date')}
+                  </button>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Time</label>
-                  <input type="text" value={formTime} onChange={(e) => setFormTime(e.target.value)} placeholder="10:00 AM" className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary" />
+                  <label className="block text-xs font-medium text-slate-600 mb-1">{t('calendar.time', 'Time')}</label>
+                  <button
+                    type="button"
+                    data-testid="event-time-tile"
+                    onClick={() => setIsTimePickerOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary cursor-pointer hover:bg-slate-100"
+                  >
+                    {formTime || t('calendar.selectTime', 'Select Time')}
+                  </button>
                 </div>
               </div>
+
+              <MomentumDatePicker
+                isOpen={isDatePickerOpen}
+                onClose={() => setIsDatePickerOpen(false)}
+                value={formDate}
+                onSelect={(newDate) => setFormDate(newDate)}
+                title={t('calendar.selectEventDate', 'Select Event Date')}
+                isDark={false}
+              />
+
+              <MomentumTimePicker
+                isOpen={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                value={formTime}
+                onSelect={(newTime) => setFormTime(newTime)}
+                title={t('calendar.selectEventTime', 'Select Event Time')}
+                isDark={false}
+                outputFormat="auto"
+              />
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Notes (Optional)</label>
-                <textarea value={formNote} onChange={(e) => setFormNote(e.target.value)} rows={2} placeholder="Agenda or notes..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary resize-none" />
+                <label className="block text-xs font-medium text-slate-600 mb-1">{t('calendar.notesOptional', 'Notes (Optional)')}</label>
+                <textarea value={formNote} onChange={(e) => setFormNote(e.target.value)} rows={2} placeholder={t('calendar.agendaNotes', 'Agenda or notes...')} className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">Cancel</button>
-                <button type="submit" className="flex-1 btn-primary py-2.5 text-xs font-semibold">Save Event</button>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">{t('common.cancel', 'Cancel')}</button>
+                <button type="submit" className="flex-1 btn-primary py-2.5 text-xs font-semibold">{t('calendar.saveEvent', 'Save Event')}</button>
               </div>
             </form>
           </div>

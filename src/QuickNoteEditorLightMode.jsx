@@ -1,7 +1,12 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNotesStore } from './store/useNotesStore';
 import { useNavigationStore } from './store/useNavigationStore';
+import { saveAttachmentFile } from './storage/index.js';
 import UserAvatar from './components/UserAvatar';
+import { MomentumDatePicker, MomentumTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
 import { 
   ArrowLeft, Sparkles, Pin, Trash2, X, 
   Camera, CheckSquare, List, Edit3, Bell, BellOff, Clock, ArrowRight, Check,
@@ -55,6 +60,7 @@ const TINT_OPTIONS = [
 ];
 
 function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
+  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState(isDarkMode ? '#ffffff' : '#0f172a');
@@ -175,14 +181,14 @@ function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Edit3 className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-bold tracking-tight">Handwritten Scribble</h3>
+            <h3 className="text-sm font-bold tracking-tight">{t('notes.handwrittenScribble', 'Handwritten Scribble')}</h3>
           </div>
           <div className="flex items-center gap-1.5">
             <button 
               type="button"
               onClick={handleUndo}
               aria-label="Undo stroke"
-              title="Undo"
+              title={t('common.undo', 'Undo')}
               className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
                 isDarkMode ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
               }`}
@@ -193,7 +199,7 @@ function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
               type="button"
               onClick={clearCanvas}
               aria-label="Clear canvas"
-              title="Clear Canvas"
+              title={t('notes.clearCanvas', 'Clear Canvas')}
               className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
                 isDarkMode ? 'hover:bg-rose-950/40 text-slate-400 hover:text-rose-400' : 'hover:bg-rose-50 text-slate-500 hover:text-rose-600'
               }`}
@@ -230,12 +236,12 @@ function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
           />
           {!hasDrawn && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-xs text-slate-400/60 select-none">
-              Draw or sketch here with finger/mouse...
+              {t('notes.drawSketchPlaceholder', 'Draw or sketch here with finger/mouse...')}
             </div>
           )}
         </div>
 
-        {/* Color Palette & Brush Sizes */}
+        {/* Toolbar (Colors & Sizes) */}
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             {colors.map((c) => (
@@ -275,7 +281,7 @@ function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
             onClick={onClose}
             className="btn-secondary flex-1 h-10 rounded-xl text-xs font-semibold cursor-pointer active:scale-95 transition-all"
           >
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </button>
           <button
             type="button"
@@ -283,7 +289,7 @@ function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
             className="btn-primary flex-1 h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md shadow-primary/20"
           >
             <Check className="w-4 h-4" />
-            <span>Attach Sketch</span>
+            <span>{t('notes.attachSketch', 'Attach Sketch')}</span>
           </button>
         </div>
       </div>
@@ -292,11 +298,14 @@ function ScribbleModal({ isOpen, onClose, onSaveSketch, isDarkMode }) {
 }
 
 function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }) {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(reminder?.enabled ?? true);
   const [date, setDate] = useState(reminder?.date || new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(reminder?.time || '17:00');
   const [label, setLabel] = useState(reminder?.displayTime || 'Today at 5:00 PM');
   const [subtext, setSubtext] = useState(reminder?.subtext || 'Triggers 1 hour before Asr prayer');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
 
   const presets = [
     { label: 'Today at 5:00 PM', time: '17:00', subtext: 'Triggers 1 hour before Asr prayer' },
@@ -351,12 +360,16 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
               <Bell className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold tracking-tight">Set Note Reminder</h3>
-              <p className="text-[10px] text-slate-500">Receive an alert before prayer or task</p>
+              <h3 className="text-sm font-bold tracking-tight">
+                {t('notes.setReminder', 'Set Note Reminder')}
+              </h3>
+              <p className="text-[10px] text-slate-500">
+                {t('notes.receiveAlertDesc', 'Receive an alert before prayer or task')}
+              </p>
             </div>
           </div>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={onClose}
             className={`p-1.5 rounded-full transition-colors cursor-pointer ${
               isDarkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
@@ -372,7 +385,7 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
         }`}>
           <div className="flex items-center gap-2">
             {enabled ? <Bell className="w-4 h-4 text-violet-600" /> : <BellOff className="w-4 h-4 text-slate-400" />}
-            <span className="text-xs font-semibold">Reminder Alert</span>
+            <span className="text-xs font-semibold">{t('notes.reminderAlert', 'Reminder Alert')}</span>
           </div>
           <button
             type="button"
@@ -389,7 +402,7 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
 
         {/* Presets */}
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-1">Quick Presets</label>
+          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-1">{t('routines.quickPresets', 'Quick Presets')}</label>
           <div className="grid grid-cols-2 gap-2">
             {presets.map((p) => {
               const isSelected = enabled && label === p.label;
@@ -414,41 +427,59 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
 
         {/* Custom Date & Time Inputs */}
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-1">Custom Schedule</label>
+          <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 px-1">{t('notes.customSchedule', 'Custom Schedule')}</label>
           <div className="grid grid-cols-2 gap-2">
-            <div className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-              isDarkMode ? 'bg-black/30 border-white/5' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <span className="text-[10px] text-slate-400">Date</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
-                  setLabel(`Scheduled on ${e.target.value}`);
-                  setEnabled(true);
-                }}
-                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-slate-900"
-              />
-            </div>
-            <div className={`p-2.5 rounded-xl border flex flex-col gap-1 ${
-              isDarkMode ? 'bg-black/30 border-white/5' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <span className="text-[10px] text-slate-400">Time</span>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => {
-                  setTime(e.target.value);
-                  setLabel(`Custom at ${e.target.value}`);
-                  setSubtext('Custom timed reminder');
-                  setEnabled(true);
-                }}
-                className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer text-slate-900"
-              />
-            </div>
+            <button
+              type="button"
+              data-testid="reminder-date-tile"
+              onClick={() => setIsDatePickerOpen(true)}
+              className={`p-2.5 rounded-xl border flex flex-col gap-1 text-left cursor-pointer transition-all ${
+                isDarkMode ? 'bg-black/30 border-white/5 hover:border-violet-500/50' : 'bg-slate-50 border-slate-200 hover:border-violet-500/50'
+              }`}
+            >
+              <span className="text-[10px] text-slate-400">{t('common.date', 'Date')}</span>
+              <span className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{date}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="reminder-time-tile"
+              onClick={() => setIsTimePickerOpen(true)}
+              className={`p-2.5 rounded-xl border flex flex-col gap-1 text-left cursor-pointer transition-all ${
+                isDarkMode ? 'bg-black/30 border-white/5 hover:border-violet-500/50' : 'bg-slate-50 border-slate-200 hover:border-violet-500/50'
+              }`}
+            >
+              <span className="text-[10px] text-slate-400">{t('common.time', 'Time')}</span>
+              <span className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{time}</span>
+            </button>
           </div>
         </div>
+
+        <MomentumDatePicker
+          isOpen={isDatePickerOpen}
+          onClose={() => setIsDatePickerOpen(false)}
+          value={date}
+          onSelect={(newDate) => {
+            setDate(newDate);
+            setLabel(`Scheduled on ${newDate}`);
+            setEnabled(true);
+          }}
+          title={t('notes.reminderDate', 'Reminder Date')}
+          isDark={isDarkMode}
+        />
+
+        <MomentumTimePicker
+          isOpen={isTimePickerOpen}
+          onClose={() => setIsTimePickerOpen(false)}
+          value={time}
+          onSelect={(newTime) => {
+            setTime(newTime);
+            setLabel('Custom timed reminder');
+            setEnabled(true);
+          }}
+          title={t('notes.reminderTime', 'Reminder Time')}
+          isDark={isDarkMode}
+          outputFormat="auto"
+        />
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 pt-1">
@@ -458,7 +489,7 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
               onClick={handleRemove}
               className="btn-danger flex-1 h-10 rounded-xl text-xs font-semibold cursor-pointer active:scale-95 transition-all"
             >
-              Remove Alert
+              {t('notes.removeAlert', 'Remove Alert')}
             </button>
           )}
           <button
@@ -467,7 +498,7 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
             className="btn-primary flex-1 h-10 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md shadow-primary/20"
           >
             <Check className="w-4 h-4" />
-            <span>Save Reminder</span>
+            <span>{t('notes.saveReminder', 'Save Reminder')}</span>
           </button>
         </div>
       </div>
@@ -476,6 +507,7 @@ function ReminderModal({ isOpen, onClose, reminder, onSaveReminder, isDarkMode }
 }
 
 export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId: propNoteId, isNew: propIsNew, route = { params: {} } }) {
+  const { t } = useTranslation();
   const storeActiveNoteId = useNotesStore((s) => s.activeNoteId);
   const notes = useNotesStore((s) => s.notes);
   const addNote = useNotesStore((s) => s.addNote);
@@ -498,7 +530,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     return notes.find((n) => n.id === effectiveNoteId && (n.type === 'quick' || !n.type)) || null;
   }, [notes, effectiveNoteId, isNew]);
 
-  if (!route?.params) route.params = {};
+  const routeParams = route?.params || {};
 
   const [isEditing, setIsEditing] = useState(Boolean(isNew));
 
@@ -592,11 +624,11 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
   };
 
   useEffect(() => {
-    if (!route.params.noteId) {
+    if (!routeParams?.noteId) {
       resetAllState();
       setIsEditing(true);
     }
-  }, [route.params.noteId]);
+  }, [routeParams?.noteId]);
 
   useEffect(() => {
     const activeId = route?.params?.noteId ?? propNoteId ?? storeActiveNoteId;
@@ -703,8 +735,10 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     if (existingNote?.id) {
       updateNote(existingNote.id, notePayload);
       setIsEditing(false);
+      toast.success(t('toasts.noteUpdated', 'Note updated'));
     } else {
       addNote(notePayload);
+      toast.success(t('toasts.noteSaved', 'Note saved'));
       handleNavigateBack();
     }
   };
@@ -753,19 +787,19 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     handleNavigateBack();
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImageAttachment({
-          id: `att-img-${Date.now()}`,
+      try {
+        const savedAtt = await saveAttachmentFile(file, {
+          noteId: existingNote?.id || null,
           name: file.name,
-          type: 'image',
-          url: event.target?.result,
+          subtitle: 'Photo attachment',
         });
-      };
-      reader.readAsDataURL(file);
+        setImageAttachment(savedAtt);
+      } catch (err) {
+        console.warn('Failed to save image attachment:', err);
+      }
     }
   };
 
@@ -845,7 +879,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-base font-semibold text-slate-900 tracking-tight">
-            {isEditing ? (isNew ? 'New Note' : 'Edit Note') : 'Note'}
+            {isEditing ? (isNew ? t('notes.newNote', 'New Note') : t('notes.editNote', 'Edit Note')) : t('notes.note', 'Note')}
           </h1>
         </div>
 
@@ -856,34 +890,33 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              aria-label="Edit Note"
+              aria-label={t('notes.editNote', 'Edit Note')}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
-              title="Edit Note"
+              title={t('notes.editNote', 'Edit Note')}
             >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>Edit</span>
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>{t('common.edit', 'Edit')}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSave}
-              aria-label="Done Editing"
+              aria-label={t('notes.doneEditing', 'Done Editing')}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer active:scale-95 flex items-center gap-1"
-              title="Done Editing"
+              title={t('notes.doneEditing', 'Done Editing')}
             >
               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Done</span>
+              <span>{t('common.done', 'Done')}</span>
             </button>
           )}
 
-          {/* 2. 3-dots (More / Secondary Options Menu) */}
           <div className="relative" ref={menuRef}>
             <button 
               type="button" 
               onClick={() => setIsMenuOpen(!isMenuOpen)} 
               aria-label="Note options" 
               className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="More Options"
+              title={t('notes.moreOptions', 'More Options')}
             >
               <MoreVertical className="w-4.5 h-4.5" />
             </button>
@@ -895,7 +928,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-100 text-left transition-colors cursor-pointer"
                 >
                   <Pin className={`w-4 h-4 text-slate-400 ${isPinned ? 'fill-indigo-600 text-indigo-600 rotate-45' : ''}`} />
-                  <span>{isPinned ? 'Unpin Note' : 'Pin Note'}</span>
+                  <span>{isPinned ? t('notes.unpinNote', 'Unpin Note') : t('notes.pinNote', 'Pin Note')}</span>
                 </button>
 
                 {existingNote?.id && existingNote.id !== 'new' && (
@@ -909,7 +942,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                     ) : (
                       <Archive className="w-4 h-4 text-slate-500" />
                     )}
-                    <span>{isArchived ? 'Unarchive Note' : 'Archive Note'}</span>
+                    <span>{isArchived ? t('notes.unarchiveNote', 'Unarchive Note') : t('notes.archiveNote', 'Archive Note')}</span>
                   </button>
                 )}
 
@@ -921,14 +954,11 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-left transition-colors cursor-pointer font-medium"
                 >
                   <Trash2 className="w-4 h-4 text-rose-600" />
-                  <span>Delete Note</span>
+                  <span>{t('notes.deleteNote', 'Delete Note')}</span>
                 </button>
               </div>
             )}
           </div>
-
-          {/* 3. Profile Avatar */}
-          <UserAvatar setActiveTab={setActiveTab} size="w-8 h-8" />
         </div>
       </header>
 
@@ -981,12 +1011,11 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
               type="text" 
               value={title} 
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Note Title"
-              className="text-lg font-bold text-slate-900 bg-transparent w-full focus:outline-none placeholder-slate-400"
+              placeholder={t('notes.noteTitle', 'Note Title')} className="text-lg font-bold text-slate-900 bg-transparent w-full focus:outline-none placeholder-slate-400"
             />
           ) : (
             <h2 className="text-lg font-bold text-slate-900 select-text">
-              {title || 'Untitled Quick Note'}
+              {title || t('notes.untitledQuickNote', 'Untitled Quick Note')}
             </h2>
           )}
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-300 ${activeTintObj.dotBg}`}></span>
@@ -995,7 +1024,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
         {/* Color Tint Selector (HIDDEN IN VIEW MODE) */}
         {isEditing && (
           <div className="flex items-center gap-3 pt-1">
-            <span className="text-xs font-medium text-slate-400">Tint:</span>
+            <span className="text-xs font-medium text-slate-400">{t('common.color', 'Tint:')}</span>
             <div className="flex items-center gap-2">
               {TINT_OPTIONS.map((tint) => {
                 const isSelected = selectedTint === tint.id;
@@ -1023,13 +1052,13 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             ref={bodyTextareaRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Jot down quick thoughts, checklists, or spiritual reflections..."
+            placeholder={t('notes.jotDownPlaceholder', 'Jot down quick thoughts, checklists, or spiritual reflections...')}
             rows={3}
             className="w-full bg-transparent text-sm font-normal text-slate-700 leading-relaxed pt-1 focus:outline-none resize-none placeholder-slate-400"
           />
         ) : (
           <p className="w-full text-sm font-normal text-slate-700 leading-relaxed whitespace-pre-wrap select-text py-1">
-            {body || 'No content'}
+            {body || t('common.noContent', 'No content')}
           </p>
         )}
 
@@ -1044,13 +1073,13 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
           >
             <img 
               src={imageAttachment.url} 
-              alt={imageAttachment.name || "Photo attachment"} 
+              alt={imageAttachment.name || t('notes.photoAttachmentFallback', 'Photo attachment')} 
               className="w-full h-44 object-cover"
               onError={() => setImageAttachment(null)}
             />
             <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-xl text-white text-[11px] font-medium flex items-center gap-1.5 max-w-[80%]">
               <Camera className="w-3.5 h-3.5 flex-shrink-0"/>
-              <span className="truncate">{imageAttachment.name || 'Photo attachment'}</span>
+              <span className="truncate">{imageAttachment.name || t('notes.photoAttachmentFallback', 'Photo attachment')}</span>
             </div>
             {isEditing && (
               <button 
@@ -1078,14 +1107,14 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                 <Camera className="w-5 h-5 text-slate-600" />
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-xs font-semibold text-slate-700">Add Photo Attachment</span>
-                <span className="text-[10px] text-slate-400">Tap to browse or attach an image</span>
+                <span className="text-xs font-semibold text-slate-700">{t('notes.addPhotoAttachment', 'Add Photo Attachment')}</span>
+                <span className="text-[10px] text-slate-400">{t('notes.tapToAttach', 'Tap to browse or attach an image')}</span>
               </div>
             </button>
           )
         )}
 
-        {/* Editor Quick Toolbar Strip (HIDDEN IN VIEW MODE) */}
+        {/* Action Toolbar */}
         {isEditing && (
           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
             <div className="flex items-center gap-2 text-slate-500">
@@ -1094,7 +1123,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                 onClick={handleInsertChecklist}
                 aria-label="Add Checklist Item"
                 className="p-2 rounded-xl hover:bg-slate-100 active:scale-95 transition-all cursor-pointer hover:text-slate-900"
-                title="Add Checklist"
+                title={t('notes.addChecklist', 'Add Checklist')}
               >
                 <CheckSquare className="w-4 h-4"/>
               </button>
@@ -1103,7 +1132,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                 onClick={handleInsertBullet}
                 aria-label="Add Bullet Item"
                 className="p-2 rounded-xl hover:bg-slate-100 active:scale-95 transition-all cursor-pointer hover:text-slate-900"
-                title="Add Bullet"
+                title={t('notes.addBullet', 'Add Bullet')}
               >
                 <List className="w-4 h-4"/>
               </button>
@@ -1112,7 +1141,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Attach Photo"
                 className="p-2 rounded-xl hover:bg-slate-100 active:scale-95 transition-all cursor-pointer hover:text-slate-900"
-                title="Attach Photo"
+                title={t('notes.attachPhoto', 'Attach Photo')}
               >
                 <Camera className="w-4 h-4"/>
               </button>
@@ -1131,35 +1160,32 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
       </div>
 
       {/* 5. REMINDER SETTING CARD */}
-      {(reminder.enabled || isEditing) && (
-        <div className="block mx-5 mb-4 p-4 rounded-3xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg transition-all">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-2xs transition-colors ${
-              reminder.enabled ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-400'
-            }`}>
-              {reminder.enabled ? <Bell className="w-5 h-5"/> : <BellOff className="w-5 h-5"/>}
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900">
-                {reminder.enabled ? `Reminder: ${reminder.displayTime}` : 'No Reminder Set'}
-              </h4>
-              <p className="text-[11px] font-normal text-slate-500 mt-0.5">
-                {reminder.subtext}
-              </p>
-            </div>
+      <div className="block mx-5 mb-4 p-4 rounded-3xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg transition-all">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-2xs transition-colors ${
+            reminder.enabled ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-400'
+          }`}>
+            {reminder.enabled ? <Bell className="w-5 h-5"/> : <BellOff className="w-5 h-5"/>}
           </div>
-          {isEditing && (
-            <button 
-              type="button"
-              onClick={() => setIsReminderModalOpen(true)}
-              aria-label="Edit Reminder"
-              className="px-3 py-1 rounded-xl text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer active:scale-95"
-            >
-              {reminder.enabled ? 'Edit' : 'Add'}
-            </button>
-          )}
+          <div>
+            <h4 className="text-xs font-bold text-slate-900">
+              {reminder.enabled ? `${t('notes.reminderLabel', 'Reminder')}: ${reminder.displayTime}` : t('notes.noReminderSet', 'No Reminder Set')}
+            </h4>
+            <p className="text-[11px] font-normal text-slate-500 mt-0.5">
+              {reminder.subtext}
+            </p>
+          </div>
         </div>
-      )}
+        <button 
+          type="button"
+          data-testid="open-reminder-btn"
+          onClick={() => setIsReminderModalOpen(true)}
+          aria-label="Edit Reminder"
+          className="px-3 py-1 rounded-xl text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer active:scale-95"
+        >
+          {reminder.enabled ? 'Edit' : 'Add'}
+        </button>
+      </div>
 
       {/* 6. METADATA ROW */}
       <div className="px-5 mb-4">
@@ -1168,7 +1194,9 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             <Clock className="w-3.5 h-3.5 text-slate-700 flex-shrink-0"/>
             <span>{creationTimeText}</span>
           </div>
-          <span className="whitespace-nowrap shrink-0">{wordCount} words • {charCount} chars</span>
+          <span className="whitespace-nowrap shrink-0">
+            {wordCount} {t('common.words', 'words')} • {charCount} {t('common.chars', 'chars')}
+          </span>
         </div>
       </div>
 
@@ -1180,7 +1208,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             onClick={handleSave}
             className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-all shadow-md shadow-primary/20"
           >
-            <span>Save Quick Note</span>
+            <span>{t('notes.saveQuickNote', 'Save Quick Note')}</span>
             <ArrowRight className="w-4 h-4"/>
           </button>
 
@@ -1191,7 +1219,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
               className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer active:scale-[0.99] transition-all"
             >
               <X className="w-4 h-4 text-slate-500"/>
-              <span>Cancel</span>
+              <span>{t('common.cancel', 'Cancel')}</span>
             </button>
             <button 
               type="button"
@@ -1199,7 +1227,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
               className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer active:scale-[0.99] transition-all"
             >
               <Trash2 className="w-4 h-4 text-rose-500"/>
-              <span>Delete Note</span>
+              <span>{t('notes.deleteNote', 'Delete Note')}</span>
             </button>
           </div>
         </div>

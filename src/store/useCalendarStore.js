@@ -3,22 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { produce } from 'immer';
 import { v4 as uuidv4 } from 'uuid';
 import { getShamsiDate, findFirstDayOfShamsiMonth, getHijriDateParts, hijriToGregorian } from '../utils/afghanCalendar.js';
+import { createIndexedDbStorage } from '../storage/index.js';
 
-const getSafeStorage = () => {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage;
-    }
-  } catch (e) {
-    console.warn('LocalStorage unavailable for calendars, falling back to memory store:', e);
-  }
-  const memoryStore = new Map();
-  return {
-    getItem: (key) => memoryStore.get(key) || null,
-    setItem: (key, value) => { memoryStore.set(key, String(value)); },
-    removeItem: (key) => { memoryStore.delete(key); },
-  };
-};
+const calendarStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-calendar-storage-v1' });
+const getSafeStorage = () => calendarStorage;
 
 const initialEvents = [
   {
@@ -413,10 +401,12 @@ const initialEvents = [
   },
 ];
 
+export const DEMO_CALENDAR_EVENTS = initialEvents;
+
 export const useCalendarStore = create(
   persist(
     (set) => ({
-      events: [...initialEvents],
+      events: [],
       _hasHydrated: false,
 
       setHasHydrated: (val) => set({ _hasHydrated: val }),
@@ -546,8 +536,8 @@ export const useCalendarStore = create(
       storage: createJSONStorage(() => getSafeStorage()),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
-          if (state.events && !state.events.some((e) => e.id === 'evt-hijri-1')) {
-            state.events = [...initialEvents, ...state.events.filter((e) => !initialEvents.some((i) => i.id === e.id))];
+          if (!Array.isArray(state.events)) {
+            state.events = [];
           }
           state.setHasHydrated(true);
         }
@@ -562,23 +552,20 @@ if (typeof window !== 'undefined') {
     const raw = localStorage.getItem('momentum-calendar-storage-v1');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed?.state?.events) {
-        let events = parsed.state.events;
-        if (!events.some((e) => e.id === 'evt-hijri-1')) {
-          events = [...initialEvents, ...events.filter((e) => !initialEvents.some((i) => i.id === e.id))];
-        }
+      if (parsed?.state) {
+        const events = Array.isArray(parsed.state.events) ? parsed.state.events : [];
         useCalendarStore.setState({
           ...parsed.state,
           events,
           _hasHydrated: true,
         });
       } else {
-        useCalendarStore.setState({ _hasHydrated: true });
+        useCalendarStore.setState({ events: [], _hasHydrated: true });
       }
     } else {
-      useCalendarStore.setState({ _hasHydrated: true });
+      useCalendarStore.setState({ events: [], _hasHydrated: true });
     }
   } catch {
-    useCalendarStore.setState({ _hasHydrated: true });
+    useCalendarStore.setState({ events: [], _hasHydrated: true });
   }
 }

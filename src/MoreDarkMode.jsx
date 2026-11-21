@@ -1,66 +1,31 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useProfileStore } from './store/useProfileStore';
 import { useTasbeehStore } from './store/useTasbeehStore';
-import { useNotesStore } from './store/useNotesStore';
-import { usePrayerStore } from './store/usePrayerStore';
+import { useNotesStore, calculateReflectionStreak } from './store/useNotesStore';
+import { usePrayerStore, calculateRate } from './store/usePrayerStore';
 import { useLocationStore } from './store/useLocationStore';
 import { useNavigationStore } from './store/useNavigationStore';
+import { useNotificationStore } from './store/useNotificationStore';
 import { getHijriDateParts, HIJRI_MONTHS } from './utils/afghanCalendar.js';
-import { getDailyQuote, DAILY_QUOTES } from './data/dailyQuotes.js';
+import { getDailyQuote } from './data/dailyQuotes.js';
+import { getNextPrayerInfo } from './utils/prayerTimes.js';
+import { toast } from './components/ui/toast/index.js';
 import {
   Sparkles, Bell, ChevronRight, Moon, Repeat, PenLine, Calendar,
   Settings, Quote, Heart, Share2, Check, CheckCircle2, BookOpen
 } from 'lucide-react';
 
-function getNextPrayerInfo(city) {
-  const lat = city?.lat || 34.5553;
-  const lng = city?.lng || 69.2075;
-  const tzOffsetHours = 4.5;
-  const d = new Date();
-  const start = new Date(d.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((d - start) / (1000 * 60 * 60 * 24));
-  const b = (2 * Math.PI * (dayOfYear - 81)) / 364;
-  const eot = 9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b);
-  const declination = 23.45 * Math.sin((2 * Math.PI * (284 + dayOfYear)) / 365) * (Math.PI / 180);
-  const latRad = lat * (Math.PI / 180);
-  const solarNoonMinutes = 720 - 4 * lng - eot + tzOffsetHours * 60;
-  const solarNoon = solarNoonMinutes / 60;
-  function hourAngle(altitudeDeg) {
-    const altRad = altitudeDeg * (Math.PI / 180);
-    const cosHA = (Math.sin(altRad) - Math.sin(latRad) * Math.sin(declination)) / (Math.cos(latRad) * Math.cos(declination));
-    if (cosHA > 1 || cosHA < -1) return null;
-    return (Math.acos(cosHA) * (180 / Math.PI)) / 15;
-  }
-  const fajrHA = hourAngle(-18) || 1.7;
-  const sunriseHA = hourAngle(-0.833) || 1.4;
-  const asrAlt = (Math.atan(1 / (1 + Math.tan(Math.abs(latRad - declination))))) * (180 / Math.PI);
-  const asrHA = hourAngle(asrAlt) || 1.0;
-  const sunsetHA = sunriseHA;
-  const ishaHA = hourAngle(-18) || 1.7;
-  const prayers = [
-    { name: 'Fajr', hours: solarNoon - fajrHA },
-    { name: 'Dhuhr', hours: solarNoon },
-    { name: 'Asr', hours: solarNoon + asrHA },
-    { name: 'Maghrib', hours: solarNoon + sunsetHA },
-    { name: 'Isha', hours: solarNoon + ishaHA },
-  ];
-  const currentHours = d.getHours() + d.getMinutes() / 60;
-  for (let i = 0; i < prayers.length; i++) {
-    if (currentHours < prayers[i].hours) {
-      return prayers[i].name;
-    }
-  }
-  return 'Fajr';
-}
-
-export default function MoreDarkMode({ setActiveTab, goBack }) {
+export default function MoreDarkMode({ setActiveTab }) {
+  const { t } = useTranslation();
+  const unreadNotifCount = useNotificationStore((s) => s.notifications?.filter((n) => !n.read).length || 0);
   const fullName = useProfileStore((s) => s.fullName);
   const displayName = (!fullName || fullName.trim().toLowerCase() === 'milad wardak' || fullName.trim().toLowerCase() === 'user profile') ? 'Milad Wardak' : fullName;
   const currentCount = useTasbeehStore((s) => s.currentCount) || 0;
-  const historyLogs = useTasbeehStore((s) => s.historyLogs) || [];
-  const punctualPercentage = usePrayerStore((s) => s.punctualPercentage) ?? 0;
-  const reflectionStreak = useNotesStore((s) => s.reflectionStreak) || 0;
+  const historyLogs = useTasbeehStore((s) => s.historyLogs);
+  const prayerLogs = usePrayerStore((s) => s.prayerLogs);
+  const notes = useNotesStore((s) => s.notes);
   const selectedCity = useLocationStore((s) => s.selectedCity);
   const [shareFeedback, setShareFeedback] = useState('');
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -89,11 +54,33 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
   };
 
   const totalAdhkar = useMemo(() => {
-    const logsSum = (historyLogs || []).reduce((acc, log) => acc + (Number(log?.count) || 0), 0);
+    const logs = historyLogs || [];
+    const logsSum = logs.reduce((acc, log) => acc + (Number(log?.count) || 0), 0);
     return logsSum + Number(currentCount || 0);
   }, [historyLogs, currentCount]);
-  const reflectionDays = useMemo(() => `${reflectionStreak || 0} d`, [reflectionStreak]);
-  const nextPrayerName = useMemo(() => getNextPrayerInfo(selectedCity), [selectedCity]);
+  const punctualPercentage = useMemo(() => {
+    return calculateRate(prayerLogs || []);
+  }, [prayerLogs]);
+  const reflectionStreak = useMemo(() => {
+    return calculateReflectionStreak(notes || []);
+  }, [notes]);
+  const reflectionDays = useMemo(() => `${reflectionStreak} d`, [reflectionStreak]);
+  const calculationMethod = usePrayerStore((s) => s.calculationMethod) || 'Karachi';
+  const madhab = usePrayerStore((s) => s.madhab) || 'Hanafi';
+  const nextPrayerName = useMemo(() => {
+    const lat = selectedCity?.latitude != null ? Number(selectedCity.latitude) : 34.5553;
+    const lng = selectedCity?.longitude != null ? Number(selectedCity.longitude) : 69.2075;
+    const timezone = selectedCity?.timezone || 'Asia/Kabul';
+    const info = getNextPrayerInfo({
+      baseDate: currentDate,
+      latitude: lat,
+      longitude: lng,
+      timezone,
+      calculationMethod,
+      madhab,
+    });
+    return info.nextPrayer?.name || 'Fajr';
+  }, [selectedCity, currentDate, calculationMethod, madhab]);
   const hijriFormatted = useMemo(() => {
     const p = getHijriDateParts(new Date());
     const m = HIJRI_MONTHS[p.hm - 1]?.nameEn || 'Rabi\' al-Thani';
@@ -114,17 +101,23 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
       try {
         localStorage.setItem('momentum-liked-radiance-quotes', JSON.stringify(updated));
         localStorage.setItem('momentum-saved-radiance-quote', String(!exists));
-      } catch {}
+      } catch (err) {
+        void err;
+      }
+      toast.success(exists ? 'Quote removed from favorites' : 'Quote added to favorites');
       return updated;
     });
   };
   const handleShareQuote = async (e) => {
     e.stopPropagation();
     const text = `${todayQuote.quote} — ${todayQuote.surah}`;
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'Daily Radiance • Momentum', text, url: window.location.origin });
+        const sharePromise = navigator.share({ title: 'Daily Radiance • Momentum', text, url: window.location.origin });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Share timeout')), 250));
+        await Promise.race([sharePromise, timeoutPromise]);
         setShareFeedback('Shared!');
+        toast.success(t('toasts.quoteShared', 'Daily quote shared'));
         setTimeout(() => setShareFeedback(''), 2000);
         return;
       } catch (err) {
@@ -135,9 +128,12 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
       try {
         await navigator.clipboard.writeText(text);
         setShareFeedback('Copied!');
+        toast.success(t('toasts.quoteCopied', 'Daily quote copied to clipboard'));
         setTimeout(() => setShareFeedback(''), 2000);
         return;
-      } catch {}
+      } catch (err) {
+        void err;
+      }
     }
     try {
       const textArea = document.createElement('textarea');
@@ -149,9 +145,11 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
       document.execCommand('copy');
       document.body.removeChild(textArea);
       setShareFeedback('Copied!');
+      toast.success(t('toasts.quoteCopied', 'Daily quote copied to clipboard'));
       setTimeout(() => setShareFeedback(''), 2000);
     } catch {
       setShareFeedback('Copied!');
+      toast.success(t('toasts.quoteCopied', 'Daily quote copied to clipboard'));
       setTimeout(() => setShareFeedback(''), 2000);
     }
   };
@@ -166,15 +164,18 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
             alt="Momentum Logo"
             className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/30"
           />
-          <h1 className="text-base font-bold text-white tracking-tight">More</h1>
+          <h1 className="text-base font-bold text-white tracking-tight">{t('more.more', 'More')}</h1>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigateTo('notifications_settings_dark_mode')}
-            aria-label="Notifications"
-            className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer pointer-events-auto"
+            aria-label={t('nav.notifications', 'Notifications')}
+            className="relative p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer pointer-events-auto"
           >
             <Bell className="w-5 h-5" />
+            {unreadNotifCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-slate-900" />
+            )}
           </button>
         </div>
       </div>
@@ -193,12 +194,12 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
             />
             <div className="flex flex-col justify-center min-w-0 flex-1">
               <h2 className="text-base font-bold text-white tracking-tight leading-snug">{displayName}</h2>
-              <p className="text-xs font-normal text-slate-400 leading-snug mt-0.5">Momentum Member</p>
+              <p className="text-xs font-normal text-slate-400 leading-snug mt-0.5">{t('more.momentumMember', 'Momentum Member')}</p>
             </div>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); navigateTo('settings_profile_dark_mode'); }}
-            aria-label="Profile Settings"
+            aria-label={t('settings.profile', 'Profile Settings')}
             className="w-10 h-10 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer pointer-events-auto flex-shrink-0"
           >
             <ChevronRight className="w-5 h-5" />
@@ -213,7 +214,7 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <Sparkles className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
               <span className="text-base font-bold text-white tracking-tight leading-none">{totalAdhkar}</span>
             </div>
-            <span className="text-[11px] font-medium text-slate-400">Adhkar</span>
+            <span className="text-[11px] font-medium text-slate-400">{t('more.adhkar', 'Adhkar')}</span>
           </div>
           <div
             onClick={(e) => { e.stopPropagation(); navigateTo('prayer_times_dark_mode'); }}
@@ -223,7 +224,7 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
               <span className="text-base font-bold text-white tracking-tight leading-none">{punctualPercentage}%</span>
             </div>
-            <span className="text-[11px] font-medium text-slate-400">Punctual</span>
+            <span className="text-[11px] font-medium text-slate-400">{t('more.punctual', 'Punctual')}</span>
           </div>
           <div
             onClick={(e) => { e.stopPropagation(); navigateTo('notes_main_dark_mode'); }}
@@ -233,15 +234,15 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <BookOpen className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
               <span className="text-base font-bold text-white tracking-tight leading-none">{reflectionDays}</span>
             </div>
-            <span className="text-[11px] font-medium text-slate-400">Reflection</span>
+            <span className="text-[11px] font-medium text-slate-400">{t('more.reflection', 'Reflection')}</span>
           </div>
         </div>
       </div>
 
       {/* Section Header */}
       <div className="flex items-center justify-between px-5 mb-3">
-        <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">Ecosystem Essentials</span>
-        <span className="text-xs font-medium text-slate-500">5 Modules</span>
+        <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">{t('more.ecosystemEssentials', 'Ecosystem Essentials')}</span>
+        <span className="text-xs font-medium text-slate-500">{t('more.modulesCount', '5 Modules')}</span>
       </div>
 
       {/* Ecosystem Essentials List */}
@@ -257,12 +258,12 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <Moon className="w-5 h-5" />
             </div>
             <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
-              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">Prayer Times</span>
-              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">Accurate prayer timetable</span>
+              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">{t('nav.prayer', 'Prayer Times')}</span>
+              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">{t('more.accurateTimetable', 'Accurate prayer timetable')}</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs font-semibold text-emerald-400">Next: {nextPrayerName}</span>
+            <span className="text-xs font-semibold text-emerald-400">{t('more.nextPrayerFormat', 'Next: {{name}}', { name: nextPrayerName })}</span>
             <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
           </div>
         </div>
@@ -277,8 +278,8 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <Repeat className="w-5 h-5" />
             </div>
             <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
-              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">Tasbeh</span>
-              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">Vibrational daily dhikr beads</span>
+              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">{t('nav.tasbeeh', 'Tasbeeh')}</span>
+              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">{t('more.dhikrBeadsDesc', 'Vibrational daily dhikr beads')}</span>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
@@ -294,8 +295,8 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <PenLine className="w-5 h-5" />
             </div>
             <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
-              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">Notes</span>
-              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">Mindful daily thoughts and scratchpad</span>
+              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">{t('nav.notes', 'Notes')}</span>
+              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">{t('more.mindfulNotesDesc', 'Mindful daily thoughts and scratchpad')}</span>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
@@ -311,8 +312,8 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <Calendar className="w-5 h-5" />
             </div>
             <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
-              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">Calendars</span>
-              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">Synchronized lunar and standard schedule</span>
+              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">{t('nav.calendar', 'Calendars')}</span>
+              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">{t('more.calendarSyncDesc', 'Synchronized lunar and standard schedule')}</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -331,8 +332,8 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
               <Settings className="w-5 h-5" />
             </div>
             <div className="flex flex-col items-start justify-center gap-0.5 min-w-0 flex-1">
-              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">Settings & Preferences</span>
-              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">Notifications, cloud backup & privacy</span>
+              <span className="text-[15px] font-semibold text-slate-100 tracking-tight leading-tight">{t('settings.profileSettings', 'Settings & Preferences')}</span>
+              <span className="text-[12px] text-slate-400 line-clamp-1 leading-tight">{t('more.securitySettingsDesc', 'Security, encrypted backup & settings')}</span>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
@@ -346,7 +347,7 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-primary">
               <Sparkles className="w-4 h-4" />
-              <span className="text-xs font-bold tracking-wide uppercase">Daily Radiance</span>
+              <span className="text-xs font-bold tracking-wide uppercase">{t('more.dailyRadiance', 'Daily Radiance')}</span>
             </div>
             <button
               onClick={handleToggleLike}
@@ -363,7 +364,7 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
             <span className="text-xs font-normal text-slate-400">{todayQuote.surah}</span>
             <button
               onClick={handleShareQuote}
-              aria-label="Share Quote"
+              aria-label={t('common.share', 'Share')}
               className="flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors cursor-pointer pointer-events-auto px-2 py-1 rounded-lg hover:bg-primary/10 active:scale-95"
             >
               {shareFeedback ? (
@@ -373,7 +374,7 @@ export default function MoreDarkMode({ setActiveTab, goBack }) {
                 </>
               ) : (
                 <>
-                  <span>Share</span>
+                  <span>{t('common.share', 'Share')}</span>
                   <Share2 className="w-3.5 h-3.5" />
                 </>
               )}

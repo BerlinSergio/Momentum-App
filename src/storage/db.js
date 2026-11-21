@@ -1,0 +1,420 @@
+/**
+ * Momentum Central Database Service (IndexedDB)
+ * High-performance, offline-first storage for structured data and binary attachments.
+ * Bypasses the 5MB localStorage limit and provides durable, transactional storage.
+ */
+
+const DB_NAME = 'momentum_app_db';
+const DB_VERSION = 1;
+
+export const STORES = {
+  DATA: 'stores',
+  ATTACHMENTS: 'attachments',
+  MIGRATION: 'migration_meta',
+};
+
+let dbInstance = null;
+let dbOpenPromise = null;
+const memoryFallback = new Map();
+
+/**
+ * Returns true if IndexedDB is supported in the current runtime.
+ */
+export function isIndexedDbSupported() {
+  return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
+}
+
+/**
+ * Open or retrieve the cached IndexedDB database connection.
+ */
+export function openAppDB() {
+  if (dbInstance) {
+    return Promise.resolve(dbInstance);
+  }
+  if (dbOpenPromise) {
+    return dbOpenPromise;
+  }
+
+  if (!isIndexedDbSupported()) {
+    return Promise.resolve(null);
+  }
+
+  dbOpenPromise = new Promise((resolve) => {
+    try {
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+
+        // 1. Object store for serialized Zustand slices and structured module records
+        if (!db.objectStoreNames.contains(STORES.DATA)) {
+          db.createObjectStore(STORES.DATA, { keyPath: 'name' });
+        }
+
+        // 2. Object store for durable binary attachments (Blobs, ArrayBuffers, Images, Audio)
+        if (!db.objectStoreNames.contains(STORES.ATTACHMENTS)) {
+          const attStore = db.createObjectStore(STORES.ATTACHMENTS, { keyPath: 'id' });
+          attStore.createIndex('noteId', 'noteId', { unique: false });
+          attStore.createIndex('createdAt', 'createdAt', { unique: false });
+        }
+
+        // 3. Object store for schema versions and migration metadata
+        if (!db.objectStoreNames.contains(STORES.MIGRATION)) {
+          db.createObjectStore(STORES.MIGRATION, { keyPath: 'key' });
+        }
+      };
+
+      request.onsuccess = () => {
+        dbInstance = request.result;
+        dbInstance.onversionchange = () => {
+          dbInstance.close();
+          dbInstance = null;
+          dbOpenPromise = null;
+        };
+        resolve(dbInstance);
+      };
+
+      request.onerror = (e) => {
+        console.warn('[Momentum DB] IndexedDB open error:', e);
+        resolve(null);
+      };
+
+      request.onblocked = () => {
+        console.warn('[Momentum DB] Database open blocked by another tab');
+      };
+    } catch (err) {
+      console.warn('[Momentum DB] Initialization exception:', err);
+      resolve(null);
+    }
+  });
+
+  return dbOpenPromise;
+}
+
+/**
+ * Read a record from the 'stores' object store.
+ */
+export async function getStoreItem(name) {
+  const db = await openAppDB();
+  if (!db) {
+    return memoryFallback.get(`store:${name}`) ?? null;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.DATA, 'readonly');
+      const store = tx.objectStore(STORES.DATA);
+      const req = store.get(name);
+      req.onsuccess = () => resolve(req.result ? req.result.value : null);
+      req.onerror = () => {
+        console.warn('[Momentum DB] getStoreItem error:', req.error);
+        resolve(null);
+      };
+    } catch (err) {
+      console.warn('[Momentum DB] getStoreItem exception:', err);
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Write a record into the 'stores' object store.
+ */
+export async function setStoreItem(name, value, meta = {}) {
+  const db = await openAppDB();
+  if (!db) {
+    memoryFallback.set(`store:${name}`, value);
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.DATA, 'readwrite');
+      const store = tx.objectStore(STORES.DATA);
+      const record = {
+        name,
+        value,
+        updatedAt: Date.now(),
+        ...meta,
+      };
+      const req = store.put(record);
+      req.onsuccess = () => resolve(true);
+      req.onerror = (e) => {
+        console.warn('[Momentum DB] setStoreItem error:', e);
+        resolve(false);
+      };
+    } catch (err) {
+      console.warn('[Momentum DB] setStoreItem exception:', err);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Delete a record from the 'stores' object store.
+ */
+export async function removeStoreItem(name) {
+  const db = await openAppDB();
+  if (!db) {
+    memoryFallback.delete(`store:${name}`);
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.DATA, 'readwrite');
+      const store = tx.objectStore(STORES.DATA);
+      const req = store.delete(name);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Read an attachment record from the 'attachments' object store.
+ */
+export async function getAttachmentRecord(id) {
+  const db = await openAppDB();
+  if (!db) {
+    return memoryFallback.get(`att:${id}`) ?? null;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.ATTACHMENTS, 'readonly');
+      const store = tx.objectStore(STORES.ATTACHMENTS);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Write an attachment record to the 'attachments' object store.
+ */
+export async function setAttachmentRecord(record) {
+  if (!record || !record.id) return false;
+  const db = await openAppDB();
+  if (!db) {
+    memoryFallback.set(`att:${record.id}`, record);
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.ATTACHMENTS, 'readwrite');
+      const store = tx.objectStore(STORES.ATTACHMENTS);
+      const req = store.put({
+        ...record,
+        updatedAt: Date.now(),
+      });
+      req.onsuccess = () => resolve(true);
+      req.onerror = (e) => {
+        console.warn('[Momentum DB] setAttachmentRecord error:', e);
+        resolve(false);
+      };
+    } catch (err) {
+      console.warn('[Momentum DB] setAttachmentRecord exception:', err);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Delete an attachment record from the 'attachments' object store.
+ */
+export async function removeAttachmentRecord(id) {
+  const db = await openAppDB();
+  if (!db) {
+    memoryFallback.delete(`att:${id}`);
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.ATTACHMENTS, 'readwrite');
+      const store = tx.objectStore(STORES.ATTACHMENTS);
+      const req = store.delete(id);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Get all attachments belonging to a given noteId.
+ */
+export async function getAttachmentsByNoteId(noteId) {
+  const db = await openAppDB();
+  if (!db) {
+    const results = [];
+    for (const [k, v] of memoryFallback.entries()) {
+      if (k.startsWith('att:') && v?.noteId === noteId) {
+        results.push(v);
+      }
+    }
+    return results;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.ATTACHMENTS, 'readonly');
+      const store = tx.objectStore(STORES.ATTACHMENTS);
+      const index = store.index('noteId');
+      const req = index.getAll(noteId);
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    } catch {
+      resolve([]);
+    }
+  });
+}
+
+/**
+ * Get migration metadata record by key.
+ */
+export async function getMigrationMeta(key) {
+  const db = await openAppDB();
+  if (!db) {
+    return memoryFallback.get(`mig:${key}`) ?? null;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.MIGRATION, 'readonly');
+      const store = tx.objectStore(STORES.MIGRATION);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Save migration metadata record.
+ */
+export async function setMigrationMeta(key, data) {
+  const db = await openAppDB();
+  const record = { key, ...data, timestamp: Date.now() };
+  if (!db) {
+    memoryFallback.set(`mig:${key}`, record);
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.MIGRATION, 'readwrite');
+      const store = tx.objectStore(STORES.MIGRATION);
+      const req = store.put(record);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Retrieve all store items from the 'stores' object store as a key-value map.
+ */
+export async function getAllStoreItems() {
+  const db = await openAppDB();
+  if (!db) {
+    const map = {};
+    for (const [k, v] of memoryFallback.entries()) {
+      if (k.startsWith('store:')) {
+        map[k.slice(6)] = v;
+      }
+    }
+    return map;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.DATA, 'readonly');
+      const store = tx.objectStore(STORES.DATA);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const records = req.result || [];
+        const result = {};
+        for (const item of records) {
+          if (item && item.name) {
+            result[item.name] = item.value;
+          }
+        }
+        resolve(result);
+      };
+      req.onerror = () => resolve({});
+    } catch {
+      resolve({});
+    }
+  });
+}
+
+/**
+ * Retrieve all attachment records from the 'attachments' object store.
+ */
+export async function getAllAttachmentRecords() {
+  const db = await openAppDB();
+  if (!db) {
+    const list = [];
+    for (const [k, v] of memoryFallback.entries()) {
+      if (k.startsWith('att:')) {
+        list.push(v);
+      }
+    }
+    return list;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.ATTACHMENTS, 'readonly');
+      const store = tx.objectStore(STORES.ATTACHMENTS);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    } catch {
+      resolve([]);
+    }
+  });
+}
+
+/**
+ * Clear multiple store records by name.
+ */
+export async function removeStoreItems(names) {
+  if (!Array.isArray(names) || names.length === 0) return true;
+  const db = await openAppDB();
+  if (!db) {
+    for (const name of names) {
+      memoryFallback.delete(`store:${name}`);
+    }
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORES.DATA, 'readwrite');
+      const store = tx.objectStore(STORES.DATA);
+      for (const name of names) {
+        store.delete(name);
+      }
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+

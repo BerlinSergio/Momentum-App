@@ -1,5 +1,7 @@
+import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigationStore } from '../../store/useNavigationStore';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Standard Momentum BackButton component
@@ -19,6 +21,7 @@ export default function BackButton({
   className,
   ...props
 }) {
+  const { t } = useTranslation();
   const storeGoBack = useNavigationStore((s) => s.goBack);
 
   const handleClick = (e) => {
@@ -35,15 +38,19 @@ export default function BackButton({
     : 'p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none';
 
   return (
-    <button
+    <motion.button
       type="button"
+      data-testid="back-button"
       onClick={handleClick}
+      whileTap={{ scale: 0.90 }}
+      whileHover={{ scale: 1.08 }}
+      transition={{ duration: 0.12, ease: 'easeOut' }}
       className={className || defaultStyles}
-      aria-label="Go back"
+      aria-label={props['aria-label'] || t('common.back')}
       {...props}
     >
-      <ArrowLeft className="w-5 h-5" />
-    </button>
+      <ArrowLeft className="w-5 h-5 rtl:rotate-180 transition-transform" />
+    </motion.button>
   );
 }
 

@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
-  Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor
+  Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor, ChevronRight
 } from 'lucide-react';
 import { useThemeStore, AURA_PRESETS, applyAppearanceToDOM } from './store/useThemeStore';
+import { toast } from './components/ui/toast/index.js';
 
 export default function AppearanceLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const {
     theme: globalTheme,
     aura: globalAura,
@@ -21,8 +24,6 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
   const [draftGlassEffects, setDraftGlassEffects] = useState(globalGlass !== false);
   const [draftGentleTransitions, setDraftGentleTransitions] = useState(globalTransitions !== false);
   const [previewMode, setPreviewMode] = useState('light');
-  const [showToast, setShowToast] = useState(false);
-  const [toastText, setToastText] = useState('Preferences saved and applied to your ecosystem');
 
   const activeAuraPreset = AURA_PRESETS[draftAura] || AURA_PRESETS.indigo;
 
@@ -54,10 +55,8 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
       glassEffects: draftGlassEffects,
       gentleTransitions: draftGentleTransitions,
     });
-    setToastText('Preferences saved and applied to your ecosystem');
-    setShowToast(true);
+    toast.success(t('toasts.preferencesSaved', 'Preferences saved and applied to your ecosystem'));
     setTimeout(() => {
-      setShowToast(false);
       if (draftTheme === 'dark') {
         setActiveTab && setActiveTab('appearance_dark_mode');
       } else if (draftTheme === 'light') {
@@ -76,9 +75,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
     setDraftGlassEffects(true);
     setDraftGentleTransitions(true);
     setPreviewMode('light');
-    setToastText('Appearance reset to default settings');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    toast.info(t('toasts.appearanceReset', 'Appearance reset to default settings'));
   };
 
   return (
@@ -94,11 +91,13 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">Appearance</h1>
+          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+            {t('appearance.appearance', 'Appearance')}
+          </h1>
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col relative w-full px-4 pb-36">
+      <div className="flex-1 flex flex-col relative w-full px-4 pb-36">
         <div className="flex flex-col w-full space-y-4 pt-2">
           {/* Top Utility Bar: Context & Reset Action */}
           <div className="flex items-center justify-between py-1">
@@ -113,7 +112,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 <Sparkles className="w-4 h-4" />
               </span>
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-950" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-                Visual Language
+                {t('appearance.visualLanguage', 'Visual Language')}
               </span>
             </div>
             <button
@@ -122,19 +121,18 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
               className="text-xs font-semibold flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 hover:bg-white text-slate-700 border border-slate-200/70 active:scale-95 transition-all cursor-pointer shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5" style={{ color: activeAuraPreset.hex }} />
-              <span>Reset Default</span>
+              <span>{t('appearance.resetDefault', 'Reset Default')}</span>
             </button>
           </div>
-
-          {/* Live Mini Mockup Preview Box */}
-          <div className="relative w-full overflow-hidden rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl">
+{/*  Live Mini Mockup Preview Box  */}
+<div className="relative w-full overflow-hidden rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span
                   className="flex h-2.5 w-2.5 rounded-full animate-pulse"
                   style={{ backgroundColor: activeAuraPreset.hex }}
                 />
-                <span className="text-xs font-bold text-slate-900">Interactive Canvas Preview</span>
+                <span className="text-xs font-bold text-slate-900">{t('appearance.canvasPreview', 'Interactive Canvas Preview')}</span>
               </div>
               <button
                 type="button"
@@ -142,7 +140,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 text-slate-800 text-xs font-semibold shadow-sm hover:bg-white active:scale-95 transition-all cursor-pointer border border-slate-200/70"
               >
                 {previewMode === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" style={{ color: activeAuraPreset.hex }} />}
-                <span>{previewMode === 'dark' ? 'Preview Light' : 'Preview Dark'}</span>
+                <span>{previewMode === 'dark' ? t('appearance.lightRadiance', 'Preview Light') : t('appearance.darkSanctuary', 'Preview Dark')}</span>
               </button>
             </div>
 
@@ -174,7 +172,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                   </div>
                   <div>
                     <div className="text-xs font-bold leading-none">Momentum</div>
-                    <div className={`text-[10px] mt-0.5 ${previewMode === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Morning Sanctuary</div>
+                    <div className={`text-[10px] mt-0.5 ${previewMode === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{t('appearance.morningSanctuary', 'Morning Sanctuary')}</div>
                   </div>
                 </div>
                 <span
@@ -197,12 +195,12 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold">Daily Centering</span>
+                  <span className="text-xs font-bold">{t('habits.dailyCentering', 'Daily Centering')}</span>
                   <span
                     className="text-[11px] font-semibold font-display"
                     style={{ color: activeAuraPreset.hex }}
                   >
-                    85% Clear
+                    {t('habits.percentClear', '85% Clear')}
                   </span>
                 </div>
                 <div className={`w-full rounded-full h-1.5 overflow-hidden ${previewMode === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`}>
@@ -222,7 +220,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                     ✓
                   </div>
                   <span className={`text-[11px] font-medium ${previewMode === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Pranayama Breathwork (12m)
+                    {t('habits.pranayamaBreathwork', 'Pranayama Breathwork (12m)')}
                   </span>
                 </div>
               </div>
@@ -252,8 +250,12 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
           {/* Primary Theme Mode Selection (3 True Glass Cards) */}
           <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl">
             <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-white/10">
-              <h2 className="text-base font-bold text-slate-900">Display Theme</h2>
-              <span className="text-xs font-semibold text-slate-500">Atmosphere</span>
+              <h2 className="text-base font-bold text-slate-900">
+                {t('appearance.displayTheme', 'Display Theme')}
+              </h2>
+              <span className="text-xs font-semibold text-slate-500">
+                {t('appearance.atmosphere', 'Atmosphere')}
+              </span>
             </div>
             <div className="flex flex-col gap-3" role="radiogroup" aria-label="Theme Mode Selection">
               {/* Option 1: Light Mode */}
@@ -284,7 +286,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                   </div>
                   <div className="flex-1 min-w-0 pr-7">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900">Light Mode</span>
+                      <span className="text-sm font-bold text-slate-900">{t('appearance.lightRadiance', 'Light Mode')}</span>
                       {draftTheme === 'light' && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
@@ -294,12 +296,12 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                             borderColor: activeAuraPreset.hex + '40',
                           }}
                         >
-                          Selected
+                          {t('common.selected', 'Selected')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs font-normal text-slate-600 mt-1 leading-relaxed">
-                      Clean, luminous aesthetic with frosted glass and atmospheric radiance. Optimized for daylight clarity and focus.
+                      {t('appearance.lightModeDesc', 'Clean, luminous aesthetic with frosted glass and atmospheric radiance. Optimized for daylight clarity and focus.')}
                     </p>
                   </div>
                   {draftTheme === 'light' && (
@@ -341,7 +343,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                   </div>
                   <div className="flex-1 min-w-0 pr-7">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900">Dark Sanctuary</span>
+                      <span className="text-sm font-bold text-slate-900">{t('appearance.darkSanctuary', 'Dark Sanctuary')}</span>
                       {draftTheme === 'dark' && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
@@ -351,12 +353,12 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                             borderColor: activeAuraPreset.hex + '40',
                           }}
                         >
-                          Selected
+                          {t('common.selected', 'Selected')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs font-normal text-slate-600 mt-1 leading-relaxed">
-                      Deep nocturnal sanctuary with restful obsidian depths and low-light visual comfort for evening reflection.
+                      {t('appearance.darkModeDesc', 'Deep nocturnal sanctuary with restful obsidian depths and low-light visual comfort for evening reflection.')}
                     </p>
                   </div>
                   {draftTheme === 'dark' && (
@@ -398,7 +400,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                   </div>
                   <div className="flex-1 min-w-0 pr-7">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-900">System Rhythm</span>
+                      <span className="text-sm font-bold text-slate-900">{t('appearance.systemRhythm', 'System Rhythm')}</span>
                       {draftTheme === 'system' && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
@@ -408,12 +410,12 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                             borderColor: activeAuraPreset.hex + '40',
                           }}
                         >
-                          Selected
+                          {t('common.selected', 'Selected')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs font-normal text-slate-600 mt-1 leading-relaxed">
-                      Follows celestial daylight cycles. Seamlessly shifts between dawn brilliance and nocturnal twilight.
+                      {t('appearance.systemRhythmDesc', 'Follows celestial daylight cycles. Seamlessly shifts between dawn brilliance and nocturnal twilight.')}
                     </p>
                   </div>
                   {draftTheme === 'system' && (
@@ -432,7 +434,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
           {/* Accent Luminescence / Chromatic Aura */}
           <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl">
             <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-white/10">
-              <h3 className="text-base font-bold text-slate-900">Chromatic Aura</h3>
+              <h3 className="text-base font-bold text-slate-900">{t('appearance.chromaticAura', 'Chromatic Aura')}</h3>
               <span
                 className="text-xs font-bold transition-colors"
                 style={{ color: activeAuraPreset.hex }}
@@ -441,7 +443,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
               </span>
             </div>
             <p className="text-xs font-normal text-slate-600 leading-relaxed">
-              Subtle ambient glow reflected across frosted navigation docks, buttons, and metrics.
+              {t('appearance.chromaticAuraDesc', 'Subtle ambient glow reflected across frosted navigation docks, buttons, and metrics.')}
             </p>
             {/* Color Swatches Grid */}
             <div className="grid grid-cols-5 gap-2 pt-1" role="radiogroup" aria-label="Accent Palette Selection">
@@ -488,8 +490,8 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
           <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200/40 dark:border-white/10">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Glassmorphic Physics</h3>
-                <p className="text-xs font-normal text-slate-500 mt-0.5">Global visual rendering engine & dynamic physics</p>
+                <h3 className="text-base font-bold text-slate-900">{t('appearance.glassmorphicPhysics', 'Glassmorphic Physics')}</h3>
+                <p className="text-xs font-normal text-slate-500 mt-0.5">{t('appearance.renderingEngineDesc', 'Global visual rendering engine & dynamic physics')}</p>
               </div>
               <span
                 className="text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors shadow-sm"
@@ -499,7 +501,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                   borderColor: activeAuraPreset.hex + '35',
                 }}
               >
-                {draftGlassEffects && draftGentleTransitions ? 'Full Fidelity' : draftGlassEffects ? 'Glass Only' : draftGentleTransitions ? 'Motion Only' : 'Performance'}
+                {draftGlassEffects && draftGentleTransitions ? t('appearance.fullFidelity', 'Full Fidelity') : draftGlassEffects ? t('appearance.glassOnly', 'Glass Only') : draftGentleTransitions ? t('appearance.motionOnly', 'Motion Only') : t('appearance.performance', 'Performance')}
               </span>
             </div>
             <div className="flex flex-col gap-4">
@@ -516,10 +518,10 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                     >
                       <Layers className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-bold text-slate-900">Frosted Glass Effects</span>
+                    <span className="text-sm font-bold text-slate-900">{t('appearance.frostedGlassEffects', 'Frosted Glass Effects')}</span>
                   </div>
                   <p className="text-xs font-normal text-slate-600 mt-1 pl-9 leading-relaxed">
-                    Render multi-layer blur filters and edge reflections over wallpaper.
+                    {t('appearance.frostedGlassDesc', 'Render multi-layer blur filters and edge reflections over wallpaper.')}
                   </p>
                 </div>
                 <button
@@ -555,10 +557,10 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                     >
                       <Wind className="w-4 h-4" />
                     </div>
-                    <span className="text-sm font-bold text-slate-900">Gentle Transitions</span>
+                    <span className="text-sm font-bold text-slate-900">{t('appearance.gentleTransitions', 'Gentle Transitions')}</span>
                   </div>
                   <p className="text-xs font-normal text-slate-600 mt-1 pl-9 leading-relaxed">
-                    Calm, physics-based page morphing and organic card elevations.
+                    {t('appearance.gentleTransitionsDesc', 'Calm, physics-based page morphing and organic card elevations.')}
                   </p>
                 </div>
                 <button
@@ -583,11 +585,15 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
             </div>
           </div>
 
-          {/* Atmospheric Canvas & Wallpaper Shortcut */}
+          {/* {t('appearance.atmosphericCanvas', 'Atmospheric Canvas')} & Wallpaper Shortcut */}
           <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl">
             <div className="flex items-center justify-between pb-1 border-b border-slate-200/40 dark:border-white/10">
-              <h3 className="text-base font-bold text-slate-900">Atmospheric Canvas</h3>
-              <span className="text-xs font-semibold text-slate-500">Default Ambient</span>
+              <h3 className="text-base font-bold text-slate-900">
+                {t('appearance.atmosphericCanvas', 'Atmospheric Canvas')}
+              </h3>
+              <span className="text-xs font-semibold text-slate-500">
+                {t('appearance.defaultAmbient', 'Default Ambient')}
+              </span>
             </div>
             <div
               onClick={() => setActiveTab && setActiveTab('background_wallpaper_library_light_mode')}
@@ -607,15 +613,15 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold text-slate-900 truncate">Serene Horizon</span>
+                    <span className="text-sm font-bold text-slate-900 truncate">{t('wallpapers.sereneHorizon', 'Serene Horizon')}</span>
                     <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: activeAuraPreset.hex }} />
                   </div>
                   <p className="text-xs font-normal text-slate-500 mt-0.5 truncate">
-                    Pastel sky and mist with 32px diffuse glass refraction.
+                    {t('wallpapers.sereneHorizonDesc', 'Pastel sky and mist with 32px diffuse glass refraction.')}
                   </p>
                   <div className="flex items-center gap-1 mt-1 font-semibold text-xs" style={{ color: activeAuraPreset.hex }}>
-                    <span>Customize Wallpaper</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>{t('appearance.customizeWallpaper', 'Customize Wallpaper')}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </div>
                 </div>
               </div>
@@ -632,20 +638,12 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 boxShadow: `0 10px 25px -5px ${activeAuraPreset.hex}60`,
               }}
             >
-              <span>Apply Appearance Preferences</span>
-              <CheckCircle2 className="w-5 h-5" />
+              <span>{t('appearance.applyAppearance', 'Apply Appearance Preferences')}</span>
+              <Check className="w-5 h-5" />
             </button>
-            {showToast && (
-              <div
-                className="text-center text-xs font-semibold mt-2 animate-in fade-in duration-200"
-                style={{ color: activeAuraPreset.hex }}
-              >
-                ✓ {toastText}
-              </div>
-            )}
           </div>
         </div>
-      </main>
+      </div>
     </>
   );
 }

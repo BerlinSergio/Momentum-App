@@ -1,8 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useRef, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { ArrowLeft, Pencil, Trash2, UserCheck, User, Mail, Globe, Sun, ArrowRight, RefreshCw, Check, Wallet, Clock, Compass, ChevronRight, MapPin } from 'lucide-react';
 import { useProfileStore } from './store/useProfileStore';
+import { usePrayerStore } from './store/usePrayerStore';
 import CustomDropdown from './components/ui/CustomDropdown';
+import { toast } from './components/ui/toast/index.js';
+import { confirm } from './components/ui/confirmation/index.js';
 
 const CURRENCY_OPTIONS = [
   { value: 'AFN / ؋ (Afghan Afghani)', label: 'AFN / ؋ (Afghan Afghani)', subtext: 'Default national Afghan currency' },
@@ -31,6 +35,7 @@ const CONVENTION_OPTIONS = [
 ];
 
 export default function EditProfileDarkMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const profile = useProfileStore();
   const updateProfile = useProfileStore((s) => s.updateProfile);
   const fileInputRef = useRef(null);
@@ -47,6 +52,7 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
 
   useEffect(() => {
     if (profile) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       if (profile.fullName !== undefined) setFullName(profile.fullName || '');
       if (profile.email !== undefined) setEmail(profile.email || '');
       if (profile.avatar !== undefined) setAvatar(profile.avatar);
@@ -55,8 +61,9 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
       if (profile.city) setCity(profile.city);
       if (profile.calculationConvention) setCalculationConvention(profile.calculationConvention);
       if (profile.hijriShamsi !== undefined) setHijriShamsi(profile.hijriShamsi);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
-  }, [profile._hasHydrated, profile.fullName, profile.email, profile.avatar]);
+  }, [profile]);
 
   const handlePhotoClick = () => {
     if (fileInputRef.current) fileInputRef.current.click();
@@ -66,7 +73,7 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image size exceeds 10MB limit.');
+      toast.error(t('toasts.imageSizeLimit', 'Image size exceeds 10MB limit.'));
       return;
     }
     const reader = new FileReader();
@@ -126,8 +133,14 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
       console.warn('Direct storage sync warning:', e);
     }
     updateProfile(payload);
+    try {
+      usePrayerStore.getState().setCalculationMethod?.(calculationConvention);
+    } catch (e) {
+      void e;
+    }
     setTimeout(() => {
       setSaveStatus('saved');
+      toast.success(t('toasts.profileUpdated', 'Profile updated successfully'));
       setTimeout(() => {
         if (goBack) goBack('settings_profile_dark_mode');
         else if (setActiveTab) setActiveTab('settings_profile_dark_mode');
@@ -136,7 +149,23 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
     }, 450);
   };
 
-  const handleDiscard = () => {
+  const isDirty = fullName !== (profile.fullName || '') ||
+    email !== (profile.email || '') ||
+    currency !== (profile.currency || 'AFN / ؋ (Afghan Afghani)') ||
+    timezone !== (profile.timezone || 'Asia/Kabul (UTC+4:30)') ||
+    city !== (profile.city || 'Kabul, Afghanistan');
+
+  const handleDiscard = async () => {
+    if (isDirty) {
+      const confirmed = await confirm({
+        variant: 'warning',
+        titleKey: 'confirm.discardProfileTitle',
+        messageKey: 'confirm.discardProfileDescription',
+        confirmLabelKey: 'confirm.discard',
+        cancelLabelKey: 'confirm.keepEditing',
+      });
+      if (!confirmed) return;
+    }
     if (goBack) goBack('settings_profile_dark_mode');
     else if (setActiveTab) setActiveTab('settings_profile_dark_mode');
     else window.history.back();
@@ -151,10 +180,9 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
             <User className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-white tracking-tight">
-            Edit Profile
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
+            {t('settings.editProfile', 'Edit Profile')}</h1>
+</div>
+<div className="flex items-center gap-2">
           <button onClick={handleDiscard} className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"><ArrowLeft className="w-5 h-5"/></button>
           <UserAvatar 
             setActiveTab={setActiveTab} 
@@ -162,12 +190,17 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col w-full pb-28 px-5 bg-transparent relative z-10">
+      <main className="flex-1 flex flex-col w-full max-w-md lg:max-w-5xl mx-auto pb-28 px-5 lg:px-8 bg-transparent relative z-10">
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[120vw] h-[55vh] rounded-full bg-primary/15 blur-3xl"></div>
         </div>
         
-        {/* AVATAR SECTION */}
+        {/* Responsive Layout: 2-Column Grid on Desktop (>= 1024px), Single Column on Mobile */}
+        <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 items-start gap-5">
+          {/* ── LEFT COLUMN (Cols 1-5 on Desktop): Avatar, Identity, Actions ── */}
+          <div className="w-full lg:col-span-5 flex flex-col gap-5">
+            <div className="rounded-3xl p-5 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl flex flex-col items-center">
+              {/* AVATAR SECTION */}
         <section className="mb-6 relative z-10 flex flex-col items-center">
           <div className="relative w-24 h-24 mx-auto rounded-full ring-4 ring-primary/30 shadow-lg overflow-hidden bg-slate-800">
             {avatar && !imageError ? (
@@ -185,65 +218,94 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
           <div className="flex flex-row justify-center items-center gap-4 mt-4 w-full">
             <button onClick={handlePhotoClick} className="h-10 px-4 py-2 rounded-xl bg-primary/15 border border-primary/30 text-primary hover:bg-primary/25 text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm active:scale-95 cursor-pointer" type="button">
               <Pencil className="w-4 h-4"/>
-              Change Photo
+              {t('profile.changePhoto', 'Change Photo')}
             </button>
             <button onClick={handleRemovePhoto} className="h-10 px-4 py-2 rounded-xl bg-rose-500/90 hover:bg-rose-600 text-white border border-rose-400/30 text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm shadow-rose-500/20 active:scale-95 cursor-pointer" type="button">
               <Trash2 className="w-4 h-4"/>
-              Remove
+              {t('common.remove', 'Remove')}
             </button>
           </div>
-          <p className="text-center text-xs text-slate-400 mt-3 block">PNG, JPG or WEBP · Max 5MB</p>
+          <p className="text-center text-xs text-slate-400 mt-3 block">{t('profile.photoFormatHint', 'PNG, JPG or WEBP · Max 5MB')}</p>
         </section>
-
-        {/* IDENTITY & ACCOUNT CARD */}
+            </div>
+            {/* IDENTITY & ACCOUNT CARD */}
         <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-10 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
           <div className="flex items-center gap-2 pb-1">
             <UserCheck className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold text-white">Identity & Account</h2>
+            <h2 className="text-sm font-bold text-white">{t('profile.identityAccount', 'Identity & Account')}</h2>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-400">Full Name</label>
+            <label className="text-xs font-semibold text-slate-400">{t('profile.fullName', 'Full Name')}</label>
             <div className="flex items-center gap-3 p-3.5 rounded-2xl text-white bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
               <User className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" className="bg-transparent text-sm font-medium text-white w-full focus:outline-none placeholder-slate-500" />
+              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t('profile.enterFullName', 'Enter your full name')} className="bg-transparent text-sm font-medium text-white w-full focus:outline-none placeholder-slate-500" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-400">Email Address</label>
+            <label className="text-xs font-semibold text-slate-400">{t('profile.emailAddress', 'Email Address')}</label>
             <div className="flex items-center gap-3 p-3.5 rounded-2xl text-white bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
               <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" className="bg-transparent text-sm font-medium text-white w-full focus:outline-none placeholder-slate-500" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('profile.enterEmail', 'Enter your email address')} className="bg-transparent text-sm font-medium text-white w-full focus:outline-none placeholder-slate-500" />
             </div>
           </div>
         </div>
+            <div className="rounded-3xl p-5 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl flex flex-col items-center w-full">
+              {/* BOTTOM ACTION BUTTONS */}
+        <div className="pt-2 relative z-0 flex flex-col items-center">
+          <button type="button" onClick={handleSave} disabled={saveStatus !== 'idle'} className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99] transition-transform">
+            {saveStatus === 'saving' ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                <span>{t('profile.savingChanges', 'Saving Changes...')}</span>
+              </>
+            ) : saveStatus === 'saved' ? (
+              <>
+                <Check className="w-4 h-4 text-white" />
+                <span>{t('settings.changesSaved', 'Changes Saved!')}</span>
+              </>
+            ) : (
+              <>
+                <span>{t('settings.saveChanges', 'Save Changes')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+          <button type="button" onClick={handleDiscard} className="w-full py-3 mt-3 text-center text-sm font-medium text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-2xl transition-all duration-150 cursor-pointer shadow-sm active:scale-[0.99] flex items-center justify-center">
+            {t('settings.discardChanges', 'Discard Changes')}
+          </button>
+        </div>
+            </div>
+          </div>
 
-        {/* REGIONAL SETTINGS CARD */}
+          {/* ── RIGHT COLUMN (Cols 6-12 on Desktop): Regional & Spiritual ── */}
+          <div className="w-full lg:col-span-7 flex flex-col gap-5">
+            {/* REGIONAL SETTINGS CARD */}
         <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-30 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-bold text-white">Regional Settings</h2>
+              <h2 className="text-sm font-bold text-white">{t('profile.regionalSettings', 'Regional Settings')}</h2>
             </div>
-            <span className="text-xs font-medium text-slate-400">Locale & Sync</span>
+            <span className="text-xs font-medium text-slate-400">{t('profile.localeSync', 'Locale & Sync')}</span>
           </div>
 
           <div className="space-y-1 relative z-[100]">
-            <label className="text-xs font-semibold text-slate-400">Primary Currency</label>
+            <label className="text-xs font-semibold text-slate-400">{t('profile.primaryCurrency', 'Primary Currency')}</label>
             <CustomDropdown value={currency} onChange={setCurrency} options={CURRENCY_OPTIONS} isDarkMode={true} icon={Wallet} />
-            <p className="text-[11px] text-slate-500 mt-1 pl-1">All financial logs, expense budgets, and cash flows default to this currency.</p>
+            <p className="text-[11px] text-slate-500 mt-1 pl-1">{t('profile.currencyDesc', 'All financial logs, expense budgets, and cash flows default to this currency.')}</p>
           </div>
 
           <div className="space-y-1 relative z-[90]">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-400">Timezone</label>
+              <label className="text-xs font-semibold text-slate-400">{t('profile.timezone', 'Timezone')}</label>
               <button
                 type="button"
                 onClick={() => setActiveTab && setActiveTab('timezone_selection_dark_mode')}
                 className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
               >
-                <span>Timezone Selection</span>
+                <span>{t('profile.timezoneSelection', 'Timezone Selection')}</span>
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -256,59 +318,58 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
 
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-400">City & Country</label>
+              <label className="text-xs font-semibold text-slate-400">{t('profile.cityCountry', 'City & Country')}</label>
               <button
                 type="button"
                 onClick={() => setActiveTab && setActiveTab('city_selection_dark_mode')}
                 className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
               >
-                <span>Select from City Database</span>
+                <span>{t('profile.selectCityDatabase', 'Select from City Database')}</span>
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
             <div className="rounded-3xl p-5 space-y-4 relative z-0 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
               <div className="flex items-center justify-between">
-                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="City, Country" className="bg-transparent text-sm font-medium text-white w-full focus:outline-none placeholder-slate-500" />
+                <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('profile.cityCountryPlaceholder', 'City, Country')} className="bg-transparent text-sm font-medium text-white w-full focus:outline-none placeholder-slate-500" />
                 <button
                   type="button"
                   onClick={() => setActiveTab && setActiveTab('city_selection_dark_mode')}
                   className="px-2.5 py-1 rounded-xl bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
                 >
                   <MapPin className="w-3 h-3" />
-                  <span>Browse</span>
+                  <span>{t('profile.browse', 'Browse')}</span>
                 </button>
               </div>
               <div className="flex items-start gap-2 pt-2 border-t border-slate-700/60">
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-semibold text-primary">Geocoded for Prayer Calculations</span>
+                  <span className="text-[11px] font-semibold text-primary">{t('profile.geocodedForPrayer', 'Geocoded for Prayer Calculations')}</span>
                   <span className="text-[10px] text-slate-400">Lat 34.5553° N, Long 69.2075° E (Elevation 1,791m)</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* SPIRITUAL ROUTINE CONTEXT CARD */}
+            {/* SPIRITUAL ROUTINE CONTEXT CARD */}
         <div className="rounded-3xl p-5 mb-5 space-y-4 relative z-20 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
           <div className="flex items-center justify-between pb-1">
             <div className="flex items-center gap-2">
               <Sun className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-bold text-white">Spiritual Routine Context</h2>
+              <h2 className="text-sm font-bold text-white">{t('profile.spiritualRoutineContext', 'Spiritual Routine Context')}</h2>
             </div>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 border border-primary/40 text-primary">Momentum</span>
           </div>
 
           <div className="space-y-1 relative z-[100]">
-            <label className="text-xs font-semibold text-slate-400">Calculation Convention</label>
+            <label className="text-xs font-semibold text-slate-400">{t('profile.calculationConvention', 'Calculation Convention')}</label>
             <CustomDropdown value={calculationConvention} onChange={setCalculationConvention} options={CONVENTION_OPTIONS} isDarkMode={true} icon={Compass} />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-400">Calendar Synchronization</label>
+            <label className="text-xs font-semibold text-slate-400">{t('profile.calendarSync', 'Calendar Synchronization')}</label>
             <div className="rounded-3xl p-5   relative z-0 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-white">Hijri Shamsi (Solar Calendar)</span>
-                <span className="text-[11px] text-slate-400">Afghan national astronomical solar reckoning</span>
+                <span className="text-sm font-semibold text-white">{t('profile.hijriShamsiSolar', 'Hijri Shamsi (Solar Calendar)')}</span>
+                <span className="text-[11px] text-slate-400">{t('profile.solarCalendarDesc', 'Afghan national astronomical solar reckoning')}</span>
               </div>
               <button type="button" role="switch" aria-checked={hijriShamsi} onClick={() => setHijriShamsi(!hijriShamsi)} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${hijriShamsi ? 'bg-primary' : 'bg-slate-700'}`}>
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm mt-0.5 ml-0.5 transition-transform ${hijriShamsi ? 'translate-x-5' : 'translate-x-0'}`}></span>
@@ -316,30 +377,7 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
             </div>
           </div>
         </div>
-
-        {/* BOTTOM ACTION BUTTONS */}
-        <div className="pt-2 relative z-0 flex flex-col items-center">
-          <button type="button" onClick={handleSave} disabled={saveStatus !== 'idle'} className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99] transition-transform">
-            {saveStatus === 'saving' ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                <span>Saving Changes...</span>
-              </>
-            ) : saveStatus === 'saved' ? (
-              <>
-                <Check className="w-4 h-4 text-white" />
-                <span>Changes Saved!</span>
-              </>
-            ) : (
-              <>
-                <span>Save Changes</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-          <button type="button" onClick={handleDiscard} className="w-full py-3 mt-3 text-center text-sm font-medium text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-2xl transition-all duration-150 cursor-pointer shadow-sm active:scale-[0.99] flex items-center justify-center">
-            Discard Changes
-          </button>
+          </div>
         </div>
       </main>
     </>

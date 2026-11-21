@@ -1,0 +1,193 @@
+/**
+ * Momentum Native Geolocation Bridge
+ * Interfaces with @capacitor/geolocation on native devices and falls back
+ * gracefully to navigator.geolocation on web browsers.
+ * Integrates directly with Phase 04 useLocationStore and Prayer Times engine.
+ */
+
+import { Geolocation } from '@capacitor/geolocation';
+import { useLocationStore } from '../store/useLocationStore';
+import { isValidCoordinate } from './prayerTimes';
+import { isNativePlatform } from './nativeLifecycle';
+
+export { isValidCoordinate };
+
+/**
+ * Check location permission status
+ */
+export async function checkLocationPermission() {
+  if (isNativePlatform()) {
+    try {
+      const status = await Geolocation.checkPermissions();
+      return status.location; // 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
+    } catch (err) {
+      console.warn('[NativeLocation] Check permission failed:', err.message);
+      return 'denied';
+    }
+  }
+
+  // Web Browser fallback
+  if (typeof navigator !== 'undefined' && navigator.permissions) {
+    try {
+      const res = await navigator.permissions.query({ name: 'geolocation' });
+      return res.state; // 'granted' | 'denied' | 'prompt'
+    } catch {
+      return 'prompt';
+    }
+  }
+
+  return 'prompt';
+}
+
+/**
+ * Request location permission from the user
+ */
+export async function requestLocationPermission() {
+  if (isNativePlatform()) {
+    try {
+      const status = await Geolocation.requestPermissions({ permissions: ['location'] });
+      return status.location;
+    } catch (err) {
+      console.warn('[NativeLocation] Request permission failed:', err.message);
+      return 'denied';
+    }
+  }
+
+  return 'prompt';
+}
+
+/**
+ * Detect current GPS coordinates and apply to Momentum's authoritative location store.
+ * 
+ * Strict safety rules:
+ * - Does not silently fall back to default if GPS fails (preserves previous configured location).
+ * - Enforces coordinate validity (-90..90, -180..180).
+ * - Single-shot retrieval; does NOT continuously track in background.
+ *
+ * @param {Object} options
+ * @param {boolean} [options.highAccuracy=true]
+ * @param {number} [options.timeout=10000]
+ * @returns {Promise<{ success: boolean, coords?: Object, error?: string, code?: string }>}
+ */
+export async function detectAndApplyNativeLocation(options = {}) {
+  const highAccuracy = options.highAccuracy !== false;
+  const timeoutMs = options.timeout || 10000;
+
+  try {
+    let position = null;
+
+    if (isNativePlatform()) {
+      // 1. Check or request native permission
+      let perm = await checkLocationPermission();
+      if (perm === 'prompt' || perm === 'prompt-with-rationale') {
+        perm = await requestLocationPermission();
+      }
+
+      if (perm === 'denied') {
+        return {
+          success: false,
+          code: 'PERMISSION_DENIED',
+          error: 'Location permission was denied. You can select a city manually from the list.',
+        };
+      }
+
+      // 2. Fetch native GPS fix
+      position = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: highAccuracy,
+        timeout: timeoutMs,
+        maximumAge: 30000,
+      });
+    } else {
+      // Web Browser standard Geolocation
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        return {
+          success: false,
+          code: 'UNSUPPORTED',
+          error: 'Geolocation is not supported in this environment.',
+        };
+      }
+
+      position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: highAccuracy,
+          timeout: timeoutMs,
+          maximumAge: 30000,
+        });
+      });
+    }
+
+    if (!position || !position.coords) {
+      return {
+        success: false,
+        code: 'NO_POSITION',
+        error: 'Unable to acquire satellite GPS fix.',
+      };
+    }
+
+    const { latitude, longitude, altitude, accuracy } = position.coords;
+
+    // 3. Strict coordinate mathematical validation
+    if (!isValidCoordinate(latitude, longitude)) {
+      return {
+        success: false,
+        code: 'INVALID_COORDINATES',
+        error: `Received invalid coordinates: (${latitude}, ${longitude})`,
+      };
+    }
+
+    // 4. Resolve local device IANA timezone
+    const resolvedTz = typeof Intl !== 'undefined'
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : 'UTC';
+
+    // 5. Commit genuine GPS location to location store
+    const applied = useLocationStore.getState().setGpsLocation({
+      latitude,
+      longitude,
+      altitude: altitude || 0,
+      city: 'Current Location',
+      country: 'GPS Detected',
+      timezone: resolvedTz,
+    });
+
+    if (!applied) {
+      return {
+        success: false,
+        code: 'STORE_REJECTED',
+        error: 'Location store rejected the coordinate payload.',
+      };
+    }
+
+    return {
+      success: true,
+      coords: {
+        latitude,
+        longitude,
+        altitude,
+        accuracy,
+        timezone: resolvedTz,
+      },
+    };
+  } catch (err) {
+    console.error('[NativeLocation] Detection error:', err);
+    let code = 'DETECTION_FAILED';
+    let message = err.message || 'GPS detection failed';
+
+    if (err.code === 1 || err.message?.includes('denied')) {
+      code = 'PERMISSION_DENIED';
+      message = 'Location permission was denied by device settings.';
+    } else if (err.code === 2 || err.message?.includes('unavailable')) {
+      code = 'POSITION_UNAVAILABLE';
+      message = 'GPS location is currently unavailable. Ensure device location is turned on.';
+    } else if (err.code === 3 || err.message?.includes('timeout')) {
+      code = 'TIMEOUT';
+      message = 'GPS signal acquisition timed out. Please try again or choose a city manually.';
+    }
+
+    return {
+      success: false,
+      code,
+      error: message,
+    };
+  }
+}

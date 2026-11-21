@@ -3,6 +3,7 @@ import { User } from 'lucide-react';
 import { useProfileStore } from '../store/useProfileStore';
 import { useNavigationStore } from '../store/useNavigationStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Universal UserAvatar Component
@@ -17,8 +18,10 @@ export default function UserAvatar({
   className = '',
   size = 'w-9 h-9',
   textSize = 'text-xs',
-  ariaLabel = 'Edit Profile',
+  ariaLabel,
 }) {
+  const { t } = useTranslation();
+  const effectiveAriaLabel = ariaLabel || t('settings.editProfile', { defaultValue: 'Edit Profile' });
   const profile = useProfileStore();
   const avatar = profile?.avatar;
   const fullName = profile?.fullName;
@@ -45,10 +48,10 @@ export default function UserAvatar({
       <button
         type="button"
         onClick={handleClick}
-        aria-label={ariaLabel}
+        aria-label={effectiveAriaLabel}
         className={`${size} rounded-full overflow-hidden shadow-sm flex items-center justify-center border border-white/20 flex-shrink-0 aspect-square cursor-pointer pointer-events-auto transition-transform active:scale-95 hover:scale-105 select-none ${className}`}
       >
-        <img src={avatar} alt="User Avatar" className="w-full h-full object-cover rounded-full aspect-square" />
+        <img src={avatar} alt={fullName || t('common.userAvatar', { defaultValue: 'User Avatar' })} className="w-full h-full object-cover rounded-full aspect-square" />
       </button>
     );
   }
@@ -57,7 +60,7 @@ export default function UserAvatar({
     <button
       type="button"
       onClick={handleClick}
-      aria-label={ariaLabel}
+      aria-label={effectiveAriaLabel}
       className={`${size} rounded-full bg-gradient-to-tr from-primary to-primary-container text-white font-bold ${textSize} flex items-center justify-center shadow-sm flex-shrink-0 aspect-square cursor-pointer pointer-events-auto overflow-hidden transition-transform active:scale-95 hover:scale-105 select-none ${className}`}
     >
       {initial || <User className="w-4 h-4 text-white/90" />}

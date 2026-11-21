@@ -2,44 +2,38 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { produce } from 'immer';
 import { v4 as uuidv4 } from 'uuid';
+import { getLocalDateKey, addCalendarDays } from '../utils/timeService';
+import { createIndexedDbStorage } from '../storage/index.js';
 
-const getSafeStorage = () => {
+const taskStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-task-storage' });
+const getSafeStorage = () => taskStorage;
+
+export const getTodayIsoDate = (tz) => {
   try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const testKey = '__momentum_task_test__';
-      window.localStorage.setItem(testKey, testKey);
-      window.localStorage.removeItem(testKey);
-      return window.localStorage;
-    }
-  } catch (e) {
-    console.warn('LocalStorage unavailable, falling back to memory store:', e);
+    return getLocalDateKey(undefined, tz);
+  } catch {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
-  const memoryStore = new Map();
-  return {
-    getItem: (key) => memoryStore.get(key) || null,
-    setItem: (key, value) => { memoryStore.set(key, String(value)); },
-    removeItem: (key) => { memoryStore.delete(key); },
-  };
 };
 
-export const getTodayIsoDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+export const getOffsetIsoDate = (offsetDays = 0, tz) => {
+  try {
+    return addCalendarDays(getTodayIsoDate(tz), offsetDays);
+  } catch {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 };
 
-const getOffsetIsoDate = (offsetDays = 0) => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const initialTasks = [
+export const DEMO_TASKS = [
   {
     id: 'task-1',
     title: 'Morning workout & stretch',
@@ -153,17 +147,16 @@ const initialTasks = [
   },
 ];
 
+export const initialTasks = DEMO_TASKS;
+
 const syncTaskToLocalStorage = (slice) => {
   try {
-    const storageObj = typeof window !== 'undefined' && window.localStorage ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
-    if (storageObj) {
-      const raw = storageObj.getItem('momentum-task-storage');
-      const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-      parsed.state = { ...(parsed.state || {}), ...slice };
-      storageObj.setItem('momentum-task-storage', JSON.stringify(parsed));
-    }
+    const raw = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('momentum-task-storage') : null;
+    const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
+    parsed.state = { ...(parsed.state || {}), ...slice };
+    taskStorage.setItem('momentum-task-storage', JSON.stringify(parsed)).catch(() => {});
   } catch (e) {
-    console.warn('[Momentum Tasks] Direct localStorage sync error:', e);
+    console.warn('[Momentum Tasks] Persistence sync error:', e);
   }
 };
 
@@ -186,7 +179,7 @@ const getInitialTaskState = () => {
     }
   }
   return {
-    tasks: initialTasks,
+    tasks: [],
     editingTaskId: null,
     _hasHydrated: true,
   };
@@ -194,7 +187,7 @@ const getInitialTaskState = () => {
 
 export const useTaskStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...getInitialTaskState(),
 
       setHasHydrated: (val) => set({ _hasHydrated: val }),
@@ -248,6 +241,9 @@ export const useTaskStore = create(
               state.editingTaskId = null;
             }
             syncTaskToLocalStorage({ tasks: state.tasks });
+            if (typeof window !== 'undefined' && window.nativeNotifications?.cancelNotificationForSource) {
+              window.nativeNotifications.cancelNotificationForSource('task', id);
+            }
           })
         ),
 
@@ -257,6 +253,9 @@ export const useTaskStore = create(
             const task = state.tasks.find((t) => t.id === taskId);
             if (task) {
               task.status = task.status === 'done' ? 'todo' : 'done';
+              if (task.status === 'done' && typeof window !== 'undefined' && window.nativeNotifications?.cancelNotificationForSource) {
+                window.nativeNotifications.cancelNotificationForSource('task', taskId);
+              }
             }
             syncTaskToLocalStorage({ tasks: state.tasks });
           })
@@ -289,6 +288,9 @@ export const useTaskStore = create(
       storage: createJSONStorage(getSafeStorage),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
+          if (!Array.isArray(state.tasks)) {
+            state.tasks = [];
+          }
           state.setHasHydrated(true);
         }
       },
@@ -302,19 +304,19 @@ if (typeof window !== 'undefined') {
     const raw = localStorage.getItem('momentum-task-storage');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed?.state) {
+      if (parsed?.state && Array.isArray(parsed.state.tasks)) {
         useTaskStore.setState({
           ...parsed.state,
           _hasHydrated: true,
         });
       } else {
-        useTaskStore.setState({ _hasHydrated: true });
+        useTaskStore.setState({ tasks: [], _hasHydrated: true });
       }
     } else {
-      useTaskStore.setState({ _hasHydrated: true });
+      useTaskStore.setState({ tasks: [], _hasHydrated: true });
     }
   } catch {
-    useTaskStore.setState({ _hasHydrated: true });
+    useTaskStore.setState({ tasks: [], _hasHydrated: true });
   }
 }
 

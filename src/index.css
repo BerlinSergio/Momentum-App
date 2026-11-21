@@ -1,4 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import '@fontsource/noto-sans-arabic/arabic-400.css';
+@import '@fontsource/noto-sans-arabic/arabic-500.css';
+@import '@fontsource/noto-sans-arabic/arabic-600.css';
+@import '@fontsource/noto-sans-arabic/arabic-700.css';
+@import '@fontsource/vazirmatn/arabic-400.css';
+@import '@fontsource/vazirmatn/arabic-500.css';
+@import '@fontsource/vazirmatn/arabic-600.css';
+@import '@fontsource/vazirmatn/arabic-700.css';
 
 @font-face {
   font-family: 'ArabQuranIslamic';
@@ -28,6 +36,70 @@
     @apply font-sans antialiased text-on-surface;
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
+
+  /* RTL and Afghan Multilingual Typography Overrides */
+  html[lang="ps-AF"],
+  html[data-locale="ps-AF"],
+  html[lang="ps-AF"] body,
+  html[data-locale="ps-AF"] body,
+  html[lang="ps-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  html[data-locale="ps-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][data-locale="ps-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][lang="ps-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  .font-pashto {
+    font-family: 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+
+  html[lang="fa-AF"],
+  html[data-locale="fa-AF"],
+  html[lang="fa-AF"] body,
+  html[data-locale="fa-AF"] body,
+  html[lang="fa-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  html[data-locale="fa-AF"] body *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][data-locale="fa-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  [dir="rtl"][lang="fa-AF"] *:not(.material-symbols-outlined):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]):not(code):not(kbd):not(pre):not(.font-mono):not(.font-quran):not(.font-bahij):not([data-preserve-font]),
+  .font-dari {
+    font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  }
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined' !important;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr !important;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+
+  [dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* Perso-Arabic scripts require normal letter spacing so cursive connections remain unbroken */
+  [dir="rtl"],
+  [dir="rtl"] * {
+    letter-spacing: normal !important;
+  }
+
+  /* Language-aware line-height and vertical rhythm for RTL scripts */
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
+    line-height: 1.35;
+  }
+  [dir="rtl"] h4, [dir="rtl"] h5, [dir="rtl"] h6 {
+    line-height: 1.45;
+  }
+  [dir="rtl"] p, [dir="rtl"] li {
+    line-height: 1.65;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading tracking-tight;
   }
@@ -307,6 +379,18 @@ html.disable-transitions *::after {
   animation-duration: 0.001ms !important;
   animation-delay: 0s !important;
   animation-iteration-count: 1 !important;
+}
+
+/* System-level prefers-reduced-motion: reduce enforcement */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* When Gentle Transitions are enabled:

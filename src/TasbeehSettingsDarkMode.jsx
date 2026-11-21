@@ -1,11 +1,14 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
+import { useTranslation } from 'react-i18next';
 import { useTasbeehStore } from './store/useTasbeehStore';
+import { toast } from './components/ui/toast/index.js';
 import { 
   ArrowLeft, SlidersHorizontal, Eye, CheckCircle2, Sparkles, Check, PlusCircle, RotateCcw, ArrowRight, Lock 
 } from 'lucide-react';
 
 export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const { 
     keepAwakeEnabled, 
     keepAwake,
@@ -26,7 +29,6 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
     activePreset
   } = useTasbeehStore();
 
-  const [showToast, setShowToast] = useState(false);
   const [previewPulse, setPreviewPulse] = useState(false);
 
   const isKeepAwakeActive = keepAwakeEnabled ?? keepAwake ?? true;
@@ -53,11 +55,9 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
   };
 
   const handleSave = () => {
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-      if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
-    }, 850);
+    toast.success(t('toasts.prefsSaved', 'Preferences saved successfully!'));
+    if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
+    else if (goBack) goBack('tasbeeh_main_dark_mode');
   };
 
   const handleLivePreview = () => {
@@ -67,14 +67,6 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between select-none relative">
-      {/* Toast Feedback Notification */}
-      {showToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-2xl bg-primary text-white font-semibold text-xs shadow-xl flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-4 h-4 text-teal-300" />
-          <span>Preferences Saved Successfully!</span>
-        </div>
-      )}
-
       <div className="flex-1">
         {/* Top Header Bar */}
         <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
@@ -83,10 +75,9 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
               <SlidersHorizontal className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-base font-bold text-white tracking-tight">
-              Tasbeeh Preferences
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
+              {t('tasbeeh.tasbeehPreferences', 'Tasbeeh Preferences')}</h1>
+</div>
+<div className="flex items-center gap-2">
             <button 
               type="button"
               onClick={() => (goBack ? goBack('tasbeeh_main_dark_mode') : (setActiveTab ? setActiveTab('tasbeeh_main_dark_mode') : window.history.back()))}
@@ -107,15 +98,23 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
               <SlidersHorizontal className="w-5 h-5"/>
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white leading-snug">Counter Behavior</h2>
-              <p className="text-xs font-normal text-slate-400 mt-0.5">Physical button mappings and screen states</p>
+              <h2 className="text-sm font-bold text-white leading-snug">
+                {t('tasbeeh.counterBehavior', 'Counter Behavior')}
+              </h2>
+              <p className="text-xs font-normal text-slate-400 mt-0.5">
+                {t('tasbeeh.physicalButtonMappings', 'Physical button mappings and screen states')}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-slate-800">
             <div>
-              <h4 className="text-xs font-bold text-white">Keep Screen Awake during Dhikr</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">Prevents auto-locking while counting beads</p>
+              <h4 className="text-xs font-bold text-white">
+                {t('tasbeeh.keepScreenAwake', 'Keep Screen Awake during Dhikr')}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {t('tasbeeh.preventsAutoLock', 'Prevents auto-locking while counting beads')}
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input 
@@ -130,8 +129,12 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-800">
             <div>
-              <h4 className="text-xs font-bold text-white">Full Screen Tap Mode</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">Tap anywhere on screen to count instead of button</p>
+              <h4 className="text-xs font-bold text-white">
+                {t('tasbeeh.fullScreenTapMode', 'Full Screen Tap Mode')}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {t('tasbeeh.tapAnywhereScreen', 'Tap anywhere on screen to count instead of button')}
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input 
@@ -146,8 +149,12 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-800">
             <div>
-              <h4 className="text-xs font-bold text-white">Volume Keys for Counting</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">Use hardware volume up button to increment</p>
+              <h4 className="text-xs font-bold text-white">
+                {t('tasbeeh.volumeKeysCounting', 'Volume Keys for Counting')}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {t('tasbeeh.useHardwareVolume', 'Use hardware volume up button to increment')}
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input 
@@ -162,8 +169,12 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
 
           <div className="flex items-center justify-between pt-3 border-t border-slate-800">
             <div>
-              <h4 className="text-xs font-bold text-white">Auto-Loop to Next Cycle</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">Automatically restart count after reaching target</p>
+              <h4 className="text-xs font-bold text-white">
+                {t('tasbeeh.autoLoopNextCycle', 'Auto-Loop to Next Cycle')}
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {t('tasbeeh.autoRestartCount', 'Automatically restart count after reaching target')}
+              </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
               <input 
@@ -179,13 +190,14 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
 
         {/* Completion Ritual Preview Card */}
         <div className="flex items-center justify-between px-5 mb-2.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">COMPLETION RITUAL PREVIEW</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('tasbeeh.completionRitualPreview', 'Completion Ritual Preview')}</span>
           <button 
             type="button"
             onClick={handleLivePreview}
             className="text-xs font-semibold text-primary hover:text-primary flex items-center gap-1 cursor-pointer select-none"
           >
-            <Eye className="w-3.5 h-3.5"/>Live Preview
+            <Eye className="w-3.5 h-3.5"/>
+            <span>{t('tasbeeh.livePreview', 'Live Preview')}</span>
           </button>
         </div>
 
@@ -193,7 +205,7 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold bg-primary/20 border border-primary/30 text-primary shadow-sm">
             <CheckCircle2 className="w-3.5 h-3.5 text-primary"/>
             <Sparkles className="w-3.5 h-3.5 text-amber-400"/>
-            <span>TARGET REACHED • {activePreset?.target || 33} OF {activePreset?.target || 33}</span>
+            <span>{t('tasbeeh.targetReached', 'TARGET REACHED')} • {activePreset?.target || 33} OF {activePreset?.target || 33}</span>
           </div>
 
           <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex items-center justify-center mx-auto shadow-lg shadow-black/40 ring-4 ring-slate-800">
@@ -202,10 +214,10 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
 
           <div className="space-y-1">
             <h3 className="text-base font-bold text-white tracking-tight">
-              Alhamdulillah! Cycle Complete
+              {t('tasbeeh.cycleComplete', 'Alhamdulillah! Cycle Complete')}
             </h3>
             <p className="text-xs font-normal text-slate-400 max-w-xs mx-auto leading-relaxed">
-              May Allah accept your dhikr and fill your day with barakah and tranquility.
+              {t('tasbeeh.mayAllahAccept', 'May Allah accept your dhikr and fill your day with barakah and tranquility.')}
             </p>
           </div>
 
@@ -216,7 +228,7 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
               className="w-full py-3.5 px-5 rounded-2xl bg-primary hover:bg-primary text-white font-semibold text-xs shadow-md shadow-primary/30 flex items-center justify-center gap-2 transition-all cursor-pointer select-none active:scale-[0.99]"
             >
               <PlusCircle className="w-4 h-4"/>
-              <span>Continue Counting (+)</span>
+              <span>{t('tasbeeh.continueCounting', 'Continue Counting (+)')}</span>
             </button>
             <button 
               type="button"
@@ -224,14 +236,14 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
               className="w-full py-2.5 text-xs font-semibold text-slate-300 hover:text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-400"/>
-              <span>Start New Session</span>
+              <span>{t('tasbeeh.startNewSession', 'Start New Session')}</span>
             </button>
             <button 
               type="button"
               onClick={handleLogAndHistory}
               className="text-xs font-semibold text-primary hover:text-primary block mx-auto transition-colors pt-1 cursor-pointer select-none"
             >
-              Log & View in History →
+              {t('tasbeeh.logViewHistory', 'Log & View in History →')}
             </button>
           </div>
         </div>
@@ -241,14 +253,14 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
           <button 
             type="button"
             onClick={handleSave}
-            className="btn-primary w-full cursor-pointer select-none"
+            className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer select-none"
           >
-            <span>Save Tasbeeh Preferences</span>
+            <span>{t('tasbeeh.savePreferences', 'Save Tasbeeh Preferences')}</span>
             <ArrowRight className="w-4 h-4"/>
           </button>
           <div className="flex items-center justify-center gap-1.5 text-[11px] font-normal text-slate-500">
             <Lock className="w-3 h-3 text-slate-500"/>
-            <span>Preferences sync automatically to your local device</span>
+            <span>{t('settings.preferencesSyncSecurely', 'Preferences sync automatically to your local device')}</span>
           </div>
         </div>
 
