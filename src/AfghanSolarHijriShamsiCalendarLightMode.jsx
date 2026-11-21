@@ -1,9 +1,11 @@
-﻿import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
   Calendar, ArrowLeft, ChevronLeft, ChevronRight, Plus, Clock, Trash2, X, Sparkles, Sun, CalendarClock
 } from 'lucide-react';
 import { useCalendarStore } from './store/useCalendarStore';
+import { useAppTime } from './hooks/useAppTime';
 import {
   AFGHAN_WEEKDAYS,
   AFGHAN_SOLAR_MONTHS,
@@ -12,9 +14,13 @@ import {
   generateShamsiMonthGrid,
   toPersianDigits
 } from './utils/afghanCalendar';
+import { MomentumTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
 
 export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, goBack }) {
-  const todayShamsi = useMemo(() => getShamsiDate(new Date()), []);
+  const { t } = useTranslation();
+  const { now, effectiveTimezone } = useAppTime();
+  const todayShamsi = useMemo(() => getShamsiDate(now, effectiveTimezone), [now, effectiveTimezone]);
   const [viewYear, setViewYear] = useState(todayShamsi.jy);
   const [viewMonth, setViewMonth] = useState(todayShamsi.jm);
   const [selectedDay, setSelectedDay] = useState(todayShamsi.jd);
@@ -22,6 +28,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
   const { events, addEvent, deleteEvent } = useCalendarStore();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newTime, setNewTime] = useState('10:00 AM');
   const [newCategory, setNewCategory] = useState('Reminder');
@@ -78,6 +85,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
       note: newNote.trim(),
     });
     setIsAddModalOpen(false);
+    toast.success(t('toasts.eventAdded', 'Event added to calendar'));
   };
 
   const selectedDayItem = useMemo(() => {
@@ -88,8 +96,8 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
 
   const selectedIslamic = useMemo(() => {
     if (!selectedDayItem || !selectedDayItem.gregorianDate) return { formatted: '' };
-    return getIslamicDateParts(selectedDayItem.gregorianDate);
-  }, [selectedDayItem]);
+    return getIslamicDateParts(selectedDayItem.gregorianDate, effectiveTimezone);
+  }, [selectedDayItem, effectiveTimezone]);
 
   const selectedWeekdayInfo = useMemo(() => {
     if (!selectedDayItem) return AFGHAN_WEEKDAYS[0];
@@ -128,11 +136,11 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
             <Calendar className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            Afghan Solar Calendar
+            {t('calendar.afghanSolarCalendar', 'Afghan Solar Calendar')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"><ArrowLeft className="w-5 h-5"/></button>
+          <button type="button" onClick={() => (goBack ? goBack('calendars_main_light_mode') : (setActiveTab ? setActiveTab('calendars_main_light_mode') : window.history.back()))} aria-label="Go back" data-testid="calendar-back-btn" className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"><ArrowLeft className="w-5 h-5 rtl:rotate-180"/></button>
           <UserAvatar 
             setActiveTab={setActiveTab} 
           />
@@ -148,7 +156,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                 <span className="truncate">{monthInfo.season}</span>
               </span>
               <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium shrink-0 text-center">
-                Month {monthInfo.index} of 12
+                {t('calendar.monthOf12', 'Month {{month}} of 12', { month: monthInfo.index })}
               </span>
               <div className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold text-center truncate shadow-sm">
                 <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -167,7 +175,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                   <span className="text-base font-semibold text-primary">{monthInfo.nameFa} {toPersianDigits(viewYear)}</span>
                 </div>
                 <p className="text-xs font-normal mt-0.5 text-slate-500">
-                  {monthInfo.zodiac} ({monthInfo.namePs}) • {monthInfo.daysCount} Days
+                  {monthInfo.zodiac} ({monthInfo.namePs}) • {t('calendar.daysCount', '{{count}} Days', { count: monthInfo.daysCount })}
                 </p>
               </div>
               <button type="button" onClick={handleNextMonth} aria-label="Next Month" className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer">
@@ -269,7 +277,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                 </p>
               </div>
               <span className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold shrink-0 self-start shadow-sm whitespace-nowrap">
-                {selectedDayItem?.isToday ? 'امروز • TODAY' : `${selectedWeekdayInfo.fa} • روز ${toPersianDigits(selectedDay)}`}
+                {selectedDayItem?.isToday ? `امروز • ${t('calendar.todayUpper', 'TODAY')}` : `${selectedWeekdayInfo.fa} • روز ${toPersianDigits(selectedDay)}`}
               </span>
             </div>
 
@@ -289,8 +297,8 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
           {/* Cultural & National Occasions Ahead */}
           <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
             <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-              <span className="text-base font-bold tracking-tight text-slate-900">Afghan Solar Highlights</span>
-              <span className="text-xs font-medium text-slate-500">{monthInfo.nameEn} ({monthInfo.nameFa}) Festivals</span>
+              <span className="text-base font-bold tracking-tight text-slate-900">{t('calendar.afghanSolarHighlights', 'Afghan Solar Highlights')}</span>
+              <span className="text-xs font-medium text-slate-500">{monthInfo.nameEn} ({monthInfo.nameFa}) {t('calendar.festivals', 'Festivals')}</span>
             </div>
             <div className="space-y-3">
               {monthInfo.events.map((evt, idx) => (
@@ -316,13 +324,13 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
           {/* Scheduled Routines for Selected Day */}
           <div className="rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
             <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-              <span className="text-base font-bold tracking-tight text-slate-900">Daily Schedule ({selectedWeekdayInfo.fa}، {toPersianDigits(selectedDay)} {monthInfo.nameFa})</span>
-              <span className="text-xs font-semibold text-slate-500">{dailyEvents.length} Reminders</span>
+              <span className="text-base font-bold tracking-tight text-slate-900">{t('calendar.dailySchedule', 'Daily Schedule')} ({selectedWeekdayInfo.fa}، {toPersianDigits(selectedDay)} {monthInfo.nameFa})</span>
+              <span className="text-xs font-semibold text-slate-500">{dailyEvents.length} {t('calendar.reminders', 'Reminders')}</span>
             </div>
             <div className="space-y-2">
               {dailyEvents.length === 0 ? (
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-500">
-                  No scheduled tasks for this day. Tap 'Add Solar Event' below to schedule a reminder.
+                  {t('calendar.noScheduledTasksForDay', "No scheduled tasks for this day. Tap 'Add Solar Event' below to schedule a reminder.")}
                 </div>
               ) : (
                 dailyEvents.map((evt) => (
@@ -338,7 +346,10 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                     </div>
                     <button
                       type="button"
-                      onClick={() => deleteEvent(evt.id)}
+                      onClick={() => {
+                        deleteEvent(evt.id);
+                        toast.success(t('calendar.eventDeleted', 'Event deleted'));
+                      }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -356,12 +367,12 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-primary to-primary-container hover:brightness-105 text-white font-bold text-sm shadow-lg shadow-primary/30 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer select-none"
           >
             <Plus className="w-4 h-4" />
-            <span>Schedule Afghan Solar Event</span>
+            <span>{t('calendar.scheduleAfghanEvent', 'Schedule Afghan Solar Event')}</span>
           </button>
         </div>
       </main>
 
-      {/* Add Event Modal */}
+      {/* Add Afghan Solar Event Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="relative w-full max-w-sm rounded-3xl p-6 bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl space-y-4">
@@ -370,7 +381,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                 <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                   <Calendar className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900">New Solar Reminder</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t('calendar.newSolarReminder', 'New Solar Reminder')}</h3>
               </div>
               <button
                 type="button"
@@ -383,20 +394,20 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
 
             <form onSubmit={handleCreateEvent} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Event Title</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Nawruz Family Gathering"
+                  placeholder={t('calendar.eventTitlePlaceholder', 'e.g. Nawruz Family Gathering')}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Month</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.month', 'Month')}</label>
                   <select
                     value={newMonth}
                     onChange={(e) => setNewMonth(Number(e.target.value))}
@@ -410,7 +421,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Solar Day</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.solarDay', 'Solar Day')}</label>
                   <input
                     type="number"
                     min="1"
@@ -424,39 +435,49 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Time</label>
-                  <input
-                    type="text"
-                    value={newTime}
-                    onChange={(e) => setNewTime(e.target.value)}
-                    placeholder="10:00 AM"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
-                  />
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('common.time', 'Time')}</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsTimePickerOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary cursor-pointer hover:bg-slate-100"
+                  >
+                    {newTime || '10:00 AM'}
+                  </button>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('common.category', 'Category')}</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary"
                   >
-                    <option value="Reminder">Reminder</option>
-                    <option value="National">National</option>
-                    <option value="Religious">Religious</option>
-                    <option value="Cultural">Cultural</option>
-                    <option value="Family">Family</option>
-                    <option value="Personal">Personal</option>
+                    <option value="Reminder">{t('calendar.reminders', 'Reminder')}</option>
+                    <option value="National">{t('calendar.national', 'National')}</option>
+                    <option value="Religious">{t('calendar.religious', 'Religious')}</option>
+                    <option value="Cultural">{t('calendar.cultural', 'Cultural')}</option>
+                    <option value="Family">{t('calendar.family', 'Family')}</option>
+                    <option value="Personal">{t('calendar.personal', 'Personal')}</option>
                   </select>
                 </div>
               </div>
 
+              <MomentumTimePicker
+                isOpen={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                value={newTime}
+                onSelect={(selectedT) => setNewTime(selectedT)}
+                title={t('calendar.selectEventTime', 'Select Event Time')}
+                isDark={false}
+                outputFormat="auto"
+              />
+
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Notes (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('calendar.notesOptional', 'Notes (Optional)')}</label>
                 <textarea
                   rows="2"
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add brief notes or details..."
+                  placeholder={t('calendar.addNotesPlaceholder', 'Add brief notes or details...')}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:border-primary resize-none"
                 />
               </div>
@@ -467,13 +488,13 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                   onClick={() => setIsAddModalOpen(false)}
                   className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer select-none"
                 >
-                  Cancel
+                  {t('common.cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary text-white font-semibold text-xs shadow-md shadow-primary/20 transition-all cursor-pointer select-none"
                 >
-                  Save Event
+                  {t('calendar.saveEvent', 'Save Event')}
                 </button>
               </div>
             </form>

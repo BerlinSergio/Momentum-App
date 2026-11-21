@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Zap, BookOpen, ChevronRight } from 'lucide-react';
 
 /**
@@ -7,19 +8,18 @@ import { Zap, BookOpen, ChevronRight } from 'lucide-react';
  * - NO background dimming or blur overlay (100% clear dashboard)
  * - Two distinct separate floating pill buttons (Long Note on top, Quick Note on bottom)
  * - Purple circular icon for Long Note, Orange circular icon for Quick Note
- * - Caret tail pointing down from Quick Note to the FAB button
- * - Spring ease-out pop-up animation translating upwards from y-4 to y-0
+ * - Caret tail pointing down from Quick Note
  */
 export default function NewNoteFloatingMenu({
   isOpen,
   onClose,
   onSelectQuickNote,
   onSelectLongNote,
-  isDarkMode = true,
+  isDarkMode = true
 }) {
+  const { t } = useTranslation();
   const menuRef = useRef(null);
 
-  // Close on Escape key press or outside mousedown
   useEffect(() => {
     if (!isOpen) return;
 
@@ -82,7 +82,7 @@ export default function NewNoteFloatingMenu({
             <BookOpen className="w-3.5 h-3.5 stroke-[2.2]" />
           </div>
           <span className="text-xs font-semibold tracking-tight pr-1 whitespace-nowrap">
-            Long Note
+            {t('notes.longNote', 'Long Note')}
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all shrink-0" />
         </button>
@@ -109,7 +109,7 @@ export default function NewNoteFloatingMenu({
               <Zap className="w-3.5 h-3.5 stroke-[2.2] fill-current" />
             </div>
             <span className="text-xs font-semibold tracking-tight pr-1 whitespace-nowrap">
-              Quick Note
+              {t('notes.quickNote', 'Quick Note')}
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all shrink-0" />
           </button>

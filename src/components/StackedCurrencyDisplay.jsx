@@ -1,7 +1,8 @@
 import { formatSingleCurrency } from '../store/useFinanceStore';
 
 export default function StackedCurrencyDisplay({
-  grouped = {},
+  grouped,
+  amount,
   primaryClass = '',
   secondaryClass = '',
   align = 'start',
@@ -10,17 +11,23 @@ export default function StackedCurrencyDisplay({
   suffix = '',
   isDark = false,
   includeZero = false,
+  preferredCurrency,
 }) {
   const alignClass = 
     align === 'center' ? 'items-center text-center' :
     align === 'end' ? 'items-end text-right' :
     'items-start text-left';
 
-  const entries = Object.entries(grouped || {}).filter(
+  // Support both grouped and amount props seamlessly
+  const effectiveData = (grouped && typeof grouped === 'object')
+    ? grouped
+    : ((amount && typeof amount === 'object') ? amount : (typeof amount === 'number' ? { AFN: amount } : {}));
+
+  const entries = Object.entries(effectiveData || {}).filter(
     ([, val]) => val !== undefined && val !== null && (includeZero || Number(val) !== 0)
   );
 
-  const order = ['AFN', 'USD', 'EUR'];
+  const order = ['AFN', 'USD', 'EUR', 'GBP', 'PKR', 'IRR'];
   entries.sort((a, b) => {
     const idxA = order.indexOf(a[0]);
     const idxB = order.indexOf(b[0]);
@@ -31,7 +38,7 @@ export default function StackedCurrencyDisplay({
   });
 
   if (entries.length === 0) {
-    const defaultCur = Object.keys(grouped || {})[0] || 'AFN';
+    const defaultCur = preferredCurrency || Object.keys(effectiveData || {})[0] || 'AFN';
     return (
       <div className={`flex flex-col ${alignClass} font-display`}>
         <span className={`${primaryClass} font-display`}>

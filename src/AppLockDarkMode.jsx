@@ -1,10 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { Lock, ArrowLeft, X } from 'lucide-react';
 import useSecurityStore, { LOCK_TIMING_OPTIONS } from './store/useSecurityStore';
-import { authenticateBiometrics } from './utils/biometricAuth';
+import { registerBiometrics, clearBiometricCredential } from './utils/biometricAuth';
+import { verifyCredential, createCredential, changeCredential } from './utils/credentialService';
+import { toast } from './components/ui/toast/index.js';
 
 export default function AppLockDarkMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const security = useSecurityStore();
 
   const [draft, setDraft] = useState({
@@ -17,23 +21,27 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
   const [isSaved, setIsSaved] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [showAlphaModal, setShowAlphaModal] = useState(false);
-  const [pinInput, setPinInput] = useState(security.pin || '1234');
-  const [alphaInput, setAlphaInput] = useState(security.alphanumeric || '');
+  const [currentPinInput, setCurrentPinInput] = useState('');
+  const [pinInput, setPinInput] = useState('');
+  const [alphaInput, setAlphaInput] = useState('');
   const [modalFeedback, setModalFeedback] = useState('');
   const [bioPrompting, setBioPrompting] = useState(false);
-  const [bioToast, setBioToast] = useState('');
 
   // Synchronize draft state when security store finishes rehydrating
   useEffect(() => {
     if (security._hasHydrated) {
-      setDraft({
-        isAppLockActive: security.isAppLockActive,
-        biometricsEnabled: security.biometricsEnabled,
-        lockTiming: security.lockTiming,
-        hideInMultitasking: security.hideInMultitasking,
-      });
-      setPinInput(security.pin || '1234');
-      setAlphaInput(security.alphanumeric || '');
+      const timer = setTimeout(() => {
+        setDraft({
+          isAppLockActive: security.isAppLockActive,
+          biometricsEnabled: security.biometricsEnabled,
+          lockTiming: security.lockTiming,
+          hideInMultitasking: security.hideInMultitasking,
+        });
+        setPinInput('');
+        setCurrentPinInput('');
+        setAlphaInput('');
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [
     security._hasHydrated,
@@ -41,23 +49,23 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
     security.biometricsEnabled,
     security.lockTiming,
     security.hideInMultitasking,
-    security.pin,
-    security.alphanumeric,
   ]);
 
   const handleToggleBiometrics = async () => {
     if (draft.biometricsEnabled) {
+      clearBiometricCredential();
       setDraft((prev) => ({ ...prev, biometricsEnabled: false }));
       security.setBiometricsEnabled(false);
+      toast.info(t('toasts.bioDisabled', 'Biometric unlock disabled.'));
       return;
     }
 
     setBioPrompting(true);
-    setBioToast('Authenticating with hardware biometrics...');
+    toast.info(t('toasts.bioRegistering', 'Registering platform biometrics...'));
 
     try {
-      const res = await authenticateBiometrics({
-        title: 'Enable Biometric Vault',
+      const res = await registerBiometrics({
+        title: 'Momentum App Lock',
       });
 
       setBioPrompting(false);
@@ -65,41 +73,65 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
       if (res.success) {
         setDraft((prev) => ({ ...prev, biometricsEnabled: true }));
         security.setBiometricsEnabled(true);
-        setBioToast('Biometric authentication verified and enabled!');
-        setTimeout(() => setBioToast(''), 3000);
+        toast.success(t('toasts.bioRegistered', 'Biometric authentication registered and enabled!'));
       } else {
         setDraft((prev) => ({ ...prev, biometricsEnabled: false }));
         const msg = res.cancelled
-          ? 'Biometric verification cancelled. Biometrics remained off.'
-          : (res.error || 'Biometric verification failed.');
-        setBioToast(msg);
-        setTimeout(() => setBioToast(''), 3500);
+          ? 'Biometric enrollment cancelled. Biometrics remained off.'
+          : (res.error || 'Biometric enrollment failed.');
+        toast.error(msg);
       }
     } catch {
       setBioPrompting(false);
       setDraft((prev) => ({ ...prev, biometricsEnabled: false }));
-      setBioToast('Biometric verification failed.');
-      setTimeout(() => setBioToast(''), 3500);
+      toast.error(t('toasts.bioFailed', 'Biometric registration failed.'));
     }
   };
 
   const handleSave = () => {
     security.updatePreferences(draft);
     setIsSaved(true);
+    toast.success(t('toasts.appLockSaved', 'App Lock preferences saved'));
     setTimeout(() => setIsSaved(false), 2200);
   };
 
-  const handleSavePin = (e) => {
+  const handleSavePin = async (e) => {
     e.preventDefault();
     if (pinInput.length !== 4 || isNaN(Number(pinInput))) {
-      setModalFeedback('PIN must be exactly 4 digits');
+      setModalFeedback('New PIN must be exactly 4 digits');
       return;
     }
-    security.setPin(pinInput);
+
+    if (security.hasPin) {
+      if (!currentPinInput || currentPinInput.length !== 4) {
+        setModalFeedback('Current PIN is required to change PIN');
+        return;
+      }
+      const verified = await verifyCredential(currentPinInput);
+      if (!verified.success) {
+        setModalFeedback('Current PIN is incorrect');
+        return;
+      }
+      const changed = await changeCredential(currentPinInput, pinInput);
+      if (!changed.success) {
+        setModalFeedback(changed.error || 'Failed to update PIN');
+        return;
+      }
+    } else {
+      const created = await createCredential(pinInput);
+      if (!created.success) {
+        setModalFeedback(created.error || 'Failed to create PIN');
+        return;
+      }
+    }
+
+    security.setHasPin(true);
     setModalFeedback('PIN updated successfully!');
     setTimeout(() => {
       setModalFeedback('');
       setShowPinModal(false);
+      setPinInput('');
+      setCurrentPinInput('');
     }, 1000);
   };
 
@@ -126,7 +158,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
             <Lock className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-white tracking-tight">
-            App Lock &amp; Security
+            {t('security.appLockSecurity', 'App Lock & Security')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -139,13 +171,13 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
         </div>
       </div>
 
-      <main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-slate-900">
+      <main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface">
         <div className="flex flex-col w-full pb-28 space-y-space-lg">
           {/* Subtle Ambient Glow Orbs */}
           <div className="relative w-full">
-            <div className="absolute -top-10 -left-6 w-56 h-56 bg-primary-fixed/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
-            <div className="absolute top-24 -right-10 w-64 h-64 bg-tertiary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
-            <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div className="absolute -top-10 -left-6 w-56 h-56 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div className="absolute top-24 -right-10 w-64 h-64 bg-tertiary-fixed/15 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/15 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
             {/* Security Status Hero Card */}
             <section className="relative overflow-hidden flex flex-col space-y-space-md rounded-3xl p-5 mb-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
@@ -163,9 +195,9 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                   <div className="flex flex-col">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit transition-colors ${draft.isAppLockActive ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/30' : 'bg-amber-950/60 text-amber-300 border border-amber-500/30'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${draft.isAppLockActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-                      {draft.isAppLockActive ? 'Vault Active' : 'Vault Suspended'}
+                      {draft.isAppLockActive ? t('common.active', 'App Lock Active') : t('common.disabled', 'App Lock Paused')}
                     </span>
-                    <span className="text-xs text-slate-400 mt-0.5">Momentum Shield v1.0</span>
+                    <span className="text-xs text-slate-400 mt-0.5">{t('security.title', 'Momentum App Security')}</span>
                   </div>
                 </div>
 
@@ -173,7 +205,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                 <button
                   aria-checked={draft.isAppLockActive}
                   onClick={() => { const next = !draft.isAppLockActive; setDraft((prev) => ({ ...prev, isAppLockActive: next })); security.setAppLockActive(next); }}
-                  className={`w-13 h-7 w-12 h-7 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.isAppLockActive ? 'bg-primary' : 'bg-slate-700'}`}
+                  className={`w-12 h-7 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.isAppLockActive ? 'bg-primary' : 'bg-slate-700'}`}
                   id="master-toggle"
                   role="switch"
                   type="button"
@@ -186,12 +218,12 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
 
               <div className="pt-1">
                 <h2 className="text-lg font-bold text-white">
-                  {draft.isAppLockActive ? 'App Lock is Active' : 'App Lock is Suspended'}
+                  {draft.isAppLockActive ? t('security.appLock', 'App Lock is Active') : t('common.disabled', 'App Lock is Suspended')}
                 </h2>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                   {draft.isAppLockActive
-                    ? 'Your spiritual journals, reflective notes, personal finances, and intentional schedules are encrypted with biometric security.'
-                    : 'Security protection is currently suspended. Re-enable the master toggle above to restore hardware-level vault encryption.'}
+                    ? t('security.protectionActiveDesc', 'Your spiritual journals, reflective notes, personal finances, and intentional schedules are protected with passcode authentication.')
+                    : t('security.protectionSuspendedDesc', 'Security protection is currently suspended. Re-enable the master toggle above to restore passcode application lock.')}
                 </p>
               </div>
 
@@ -200,15 +232,15 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                 <div className="bg-white/5 rounded-xl p-2.5 flex items-center space-x-2">
                   <span className="material-symbols-outlined text-primary text-[18px]">verified_user</span>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold text-slate-400">Encrypted State</span>
-                    <span className="text-xs font-bold text-white">AES-256 GCM</span>
+                    <span className="text-[10px] font-semibold text-slate-400">{t('security.protectionStandard', 'Protection Standard')}</span>
+                    <span className="text-xs font-bold text-white">PBKDF2-SHA256</span>
                   </div>
                 </div>
                 <div className="bg-white/5 rounded-xl p-2.5 flex items-center space-x-2">
                   <span className="material-symbols-outlined text-teal-400 text-[18px]">key</span>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold text-slate-400">Secure Enclave</span>
-                    <span className="text-xs font-bold text-white">Hardware Bound</span>
+                    <span className="text-[10px] font-semibold text-slate-400">{t('security.storageVerification', 'Storage Verification')}</span>
+                    <span className="text-xs font-bold text-white">{t('security.clientVerifier', 'Client Verifier')}</span>
                   </div>
                 </div>
               </div>
@@ -220,10 +252,10 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
               <div className="pt-space-md space-y-space-md">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="text-sm font-bold text-white">
-                    Authentication Methods
+                    {t('security.authMethods', 'Authentication Methods')}
                   </h3>
                   <span className="text-xs text-slate-400">
-                    2 Methods Configured
+                    {draft.biometricsEnabled ? t('security.twoMethodsActive', '2 Methods Active') : t('security.oneMethodActive', '1 Method Active')}
                   </span>
                 </div>
 
@@ -235,8 +267,8 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                         <span className="material-symbols-outlined text-[22px]">fingerprint</span>
                       </div>
                       <div>
-                        <h4 className="text-sm font-semibold text-white">Biometrics (Face / Fingerprint)</h4>
-                        <p className="text-xs text-slate-400">Instant entry upon opening Momentum</p>
+                        <h4 className="text-sm font-semibold text-white">{t('security.biometricsFaceFingerprint', 'Biometrics (Face / Fingerprint)')}</h4>
+                        <p className="text-xs text-slate-400">{t('security.instantEntry', 'Instant entry upon opening Momentum')}</p>
                       </div>
                     </div>
                     <button
@@ -251,17 +283,11 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                       <span className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${draft.biometricsEnabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
                     </button>
                   </div>
-                  {bioToast && (
-                    <div className="w-full rounded-xl bg-primary/20 border border-primary/30 p-2.5 mt-2 flex flex-row items-center gap-2 text-xs text-teal-300 font-medium animate-in fade-in">
-                      <span className="material-symbols-outlined text-[16px] shrink-0">info</span>
-                      <span>{bioToast}</span>
-                    </div>
-                  )}
                   {draft.biometricsEnabled && (
                     <div className="w-full rounded-xl bg-white/5 p-3.5 mt-2 flex flex-row items-start gap-3 border border-white/5">
                       <span className="material-symbols-outlined text-slate-400 text-[18px] mt-0.5 shrink-0">info</span>
                       <p className="text-sm text-slate-400 leading-relaxed">
-                        Requires your backup PIN whenever biometrics fail, after device reboot, or after 72 hours of inactivity.
+                        {t('security.fallbackMechanism', 'Requires your backup PIN whenever biometrics fail, after device reboot, or after prolonged inactivity.')}
                       </p>
                     </div>
                   )}
@@ -272,7 +298,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                   >
                     <div className="flex items-center space-x-2.5">
                       <span className="material-symbols-outlined text-primary text-[18px]">fingerprint</span>
-                      <span className="text-xs font-semibold text-slate-200">Open Biometric Settings Vault</span>
+                      <span className="text-xs font-semibold text-slate-200">{t('security.biometricSettings', 'Biometric Settings')}</span>
                     </div>
                     <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                   </button>
@@ -286,14 +312,14 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                         <span className="material-symbols-outlined text-[20px]">password</span>
                       </div>
                       <div>
-                        <h4 className="text-sm font-semibold text-white">PIN Protection</h4>
+                        <h4 className="text-sm font-semibold text-white">{t('security.pinProtection', 'PIN Protection')}</h4>
                         <p className="text-xs text-teal-400 flex items-center gap-1 font-medium">
                           <span className="inline-block w-2 h-2 rounded-full bg-teal-500"></span>
-                          Active ({security.passcodeType === 'alphanumeric' ? 'Alphanumeric' : '••••'})
+                          {t('common.active', 'Active')} ({security.passcodeType === 'alphanumeric' ? t('security.alphaPasscode', 'Alphanumeric') : '••••'})
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-slate-400">Primary Backup</span>
+                    <span className="text-xs font-semibold text-slate-400">{t('security.primaryBackup', 'Primary Backup')}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-2 pt-1">
                     <button
@@ -303,7 +329,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                     >
                       <div className="flex items-center space-x-2.5">
                         <span className="material-symbols-outlined text-primary text-[18px]">edit_note</span>
-                        <span className="text-xs font-semibold text-slate-200">Change 4-Digit PIN</span>
+                        <span className="text-xs font-semibold text-slate-200">{t('security.changePin', 'Change 4-Digit PIN')}</span>
                       </div>
                       <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                     </button>
@@ -314,7 +340,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                     >
                       <div className="flex items-center space-x-2.5">
                         <span className="material-symbols-outlined text-primary text-[18px]">lock_reset</span>
-                        <span className="text-xs font-semibold text-slate-200">Switch to Alphanumeric Passcode</span>
+                        <span className="text-xs font-semibold text-slate-200">{t('security.switchToAlpha', 'Switch to Alphanumeric Passcode')}</span>
                       </div>
                       <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                     </button>
@@ -326,114 +352,123 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
               <div className="pt-space-md space-y-space-md">
                 <div className="px-1">
                   <h3 className="text-sm font-bold text-white">
-                    Lock Timing &amp; Trigger
+                    {t('security.lockTimingTrigger', 'Lock Timing & Trigger')}
                   </h3>
-                  <p className="text-xs text-slate-400">
-                    Specify how swiftly Momentum re-secures your data
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {t('security.chooseLockTiming', 'Choose when Momentum requires your passcode')}
                   </p>
                 </div>
-                <div className="space-y-space-md rounded-3xl p-5 mb-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
-                  {/* Radio-style trigger selection */}
-                  <div className="space-y-2" id="timing-options">
-                    {LOCK_TIMING_OPTIONS.map((item) => {
-                      const isSelected = draft.lockTiming === item.id;
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => { setDraft((prev) => ({ ...prev, lockTiming: item.id })); security.setLockTiming(item.id); }}
-                          className={`timing-item flex items-center justify-between p-3 rounded-2xl cursor-pointer border transition-colors ${
-                            isSelected
-                              ? 'bg-primary/20 border-primary/40 text-white'
-                              : 'bg-white/5 hover:bg-white/10 border-transparent text-slate-300'
-                          }`}
-                          data-value={item.id}
-                        >
-                          <div className="flex items-center space-x-3">
-                            <span className={`material-symbols-outlined text-[20px] ${isSelected ? 'text-primary' : 'text-slate-500'}`}>
-                              {item.icon}
-                            </span>
-                            <div>
-                              <p className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>
-                                {item.title}
-                              </p>
-                              <p className="text-[11px] text-slate-400">{item.description}</p>
-                            </div>
-                          </div>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isSelected ? 'bg-primary text-white shadow-xs' : 'border border-slate-700 bg-transparent'}`}>
-                            {isSelected && <span className="material-symbols-outlined text-[14px]">check</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* Privacy Shield in Multitasking */}
-                  <div className="pt-2 border-t border-white/10">
-                    <div className="p-3 rounded-2xl bg-white/5 flex items-center justify-between">
-                      <div className="flex items-start space-x-3 pr-2">
-                        <span className="material-symbols-outlined text-primary text-[20px] mt-0.5">blur_on</span>
+                <div className="space-y-2 rounded-3xl p-5 mb-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
+                  {LOCK_TIMING_OPTIONS.map((option) => (
+                    <label
+                      key={option.id}
+                      onClick={() => setDraft((prev) => ({ ...prev, lockTiming: option.id }))}
+                      className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${
+                        draft.lockTiming === option.id
+                          ? 'bg-primary/20 border border-primary/40 text-white'
+                          : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="material-symbols-outlined text-[20px] text-primary">{option.icon}</span>
                         <div>
-                          <p className="text-xs font-semibold text-white">Hide App Screen in Multitasking</p>
-                          <p className="text-[11px] text-slate-400">Blurs app preview snapshot in recent apps carousel</p>
+                          <p className="text-xs font-semibold">{option.title}</p>
+                          <p className="text-[11px] text-slate-400">{option.description}</p>
                         </div>
                       </div>
-                      <button
-                        aria-checked={draft.hideInMultitasking}
-                        onClick={() => { const next = !draft.hideInMultitasking; setDraft((prev) => ({ ...prev, hideInMultitasking: next })); security.setHideInMultitasking(next); }}
-                        className={`w-11 h-6 rounded-full relative p-0.5 flex items-center transition-colors duration-200 shrink-0 ${draft.hideInMultitasking ? 'bg-primary' : 'bg-slate-700'}`}
-                        id="toggle-multitasking"
-                        role="switch"
-                        type="button"
-                      >
-                        <span className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${draft.hideInMultitasking ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                      </button>
-                    </div>
-                  </div>
+                      <input
+                        type="radio"
+                        name="lockTiming"
+                        value={option.id}
+                        checked={draft.lockTiming === option.id}
+                        onChange={() => {}}
+                        className="w-4 h-4 text-primary bg-slate-800 border-slate-600 focus:ring-primary focus:ring-offset-slate-900"
+                      />
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              {/* Action Button */}
-              <div className="pt-space-lg">
-                <button
-                  onClick={handleSave}
-                  className={`w-full py-4 px-6 rounded-2xl font-semibold text-xs flex items-center justify-center space-x-2 text-white shadow-lg transition-all duration-200 active:scale-[0.99] ${
-                    isSaved ? 'bg-emerald-600 shadow-emerald-600/30' : 'bg-primary shadow-primary/30 hover:brightness-105'
-                  }`}
-                  id="save-btn"
-                  type="button"
-                >
-                  <span>{isSaved ? 'Security Preferences Saved!' : 'Save Security Preferences'}</span>
-                  <span className="material-symbols-outlined text-[18px]">{isSaved ? 'check' : 'arrow_forward'}</span>
-                </button>
-                <div className="text-center mt-2.5">
-                  <span className="text-xs font-medium text-slate-400">
-                    Last modified: {security.lastModified || 'Today at 07:42 AM'}
-                  </span>
+              {/* Privacy Shield & Multitasking */}
+              <div className="pt-space-md space-y-space-md">
+                <div className="px-1">
+                  <h3 className="text-sm font-bold text-white">
+                    {t('security.multitaskingPrivacy', 'Multitasking & App Switcher Privacy')}
+                  </h3>
+                </div>
+
+                <div className="rounded-3xl p-5 mb-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <span className="material-symbols-outlined text-[22px]">visibility_off</span>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-white">{t('security.hideInMultitasking', 'Hide Screen in Multitasking')}</h4>
+                        <p className="text-xs text-slate-400">{t('security.obscuresSnapshotDesc', 'Obscures app snapshot when switching apps')}</p>
+                      </div>
+                    </div>
+                    <button
+                      aria-checked={draft.hideInMultitasking}
+                      onClick={() => setDraft((prev) => ({ ...prev, hideInMultitasking: !prev.hideInMultitasking }))}
+                      className={`w-11 h-6 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.hideInMultitasking ? 'bg-primary' : 'bg-slate-700'}`}
+                      role="switch"
+                      type="button"
+                    >
+                      <span className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-200 ${draft.hideInMultitasking ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                    </button>
+                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* Persistent Save Button */}
+            <div className="mt-8 pb-4">
+              <button
+                type="button"
+                onClick={handleSave}
+                className="w-full py-4 rounded-2xl bg-primary hover:bg-primary-hover active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-lg shadow-primary/30 transition-all flex items-center justify-center space-x-2"
+              >
+                <span>{isSaved ? t('security.preferencesSaved', 'Preferences Saved!') : t('security.saveSecuritySettings', 'Save Security Settings')}</span>
+              </button>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Change 4-Digit PIN Modal */}
+      {/* {t('security.changePin', 'Change 4-Digit PIN')} Modal */}
       {showPinModal && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl p-6 bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[18px]">password</span>
+                  <Lock className="w-4 h-4 text-primary" />
                 </div>
-                <h3 className="text-sm font-bold text-white">Change 4-Digit PIN</h3>
+                <h3 className="text-sm font-bold text-white">{security.hasPin ? t('security.changePIN', 'Change PIN') : t('security.setPIN', 'Set PIN')}</h3>
               </div>
               <button onClick={() => setShowPinModal(false)} className="p-1 rounded-full text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleSavePin} className="space-y-4">
+              {security.hasPin && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">{t('security.enterCurrentPin', 'Enter Current PIN')}</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    value={currentPinInput}
+                    onChange={(e) => setCurrentPinInput(e.target.value.replace(/\D/g, ''))}
+                    className="w-full mt-1.5 p-3 text-center text-xl tracking-[0.5em] font-mono rounded-2xl bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="••••"
+                    autoFocus
+                  />
+                </div>
+              )}
               <div>
-                <label className="text-xs font-semibold text-slate-300">Enter New 4-Digit Numeric Code</label>
+                <label className="text-xs font-semibold text-slate-300">{security.hasPin ? t('security.enterNewPin', 'Enter New 4-Digit PIN') : t('security.enterNewPIN', 'Enter 4-Digit PIN')}</label>
                 <input
                   type="password"
                   maxLength={4}
@@ -441,7 +476,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                   className="w-full mt-1.5 p-3 text-center text-xl tracking-[0.5em] font-mono rounded-2xl bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="••••"
-                  autoFocus
+                  autoFocus={!security.hasPin}
                 />
               </div>
               {modalFeedback && (
@@ -449,7 +484,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
               )}
               <div className="space-y-2 pt-1">
                 <button type="submit" className="w-full py-3 rounded-2xl bg-primary text-white text-xs font-semibold shadow-md shadow-primary/25 hover:brightness-105">
-                  Update PIN
+                  {t('security.savePin', 'Update PIN')}
                 </button>
                 <button
                   type="button"
@@ -459,7 +494,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                   }}
                   className="w-full py-2.5 rounded-2xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition-colors"
                 >
-                  Open Full PIN Setup Screen
+                  {t('settings.pinSetupChange', 'Open Full PIN Setup Screen')}
                 </button>
               </div>
             </form>
@@ -476,7 +511,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">lock_reset</span>
                 </div>
-                <h3 className="text-sm font-bold text-white">Alphanumeric Passcode</h3>
+                <h3 className="text-sm font-bold text-white">{t('security.alphaPasscode', 'Alphanumeric Passcode')}</h3>
               </div>
               <button onClick={() => setShowAlphaModal(false)} className="p-1 rounded-full text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -484,13 +519,13 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
             </div>
             <form onSubmit={handleSaveAlpha} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-300">Enter Complex Passcode (min 6 chars)</label>
+                <label className="text-xs font-semibold text-slate-300">{t('security.enterComplexPasscode', 'Enter Complex Passcode (min 6 chars)')}</label>
                 <input
                   type="text"
                   value={alphaInput}
                   onChange={(e) => setAlphaInput(e.target.value)}
                   className="w-full mt-1.5 p-3 text-sm rounded-2xl bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="e.g. MySecur3Vault!#"
+                  placeholder={t('security.passcodePlaceholder', 'e.g. MySecur3Passcode!#')}
                   autoFocus
                 />
               </div>
@@ -499,14 +534,14 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
               )}
               <div className="space-y-2 pt-1">
                 <button type="submit" className="w-full py-3 rounded-2xl bg-primary text-white text-xs font-semibold shadow-md shadow-primary/25 hover:brightness-105">
-                  Activate Passcode
+                  {t('security.activatePasscode', 'Activate Passcode')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAlphaModal(false)}
                   className="w-full py-2.5 rounded-2xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel', 'Cancel')}
                 </button>
               </div>
             </form>

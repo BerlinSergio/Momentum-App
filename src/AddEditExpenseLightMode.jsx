@@ -1,6 +1,11 @@
-﻿import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useRef } from 'react';
 import { useFinanceStore } from './store/useFinanceStore';
+import { getLocalDateKey, getLocalDateParts } from './utils/timeService';
 import { Coins, ArrowLeft, Check, Calendar } from 'lucide-react';
+import { MomentumDateTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
+import { confirm } from './components/ui/confirmation/index.js';
 
 const EXPENSE_CATEGORIES = [
   { id: 'food', name: 'Food & Dining', label: 'Food', icon: 'restaurant' },
@@ -26,6 +31,7 @@ const INCOME_CATEGORIES = [
 ];
 
 export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const { addTransaction, updateTransaction, editingTransaction, setEditingTransaction, pendingTransactionType } = useFinanceStore();
 
   const handleNavigate = (targetScreen) => {
@@ -38,21 +44,21 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
   };
 
   const [transactionType, setTransactionType] = useState(() => editingTransaction?.type || pendingTransactionType || 'expense');
-  const [amount, setAmount] = useState(() => (editingTransaction ? String(editingTransaction.amount) : '2500.00'));
+  const [amount, setAmount] = useState(() => (editingTransaction ? String(editingTransaction.amount) : ''));
   const [selectedCurrency, setSelectedCurrency] = useState(() => editingTransaction?.currency || 'AFN');
   const [selectedCategory, setSelectedCategory] = useState(() => editingTransaction?.category || (pendingTransactionType === 'income' ? 'Salary' : 'Food & Dining'));
-  const [note, setNote] = useState(() => editingTransaction?.note || editingTransaction?.notes || editingTransaction?.title || (pendingTransactionType === 'income' ? 'Client consultation fee' : 'Weekly fresh produce & essentials'));
+  const [note, setNote] = useState(() => editingTransaction?.note || editingTransaction?.notes || editingTransaction?.title || '');
   
   const [dateTime, setDateTime] = useState(() => {
     if (editingTransaction?.date) {
       return editingTransaction.date.includes('T') ? editingTransaction.date : `${editingTransaction.date}T12:00`;
     }
-    const now = new Date();
+    const parts = getLocalDateParts();
     const pad = (n) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    return `${parts.dateKey}T${pad(parts.hours)}:${pad(parts.minutes)}`;
   });
 
-  const dateTimeInputRef = useRef(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [receiptFile, setReceiptFile] = useState(null);
 
@@ -104,14 +110,7 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
   const { dateStr, timeStr } = formatDisplayDateTime(dateTime);
 
   const handleDateTimeClick = () => {
-    if (dateTimeInputRef.current) {
-      if (typeof dateTimeInputRef.current.showPicker === 'function') {
-        dateTimeInputRef.current.showPicker();
-      } else {
-        dateTimeInputRef.current.focus();
-        dateTimeInputRef.current.click();
-      }
-    }
+    setIsPickerOpen(true);
   };
 
   const handleFileChange = (e) => {
@@ -138,8 +137,12 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
   const handleSave = (e) => {
     if (e) e.preventDefault();
     const numericAmount = parseFloat(amount) || 0;
+    if (numericAmount <= 0) {
+      toast.error(t('toasts.validAmount', 'Please enter a valid amount'));
+      return;
+    }
     const title = note.trim() || `${selectedCategory} ${transactionType === 'expense' ? 'Expense' : 'Income'}`;
-    const selectedDate = dateTime.split('T')[0] || new Date().toISOString().split('T')[0];
+    const selectedDate = dateTime.split('T')[0] || getLocalDateKey();
 
     if (editingTransaction && updateTransaction) {
       updateTransaction({
@@ -154,6 +157,7 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
         notes: note.trim(),
       });
       if (setEditingTransaction) setEditingTransaction(null);
+      toast.success(transactionType === 'expense' ? t('toasts.expenseUpdated', 'Expense updated') : t('toasts.incomeUpdated', 'Income updated'));
     } else {
       addTransaction({
         title,
@@ -165,8 +169,27 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
         note: note.trim(),
         notes: note.trim(),
       });
+      toast.success(transactionType === 'expense' ? t('toasts.expenseSaved', 'Expense recorded successfully') : t('toasts.incomeSaved', 'Income recorded successfully'));
     }
 
+    handleNavigate('finance_expense_tracker_light_mode');
+  };
+
+  const isDirty = editingTransaction
+    ? (parseFloat(amount) !== Number(editingTransaction.amount) || note !== (editingTransaction.note || editingTransaction.notes || ''))
+    : (Boolean(parseFloat(amount) > 0) || (note && note.trim() !== ''));
+
+  const handleCancelOrDiscard = async () => {
+    if (isDirty) {
+      const confirmed = await confirm({
+        variant: 'warning',
+        titleKey: 'confirm.discardExpenseTitle',
+        messageKey: 'confirm.discardExpenseDescription',
+        confirmLabelKey: 'confirm.discard',
+        cancelLabelKey: 'confirm.keepEditing',
+      });
+      if (!confirmed) return;
+    }
     handleNavigate('finance_expense_tracker_light_mode');
   };
 
@@ -178,13 +201,13 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
             <Coins className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            {transactionType === 'expense' ? 'Log Expense' : 'Log Income'}
+            {transactionType === 'expense' ? t('finance.logExpense', 'Log Expense') : t('finance.logIncome', 'Log Income')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
           <button 
             type="button" 
-            onClick={() => handleNavigate('finance_expense_tracker_light_mode')} 
+            onClick={handleCancelOrDiscard} 
             className="p-2 rounded-full text-slate-600 hover:bg-white/10 transition-colors pointer-events-auto cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -192,14 +215,14 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
         </div>
       </header>
 
-      <main className="flex-1 w-full bg-transparent pb-safe px-5 pt-2">
-        <div className="flex flex-col w-full pb-28 space-y-4">
-          <div className="flex flex-row items-center justify-between w-full px-1">
-            <div className="h-9 pl-3.5 pr-1.5 rounded-full flex items-center justify-center gap-2 bg-slate-100 border border-slate-200/80 shadow-sm whitespace-nowrap shrink-0">
+            <main className="flex-1 w-full bg-transparent pb-safe px-5 lg:px-8 pt-2">
+        <div className="w-full max-w-md lg:max-w-5xl mx-auto pb-28">
+          {/* Top Status & Discard Bar */}
+          <div className="flex flex-row items-center justify-between w-full px-1 mb-4">
+            <div className="h-9 pl-3.5 pr-1.5 rounded-full flex items-center justify-center gap-2 bg-white/70 border border-slate-200/80 shadow-sm whitespace-nowrap shrink-0">
               <span className={`w-2 h-2 rounded-full animate-pulse ${transactionType === 'expense' ? 'bg-primary' : 'bg-emerald-600'}`}></span>
-              <span className="font-label-sm text-label-sm text-slate-900 font-medium tracking-wide">NEW RECORD</span>
-              <button
-                type="button"
+              <span className="font-label-sm text-label-sm text-slate-800 font-medium tracking-wide">{t('finance.newRecord', 'NEW RECORD')}</span>
+              <button type="button"
                 onClick={handleTypeToggle}
                 className={`h-6 px-2.5 rounded-full font-label-sm text-label-sm font-bold flex items-center gap-1 transition-all cursor-pointer pointer-events-auto active:scale-95 ${
                   transactionType === 'expense' 
@@ -207,212 +230,228 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
                     : 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
                 }`}
               >
-                <span>{transactionType === 'expense' ? 'EXPENSE' : 'INCOME'}</span>
+                <span>{transactionType === 'expense' ? t('finance.expenseUpper', 'EXPENSE') : t('finance.incomeUpper', 'INCOME')}</span>
               </button>
             </div>
             <button 
-              onClick={() => handleNavigate('finance_expense_tracker_light_mode')}
-              className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-label-sm text-label-sm font-semibold shadow-sm transition-all active:scale-95 whitespace-nowrap shrink-0 cursor-pointer pointer-events-auto" 
+              onClick={handleCancelOrDiscard}
+              className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500 hover:bg-rose-600 text-white font-label-sm text-label-sm font-semibold shadow-sm transition-all active:scale-95 whitespace-nowrap shrink-0 cursor-pointer pointer-events-auto" 
               type="button"
             >
-              <span>Discard</span>
+              <span>{t('finance.discard', 'Discard')}</span>
             </button>
           </div>
 
-          <div className="w-full rounded-2xl p-5 relative overflow-hidden flex flex-col items-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-            <div className="flex items-center justify-between w-full mb-3 relative z-10">
-              <span className="font-label-sm text-label-sm tracking-wider uppercase text-slate-500">
-                {transactionType === 'expense' ? 'Expense Amount' : 'Income Amount'}
-              </span>
-              <div className="flex items-center bg-slate-100 border border-slate-200/80 rounded-full p-0.5 shadow-inner">
-                <button 
-                  onClick={() => setSelectedCurrency('AFN')}
-                  className={`currency-btn px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer pointer-events-auto ${selectedCurrency === 'AFN' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
-                  type="button"
-                >
-                  AFN (افـ)
-                </button>
-                <button 
-                  onClick={() => setSelectedCurrency('USD')}
-                  className={`currency-btn px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer pointer-events-auto ${selectedCurrency === 'USD' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
-                  type="button"
-                >
-                  USD ($)
-                </button>
-                <button 
-                  onClick={() => setSelectedCurrency('EUR')}
-                  className={`currency-btn px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer pointer-events-auto ${selectedCurrency === 'EUR' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
-                  type="button"
-                >
-                  EUR (€)
-                </button>
-              </div>
-            </div>
+          {/* Responsive Layout: 2-Column Grid on Desktop (>= 1024px), Single Column on Mobile */}
+          <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 items-start gap-4">
+            {/* ── LEFT COLUMN (Cols 1-7 on Desktop): Amount & Category ── */}
+            <div className="w-full lg:col-span-7 flex flex-col gap-4">
+              {/* Amount & Currency Bento Card */}
+              <div className="w-full rounded-3xl p-5 relative overflow-hidden flex flex-col items-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+                <div className="flex items-center justify-between w-full mb-3 relative z-10">
+                  <span className="font-label-sm text-label-sm tracking-wider uppercase text-slate-500">
+                    {transactionType === 'expense' ? t('finance.expenseAmount', 'Expense Amount') : t('finance.incomeAmount', 'Income Amount')}
+                  </span>
+                  <div className="flex items-center bg-slate-100 border border-slate-200 rounded-full p-0.5 shadow-inner">
+                    <button 
+                      onClick={() => setSelectedCurrency('AFN')}
+                      className={`currency-btn px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer pointer-events-auto ${selectedCurrency === 'AFN' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
+                      type="button"
+                    >
+                      AFN (افـ)
+                    </button>
+                    <button 
+                      onClick={() => setSelectedCurrency('USD')}
+                      className={`currency-btn px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer pointer-events-auto ${selectedCurrency === 'USD' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
+                      type="button"
+                    >
+                      USD ($)
+                    </button>
+                    <button 
+                      onClick={() => setSelectedCurrency('EUR')}
+                      className={`currency-btn px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer pointer-events-auto ${selectedCurrency === 'EUR' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
+                      type="button"
+                    >
+                      EUR (€)
+                    </button>
+                  </div>
+                </div>
 
-            <div className="flex items-baseline justify-center gap-1 my-2 relative z-10">
-              {selectedCurrency !== 'AFN' && (
-                <span className={`text-3xl select-none font-bold font-display ${transactionType === 'expense' ? 'text-primary' : 'text-emerald-600'}`}>
-                  {currencySymbol}
-                </span>
-              )}
-              <input 
-                className="text-4xl text-slate-900 bg-transparent text-center focus:outline-none max-w-[220px] font-bold tracking-tight caret-primary font-display" 
-                inputMode="decimal" 
-                type="text" 
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-              {selectedCurrency === 'AFN' && (
-                <span className={`text-2xl select-none font-bold font-display ml-1 ${transactionType === 'expense' ? 'text-primary' : 'text-emerald-600'}`}>
-                  افـ
-                </span>
-              )}
-            </div>
+                <div className="flex items-baseline justify-center gap-1 my-3 relative z-10">
+                  {selectedCurrency !== 'AFN' && (
+                    <span className={`text-3xl lg:text-4xl select-none font-bold font-display ${transactionType === 'expense' ? 'text-primary' : 'text-emerald-600'}`}>
+                      {currencySymbol}
+                    </span>
+                  )}
+                  <input 
+                    className="text-4xl lg:text-5xl text-slate-900 bg-transparent text-center focus:outline-none max-w-[260px] font-bold tracking-tight caret-primary font-display" 
+                    inputMode="decimal" 
+                    type="text" 
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                  {selectedCurrency === 'AFN' && (
+                    <span className={`text-2xl lg:text-3xl select-none font-bold font-display ml-1 ${transactionType === 'expense' ? 'text-primary' : 'text-emerald-600'}`}>
+                      افـ
+                    </span>
+                  )}
+                </div>
 
-            <div className="flex items-center justify-center flex-wrap gap-2 w-full pt-1 relative z-10">
-              <button 
-                onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 500 : 10)}
-                className="rounded-full py-1.5 px-4 bg-slate-100 border border-slate-200/80 text-slate-900 font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
-                type="button"
-              >
-                {formatQuickChip(selectedCurrency === 'AFN' ? 500 : 10)}
-              </button>
-              <button 
-                onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 1000 : 25)}
-                className="rounded-full py-1.5 px-4 bg-slate-100 border border-slate-200/80 text-slate-900 font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
-                type="button"
-              >
-                {formatQuickChip(selectedCurrency === 'AFN' ? 1000 : 25)}
-              </button>
-              <button 
-                onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 2500 : 50)}
-                className="rounded-full py-1.5 px-4 bg-slate-100 border border-slate-200/80 text-slate-900 font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
-                type="button"
-              >
-                {formatQuickChip(selectedCurrency === 'AFN' ? 2500 : 50)}
-              </button>
-              <button 
-                onClick={handleRoundUp}
-                className="rounded-full py-1.5 px-4 bg-slate-100 border border-slate-200/80 text-primary font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
-                type="button"
-              >
-                Round Up
-              </button>
-            </div>
-          </div>
-
-          <div className="w-full rounded-2xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-            <div className="flex items-baseline justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 tracking-tight">Category</h2>
-                <p className="text-xs text-slate-500">Classify this entry</p>
-              </div>
-              <span className="text-xs text-primary font-semibold">{selectedCategory}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-1">
-              {categories.map((cat) => {
-                const isSelected = selectedCategory === cat.name;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.name)}
-                    className={`flex items-center gap-2 p-2.5 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer pointer-events-auto ${cat.colSpan || ''} ${
-                      isSelected ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary/30' : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-700'
-                    }`}
+                <div className="flex items-center justify-center flex-wrap gap-2 w-full pt-2 relative z-10">
+                  <button 
+                    onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 500 : 10)}
+                    className="rounded-full py-1.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
                     type="button"
                   >
-                    <span className="truncate">{cat.label}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 ml-auto shrink-0" />}
+                    {formatQuickChip(selectedCurrency === 'AFN' ? 500 : 10)}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="w-full rounded-2xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-            <h2 className="text-sm font-bold text-slate-900 tracking-tight">Transaction Details</h2>
-            <div className="flex flex-col space-y-1">
-              <label className="text-xs text-slate-500 uppercase tracking-wider">Date &amp; Time</label>
-              <div 
-                onClick={handleDateTimeClick}
-                className="flex items-center justify-between p-3 rounded-2xl transition-colors cursor-pointer bg-slate-100 border border-slate-200/80 pointer-events-auto"
-              >
-                <input 
-                  ref={dateTimeInputRef}
-                  type="datetime-local" 
-                  value={dateTime}
-                  onChange={(e) => setDateTime(e.target.value)}
-                  className="sr-only"
-                />
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900">{dateStr}</p>
-                    <p className="text-[11px] text-slate-500">{timeStr}</p>
-                  </div>
-                </div>
-                <span className="text-xs text-primary font-medium">Change</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-slate-500 uppercase tracking-wider">Notes &amp; Receipt</label>
-                <span className="text-xs text-slate-500">{note.length} / 140</span>
-              </div>
-              <div className="p-3 rounded-2xl flex flex-col gap-2 bg-slate-100 border border-slate-200/80">
-                <textarea 
-                  className="w-full text-xs text-slate-900 placeholder:text-slate-500 bg-transparent focus:outline-none resize-none" 
-                  maxLength={140} 
-                  placeholder={transactionType === 'expense' ? "Add expense note..." : "Add income note..."} 
-                  rows={2}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                />
-                <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-                  <input ref={fileInputRef} type="file" onChange={handleFileChange} className="sr-only" />
                   <button 
-                    onClick={handleAttachClick}
-                    type="button" 
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-[11px] font-medium text-slate-900 cursor-pointer pointer-events-auto"
+                    onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 1000 : 25)}
+                    className="rounded-full py-1.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
+                    type="button"
                   >
-                    {receiptFile ? receiptFile.name : 'Attach Receipt'}
+                    {formatQuickChip(selectedCurrency === 'AFN' ? 1000 : 25)}
+                  </button>
+                  <button 
+                    onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 2500 : 50)}
+                    className="rounded-full py-1.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
+                    type="button"
+                  >
+                    {formatQuickChip(selectedCurrency === 'AFN' ? 2500 : 50)}
+                  </button>
+                  <button 
+                    onClick={handleRoundUp}
+                    className="rounded-full py-1.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-primary font-medium text-xs transition-all active:scale-95 shadow-sm cursor-pointer pointer-events-auto" 
+                    type="button"
+                  >
+                    {t('finance.roundUp', 'Round Up')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Category Selector Bento Card */}
+              <div className="w-full rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900 tracking-tight">{t('finance.category', 'Category')}</h2>
+                    <p className="text-xs text-slate-500">{t('finance.classifyEntry', 'Classify this entry')}</p>
+                  </div>
+                  <span className="text-xs text-primary font-semibold">{selectedCategory}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                  {categories.map((cat) => {
+                    const isSelected = selectedCategory === cat.name;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`flex items-center gap-2 p-3 rounded-2xl text-xs font-semibold transition-all text-left cursor-pointer pointer-events-auto ${cat.colSpan || ''} ${
+                          isSelected ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary/30' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700'
+                        }`}
+                        type="button"
+                      >
+                        <span className="truncate">{cat.label}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 ml-auto shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* ── RIGHT COLUMN (Cols 8-12 on Desktop): Details & Save Actions ── */}
+            <div className="w-full lg:col-span-5 flex flex-col gap-4">
+              {/* Transaction Details Card */}
+              <div className="w-full rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">{t('finance.transactionDetails', 'Transaction Details')}</h2>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs text-slate-500 uppercase tracking-wider">{t('finance.dateTime', 'Date & Time')}</label>
+                  <div 
+                    id="expense-datetime-tile"
+                    onClick={handleDateTimeClick}
+                    className="flex items-center justify-between p-3.5 rounded-2xl transition-colors cursor-pointer bg-slate-100 hover:bg-slate-200 border border-slate-200 pointer-events-auto"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-900">{dateStr}</p>
+                        <p className="text-[11px] text-slate-500">{timeStr}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-primary font-medium">{t('finance.change', 'Change')}</span>
+                  </div>
+                  <MomentumDateTimePicker
+                    isOpen={isPickerOpen}
+                    onClose={() => setIsPickerOpen(false)}
+                    value={dateTime}
+                    onSelect={(newVal) => setDateTime(newVal)}
+                    title={t('finance.selectDateTime', 'Select Date & Time')}
+                    isDark={false}
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-slate-500 uppercase tracking-wider">{t('finance.notesReceipt', 'Notes & Receipt')}</label>
+                    <span className="text-xs text-slate-400">{note.length} / 140</span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl flex flex-col gap-2 bg-slate-100 border border-slate-200">
+                    <textarea 
+                      className="w-full text-xs text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none resize-none" 
+                      maxLength={140} 
+                      placeholder={transactionType === 'expense' ? "Add expense note..." : "Add income note..."} 
+                      rows={3}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                    />
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+                      <input ref={fileInputRef} type="file" onChange={handleFileChange} className="sr-only" />
+                      <button 
+                        onClick={handleAttachClick}
+                        type="button" 
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 border border-slate-300 text-[11px] font-medium text-slate-700 cursor-pointer pointer-events-auto transition-colors"
+                      >
+                        {receiptFile ? receiptFile.name : t('finance.attachReceipt', 'Attach Receipt')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Action Buttons Card */}
+              <div className="w-full rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
+                <button 
+                  onClick={handleSave}
+                  className={`btn-primary w-full h-12 text-sm font-bold shadow-lg cursor-pointer pointer-events-auto ${
+                    transactionType === 'income' ? '!bg-emerald-600 hover:!bg-emerald-700' : ''
+                  }`}
+                  type="button"
+                >
+                  <span>{transactionType === 'expense' ? t('finance.saveExpense', 'Save Expense') : t('finance.saveIncome', 'Save Income')}</span>
+                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    type="button"
+                    onClick={handleCancelOrDiscard}
+                    className="btn-secondary w-full h-10 text-xs font-semibold cursor-pointer pointer-events-auto"  
+                  >
+                    {t('common.cancel', 'Cancel')}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleCancelOrDiscard}
+                    className="btn-danger w-full h-10 text-xs font-semibold cursor-pointer pointer-events-auto" 
+                  >
+                    {t('finance.discard', 'Discard')}
                   </button>
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="space-y-3 pt-2">
-            <button 
-              onClick={handleSave}
-              className={`btn-primary w-full cursor-pointer pointer-events-auto ${
-                transactionType === 'income' ? '!bg-emerald-600 hover:!bg-emerald-700' : ''
-              }`}
-              type="button"
-            >
-              <span>{transactionType === 'expense' ? 'Save Expense' : 'Save Income'}</span>
-            </button>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                type="button"
-                onClick={() => handleNavigate('finance_expense_tracker_light_mode')}
-                className="btn-secondary w-full cursor-pointer pointer-events-auto"  
-              >
-                Cancel
-              </button>
-              <button 
-                type="button"
-                onClick={() => handleNavigate('finance_expense_tracker_light_mode')}
-                className="btn-danger w-full cursor-pointer pointer-events-auto" 
-              >
-                Discard
-              </button>
-            </div>
-          </div>
-
         </div>
       </main>
     </div>

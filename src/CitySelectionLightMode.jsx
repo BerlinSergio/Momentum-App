@@ -1,11 +1,16 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useMemo } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import UserAvatar from './components/UserAvatar';
-import { MapPin, ArrowLeft } from 'lucide-react';
 import { useLocationStore, CITIES_DATA } from './store/useLocationStore';
+import { detectAndApplyNativeLocation } from './utils/nativeLocation';
+import { toast } from './components/ui/toast/index.js';
 
 export default function CitySelectionLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const globalSelectedCity = useLocationStore((s) => s.selectedCity);
   const setSelectedCity = useLocationStore((s) => s.setSelectedCity);
+  const setCustomCoordinates = useLocationStore((s) => s.setCustomCoordinates);
 
   const [localSelectedCity, setLocalSelectedCity] = useState(() => globalSelectedCity || CITIES_DATA[0]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,71 +31,29 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
     });
   }, [searchQuery, selectedRegion]);
 
-  const handleUseGps = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      alert('Geolocation is not supported by your device/browser.');
-      return;
-    }
+  const handleUseGps = async () => {
     setIsLocating(true);
     setCustomApplied(false);
     setLocalSelectedCity((prev) => ({
       ...(prev || {}),
       id: 'gps-pending',
-      name: 'Locating city...',
-      country: 'Resolving GPS coordinates...',
+      name: 'Locating via GPS...',
+      country: 'Resolving coordinates...',
       badge: 'Locating...',
       icon: 'my_location',
     }));
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude, altitude } = position.coords;
-        const latFormatted = `${Math.abs(latitude).toFixed(4)}° ${latitude >= 0 ? 'N' : 'S'}`;
-        const lngFormatted = `${Math.abs(longitude).toFixed(4)}° ${longitude >= 0 ? 'E' : 'W'}`;
-        const elevFormatted = altitude != null ? `${Math.round(altitude)}m MSL` : 'GPS Verified';
+    const result = await detectAndApplyNativeLocation({ highAccuracy: true, timeout: 10000 });
+    setIsLocating(false);
 
-        let resolvedCity = 'Current GPS Location';
-        let resolvedCountry = 'Device Geolocation';
-
-        try {
-          const res = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            resolvedCity = data.city || data.locality || data.principalSubdivision || resolvedCity;
-            resolvedCountry = data.countryName || resolvedCountry;
-          }
-        } catch (fetchErr) {
-          console.warn('Reverse geocoding fetch error:', fetchErr);
-        }
-
-        const gpsLoc = {
-          id: `gps-${Date.now()}`,
-          name: resolvedCity,
-          country: resolvedCountry,
-          region: 'gps',
-          coords: `${latFormatted}, ${lngFormatted}`,
-          latitude,
-          longitude,
-          elevation: elevFormatted,
-          elevationMeters: altitude != null ? Math.round(altitude) : 0,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kabul',
-          isGps: true,
-          badge: 'GPS Active',
-          icon: 'my_location',
-        };
-        setLocalSelectedCity(gpsLoc);
-        setIsLocating(false);
-      },
-      (error) => {
-        console.warn('Geolocation error:', error);
-        setIsLocating(false);
-        setLocalSelectedCity(globalSelectedCity || CITIES_DATA[0]);
-        alert('Could not obtain current GPS position. Please check location permissions.');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+    if (result.success) {
+      const activeLoc = useLocationStore.getState().selectedCity;
+      setLocalSelectedCity(activeLoc);
+      toast.success(t('toasts.gpsLocationDetected', 'Current location detected via GPS'));
+    } else {
+      setLocalSelectedCity(globalSelectedCity || CITIES_DATA[0]);
+      toast.error(result.error || 'Could not obtain current GPS position');
+    }
   };
 
   const handleApplyCustomCoords = (e) => {
@@ -99,11 +62,11 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
     const lng = parseFloat(manualLng);
     const elev = parseInt(manualElev, 10);
     if (isNaN(lat) || lat < -90 || lat > 90) {
-      alert('Please enter a valid latitude between -90 and 90.');
+      toast.error(t('toasts.validLatitude', 'Please enter a valid latitude between -90 and 90'));
       return;
     }
     if (isNaN(lng) || lng < -180 || lng > 180) {
-      alert('Please enter a valid longitude between -180 and 180.');
+      toast.error(t('toasts.validLongitude', 'Please enter a valid longitude between -180 and 180'));
       return;
     }
     const latFormatted = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}`;
@@ -121,38 +84,38 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
       elevationMeters: !isNaN(elev) ? elev : 0,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kabul',
       isCustom: true,
+      mode: 'manual',
+      status: 'configured',
       badge: 'Custom',
       icon: 'tune',
     };
     setLocalSelectedCity(customLoc);
-    setSelectedCity(customLoc);
+    if (setCustomCoordinates) {
+      setCustomCoordinates({
+        latitude: lat,
+        longitude: lng,
+        elevation: elev,
+        name: 'Custom Coordinates',
+        country: 'User Defined Location',
+      });
+    } else {
+      setSelectedCity(customLoc);
+    }
     setCustomApplied(true);
     setIsManualOpen(false);
+    toast.success(t('toasts.customCoordinatesApplied', 'Custom coordinates applied'));
   };
 
   const handleSelectCity = (city) => {
     setLocalSelectedCity(city);
     setCustomApplied(false);
     setSelectedCity(city);
-    try {
-      const cityName = `${city.name}${city.country ? ', ' + city.country : ''}`;
-      const raw = localStorage.getItem('momentum-profile-storage');
-      const parsed = raw ? JSON.parse(raw) : { state: {} };
-      parsed.state = { ...(parsed.state || {}), city: cityName };
-      localStorage.setItem('momentum-profile-storage', JSON.stringify(parsed));
-    } catch {}
+    toast.success(`Location set to ${city.name}`);
   };
 
   const handleConfirmCity = () => {
     if (localSelectedCity) {
       setSelectedCity(localSelectedCity);
-      try {
-        const cityName = `${localSelectedCity.name}${localSelectedCity.country ? ', ' + localSelectedCity.country : ''}`;
-        const raw = localStorage.getItem('momentum-profile-storage');
-        const parsed = raw ? JSON.parse(raw) : { state: {} };
-        parsed.state = { ...(parsed.state || {}), city: cityName };
-        localStorage.setItem('momentum-profile-storage', JSON.stringify(parsed));
-      } catch {}
     }
     if (goBack) {
       goBack('settings_profile_light_mode');
@@ -192,9 +155,10 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-base font-bold text-slate-900 tracking-tight">
-            Select City &amp; Location
+            {t('calendar.selectCityLocation', 'Select City & Location')}
           </h1>
         </div>
+        <UserAvatar setActiveTab={setActiveTab} />
       </header>
 
       <main className="flex flex-col relative w-full pb-36 px-margin z-10 flex-1">
@@ -206,11 +170,11 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-primary border border-primary/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                  <span className="font-label-sm text-label-sm font-semibold tracking-wide uppercase">Active Geolocation</span>
+                  <span className="font-label-sm text-label-sm font-semibold tracking-wide uppercase">{t('calendar.activeGeolocation', 'Active Geolocation')}</span>
                 </div>
                 <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/15 text-primary font-semibold text-xs border border-primary/25">
                   <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: '"FILL" 1' }}>check_circle</span>
-                  <span>Selected</span>
+                  <span>{t('calendar.selected', 'Selected')}</span>
                 </div>
               </div>
               <div className="flex items-start gap-3.5 pt-1">
@@ -225,14 +189,14 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                         Locating city...
                       </span>
                     ) : (
-                      localSelectedCity?.name || 'Kabul'
+                      localSelectedCity?.name || t('cities.kabul', 'Kabul')
                     )}
                   </h2>
                   <p className="font-body-md text-body-md text-slate-500 -mt-0.5">
                     {isLocating && localSelectedCity?.country === 'Resolving GPS coordinates...' ? (
-                      'Resolving GPS coordinates...'
+                      t('calendar.resolvingGps', 'Resolving GPS coordinates...')
                     ) : (
-                      localSelectedCity?.country || 'Afghanistan'
+                      localSelectedCity?.country || t('countries.afghanistan', 'Afghanistan')
                     )}
                   </p>
                 </div>
@@ -250,7 +214,7 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
               <div className="flex flex-row items-center gap-3 p-3.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                 <span className="material-symbols-outlined text-primary text-[20px] flex-shrink-0">verified</span>
                 <p className="font-body-sm text-body-sm text-slate-500 leading-relaxed">
-                  Accurate elevation and coordinate geocoding ensures exact astronomical solar angle calculations for prayer and fasting schedules.
+                  {t('calendar.elevationGeocodingDesc', 'Accurate elevation and coordinate geocoding ensures exact astronomical solar angle calculations for prayer and fasting schedules.')}
                 </p>
               </div>
             </div>
@@ -266,12 +230,12 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                 <span className="material-symbols-outlined text-[18px]">schedule</span>
               </div>
               <div className="text-left">
-                <span className="text-xs font-semibold text-slate-900 block">Need to adjust timezone instead?</span>
-                <span className="text-[11px] text-slate-500 block">Switch to Astronomical Timezone Selection</span>
+                <span className="text-xs font-semibold text-slate-900 block">{t('calendar.needAdjustTimezone', 'Need to adjust timezone instead?')}</span>
+                <span className="text-[11px] text-slate-500 block">{t('calendar.switchToAstronomicalTimezone', 'Switch to Astronomical Timezone Selection')}</span>
               </div>
             </div>
             <span className="text-xs font-semibold text-primary flex items-center gap-1">
-              Timezone <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              {t('calendar.timezone', 'Timezone')} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </span>
           </div>
 
@@ -284,8 +248,7 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full h-12 pl-12 pr-12 rounded-2xl bg-slate-100/90 border border-slate-200/60 text-slate-900 placeholder:text-slate-400 shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                 id="citySearchInput"
-                placeholder="Search city or country name..."
-                type="search"
+                placeholder={t('calendar.searchCityPlaceholder', 'Search city or country name...')}
               />
               {searchQuery && (
                 <button
@@ -314,10 +277,10 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                 </div>
                 <div>
                   <p className="font-headline-sm text-headline-sm text-slate-900 font-semibold">
-                    {isLocating ? 'Resolving GPS City & Country...' : 'Use Current GPS Location'}
+                    {isLocating ? t('city.resolvingGpsCityCountry', 'Resolving GPS City & Country...') : t('calendar.useGps', 'Use Current GPS Location')}
                   </p>
                   <p className="font-body-sm text-body-sm text-slate-500">
-                    {isLocating ? 'Querying device sensors & reverse geocoding...' : 'Instant high-precision geocoding via device sensors'}
+                    {isLocating ? t('city.queryingSensors', 'Querying device sensors & reverse geocoding...') : t('calendar.gpsPrecisionDesc', 'Instant high-precision geocoding via device sensors')}
                   </p>
                 </div>
               </div>
@@ -379,17 +342,17 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                   <span className="material-symbols-outlined text-[32px]">location_off</span>
                 </div>
                 <h3 className="text-base font-semibold mb-1 text-slate-900">
-                  No Matching Cities Found
-                </h3>
-                <p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-500">
-                  We couldn't find any locations matching your search. Check the spelling or enter custom coordinates below.
+                  {t('calendar.noMatchingCities', 'No Matching Cities Found')}
+</h3>
+<p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-500">
+                  {t('calendar.noLocationsFound', "We couldn't find any locations matching your search. Check the spelling or enter custom coordinates below.")}
                 </p>
                 <button
                   type="button"
                   onClick={() => { setSearchQuery(''); setSelectedRegion(null); }}
                   className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
                 >
-                  Clear Search Filter
+                  {t('common.clearFilter', 'Clear Search Filter')}
                 </button>
               </div>
             ) : (
@@ -466,11 +429,11 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-[20px] text-primary">tune</span>
                 <span className="font-headline-sm text-headline-sm font-semibold text-slate-900">
-                  Enter custom latitude, longitude &amp; elevation
+                  {t('calendar.customCoordsPrompt', 'Enter custom latitude, longitude & elevation')}
                 </span>
                 {localSelectedCity?.isCustom && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 text-primary uppercase tracking-wider">
-                    Active
+                    {t('common.active', 'Active')}
                   </span>
                 )}
               </div>
@@ -481,7 +444,7 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
             <div className={`${isManualOpen ? 'flex' : 'hidden'} px-4 pb-4 pt-1 flex-col space-y-3`} id="manualForm">
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col space-y-1">
-                  <label className="font-label-sm text-label-sm text-slate-500">Latitude (°N/S)</label>
+                  <label className="font-label-sm text-label-sm text-slate-500">{t('calendar.latitudeLabel', 'Latitude (°N/S)')}</label>
                   <input
                     value={manualLat}
                     onChange={(e) => setManualLat(e.target.value)}
@@ -491,7 +454,7 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                   />
                 </div>
                 <div className="flex flex-col space-y-1">
-                  <label className="font-label-sm text-label-sm text-slate-500">Longitude (°E/W)</label>
+                  <label className="font-label-sm text-label-sm text-slate-500">{t('calendar.longitudeLabel', 'Longitude (°E/W)')}</label>
                   <input
                     value={manualLng}
                     onChange={(e) => setManualLng(e.target.value)}
@@ -502,7 +465,7 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                 </div>
               </div>
               <div className="flex flex-col space-y-1">
-                <label className="font-label-sm text-label-sm text-slate-500">Elevation (Meters Above Sea Level)</label>
+                <label className="font-label-sm text-label-sm text-slate-500">{t('calendar.elevationLabel', 'Elevation (Meters Above Sea Level)')}</label>
                 <input
                   value={manualElev}
                   onChange={(e) => setManualElev(e.target.value)}
@@ -520,19 +483,18 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
                 {customApplied && localSelectedCity?.isCustom ? (
                   <>
                     <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    <span>Custom Coordinates Applied to Global System</span>
+                    <span>{t('calendar.customCoordsApplied', 'Custom Coordinates Applied to Global System')}</span>
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[18px]">check</span>
-                    <span>Apply Custom Coordinates</span>
+                    <span>{t('calendar.applyCustomCoordinates', 'Apply Custom Coordinates')}</span>
                   </>
                 )}
               </button>
             </div>
           </section>
 
-          {/* Confirmation Action Button (In-flow, clean spacing above bottom nav) */}
           <div className="pt-2">
             <button
               type="button"
@@ -540,7 +502,7 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
               className="btn-primary w-full h-12 py-3 rounded-2xl text-sm font-semibold shadow-lg shadow-primary/30 flex items-center justify-center gap-2 cursor-pointer select-none"
               id="confirmCityBtn"
             >
-              <span>Confirm City &amp; Update Solar Rhythms</span>
+              <span>{t('calendar.confirmCityUpdate', 'Confirm City & Update Solar Rhythms')}</span>
               <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
             </button>
           </div>

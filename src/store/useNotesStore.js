@@ -2,18 +2,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { produce } from 'immer';
 import { v4 as uuidv4 } from 'uuid';
+import { createIndexedDbStorage, deleteAttachmentFile } from '../storage/index.js';
 
-const getSafeStorage = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return window.localStorage;
-  }
-  return {
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-    clear: () => {},
-  };
-};
+const notesStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-notes-storage' });
+
+const getSafeStorage = () => notesStorage;
 
 export const INITIAL_NOTES = [
   {
@@ -307,12 +300,89 @@ export const INITIAL_NOTES = [
   }
 ];
 
+export function getNoteDateKey(note) {
+  if (!note) return null;
+  if (note.dateKey && /^\d{4}-\d{2}-\d{2}$/.test(note.dateKey)) {
+    return note.dateKey;
+  }
+  if (note.createdAt) {
+    try {
+      const d = new Date(note.createdAt);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    } catch {
+      // ignore
+    }
+  }
+  const now = new Date();
+  const todayKey = now.toISOString().slice(0, 10);
+  const checkStr = (str) => {
+    if (!str || typeof str !== 'string') return null;
+    if (str.startsWith('Today')) return todayKey;
+    if (str.startsWith('Yesterday')) {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      return y.toISOString().slice(0, 10);
+    }
+    try {
+      const parsed = Date.parse(str);
+      if (!isNaN(parsed)) {
+        return new Date(parsed).toISOString().slice(0, 10);
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+  return checkStr(note.savedAt) || checkStr(note.date) || todayKey;
+}
+
+export function calculateReflectionStreak(notes = []) {
+  if (!Array.isArray(notes) || notes.length === 0) return 0;
+
+  const dateKeys = new Set();
+  for (const n of notes) {
+    const key = getNoteDateKey(n);
+    if (key) dateKeys.add(key);
+  }
+
+  if (dateKeys.size === 0) {
+    return notes.length > 0 ? 1 : 0;
+  }
+
+  const now = new Date();
+  const todayKey = now.toISOString().slice(0, 10);
+
+  let streak = 0;
+  const checkDate = new Date(now);
+
+  // If no note today, check if active streak extends from yesterday
+  if (!dateKeys.has(todayKey)) {
+    checkDate.setDate(checkDate.getDate() - 1);
+    const yesterdayKey = checkDate.toISOString().slice(0, 10);
+    if (!dateKeys.has(yesterdayKey)) {
+      return 0;
+    }
+  }
+
+  while (true) {
+    const key = checkDate.toISOString().slice(0, 10);
+    if (dateKeys.has(key)) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 export const useNotesStore = create(
   persist(
     (set, get) => ({
-      notes: INITIAL_NOTES,
+      notes: [],
       activeNoteId: null,
-      activeAttachmentId: 'att-1',
+      activeAttachmentId: null,
       reflectionStreak: 0,
       _hasHydrated: false,
 
@@ -325,12 +395,14 @@ export const useNotesStore = create(
 
       getReflectionStreak: () => {
         const state = get();
-        return state.reflectionStreak || 0;
+        return calculateReflectionStreak(state.notes);
       },
 
       addNote: (noteData) =>
         set(
           produce((state) => {
+            const now = new Date();
+            const todayKey = now.toISOString().slice(0, 10);
             const newNote = {
               id: noteData.id || `note-${uuidv4().slice(0, 8)}`,
               type: noteData.type || 'quick',
@@ -341,12 +413,16 @@ export const useNotesStore = create(
               section2Title: noteData.section2Title || '',
               section2Body: noteData.section2Body || '',
               category: noteData.category || 'General',
-              isPinned: Boolean(noteData.isPinned),
+              isPinned: Boolean(noteData.isPinned ?? noteData.pinned),
+              pinned: Boolean(noteData.isPinned ?? noteData.pinned),
               isArchived: Boolean(noteData.isArchived) || false,
               tint: noteData.tint || 'slate',
               reminder: noteData.reminder || null,
-              date: noteData.date || 'Today • ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              savedAt: noteData.savedAt || 'Today at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              dateKey: noteData.dateKey || todayKey,
+              createdAt: noteData.createdAt || now.toISOString(),
+              updatedAt: noteData.updatedAt || now.toISOString(),
+              date: noteData.date || 'Today • ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              savedAt: noteData.savedAt || 'Today at ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               readTime: noteData.readTime || '2 min read',
               tags: Array.isArray(noteData.tags) && noteData.tags.length > 0
                 ? noteData.tags
@@ -355,7 +431,7 @@ export const useNotesStore = create(
               attachments: Array.isArray(noteData.attachments) ? noteData.attachments : [],
             };
             state.notes.unshift(newNote);
-            state.reflectionStreak = (Number(state.reflectionStreak) || 0) + 1;
+            state.reflectionStreak = calculateReflectionStreak(state.notes);
           })
         ),
 
@@ -367,9 +443,10 @@ export const useNotesStore = create(
               state.notes[index] = {
                 ...state.notes[index],
                 ...updates,
+                updatedAt: new Date().toISOString(),
                 savedAt: updates.savedAt || 'Today at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               };
-              if (!state.reflectionStreak) state.reflectionStreak = 1;
+              state.reflectionStreak = calculateReflectionStreak(state.notes);
             }
           })
         ),
@@ -378,6 +455,7 @@ export const useNotesStore = create(
         set(
           produce((state) => {
             state.notes = state.notes.filter((n) => n.id !== noteId);
+            state.reflectionStreak = calculateReflectionStreak(state.notes);
           })
         ),
 
@@ -477,7 +555,8 @@ export const useNotesStore = create(
           })
         ),
 
-      deleteAttachment: (noteId, attachmentId) =>
+      deleteAttachment: (noteId, attachmentId) => {
+        deleteAttachmentFile(attachmentId).catch(() => {});
         set(
           produce((state) => {
             const note = state.notes.find((n) => n.id === noteId);
@@ -485,7 +564,8 @@ export const useNotesStore = create(
               note.attachments = note.attachments.filter((a) => a.id !== attachmentId);
             }
           })
-        ),
+        );
+      },
 
       addTag: (noteId, tag) =>
         set(
@@ -512,9 +592,9 @@ export const useNotesStore = create(
 
       resetToDefaults: () =>
         set({
-          notes: INITIAL_NOTES,
-          activeNoteId: 'note-4',
-          activeAttachmentId: 'att-1',
+          notes: [],
+          activeNoteId: null,
+          activeAttachmentId: null,
           reflectionStreak: 0,
           _hasHydrated: true,
         }),
@@ -534,7 +614,7 @@ export const useNotesStore = create(
               isArchived: Boolean(n.isArchived),
             }));
           } else {
-            state.notes = INITIAL_NOTES;
+            state.notes = [];
           }
           if (typeof state.reflectionStreak !== 'number') {
             state.reflectionStreak = 0;
@@ -565,17 +645,17 @@ if (typeof window !== 'undefined') {
           ...parsed.state,
           notes,
           activeNoteId: parsed.state.activeNoteId || null,
-          reflectionStreak: typeof parsed.state.reflectionStreak === 'number' ? parsed.state.reflectionStreak : 0,
+          reflectionStreak: calculateReflectionStreak(notes),
           _hasHydrated: true,
         });
       } else {
-        useNotesStore.setState({ notes: INITIAL_NOTES, activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
+        useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
       }
     } else {
-      useNotesStore.setState({ notes: INITIAL_NOTES, activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
+      useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
     }
   } catch {
-    useNotesStore.setState({ notes: INITIAL_NOTES, activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
+    useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
   }
 }
 

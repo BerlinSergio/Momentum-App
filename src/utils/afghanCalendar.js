@@ -426,12 +426,18 @@ export const AFGHAN_SOLAR_MONTHS = [
   },
 ];
 
-export function getShamsiDate(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-u-ca-persian', {
+const WEEKDAY_MAP = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+export function getShamsiDate(date = new Date(), timeZone) {
+  const options = {
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
-  }).formatToParts(date);
+  };
+  if (timeZone) {
+    options.timeZone = timeZone;
+  }
+  const parts = new Intl.DateTimeFormat('en-u-ca-persian', options).formatToParts(date);
 
   let jy = 1405;
   let jm = 8;
@@ -444,8 +450,19 @@ export function getShamsiDate(date = new Date()) {
   }
 
   // Weekday in Afghan week: Saturday = 0, Sunday = 1, ... Friday = 6
-  const afghanWeekdayIndex = (date.getDay() + 1) % 7;
-  const weekdayInfo = AFGHAN_WEEKDAYS[afghanWeekdayIndex];
+  let gDay = date.getDay();
+  if (timeZone) {
+    try {
+      const shortDay = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(date);
+      if (shortDay in WEEKDAY_MAP) {
+        gDay = WEEKDAY_MAP[shortDay];
+      }
+    } catch {
+      // Fallback to local getDay() if timezone invalid
+    }
+  }
+  const afghanWeekdayIndex = (gDay + 1) % 7;
+  const weekdayInfo = AFGHAN_WEEKDAYS[afghanWeekdayIndex] || AFGHAN_WEEKDAYS[0];
   const monthInfo = AFGHAN_SOLAR_MONTHS[jm - 1] || AFGHAN_SOLAR_MONTHS[7];
 
   return {
@@ -460,13 +477,17 @@ export function getShamsiDate(date = new Date()) {
   };
 }
 
-export function getIslamicDateParts(date = new Date()) {
+export function getIslamicDateParts(date = new Date(), timeZone) {
   try {
-    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
+    const options = {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-    }).formatToParts(date);
+    };
+    if (timeZone) {
+      options.timeZone = timeZone;
+    }
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', options).formatToParts(date);
 
     let hy = 1448;
     let hm = 'Jumada I';
@@ -608,13 +629,17 @@ export const HIJRI_MONTHS = [
   { index: 12, nameEn: 'Dhu al-Hijjah', nameAr: 'ذو الحجة', totalDays: 29 },
 ];
 
-export function getHijriDateParts(date = new Date()) {
+export function getHijriDateParts(date = new Date(), timeZone) {
   try {
-    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
+    const options = {
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',
-    }).formatToParts(date);
+    };
+    if (timeZone) {
+      options.timeZone = timeZone;
+    }
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', options).formatToParts(date);
     let hy = 1448, hm = 4, hd = 13;
     for (const p of parts) {
       if (p.type === 'year') hy = parseInt(p.value.replace(/[^0-9]/g, ''), 10);

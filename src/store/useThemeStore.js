@@ -4,7 +4,6 @@ import {
   BACKGROUND_LIBRARY,
   DOWNLOADED_WALLPAPERS_BATCH,
   generateWallpaperBatch,
-  getBackgroundById,
   getWallpaperPair,
   NONE_WALLPAPER,
 } from '../data/defaultWallpapers.js';
@@ -12,6 +11,10 @@ import {
   saveWallpaperToIndexedDB,
   sanitizeAndHydrateWallpaperStorage,
 } from '../utils/wallpaperStorage.js';
+import { createIndexedDbStorage } from '../storage/index.js';
+
+const themeStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum_appearance_settings_v1' });
+const getSafeStorage = () => themeStorage;
 
 export const AURA_PRESETS = {
   indigo: {
@@ -383,7 +386,7 @@ export const useThemeStore = create(
     }),
     {
       name: 'momentum_appearance_settings_v1',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
       skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {

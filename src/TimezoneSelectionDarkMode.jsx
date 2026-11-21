@@ -1,32 +1,44 @@
-import React, { useState } from 'react';
-import UserAvatar from './components/UserAvatar';
+import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 import { useProfileStore } from './store/useProfileStore';
+import { useTimeStore } from './store/useTimeStore';
+import { useAppTime } from './hooks/useAppTime';
+import { formatUtcOffset, formatTime, normalizeIanaTimezone } from './utils/timeService';
+import { toast } from './components/ui/toast/index.js';
 
 import { 
   ArrowLeft, Compass, Sun, Radio, Search, Check, ArrowRight 
 } from 'lucide-react';
 
 export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const profileTimezone = useProfileStore((s) => s.timezone);
   const updateProfile = useProfileStore((s) => s.updateProfile);
-  const [selectedZone, setSelectedZone] = useState(profileTimezone || 'Asia/Kabul (UTC+4:30)');
+  const timezoneMode = useTimeStore((s) => s.timezoneMode);
+  const effectiveTimezone = useTimeStore((s) => s.effectiveTimezone);
+  const setTimezoneMode = useTimeStore((s) => s.setTimezoneMode);
+  const setManualTimezone = useTimeStore((s) => s.setManualTimezone);
+
+  const { now } = useAppTime();
+  const [selectedZone, setSelectedZone] = useState(effectiveTimezone || profileTimezone || 'Asia/Kabul');
 
   const handleSelectZone = (zoneStr) => {
     setSelectedZone(zoneStr);
+    const normalized = normalizeIanaTimezone(zoneStr);
+    setManualTimezone(normalized);
     if (updateProfile) {
       updateProfile({ timezone: zoneStr });
     }
-    try {
-      const raw = localStorage.getItem('momentum-profile-storage');
-      const parsed = raw ? JSON.parse(raw) : { state: {} };
-      parsed.state = { ...(parsed.state || {}), timezone: zoneStr };
-      localStorage.setItem('momentum-profile-storage', JSON.stringify(parsed));
-    } catch {}
+    toast.success(`Timezone set to ${zoneStr}`);
   };
 
   const handleConfirm = () => {
-    if (updateProfile && selectedZone) {
-      updateProfile({ timezone: selectedZone });
+    if (selectedZone) {
+      const normalized = normalizeIanaTimezone(selectedZone);
+      setManualTimezone(normalized);
+      if (updateProfile) {
+        updateProfile({ timezone: selectedZone });
+      }
     }
     if (goBack) goBack('settings_profile_dark_mode');
     else if (setActiveTab) setActiveTab('settings_profile_dark_mode');
@@ -54,12 +66,12 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-base font-bold text-white tracking-tight">
-              Timezone Selection
+              {t('calendar.timezoneSelection', 'Timezone Selection')}
             </h1>
           </div>
         </div>
 
-        {/* Active Timezone Hero Card */}
+        {/* ACTIVE TIMEZONE CARD */}
         <div className="block mx-5 my-3 p-5 rounded-3xl space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-primary/20 border border-primary/80 text-primary shadow-sm">
@@ -74,12 +86,11 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
 
           <div className="flex items-baseline justify-between pt-1">
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Asia/Kabul</h2>
-              <span className="text-xs font-medium text-slate-400 mt-0.5 block">UTC +4:30 • Kabul, Afghanistan</span>
+              <h2 className="text-2xl font-bold text-white tracking-tight">{effectiveTimezone}</h2>
+              <span className="text-xs font-medium text-slate-400 mt-0.5 block">{formatUtcOffset(effectiveTimezone, now)} • {effectiveTimezone.replace('_', ' ')}</span>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-bold text-primary">10:48</span>
-              <span className="text-xs font-bold text-slate-400 ml-1">AM</span>
+              <span className="text-2xl font-bold text-primary">{formatTime(now, false, effectiveTimezone)}</span>
             </div>
           </div>
 
@@ -94,11 +105,11 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
           </div>
 
           <p className="text-[11px] font-normal text-slate-400 leading-relaxed pt-0.5">
-            Used to calculate astronomical Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha solar coordinates with celestial precision.
+            {t('calendar.astroTimezoneDesc', 'Used to calculate astronomical Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha solar coordinates with celestial precision.')}
           </p>
         </div>
 
-        {/* Auto-detect via GPS Card */}
+        {/* Auto-detect via GPS */}
         <div className="block mx-5 mb-4 p-4 rounded-3xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
           <div className="w-full flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
@@ -106,12 +117,17 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
                 <Radio className="w-5 h-5"/>
               </div>
               <div className="flex flex-col">
-                <h3 className="text-xs font-bold text-white">Auto-detect via GPS</h3>
-                <p className="text-[11px] font-normal text-slate-400 mt-0.5">Calibrate horizons automatically</p>
+                <h3 className="text-xs font-bold text-white">{t('calendar.autoDetectGPS', 'Auto-detect via GPS')}</h3>
+                <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('calendar.calibrateHorizons', 'Calibrate horizons automatically')}</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
-              <input type="checkbox" defaultChecked className="sr-only peer" />
+              <input
+                type="checkbox"
+                checked={timezoneMode === 'auto'}
+                onChange={(e) => setTimezoneMode(e.target.checked ? 'auto' : 'manual')}
+                className="sr-only peer"
+              />
               <div className="w-12 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
             </label>
           </div>
@@ -127,12 +143,12 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
               <Compass className="w-4 h-4" />
             </div>
             <div className="text-left">
-              <span className="text-xs font-semibold text-white block">Need to select your City or GPS?</span>
-              <span className="text-[11px] text-slate-400 block">Switch to City &amp; Location Database</span>
+              <span className="text-xs font-semibold text-white block">{t('calendar.needSelectCity', 'Need to select your City or GPS?')}</span>
+              <span className="text-[11px] text-slate-400 block">{t('calendar.switchToCity', 'Switch to City & Location Database')}</span>
             </div>
           </div>
           <span className="text-xs font-semibold text-primary flex items-center gap-1">
-            City <ArrowRight className="w-3.5 h-3.5" />
+            {t('calendar.city', 'City')} <ArrowRight className="w-3.5 h-3.5" />
           </span>
         </div>
 
@@ -142,8 +158,7 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
             <Search className="w-4 h-4 text-slate-400"/>
             <input 
               type="text" 
-              placeholder="Search city, country, or UTC offset..." 
-              className="w-full bg-transparent text-xs font-normal text-white focus:outline-none placeholder-slate-400"
+              placeholder={t('calendar.searchTimezonePlaceholder', 'Search city, country, or UTC offset...')} className="w-full bg-transparent text-xs font-normal text-white focus:outline-none placeholder-slate-400"
             />
           </div>
         </div>
@@ -151,69 +166,47 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
         {/* Continent Filter Chips */}
         <div className="flex items-center gap-2 px-5 mb-4 overflow-x-auto scrollbar-none pb-1">
           <button className="px-3.5 py-1.5 rounded-2xl bg-primary text-white text-xs font-semibold shadow-sm whitespace-nowrap">
-            All
+            {t('calendar.continents.all', 'All')}
           </button>
           <button className="px-3.5 py-1.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-slate-300 hover:bg-slate-800 text-xs font-semibold whitespace-nowrap shadow-sm">
-            Asia
+            {t('calendar.continents.asia', 'Asia')}
           </button>
           <button className="px-3.5 py-1.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-slate-300 hover:bg-slate-800 text-xs font-semibold whitespace-nowrap shadow-sm">
-            Europe
+            {t('calendar.continents.europe', 'Europe')}
           </button>
           <button className="px-3.5 py-1.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-slate-300 hover:bg-slate-800 text-xs font-semibold whitespace-nowrap shadow-sm">
-            Americas
+            {t('calendar.continents.americas', 'Americas')}
           </button>
           <button className="px-3.5 py-1.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-slate-300 hover:bg-slate-800 text-xs font-semibold whitespace-nowrap shadow-sm">
-            Africa
+            {t('calendar.continents.africa', 'Africa')}
           </button>
           <button className="px-3.5 py-1.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-slate-300 hover:bg-slate-800 text-xs font-semibold whitespace-nowrap shadow-sm">
-            Oceania
+            {t('calendar.continents.oceania', 'Oceania')}
           </button>
         </div>
 
         {/* Timezone List Container */}
         <div className="mx-5 space-y-2.5 pb-36">
-          {/* 1. Selected Zone (Asia/Kabul) */}
-          <div
-            onClick={() => handleSelectZone('Asia/Kabul (UTC+4:30)')}
-            className={`p-3.5 rounded-2xl flex items-center justify-between cursor-pointer backdrop-blur-xl border transition-all select-none ${
-              selectedZone.includes('Asia/Kabul')
-                ? 'bg-primary/20 border-primary/50 shadow-lg'
-                : 'bg-black/40 border-white/10 shadow-xl hover:border-white/20'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center flex-shrink-0">
-                <Check className="w-3 h-3 stroke-[2.5]"/>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-white">Asia/Kabul</h4>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-primary/20 border border-primary/40 text-primary">UTC+4:30</span>
-                </div>
-                <p className="text-[11px] font-normal text-slate-400 mt-0.5">Kabul, Afghanistan</p>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-primary">10:48 <span className="text-[10px] font-normal text-slate-400">AM</span></span>
-          </div>
-
-          {/* Other Zones */}
           {[
-            { zone: 'Asia/Dubai', utc: 'UTC+4:00', location: 'Dubai, UAE', time: '10:18 AM' },
-            { zone: 'Asia/Riyadh', utc: 'UTC+3:00', location: 'Riyadh, Saudi Arabia', time: '09:18 AM' },
-            { zone: 'Asia/Karachi', utc: 'UTC+5:00', location: 'Karachi, Pakistan', time: '11:18 AM' },
-            { zone: 'Europe/Istanbul', utc: 'UTC+3:00', location: 'Istanbul, Turkey', time: '09:18 AM' },
-            { zone: 'Europe/London', utc: 'BST+1', location: 'London, United Kingdom', time: '07:18 AM' },
-            { zone: 'Europe/Paris', utc: 'CEST+2', location: 'Paris, France', time: '08:18 AM' },
-            { zone: 'America/New_York', utc: 'EDT-4', location: 'New York, USA', time: '02:18 AM' },
-            { zone: 'Asia/Tashkent', utc: 'UTC+5:00', location: 'Tashkent, Uzbekistan', time: '11:18 AM' },
-            { zone: 'Asia/Tehran', utc: 'UTC+3:30', location: 'Tehran, Iran', time: '09:48 AM' },
-            { zone: 'Asia/Doha', utc: 'UTC+3:00', location: 'Doha, Qatar', time: '09:18 AM' },
+            { zone: 'Asia/Kabul', location: 'Kabul, Afghanistan' },
+            { zone: 'Asia/Dubai', location: 'Dubai, UAE' },
+            { zone: 'Asia/Riyadh', location: 'Riyadh, Saudi Arabia' },
+            { zone: 'Asia/Karachi', location: 'Karachi, Pakistan' },
+            { zone: 'Europe/Istanbul', location: 'Istanbul, Turkey' },
+            { zone: 'Europe/London', location: 'London, United Kingdom' },
+            { zone: 'Europe/Paris', location: 'Paris, France' },
+            { zone: 'America/New_York', location: 'New York, USA' },
+            { zone: 'Asia/Tashkent', location: 'Tashkent, Uzbekistan' },
+            { zone: 'Asia/Tehran', location: 'Tehran, Iran' },
+            { zone: 'Asia/Doha', location: 'Doha, Qatar' },
           ].map((item) => {
-            const isItemActive = selectedZone.includes(item.zone);
+            const isItemActive = effectiveTimezone === item.zone || selectedZone.includes(item.zone);
+            const utcOffset = formatUtcOffset(item.zone, now);
+            const timeStr = formatTime(now, false, item.zone);
             return (
               <div
                 key={item.zone}
-                onClick={() => handleSelectZone(`${item.zone} (${item.utc})`)}
+                onClick={() => handleSelectZone(`${item.zone} (${utcOffset})`)}
                 className={`p-3.5 rounded-2xl flex items-center justify-between transition-colors cursor-pointer backdrop-blur-xl border select-none ${
                   isItemActive
                     ? 'bg-primary/20 border-primary/50 shadow-lg'
@@ -233,12 +226,12 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-xs font-semibold text-slate-200">{item.zone}</h4>
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-800 text-slate-300">{item.utc}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-800 text-slate-300">{utcOffset}</span>
                     </div>
                     <p className="text-[11px] font-normal text-slate-400 mt-0.5">{item.location}</p>
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-slate-300">{item.time}</span>
+                <span className="text-xs font-semibold text-slate-300">{timeStr}</span>
               </div>
             );
           })}
@@ -250,7 +243,7 @@ export default function TimezoneSelectionDarkMode({ setActiveTab, goBack }) {
               onClick={handleConfirm}
               className="btn-primary w-full h-12 py-3 rounded-2xl text-sm font-semibold shadow-lg shadow-primary/30 flex items-center justify-center gap-2 cursor-pointer select-none"
             >
-              <span>Confirm Timezone Selection</span>
+              <span>{t('calendar.confirmTimezoneSelection', 'Confirm Timezone Selection')}</span>
               <ArrowRight className="w-4 h-4 stroke-[2.2]"/>
             </button>
           </div>

@@ -1,4 +1,5 @@
-import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { ChevronRight, Pin, Archive, ArchiveRestore } from 'lucide-react';
 import { useNotesStore } from '../store/useNotesStore';
 
@@ -205,7 +206,9 @@ const TINT_STYLES = {
   },
 };
 
-export default function NotePreviewCard({ note, onOpen, onArchive, isDarkMode = false }) {
+export default function NotePreviewCard({
+ note, onOpen, onArchive, isDarkMode = false }) {
+  const { t } = useTranslation();
   if (!note) return null;
 
   const handleArchiveToggle = (e) => {
@@ -246,50 +249,56 @@ export default function NotePreviewCard({ note, onOpen, onArchive, isDarkMode = 
   const displayTime = note.savedAt || note.date || 'Recently';
 
   return (
-    <div
+    <motion.div
       onClick={() => onOpen(note)}
-      className={`block w-full rounded-2xl p-3.5 sm:p-4 transition-all duration-200 ease-out active:scale-[0.99] cursor-pointer select-none border ${theme.card}`}
+      layout="position"
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.16, ease: 'easeOut' }}
+      className={`block w-full rounded-2xl p-3.5 sm:p-4 transition-colors cursor-pointer select-none border ${theme.card}`}
     >
       <div className="flex flex-col gap-2">
         {/* 1. TOP ROW: COMPACT TAG AT TOP LEFT & PIN INDICATOR */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            {tag && (
-              <span
-                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide border ${theme.badge}`}
-              >
-                {tag}
-              </span>
-            )}
-            {note.isPinned && (
-              <span
-                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold flex items-center gap-1 border ${
-                  isDarkMode
-                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-                    : 'bg-amber-50 border-amber-200 text-amber-700'
-                }`}
-              >
-                <Pin className="w-2.5 h-2.5 fill-current" />
-                <span>Pinned</span>
-              </span>
-            )}
+        {(tag || note.isPinned) && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              {tag && (
+                <span
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide border ${theme.badge}`}
+                >
+                  {tag}
+                </span>
+              )}
+              {note.isPinned && (
+                <span
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold flex items-center gap-1 border ${
+                    isDarkMode
+                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                      : 'bg-amber-50 border-amber-200 text-amber-700'
+                  }`}
+                >
+                  <Pin className="w-2.5 h-2.5 fill-current" />
+                  <span>{t('notes.pinned', 'Pinned')}</span>
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* 2. TITLE: BOLD & CLAMPED */}
-        <h4 className={`text-base font-semibold tracking-tight line-clamp-1 ${theme.title}`}>
+        {/* 2. NOTE TITLE */}
+        <h3 className={`text-sm sm:text-base font-semibold leading-snug line-clamp-1 ${theme.title}`}>
           {noteTitle}
-        </h4>
+        </h3>
 
-        {/* 3. PREVIEW TEXT: MUTED & CLAMPED TO 2 LINES */}
-        {previewText ? (
-          <p className={`text-xs sm:text-sm line-clamp-2 leading-relaxed ${theme.preview}`}>
+        {/* 3. BODY PREVIEW */}
+        {previewText && (
+          <p className={`text-xs leading-relaxed line-clamp-2 ${theme.preview}`}>
             {previewText}
           </p>
-        ) : null}
+        )}
 
-        {/* 4. SLEEK BANNER IMAGE CONTAINER (FULL INNER WIDTH, FIXED HEIGHT, OBJECT-COVER) */}
-        {imageAttachment?.url && (
+        {/* 4. OPTIONAL MEDIA THUMBNAIL */}
+        {imageAttachment && (
           <div className="w-full h-36 rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 shadow-2xs mt-1">
             <img
               src={imageAttachment.url}
@@ -334,12 +343,12 @@ export default function NotePreviewCard({ note, onOpen, onArchive, isDarkMode = 
               }}
               className={`text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer select-none ${theme.read}`}
             >
-              <span>Read</span>
+              <span>{t('notes.read', 'Read')}</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

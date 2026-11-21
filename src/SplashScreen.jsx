@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from './context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 export default function SplashScreen({ onComplete, mode, setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = mode ? mode === 'dark' : (theme !== 'light');
 
@@ -152,7 +154,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
                 : undefined
             }
           >
-            Spiritual tools, mindful finance &amp; daily routines
+            {t('splash.spiritualTools', 'Spiritual tools, mindful finance & daily routines')}
           </p>
         </motion.div>
 
@@ -170,7 +172,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
                 : 'bg-white border border-slate-200/80 text-slate-800'
             }`}
           >
-            Focus
+            {t('splash.focus', 'Focus')}
           </span>
           <span className={isDark ? 'text-slate-700 text-xs' : 'text-slate-400 text-xs'}>•</span>
           <span
@@ -180,7 +182,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
                 : 'bg-white border border-slate-200/80 text-slate-800'
             }`}
           >
-            Clarity
+            {t('splash.clarity', 'Clarity')}
           </span>
           <span className={isDark ? 'text-slate-700 text-xs' : 'text-slate-400 text-xs'}>•</span>
           <span
@@ -190,7 +192,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
                 : 'bg-white border border-slate-200/80 text-slate-800'
             }`}
           >
-            Growth
+            {t('splash.growth', 'Growth')}
           </span>
         </motion.div>
       </div>
@@ -221,7 +223,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
                   isDark ? 'text-slate-200' : 'text-slate-800'
                 }`}
               >
-                Aligning your day
+                {t('splash.aligning', 'Aligning your day')}
               </span>
             </div>
             <span className="text-xs font-bold font-mono tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-teal-400 to-cyan-400">
@@ -261,7 +263,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
                   : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
               }`}
             >
-              Replay
+              {t('splash.replay', 'Replay')}
             </button>
           )}
         </div>

@@ -1,19 +1,24 @@
-﻿import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
   ArrowLeft, Moon, ChevronLeft, ChevronDown, ChevronRight,
   ArrowLeftRight, Sun, CheckCircle2, BookOpen, Clock,
-  Heart, Plus, Trash2, X, CheckSquare, Home, Wallet, Grid
+  Heart, Plus, Trash2, X
 } from 'lucide-react';
 import { useCalendarStore } from './store/useCalendarStore.js';
-import { useTaskStore } from './store/useTaskStore.js';
-import { useRoutineStore } from './store/useRoutineStore.js';
+import { useRoutineStore, isRoutineCompletedForDate, isRoutineScheduledForDate } from './store/useRoutineStore.js';
+import { useAppTime } from './hooks/useAppTime.js';
 import { getHijriDateParts, hijriToGregorian, getHijriMonthGrid, HIJRI_MONTHS, getShamsiDate } from './utils/afghanCalendar.js';
+import { MomentumTimePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
 
 const HIJRI_WEEKDAYS = ['Ahad', 'Ith', 'Thul', 'Arba', 'Kham', 'Jum', 'Sabt'];
 
 export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
-  const todayHijri = useMemo(() => getHijriDateParts(new Date()), []);
+  const { t } = useTranslation();
+  const { now, effectiveTimezone, currentDateKey } = useAppTime();
+  const todayHijri = useMemo(() => getHijriDateParts(now, effectiveTimezone), [now, effectiveTimezone]);
   const [viewHijriYear, setViewHijriYear] = useState(() => todayHijri.hy || 1448);
   const [viewHijriMonth, setViewHijriMonth] = useState(() => todayHijri.hm || 4);
   const [selectedHijriDay, setSelectedHijriDay] = useState(() => todayHijri.hd || 13);
@@ -22,6 +27,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
 
   // Add Event Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
   const [formCategory, setFormCategory] = useState('Spiritual');
   const [formHijriDay, setFormHijriDay] = useState(() => todayHijri.hd || 13);
@@ -30,7 +36,6 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
 
   // Global Persistent Stores (Zustand)
   const { events: calendarEvents, addEvent: addCalendarEvent, toggleEvent: toggleCalendarEvent, deleteEvent: deleteCalendarEvent } = useCalendarStore();
-  const { tasks, toggleTaskStatus } = useTaskStore();
   const { routines, toggleRoutineCompletion } = useRoutineStore();
 
   const handlePrevMonth = () => {
@@ -67,8 +72,8 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
   }, [viewHijriYear, viewHijriMonth, selectedHijriDay, monthGrid.totalDays]);
 
   const selectedShamsiDate = useMemo(() => {
-    return getShamsiDate(selectedGregorianDate);
-  }, [selectedGregorianDate]);
+    return getShamsiDate(selectedGregorianDate, effectiveTimezone);
+  }, [selectedGregorianDate, effectiveTimezone]);
 
   const crossCalendarSubtitle = useMemo(() => {
     const gMonth = selectedGregorianDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -112,7 +117,9 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
             const gDate = new Date(evt.date + 'T12:00:00Z');
             const h = getHijriDateParts(gDate);
             hy = h.hy; hm = h.hm; hd = h.hd;
-          } catch {}
+          } catch {
+            // Ignore parse error
+          }
         }
       }
       if (hy && hm && hd) {
@@ -135,7 +142,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
       }
     });
     (routines || []).forEach((rt) => {
-      if (rt.category === 'Spiritual' || rt.category === 'Personal') {
+      if ((rt.category === 'Spiritual' || rt.category === 'Personal') && isRoutineScheduledForDate(rt, currentDateKey)) {
         const key = `rt-${rt.id}-${selectedHijriDay}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -149,7 +156,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
             hijriDay: selectedHijriDay,
             time: rt.time || '05:15 AM',
             note: rt.notes || '',
-            completed: !!rt.completed,
+            completed: isRoutineCompletedForDate(rt, currentDateKey),
           });
         }
       }
@@ -190,7 +197,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
     if (item.source === 'calendar') {
       toggleCalendarEvent(item.id);
     } else if (item.source === 'routine') {
-      toggleRoutineCompletion(item.id);
+      toggleRoutineCompletion(item.id, currentDateKey);
     }
   };
 
@@ -210,6 +217,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
     setFormTitle('');
     setFormNote('');
     setIsAddModalOpen(false);
+    toast.success(t('toasts.eventAdded', 'Event added to calendar'));
   };
 
   return (
@@ -220,11 +228,11 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Moon className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-white tracking-tight">Islamic Hijri Calendar</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => (goBack ? goBack('calendars_main_dark_mode') : (setActiveTab ? setActiveTab('calendars_main_dark_mode') : window.history.back()))} aria-label="Go back" className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer">
-            <ArrowLeft className="w-5 h-5" />
+          <h1 className="text-base font-bold text-white tracking-tight">{t('calendar.islamicHijriCalendar', 'Islamic Hijri Calendar')}</h1>
+</div>
+<div className="flex items-center gap-2">
+          <button onClick={() => (goBack ? goBack('calendars_main_dark_mode') : (setActiveTab ? setActiveTab('calendars_main_dark_mode') : window.history.back()))} aria-label="Go back" data-testid="calendar-back-btn" className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer">
+            <ArrowLeft className="w-5 h-5 rtl:rotate-180" />
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
@@ -280,6 +288,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
             const dayIndex = (monthGrid.firstWeekday + d - 1) % 7;
             const isFriday = dayIndex === 5;
             const hasEvents = eventDaysSet.has(d);
+            const isToday = viewHijriYear === todayHijri.hy && viewHijriMonth === todayHijri.hm && d === todayHijri.hd;
             return (
               <div key={`day-${d}`} onClick={() => setSelectedHijriDay(d)} className="h-10 flex items-center justify-center cursor-pointer pointer-events-auto">
                 {isSelected ? (
@@ -288,12 +297,16 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
                     {hasEvents && <span className="w-1 h-1 rounded-full bg-white absolute bottom-1"></span>}
                   </div>
                 ) : isFriday ? (
-                  <div className="w-9 h-9 mx-auto rounded-lg text-primary font-bold bg-primary/10 flex flex-col items-center justify-center relative hover:bg-primary/20 transition-colors">
+                  <div className={`w-9 h-9 mx-auto rounded-lg text-primary font-bold bg-primary/10 flex flex-col items-center justify-center relative hover:bg-primary/20 transition-colors ${
+                    isToday ? 'border border-primary' : ''
+                  }`}>
                     <span>{d}</span>
                     {hasEvents && <span className="w-1 h-1 rounded-full bg-primary absolute bottom-1"></span>}
                   </div>
                 ) : (
-                  <div className="w-9 h-9 mx-auto rounded-lg text-slate-200 font-medium flex flex-col items-center justify-center relative hover:bg-white/5 transition-colors">
+                  <div className={`w-9 h-9 mx-auto rounded-lg font-medium flex flex-col items-center justify-center relative hover:bg-white/5 transition-colors ${
+                    isToday ? 'border border-primary/60 text-primary font-bold' : 'text-slate-200'
+                  }`}>
                     <span>{d}</span>
                     {hasEvents && <span className="w-1 h-1 rounded-full bg-primary absolute bottom-1"></span>}
                   </div>
@@ -324,7 +337,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
         {visibleDayEvents.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-400 bg-black/20 rounded-2xl border border-white/5">
             <Moon className="w-6 h-6 mx-auto mb-2 text-primary opacity-60" />
-            <span>No events scheduled for this Hijri day. Tap "+ Add Hijri Event" to create one.</span>
+            <span>No events scheduled for this Hijri day. Tap `+ {t('calendar.addHijriEvent', 'Add Hijri Event')} to create one.</span>
           </div>
         ) : (
           visibleDayEvents.map((evt) => (
@@ -353,12 +366,12 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
                     : evt.category === 'Spiritual'
                     ? 'bg-primary/20 text-primary border-primary/30'
                     : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                }`}>{evt.category === 'Fasting' ? 'Sunnah' : evt.category}</span>
+                }`}>{evt.category === 'Fasting' ? t('calendar.sunnah', 'Sunnah') : evt.category}</span>
                 <button onClick={() => handleToggle(evt)} aria-label="Toggle event completion" className="p-1 cursor-pointer transition-transform active:scale-90">
                   {evt.completed ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Clock className="w-4 h-4 text-slate-500 hover:text-primary" />}
                 </button>
                 {evt.source === 'calendar' && (
-                  <button onClick={() => deleteCalendarEvent(evt.id)} aria-label="Delete event" className="p-1 text-slate-500 hover:text-rose-400 cursor-pointer transition-colors">
+                  <button onClick={() => { deleteCalendarEvent(evt.id); toast.success(t('calendar.eventDeleted', 'Event deleted')); }} aria-label="Delete event" className="p-1 text-slate-500 hover:text-rose-400 cursor-pointer transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -370,11 +383,11 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
         {/* Primary Action Button */}
         <button onClick={() => { setFormHijriDay(selectedHijriDay); setIsAddModalOpen(true); }} className="w-full py-3.5 px-4 rounded-2xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer mt-2">
           <Plus className="w-4 h-4" />
-          <span>Add Hijri Event</span>
+          <span>{t('calendar.addHijriEvent', 'Add Hijri Event')}</span>
         </button>
       </div>
 
-      {/* MONTH PICKER POPOVER */}
+      {/* Hijri Month Picker Modal */}
       {isMonthPickerOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl p-5 space-y-4 bg-slate-900 border border-white/10 shadow-2xl text-white">
@@ -409,43 +422,59 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl p-5 space-y-4 bg-slate-900 border border-white/10 shadow-2xl text-white">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="font-bold text-sm text-white">Add Hijri Event</h3>
+              <h3 className="font-bold text-sm text-white">{t('calendar.addHijriEvent', 'Add Hijri Event')}</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleSaveEvent} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-medium text-slate-400 mb-1">Event Title</label>
-                <input type="text" required value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="e.g. Ayyam al-Beed Fasting" className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary" />
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
+                <input type="text" required value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder={t('calendar.ayyamAlBeedPlaceholder', 'e.g. Ayyam al-Beed Fasting')} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary" />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-slate-400 mb-1">Category</label>
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">{t('calendar.category', 'Category')}</label>
                 <div className="flex items-center gap-1.5">
                   {['Spiritual', 'Fasting', 'Community'].map((cat) => (
                     <button type="button" key={cat} onClick={() => setFormCategory(cat)} className={`flex-1 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer ${formCategory === cat ? 'bg-primary text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
-                      {cat}
+                      {t('calendar.' + cat.toLowerCase(), cat)}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Hijri Day</label>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">{t('calendar.hijriDay', 'Hijri Day')}</label>
                   <input type="number" min={1} max={monthGrid.totalDays} value={formHijriDay} onChange={(e) => setFormHijriDay(e.target.value)} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-primary" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Time</label>
-                  <input type="text" value={formTime} onChange={(e) => setFormTime(e.target.value)} placeholder="04:45 PM – 05:45 PM" className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary" />
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">{t('calendar.time', 'Time')}</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsTimePickerOpen(true)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary cursor-pointer hover:bg-slate-750"
+                  >
+                    {formTime || t('calendar.selectTime', 'Select Time')}
+                  </button>
                 </div>
               </div>
+
+              <MomentumTimePicker
+                isOpen={isTimePickerOpen}
+                onClose={() => setIsTimePickerOpen(false)}
+                value={formTime}
+                onSelect={(newTime) => setFormTime(newTime)}
+                title={t('calendar.selectEventTime', 'Select Event Time')}
+                isDark={true}
+                outputFormat="auto"
+              />
               <div>
-                <label className="block text-[11px] font-medium text-slate-400 mb-1">Note / Reflection</label>
-                <textarea rows={2} value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder="Optional details or intentions..." className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-none" />
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">{t('calendar.noteReflection', 'Note / Reflection')}</label>
+                <textarea rows={2} value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder={t('calendar.optionalDetailsIntentions', 'Optional details or intentions...')} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-none" />
               </div>
               <div className="flex items-center gap-2 pt-2">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer">Cancel</button>
-                <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-semibold bg-primary text-white shadow-md hover:bg-primary/90 cursor-pointer">Save Hijri Event</button>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer">{t('common.cancel', 'Cancel')}</button>
+                <button type="submit" className="flex-1 py-2 rounded-xl text-xs font-semibold bg-primary text-white shadow-md hover:bg-primary/90 cursor-pointer">{t('calendar.saveHijriEvent', 'Save Hijri Event')}</button>
               </div>
             </form>
           </div>

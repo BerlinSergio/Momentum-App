@@ -1,4 +1,5 @@
-﻿import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useTasbeehStore, computeTodayTotal } from './store/useTasbeehStore';
 import { 
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehMainLightMode({ setActiveTab }) {
+  const { t } = useTranslation();
   const {
     currentCount,
     lapCount,
@@ -38,9 +40,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
 
   // Volume Keys for Counting
   useEffect(() => {
-    const isVolumeEnabled = volumeKeysEnabled ?? volumeKeys ?? true;
-    if (!isVolumeEnabled) return;
-
+    if (!volumeKeysEnabled && !volumeKeys) return;
     const handleKeyDown = (e) => {
       if (e.key === 'AudioVolumeUp' || e.code === 'AudioVolumeUp' || e.key === 'ArrowUp') {
         e.preventDefault();
@@ -54,13 +54,11 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
 
   // Keep Screen Awake during Dhikr
   useEffect(() => {
-    const isAwake = keepAwakeEnabled ?? keepAwake ?? true;
-    if (!isAwake) return;
-
+    if (!keepAwakeEnabled && !keepAwake) return;
     let wakeLock = null;
     const requestWakeLock = async () => {
       try {
-        if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        if (typeof window !== 'undefined' && 'wakeLock' in navigator) {
           wakeLock = await navigator.wakeLock.request('screen');
         }
       } catch {
@@ -109,13 +107,15 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Digital Tasbeeh</h1>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+              {t('tasbeeh.digitalTasbeeh', 'Digital Tasbeeh')}
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             <button 
               type="button"
               onClick={() => setActiveTab && setActiveTab('tasbeeh_history_light_mode')}
-              aria-label="Dhikr History"
+              aria-label={t('tasbeeh.dhikrHistory', 'Dhikr History')}
               className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
             >
               <History className="w-5 h-5" />
@@ -123,14 +123,14 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             <button 
               type="button"
               onClick={() => setActiveTab && setActiveTab('tasbeeh_settings_light_mode')}
-              aria-label="Tasbeeh Settings"
+              aria-label={t('tasbeeh.tasbeehSettings', 'Tasbeeh Settings')}
               className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
             >
               <Settings className="w-5 h-5" />
             </button>
             <UserAvatar 
-            setActiveTab={setActiveTab} 
-          />
+              setActiveTab={setActiveTab} 
+            />
           </div>
         </div>
 
@@ -142,7 +142,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
                 <Sparkles className="w-3 h-3 text-primary" />CURRENT DHIKR
               </span>
               <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-50 border border-slate-200 text-slate-500">
-                Spiritual Focus
+                {t('tasbeeh.spiritualFocus', 'Spiritual Focus')}
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -168,8 +168,8 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
           </div>
           <div className="text-center py-1 space-y-1">
             <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-2xl font-bold font-quran text-slate-900" dir="rtl">{activePreset?.arabic || 'سُبْحَانَ ٱللَّٰهِ'}</h2>
-            <p className="text-sm font-semibold text-slate-800">{activePreset?.transliteration || 'Subhanallah'}</p>
-            <p className="text-xs font-normal italic text-slate-500">“{activePreset?.meaning || 'Glory be to Allah'}”</p>
+            <p className="text-sm font-semibold text-slate-800">{activePreset?.transliteration || t('tasbeeh.subhanallahTranslit', 'Subhanallah')}</p>
+            <p className="text-xs font-normal italic text-slate-500">“{activePreset?.meaning || t('tasbeeh.subhanallahMeaning', 'Glory be to Allah')}”</p>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
             <button 
@@ -177,7 +177,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
               className="text-xs font-semibold text-primary hover:text-primary flex items-center gap-1.5 cursor-pointer select-none active:scale-95 transition-transform"
             >
-              <Repeat className="w-3.5 h-3.5" />Change Phrase
+              <Repeat className="w-3.5 h-3.5" />{t('tasbeeh.selectDhikr', 'Change Phrase')}
             </button>
             <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Round <strong className="text-slate-700 font-bold">{lapCount + 1}</strong>
@@ -195,7 +195,9 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               <Award className="w-4 h-4" />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Daily Dedication</span>
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                {t('tasbeeh.dailyDedication', 'Daily Dedication')}
+              </span>
               <span className="text-xs font-bold text-slate-900"><strong className="text-sm font-bold">{todayTotal}</strong> counts</span>
             </div>
           </div>
@@ -204,7 +206,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               <Flag className="w-3.5 h-3.5" />
               Goal {goal.toLocaleString()}
             </span>
-            <span className="text-[10px] font-medium text-slate-400">{goalPercentage}% completed</span>
+            <span className="text-[10px] font-medium text-slate-400">{t('tasbeeh.goalCompleted', '{{percent}}% completed', { percent: goalPercentage })}</span>
           </div>
         </div>
 
@@ -260,16 +262,16 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               className="flex items-center gap-1.5 hover:text-slate-900 active:scale-95 transition-all cursor-pointer select-none"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
+              <span>{t('tasbeeh.reset', 'Reset')}</span>
             </button>
             <button 
               type="button"
               onClick={toggleHaptics}
-              title="Toggle haptics"
+              title={t('tasbeeh.toggleHaptics', 'Toggle haptics')}
               className="flex items-center gap-1.5 text-teal-600 hover:text-teal-700 active:scale-95 transition-all cursor-pointer select-none"
             >
               <span className={`w-1.5 h-1.5 rounded-full ${hapticsEnabled ? 'bg-teal-500' : 'bg-slate-300'}`}></span>
-              <span>Haptics: {hapticsEnabled ? 'On' : 'Off'}</span>
+              <span>{hapticsEnabled ? t('tasbeeh.hapticsOn', 'Haptics: On') : t('tasbeeh.hapticsOff', 'Haptics: Off')}</span>
             </button>
             <button 
               type="button"
@@ -277,7 +279,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               className="flex items-center gap-1.5 hover:text-slate-900 active:scale-95 transition-all cursor-pointer select-none"
             >
               <Undo2 className="w-3.5 h-3.5" />
-              <span>Undo</span>
+              <span>{t('common.undo', 'Undo')}</span>
             </button>
           </div>
 
@@ -290,8 +292,12 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               <Pointer className="w-5 h-5 text-white stroke-[2.2]" />
             </div>
             <div className="text-left">
-              <span className="text-sm font-bold tracking-wide uppercase block">TAP TO COUNT</span>
-              <span className="text-[10px] font-normal text-white/80 block">Thumb-friendly tactile touch</span>
+              <span className="text-sm font-bold tracking-wide uppercase block">
+                {t('tasbeeh.tapToCount', 'TAP TO COUNT')}
+              </span>
+              <span className="text-[10px] font-normal text-white/80 block">
+                {t('tasbeeh.tactileTouchDesc', 'Thumb-friendly tactile touch')}
+              </span>
             </div>
           </button>
         </div>
@@ -299,7 +305,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         {/* Target Selector Row */}
         <div className="block mx-5 mb-4 p-4 rounded-3xl space-y-2.5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Select Target</span>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{t('tasbeeh.selectTarget', 'Select Target')}</span>
             <button 
               type="button"
               onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
@@ -326,7 +332,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             <button 
               type="button"
               onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
-              title="Edit Custom Dhikr"
+              title={t('tasbeeh.editCustomDhikr', 'Edit Custom Dhikr')}
               className="py-2 rounded-2xl bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 text-xs font-semibold flex items-center justify-center cursor-pointer select-none active:scale-95"
             >
               <Edit2 className="w-3.5 h-3.5" />
@@ -342,15 +348,14 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer select-none active:scale-95"
           >
             <RotateCcw className="w-4 h-4 text-primary" />
-            <span className="text-[11px] font-semibold">Reset Count</span>
+            <span className="text-[11px] font-semibold">{t('tasbeeh.resetCount', 'Reset Count')}</span>
           </button>
           <button 
             type="button"
-            onClick={() => setActiveTab && setActiveTab('new_edit_tasbeeh_light_mode')}
             className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer select-none active:scale-95"
           >
             <PlusCircle className="w-4 h-4 text-primary" />
-            <span className="text-[11px] font-semibold">New Phrase</span>
+            <span className="text-[11px] font-semibold">{t('tasbeeh.newPhrase', 'New Phrase')}</span>
           </button>
           <button 
             type="button"
@@ -358,7 +363,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             className="p-3 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer select-none active:scale-95"
           >
             <Clock className="w-4 h-4 text-primary" />
-            <span className="text-[11px] font-semibold">{currentCount > 0 ? 'Log Session' : 'View Log'}</span>
+            <span className="text-[11px] font-semibold">{currentCount > 0 ? t('tasbeeh.logSession', 'Log Session') : t('tasbeeh.viewLog', 'View Log')}</span>
           </button>
         </div>
 
@@ -368,8 +373,8 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             <Lightbulb className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">Mindful Consistency</h4>
-            <p className="text-[11px] font-medium text-slate-600 italic mt-0.5 leading-relaxed">“The deeds most loved by Allah are those done regularly, even if small.” (Sahih al-Bukhari)</p>
+            <h4 className="text-xs font-bold text-slate-900">{t('tasbeeh.mindfulConsistency', 'Mindful Consistency')}</h4>
+            <p className="text-[11px] font-medium text-slate-600 italic mt-0.5 leading-relaxed">{t('tasbeeh.mostLovedDeedsQuote', 'The deeds most loved by Allah are those done regularly, even if small. (Sahih al-Bukhari)')}</p>
           </div>
         </div>
       </div>

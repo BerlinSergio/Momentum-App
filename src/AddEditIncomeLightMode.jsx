@@ -1,7 +1,12 @@
-﻿import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useRef } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useFinanceStore } from './store/useFinanceStore';
+import { getLocalDateKey } from './utils/timeService';
 import { Wallet, ArrowLeft } from 'lucide-react';
+import { MomentumDatePicker } from './components/ui/picker/index.js';
+import { toast } from './components/ui/toast/index.js';
+import { confirm, promptInput } from './components/ui/confirmation/index.js';
 
 const SOURCES = [
   { id: 'salary', name: 'Salary', icon: 'work', colSpan: '' },
@@ -11,13 +16,7 @@ const SOURCES = [
   { id: 'other', name: 'Other', icon: 'more_horiz', colSpan: 'col-span-2' },
 ];
 
-const getTodayIsoDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const getTodayIsoDate = () => getLocalDateKey();
 
 const formatDisplayDate = (dateVal) => {
   if (!dateVal) return getTodayIsoDate();
@@ -31,17 +30,18 @@ const formatDisplayDate = (dateVal) => {
 };
 
 export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const { incomes, addTransaction, editingIncome, updateIncome, setEditingIncome } = useFinanceStore();
 
-  const [amount, setAmount] = useState(() => editingIncome ? String(editingIncome.amount) : '45000.00');
+  const [amount, setAmount] = useState(() => editingIncome ? String(editingIncome.amount) : '');
   const [selectedCurrency, setSelectedCurrency] = useState(() => editingIncome?.currency || 'AFN');
   const [incomeSource, setIncomeSource] = useState(() => editingIncome?.category || 'Salary');
-  const [payerName, setPayerName] = useState(() => editingIncome?.payerName || editingIncome?.title || 'TechCorp Global Ltd.');
-  const [depositSchedule, setDepositSchedule] = useState(() => editingIncome?.recurrence || 'Monthly Recurring (1st of month)');
+  const [payerName, setPayerName] = useState(() => editingIncome?.payerName || editingIncome?.title || '');
+  const [depositSchedule, setDepositSchedule] = useState(() => editingIncome?.recurrence || 'One-time deposit');
   const [depositDate, setDepositDate] = useState(() => editingIncome?.date || getTodayIsoDate());
-  const [memo, setMemo] = useState(() => editingIncome?.notes || editingIncome?.note || 'Monthly senior design lead compensation & quarterly milestone recognition');
+  const [memo, setMemo] = useState(() => editingIncome?.notes || editingIncome?.note || '');
 
-  const dateInputRef = useRef(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   const currencySymbol = selectedCurrency === 'AFN' ? 'افـ' : selectedCurrency === 'EUR' ? '€' : '$';
   const currencyLabel = selectedCurrency === 'AFN' ? 'AFN (افـ)' : selectedCurrency === 'EUR' ? 'EUR (€)' : 'USD ($)';
@@ -58,30 +58,28 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
   };
 
   const handleReset = () => {
-    setAmount('45000.00');
+    setAmount('');
     setSelectedCurrency('AFN');
     setIncomeSource('Salary');
-    setPayerName('TechCorp Global Ltd.');
-    setDepositSchedule('Monthly Recurring (1st of month)');
+    setPayerName('');
+    setDepositSchedule('One-time deposit');
     setDepositDate(getTodayIsoDate());
-    setMemo('Monthly senior design lead compensation & quarterly milestone recognition');
+    setMemo('');
   };
 
   const handleDateClick = (e) => {
     e.stopPropagation();
-    if (dateInputRef.current) {
-      if (typeof dateInputRef.current.showPicker === 'function') {
-        dateInputRef.current.showPicker();
-      } else {
-        dateInputRef.current.focus();
-        dateInputRef.current.click();
-      }
-    }
+    setIsDatePickerOpen(true);
   };
 
-  const handleScheduleClick = (e) => {
+  const handleScheduleClick = async (e) => {
     e.stopPropagation();
-    const next = window.prompt('Enter Deposit Schedule & Recurrence:', depositSchedule);
+    const next = await promptInput({
+      titleKey: 'confirm.promptDepositScheduleTitle',
+      messageKey: 'confirm.promptDepositScheduleDescription',
+      defaultValue: depositSchedule,
+      placeholder: 'e.g. Monthly, Bi-weekly',
+    });
     if (next !== null && next.trim()) {
       setDepositSchedule(next.trim());
     }
@@ -90,6 +88,10 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
   const handleSave = (e) => {
     if (e) e.preventDefault();
     const numericAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
+    if (numericAmount <= 0) {
+      toast.error(t('toasts.validIncomeAmount', 'Please enter a valid income amount'));
+      return;
+    }
     const title = payerName.trim() || `${incomeSource} Income`;
     if (editingIncome && updateIncome) {
       updateIncome({
@@ -106,6 +108,7 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
         note: memo.trim(),
       });
       if (setEditingIncome) setEditingIncome(null);
+      toast.success(t('toasts.incomeUpdated', 'Income updated successfully'));
     } else {
       addTransaction({
         id: Date.now(),
@@ -120,14 +123,68 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
         notes: memo.trim(),
         note: memo.trim(),
       });
+      toast.success(t('toasts.incomeSaved', 'Income stream saved'));
     }
-    if (goBack) goBack('finance_expense_tracker_light_mode'); else if (setActiveTab) setActiveTab('income_management_light_mode');
+    if (typeof goBack === 'function') {
+      goBack('income_management_light_mode');
+    } else if (setActiveTab) {
+      setActiveTab('income_management_light_mode');
+    }
   };
 
-  const handleDelete = () => {
-    if (window.confirm('Discard this income entry?')) {
+  const isDirty = editingIncome
+    ? (parseFloat(String(amount).replace(/,/g, '')) !== Number(editingIncome.amount) || payerName !== (editingIncome.payerName || '') || memo !== (editingIncome.notes || editingIncome.note || ''))
+    : (parseFloat(String(amount).replace(/,/g, '')) > 0 || payerName.trim() !== '' || memo.trim() !== '');
+
+  const handleCancel = async () => {
+    if (isDirty) {
+      const confirmed = await confirm({
+        variant: 'warning',
+        titleKey: 'confirm.discardIncomeTitle',
+        messageKey: 'confirm.discardIncomeDescription',
+        confirmLabelKey: 'confirm.discard',
+        cancelLabelKey: 'confirm.keepEditing',
+      });
+      if (!confirmed) return;
+    }
+    if (setEditingIncome) setEditingIncome(null);
+    if (typeof goBack === 'function') {
+      goBack('income_management_light_mode');
+    } else if (setActiveTab) {
+      setActiveTab('income_management_light_mode');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (editingIncome) {
+      const confirmed = await confirm({
+        variant: 'destructive',
+        titleKey: 'confirm.deleteIncomeTitle',
+        messageKey: 'confirm.deleteIncomeDescription',
+        confirmLabelKey: 'confirm.delete',
+        cancelLabelKey: 'confirm.cancel',
+      });
+      if (!confirmed) return;
+      const deleteIncomeFn = useFinanceStore.getState().deleteIncome;
+      if (deleteIncomeFn) deleteIncomeFn(editingIncome.id);
       if (setEditingIncome) setEditingIncome(null);
-      if (setActiveTab) setActiveTab('income_management_light_mode');
+      toast.success(t('toasts.incomeDeleted', 'Income stream deleted'));
+    } else {
+      const confirmed = await confirm({
+        variant: 'warning',
+        titleKey: 'confirm.discardIncomeTitle',
+        messageKey: 'confirm.discardIncomeDescription',
+        confirmLabelKey: 'confirm.discard',
+        cancelLabelKey: 'confirm.keepEditing',
+      });
+      if (!confirmed) return;
+      if (setEditingIncome) setEditingIncome(null);
+      toast.info(t('toasts.incomeDiscarded', 'Income entry discarded'));
+    }
+    if (typeof goBack === 'function') {
+      goBack('income_management_light_mode');
+    } else if (setActiveTab) {
+      setActiveTab('income_management_light_mode');
     }
   };
 
@@ -147,16 +204,13 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
             <Wallet className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.85), 0 2px 4px rgba(0,0,0,0.15)' }}>
-            {editingIncome ? 'Edit Income' : 'Add Income'}
+            {editingIncome ? t('finance.editIncome', 'Edit Income') : t('finance.addIncome', 'Add Income')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
           <button 
             type="button"
-            onClick={() => {
-              if (setEditingIncome) setEditingIncome(null);
-              if (setActiveTab) setActiveTab('income_management_light_mode');
-            }} 
+            onClick={handleCancel} 
             className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer select-none"
           >
             <ArrowLeft className="w-5 h-5"/>
@@ -167,19 +221,21 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
         </div>
       </div>
 
-      <main className="flex-1 w-full bg-surface pb-safe px-margin">
-        <div className="w-full max-w-md mx-auto px-4 py-4 space-y-5 pb-20 flex flex-col select-none">
+      <main className="flex-1 w-full bg-surface pb-safe px-4 lg:px-8 pt-2">
+        <div className="w-full max-w-md lg:max-w-5xl mx-auto pb-28 flex flex-col select-none">
           
           {/* Status Badge & Mode Switch Bar */}
-          <div className="flex flex-row items-center justify-center gap-2 w-full flex-wrap">
-            <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              <span id="mode-text" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>&bull; NEW ENTRY #1</span>
-            </span>
-            <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm">
-              <span className="material-symbols-outlined text-[16px]">check</span>
-              <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>&bull; AUTO-CATEGORIZED</span>
-            </span>
+          <div className="flex flex-row items-center justify-between w-full px-1 mb-4 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span id="mode-text" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>• {t('finance.newEntry', 'NEW ENTRY')} #1</span>
+              </span>
+              <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm">
+                <span className="material-symbols-outlined text-[16px]">check</span>
+                <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>• {t('finance.autoCategorized', 'AUTO-CATEGORIZED')}</span>
+              </span>
+            </div>
             <button 
               onClick={handleReset}
               className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-slate-700 hover:text-slate-900 transition-all text-xs font-semibold bg-slate-100 border border-slate-200 hover:bg-slate-200 active:scale-95 shadow-sm cursor-pointer select-none" 
@@ -187,252 +243,274 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
               type="button"
             >
               <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-              <span>Reset</span>
+              <span>{t('common.reset', 'Reset')}</span>
             </button>
           </div>
 
-          {/* Hero Amount Card (Glassmorphic) */}
-          <div className="relative overflow-hidden rounded-3xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-            {/* Subtle Ambient Glow Orbs */}
-            <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-primary-fixed/40 blur-2xl pointer-events-none"></div>
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-tertiary-fixed/30 blur-xl pointer-events-none"></div>
-            <div className="relative z-10 flex flex-col space-y-space-md">
-              {/* Currency selector & Micro-label */}
-              <div className="flex items-center justify-between">
-                <span className="font-label-md text-label-md tracking-wider text-on-surface-variant uppercase">Income Amount</span>
-                <div className="flex items-center gap-1 bg-surface-container-low px-2.5 py-1 rounded-full shadow-sm">
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Currency:</span>
-                  <button 
-                    onClick={handleToggleCurrency}
-                    className="flex items-center gap-0.5 font-label-md text-label-md text-primary font-semibold cursor-pointer select-none" 
-                    id="curr-toggle" 
-                    type="button"
-                  >
-                    <span id="curr-label">{currencyLabel}</span>
-                    <span className="material-symbols-outlined text-[14px]">expand_more</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Main Input Display */}
-              <div className="flex items-baseline justify-center py-2">
-                <span className="font-display-lg text-display-lg text-emerald-600 font-bold tracking-tight mr-1">+</span>
-                <span className="font-display-lg text-display-lg text-emerald-600 font-bold tracking-tight" id="currency-symbol">{currencySymbol}</span>
-                <input 
-                  aria-label="Income Amount Value" 
-                  className="w-56 bg-transparent font-display-lg text-display-lg text-on-surface font-bold tracking-tight focus:outline-none text-left pl-1" 
-                  id="amount-input" 
-                  inputMode="decimal" 
-                  type="text" 
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </div>
-
-              {/* Quick Add Preset Chips */}
-              <div className="flex items-center justify-between gap-1.5 pt-1">
-                <button 
-                  onClick={() => handleQuickAdd(500)}
-                  className="preset-pill flex-1 rounded-full px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-xs text-center shadow-sm border border-slate-200/70 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
-                  data-val="500" 
-                  type="button"
-                >
-                  {selectedCurrency === 'AFN' ? '+500 افـ' : `+${currencySymbol}500`}
-                </button>
-                <button 
-                  onClick={() => handleQuickAdd(1000)}
-                  className="preset-pill flex-1 rounded-full px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-xs text-center shadow-sm border border-slate-200/70 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
-                  data-val="1000" 
-                  type="button"
-                >
-                  {selectedCurrency === 'AFN' ? '+1,000 افـ' : `+${currencySymbol}1,000`}
-                </button>
-                <button 
-                  onClick={() => handleQuickAdd(2500)}
-                  className="preset-pill flex-1 rounded-full px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-xs text-center shadow-sm border border-slate-200/70 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
-                  data-val="2500" 
-                  type="button"
-                >
-                  {selectedCurrency === 'AFN' ? '+2,500 افـ' : `+${currencySymbol}2,500`}
-                </button>
-                <button 
-                  onClick={() => handleQuickAdd(5000)}
-                  className="preset-pill flex-1 rounded-full px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium text-xs text-center shadow-sm border border-slate-200/70 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
-                  data-val="5000" 
-                  type="button"
-                >
-                  +{currencySymbol}5,000
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Income Source Selector */}
-          <div className="flex flex-col space-y-space-sm">
-            <div className="flex items-center justify-between px-space-xs">
-              <div>
-                <h2 className="font-headline-sm text-headline-sm text-slate-900" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Income Source</h2>
-                <p className="font-body-sm text-body-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Choose source type for cashflow analytics</p>
-              </div>
-              <span className="font-label-sm text-label-sm text-slate-900 font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Step 1 of 2</span>
-            </div>
-
-            {/* Category Pill Horizontal Ribbon */}
-            <div className="grid grid-cols-2 gap-3.5 pt-1" id="sources-container">
-              {SOURCES.map((s) => {
-                const isSelected = incomeSource === s.name;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setIncomeSource(s.name)}
-                    className={`source-card p-3 pl-4 flex items-center justify-between rounded-2xl transition-all text-sm font-medium active:scale-95 cursor-pointer select-none ${s.colSpan || ''} ${
-                      isSelected
-                        ? 'text-primary bg-white/90 border-2 border-primary shadow-md font-semibold'
-                        : 'text-slate-700 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:bg-white/85'
-                    }`}
-                    data-source={s.name}
-                    type="button"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-[20px]" style={isSelected ? { fontVariationSettings: '"FILL" 1' } : {}}>
-                        {s.icon}
-                      </span>
-                      <span>{s.name}</span>
+          {/* Responsive Layout: 2-Column Grid on Desktop (>= 1024px), Single Column on Mobile */}
+          <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-6 items-start gap-4">
+            
+            {/* ── LEFT COLUMN (Cols 1-7 on Desktop): Amount, Presets, Sources, Monthly Impact ── */}
+            <div className="w-full lg:col-span-7 flex flex-col gap-4">
+              {/* Income Amount & Currency Bento Card */}
+              <div className="relative overflow-hidden rounded-3xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg w-full">
+                {/* Subtle Ambient Glow Orbs */}
+                <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-primary-fixed/40 blur-2xl pointer-events-none"></div>
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-tertiary-fixed/30 blur-xl pointer-events-none"></div>
+                <div className="relative z-10 flex flex-col space-y-3">
+                  {/* Currency selector & Micro-label */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-label-md text-label-md tracking-wider text-slate-500 uppercase">{t('finance.incomeAmount', 'Income Amount')}</span>
+                    <div className="flex items-center bg-slate-100 border border-slate-200 rounded-full p-0.5 shadow-inner">
+                      <button 
+                        onClick={() => setSelectedCurrency('AFN')}
+                        className={`px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer select-none ${selectedCurrency === 'AFN' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
+                        type="button"
+                      >
+                        AFN (افـ)
+                      </button>
+                      <button 
+                        onClick={() => setSelectedCurrency('USD')}
+                        className={`px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer select-none ${selectedCurrency === 'USD' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
+                        type="button"
+                      >
+                        USD ($)
+                      </button>
+                      <button 
+                        onClick={() => setSelectedCurrency('EUR')}
+                        className={`px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold transition-all cursor-pointer select-none ${selectedCurrency === 'EUR' ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}`} 
+                        type="button"
+                      >
+                        EUR (€)
+                      </button>
                     </div>
-                    {isSelected && (
-                      <span className="material-symbols-outlined text-[16px] text-primary">check_circle</span>
+                  </div>
+
+                  {/* Main Input Display */}
+                  <div className="flex items-baseline justify-center py-2">
+                    <span className="text-3xl lg:text-4xl text-emerald-600 font-bold tracking-tight mr-1">+</span>
+                    {selectedCurrency !== 'AFN' && (
+                      <span className="text-3xl lg:text-4xl text-emerald-600 font-bold tracking-tight" id="currency-symbol">{currencySymbol}</span>
                     )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                    <input 
+                      aria-label={t('finance.incomeAmount', 'Income Amount')} 
+                      className="w-56 bg-transparent text-4xl lg:text-5xl text-slate-900 font-bold tracking-tight focus:outline-none text-center" 
+                      id="amount-input" 
+                      inputMode="decimal" 
+                      type="text" 
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                    {selectedCurrency === 'AFN' && (
+                      <span className="text-2xl lg:text-3xl text-emerald-600 font-bold tracking-tight ml-1">افـ</span>
+                    )}
+                  </div>
 
-          {/* Income Details Form Card */}
-          <div className="rounded-3xl p-5 space-y-space-md bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-            {/* Payer / Company Field */}
-            <div className="space-y-1">
-              <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="payer-input">Source Title / Payer Name</label>
-              <div className="flex items-center gap-3.5 px-space-md py-2.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-                <span className="material-symbols-outlined text-primary text-[20px]">domain</span>
-                <input 
-                  aria-label="Source Title or Payer Name" 
-                  className="w-full bg-transparent font-body-lg text-body-lg text-on-surface focus:outline-none" 
-                  id="payer-input" 
-                  type="text" 
-                  value={payerName}
-                  onChange={(e) => setPayerName(e.target.value)}
-                  placeholder="e.g. TechCorp Global Ltd."
-                />
-                <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">edit</span>
-              </div>
-            </div>
-
-            {/* Date & Deposit Frequency Field */}
-            <div className="space-y-1">
-              <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="schedule-trigger">Deposit Schedule &amp; Recurrence</label>
-              <div 
-                onClick={handleDateClick}
-                className="relative flex items-center justify-between px-space-md py-2.5 rounded-2xl cursor-pointer transition-colors bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg hover:bg-white/85" 
-                id="schedule-trigger"
-              >
-                <input 
-                  ref={dateInputRef}
-                  type="date"
-                  value={depositDate}
-                  onChange={(e) => setDepositDate(e.target.value)}
-                  className="absolute inset-0 opacity-0 pointer-events-none w-full h-full"
-                  tabIndex={-1}
-                />
-                <div className="flex items-center gap-space-sm min-w-0">
-                  <span className="material-symbols-outlined text-secondary text-[20px]">event_repeat</span>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-body-lg text-body-lg text-on-surface truncate">{formatDisplayDate(depositDate)}</span>
-                    <span className="font-body-sm text-body-sm text-secondary font-medium">{depositSchedule}</span>
+                  {/* Quick Add Preset Chips */}
+                  <div className="flex items-center justify-between gap-1.5 pt-1 flex-wrap">
+                    <button 
+                      onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 500 : 10)}
+                      className="preset-pill flex-1 min-w-[70px] rounded-full px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs text-center shadow-sm border border-slate-200 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
+                      type="button"
+                    >
+                      {selectedCurrency === 'AFN' ? '+500 افـ' : `+${currencySymbol}10`}
+                    </button>
+                    <button 
+                      onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 1000 : 25)}
+                      className="preset-pill flex-1 min-w-[70px] rounded-full px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs text-center shadow-sm border border-slate-200 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
+                      type="button"
+                    >
+                      {selectedCurrency === 'AFN' ? '+1,000 افـ' : `+${currencySymbol}25`}
+                    </button>
+                    <button 
+                      onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 2500 : 50)}
+                      className="preset-pill flex-1 min-w-[70px] rounded-full px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs text-center shadow-sm border border-slate-200 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
+                      type="button"
+                    >
+                      {selectedCurrency === 'AFN' ? '+2,500 افـ' : `+${currencySymbol}50`}
+                    </button>
+                    <button 
+                      onClick={() => handleQuickAdd(selectedCurrency === 'AFN' ? 5000 : 100)}
+                      className="preset-pill flex-1 min-w-[70px] rounded-full px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs text-center shadow-sm border border-slate-200 transition-all duration-150 active:scale-95 cursor-pointer select-none" 
+                      type="button"
+                    >
+                      {selectedCurrency === 'AFN' ? '+5,000 افـ' : `+${currencySymbol}100`}
+                    </button>
                   </div>
                 </div>
-                <button
+              </div>
+
+              {/* Income Source Selector */}
+              <div className="rounded-3xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg space-y-3 w-full">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900 tracking-tight">{t('finance.incomeSource', 'Income Source')}</h2>
+                    <p className="text-xs text-slate-600">{t('finance.chooseSourceType', 'Choose source type for cashflow analytics')}</p>
+                  </div>
+                  <span className="text-xs text-primary font-semibold">{incomeSource}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1" id="sources-container">
+                  {SOURCES.map((s) => {
+                    const isSelected = incomeSource === s.name;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => setIncomeSource(s.name)}
+                        className={`source-card p-3 pl-4 flex items-center justify-between rounded-2xl transition-all text-xs font-semibold active:scale-95 cursor-pointer select-none ${s.colSpan || ''} ${
+                          isSelected
+                            ? 'text-primary bg-primary/10 border-2 border-primary shadow-sm font-semibold'
+                            : 'text-slate-700 bg-white/90 border border-slate-200 hover:bg-slate-50'
+                        }`}
+                        data-source={s.name}
+                        type="button"
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <span className="material-symbols-outlined text-[18px]" style={isSelected ? { fontVariationSettings: '"FILL" 1' } : {}}>
+                            {s.icon}
+                          </span>
+                          <span className="truncate">{s.name}</span>
+                        </div>
+                        {isSelected && (
+                          <span className="material-symbols-outlined text-[16px] text-primary shrink-0">check_circle</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Monthly Impact Bento Tile */}
+              <div className="p-4 rounded-2xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg w-full">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <span className="material-symbols-outlined text-[18px]">trending_up</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-label-md text-label-md text-slate-900 font-medium">{t('finance.monthlyImpact', 'Monthly Impact')}</span>
+                    <span className="font-body-sm text-body-sm text-emerald-600 font-semibold">{impactPercentageText} {t('finance.toLiquidityGoals', 'to liquidity goals')}</span>
+                  </div>
+                </div>
+                <span className="text-base font-bold text-emerald-600">
+                  {numericVal > 0 ? (selectedCurrency === 'AFN' ? `+${formattedAmount} افـ${t('common.perMonth', '/mo')}` : `+${currencySymbol}${formattedAmount}${t('common.perMonth', '/mo')}`) : (selectedCurrency === 'AFN' ? '0.00 افـ' : `${currencySymbol}0.00`)}
+                </span>
+              </div>
+            </div>
+
+            {/* ── RIGHT COLUMN (Cols 8-12 on Desktop): Details & Actions ── */}
+            <div className="w-full lg:col-span-5 flex flex-col gap-4">
+              {/* Income Details Form Card */}
+              <div className="rounded-3xl p-5 space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg w-full">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">{t('finance.depositDetails', 'Deposit Details')}</h2>
+
+                {/* Payer / Company Field */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-500 uppercase tracking-wider block" htmlFor="payer-input">{t('finance.sourceTitlePayer', 'Source Title / Payer Name')}</label>
+                  <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-white/90 border border-slate-200">
+                    <span className="material-symbols-outlined text-primary text-[20px]">domain</span>
+                    <input 
+                      aria-label={t('finance.sourceTitlePayer', 'Source Title or Payer Name')} 
+                      className="w-full bg-transparent text-sm text-slate-900 focus:outline-none placeholder:text-slate-400" 
+                      id="payer-input" 
+                      type="text" 
+                      value={payerName}
+                      onChange={(e) => setPayerName(e.target.value)}
+                      placeholder={t('finance.clientEmployerPlaceholder', 'e.g. Client or Employer Name')}
+                    />
+                    <span className="material-symbols-outlined text-slate-400 text-[18px]">edit</span>
+                  </div>
+                </div>
+
+                {/* Date & Deposit Frequency Field */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-500 uppercase tracking-wider block" htmlFor="schedule-trigger">{t('finance.depositScheduleRecurrence', 'Deposit Schedule & Recurrence')}</label>
+                  <div id="income-date-tile"
+                    onClick={handleDateClick}
+                    className="relative flex items-center justify-between px-3.5 py-2.5 rounded-2xl cursor-pointer transition-colors bg-white/90 border border-slate-200 hover:bg-slate-50" 
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="material-symbols-outlined text-emerald-600 text-[20px]">event_repeat</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium text-slate-900 truncate">{formatDisplayDate(depositDate)}</span>
+                        <span className="text-xs text-primary font-medium">{depositSchedule}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleScheduleClick}
+                      className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                      title={t('finance.configureRecurrence', 'Configure Recurrence')}
+                    >
+                      <span className="material-symbols-outlined text-slate-500 text-[20px]">tune</span>
+                    </button>
+                  </div>
+                  <MomentumDatePicker
+                    isOpen={isDatePickerOpen}
+                    onClose={() => setIsDatePickerOpen(false)}
+                    value={depositDate}
+                    onSelect={(newDate) => setDepositDate(newDate)}
+                    title={t('finance.selectDepositDate', 'Select Deposit Date')}
+                  />
+                </div>
+
+                {/* Notes & Memo Field */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs text-slate-500 uppercase tracking-wider block" htmlFor="memo-input">{t('finance.notesMemo', 'Notes & Memo')}</label>
+                    <span className="text-xs text-slate-500">{memo.length} / 140</span>
+                  </div>
+                  <div className="px-3.5 py-3 rounded-2xl bg-white/90 border border-slate-200">
+                    <textarea 
+                      aria-label={t('finance.notesMemo', 'Notes and Memo')} 
+                      className="w-full bg-transparent text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none" 
+                      id="memo-input" 
+                      rows="3"
+                      maxLength={140}
+                      value={memo}
+                      onChange={(e) => setMemo(e.target.value)}
+                      placeholder={t('finance.addNotesMemo', 'Add notes and memo...')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Primary & Secondary Action Buttons Card */}
+              <div className="rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg w-full">
+                {/* Radiant Primary Button */}
+                <button 
+                  onClick={handleSave}
+                  className="btn-primary w-full h-12 text-sm font-bold shadow-md cursor-pointer select-none !bg-emerald-600 hover:!bg-emerald-700 flex items-center justify-center gap-2" 
+                  id="save-income-btn" 
                   type="button"
-                  onClick={handleScheduleClick}
-                  className="p-1 rounded-lg hover:bg-slate-200/50 transition-colors"
-                  title="Configure Recurrence"
                 >
-                  <span className="material-symbols-outlined text-on-surface-variant text-[20px]">tune</span>
+                  <span>{t('finance.saveIncomeEntry', 'Save Income Entry')}</span>
+                  <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                 </button>
+
+                {/* Secondary Actions: Cancel & Delete Side-by-Side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={handleCancel}
+                    className="btn-secondary w-full h-11 text-xs font-semibold cursor-pointer select-none flex items-center justify-center" 
+                    type="button"
+                  >
+                    {t('common.cancel', 'Cancel')}
+                  </button>
+                  <button 
+                    onClick={handleDelete}
+                    className="btn-danger w-full h-11 text-xs font-semibold cursor-pointer select-none flex items-center justify-center gap-1.5" 
+                    id="delete-income-btn" 
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                    <span>{t('finance.deleteIncomeRecord', 'Delete')}</span>
+                  </button>
+                </div>
               </div>
+
             </div>
 
-            {/* Notes & Memo Field */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="font-label-md text-label-md text-on-surface-variant block" htmlFor="memo-input">Notes &amp; Memo</label>
-                <span className="font-label-sm text-label-sm text-on-surface-variant/70">{memo.length} / 140</span>
-              </div>
-              <div className="px-space-md py-3 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-                <textarea 
-                  aria-label="Notes and Memo" 
-                  className="w-full bg-transparent font-body-md text-body-md text-on-surface placeholder-on-surface-variant/50 focus:outline-none resize-none" 
-                  id="memo-input" 
-                  rows="2"
-                  maxLength={140}
-                  value={memo}
-                  onChange={(e) => setMemo(e.target.value)}
-                  placeholder="Add notes and memo..."
-                />
-              </div>
-            </div>
           </div>
-
-          {/* Realtime Projection Micro-Card */}
-          <div className="p-space-md rounded-2xl flex items-center justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-            <div className="flex items-center gap-space-sm">
-              <div className="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center text-secondary">
-                <span className="material-symbols-outlined text-[18px]">trending_up</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-label-md text-label-md text-on-surface">Monthly Impact</span>
-                <span className="font-body-sm text-body-sm text-secondary font-semibold">{impactPercentageText} to liquidity goals</span>
-              </div>
-            </div>
-            <span className="font-headline-sm text-headline-sm text-tertiary font-bold">
-              {numericVal > 0 ? (selectedCurrency === 'AFN' ? `+${formattedAmount} افـ/mo` : `+${currencySymbol}${formattedAmount}/mo`) : (selectedCurrency === 'AFN' ? '0.00 افـ' : `${currencySymbol}0.00`)}
-            </span>
-          </div>
-
-          {/* Primary & Secondary Action Buttons */}
-          <div className="flex flex-col gap-3 pt-2">
-            {/* Radiant Primary Button */}
-            <button 
-              onClick={handleSave}
-              className="btn-primary w-full cursor-pointer select-none" 
-              id="save-income-btn" 
-              type="button"
-            >
-              <span>Save Income Entry</span>
-              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
-            </button>
-
-            {/* Secondary Actions: Cancel & Delete Side-by-Side */}
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => setActiveTab && setActiveTab('finance_expense_tracker_light_mode')}
-                className="btn-secondary w-full cursor-pointer select-none" 
-                type="button"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDelete}
-                className="btn-danger w-full cursor-pointer select-none" 
-                id="delete-income-btn" 
-                type="button"
-              >
-                <span className="material-symbols-outlined text-[18px]">delete</span>
-                <span>Delete Income Record</span>
-              </button>
-            </div>
-          </div>
-
         </div>
       </main>
     </>

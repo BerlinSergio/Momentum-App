@@ -1,7 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { useNavigationStore } from './store/useNavigationStore';
 import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { WallpaperProvider, useWallpaper } from './context/WallpaperContext';
+import { AnimatePresence } from 'framer-motion';
+import { WallpaperProvider } from './context/WallpaperContext';
 import GlobalBackground from './components/GlobalBackground';
 import WallpaperSelector from './components/WallpaperSelector';
 import SplashScreen from './SplashScreen';
@@ -24,6 +25,8 @@ import AppLockLightMode from './AppLockLightMode';
 import AppLockGuard from './components/AppLockGuard';
 import BackgroundPreviewBlurControlDarkMode from './BackgroundPreviewBlurControlDarkMode';
 import BackgroundPreviewBlurControlLightMode from './BackgroundPreviewBlurControlLightMode';
+import BackupRestoreDarkMode from './BackupRestoreDarkMode';
+import BackupRestoreLightMode from './BackupRestoreLightMode';
 import BackgroundWallpaperLibraryDarkMode from './BackgroundWallpaperLibraryDarkMode';
 import BackgroundWallpaperLibraryLightMode from './BackgroundWallpaperLibraryLightMode';
 import BiometricSettingsDarkMode from './BiometricSettingsDarkMode';
@@ -32,8 +35,6 @@ import CalendarsMainDarkMode from './CalendarsMainDarkMode';
 import CalendarsMainLightMode from './CalendarsMainLightMode';
 import CitySelectionDarkMode from './CitySelectionDarkMode';
 import CitySelectionLightMode from './CitySelectionLightMode';
-import DailyRoutineDarkMode from './DailyRoutineDarkMode';
-import DailyRoutineLightMode from './DailyRoutineLightMode';
 import EditProfileDarkMode from './EditProfileDarkMode';
 import EditProfileLightMode from './EditProfileLightMode';
 import FinanceExpenseTrackerDarkMode from './FinanceExpenseTrackerDarkMode';
@@ -44,6 +45,8 @@ import HomeDashboardDarkMode from './HomeDashboardDarkMode';
 import HomeDashboardLightMode from './HomeDashboardLightMode';
 import IslamicHijriCalendarDarkMode from './IslamicHijriCalendarDarkMode';
 import IslamicHijriCalendarLightMode from './IslamicHijriCalendarLightMode';
+import LanguageSettingsDarkMode from './LanguageSettingsDarkMode';
+import LanguageSettingsLightMode from './LanguageSettingsLightMode';
 import LongNoteEditorDarkMode from './LongNoteEditorDarkMode';
 import LongNoteEditorLightMode from './LongNoteEditorLightMode';
 import MoreDarkMode from './MoreDarkMode';
@@ -76,19 +79,87 @@ import TasbeehSettingsDarkMode from './TasbeehSettingsDarkMode';
 import TasbeehSettingsLightMode from './TasbeehSettingsLightMode';
 import TasksRemindersDarkMode from './TasksRemindersDarkMode';
 import TasksRemindersLightMode from './TasksRemindersLightMode';
+import TaskDetailsDarkMode from './TaskDetailsDarkMode';
+import TaskDetailsLightMode from './TaskDetailsLightMode';
+import RoutineDetailsDarkMode from './RoutineDetailsDarkMode';
+import RoutineDetailsLightMode from './RoutineDetailsLightMode';
 import TimezoneSelectionDarkMode from './TimezoneSelectionDarkMode';
 import TimezoneSelectionLightMode from './TimezoneSelectionLightMode';
 import BottomNavBar from './components/BottomNavBar';
+import DesktopSidebar from './components/DesktopSidebar';
+import DevScreenNavigatorModal from './components/dev/DevScreenNavigatorModal';
+import { PageTransition } from './motion/index.js';
+import { ToastViewport, toast, useToastStore } from './components/ui/toast/index.js';
+import { ConfirmationViewport } from './components/ui/confirmation/index.js';
 
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 import { useThemeStore } from './store/useThemeStore';
 import { useNotesStore } from './store/useNotesStore';
-import { useFinanceStore } from './store/useFinanceStore';
 import useSecurityStore from './store/useSecurityStore';
+import { useProfileStore } from './store/useProfileStore';
+import { useLocaleStore } from './store/useLocaleStore';
+import { useSettingsStore } from './store/useSettingsStore';
+import { useNotificationStore } from './store/useNotificationStore';
+import { useFinanceStore } from './store/useFinanceStore';
+import { useTaskStore } from './store/useTaskStore';
+import { useTasbeehStore } from './store/useTasbeehStore';
+import { usePrayerStore } from './store/usePrayerStore';
 import { useRoutineStore } from './store/useRoutineStore';
-import { BACKGROUND_LIBRARY, getBackgroundById, getWallpaperPair, NONE_WALLPAPER } from './data/defaultWallpapers';
+import { useCalendarStore } from './store/useCalendarStore';
+import { useLocationStore, CITIES_DATA } from './store/useLocationStore';
+import { useTimeStore } from './store/useTimeStore';
+import * as timeService from './utils/timeService';
+import * as prayerTimes from './utils/prayerTimes';
+import * as backupService from './utils/backupService';
+import * as backupCrypto from './utils/backupCrypto';
+import * as credentialService from './utils/credentialService';
+import * as storage from './storage/index.js';
+import * as nativeLifecycle from './utils/nativeLifecycle';
+import * as nativeLocation from './utils/nativeLocation';
+import * as nativeNotifications from './utils/nativeNotifications';
+import * as nativeBackup from './utils/nativeBackup';
+import { initializeNativeLifecycle } from './utils/nativeLifecycle';
+import { scheduleAllActiveNotifications } from './utils/nativeNotifications';
+import { hydrateAllStores, getStartupDecision, isOnboardingRoute } from './utils/startupController';
+import { BACKGROUND_LIBRARY, getWallpaperPair } from './data/defaultWallpapers';
+import { isRtl } from './i18n/localeUtils.js';
+
+// Expose stores globally strictly for local development and authorized automated QA testing
+if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
+  useLocationStore.CITIES_DATA = CITIES_DATA;
+  window.useProfileStore = useProfileStore;
+  window.useLocaleStore = useLocaleStore;
+  window.useNavigationStore = useNavigationStore;
+  window.useSecurityStore = useSecurityStore;
+  window.useSettingsStore = useSettingsStore;
+  window.useNotificationStore = useNotificationStore;
+  window.useFinanceStore = useFinanceStore;
+  window.useTaskStore = useTaskStore;
+  window.useTasbeehStore = useTasbeehStore;
+  window.useNotesStore = useNotesStore;
+  window.useThemeStore = useThemeStore;
+  window.useTimeStore = useTimeStore;
+  window.usePrayerStore = usePrayerStore;
+  window.useRoutineStore = useRoutineStore;
+  window.useCalendarStore = useCalendarStore;
+  window.useLocationStore = useLocationStore;
+  window.useToastStore = useToastStore;
+  window.toast = toast;
+  window.CITIES_DATA = CITIES_DATA;
+  window.timeService = timeService;
+  window.prayerTimes = prayerTimes;
+  window.backupService = backupService;
+  window.backupCrypto = backupCrypto;
+  window.credentialService = credentialService;
+  window.storage = storage;
+  window.attachmentStorage = storage;
+  window.nativeLifecycle = nativeLifecycle;
+  window.nativeLocation = nativeLocation;
+  window.nativeNotifications = nativeNotifications;
+  window.nativeBackup = nativeBackup;
+}
 
 function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
   const activeBackgroundId = useThemeStore((s) => s.activeBackgroundId);
@@ -97,7 +168,6 @@ function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
   const downloadedWallpapers = useThemeStore((s) => s.downloadedWallpapers);
   const blurIntensity = useThemeStore((s) => s.blurIntensity) ?? 18;
   const dimWallpaper = useThemeStore((s) => s.dimWallpaper) ?? true;
-  const { currentWallpaper } = useWallpaper();
 
   if (activeTab.includes('splash_screen')) return null;
 
@@ -140,10 +210,31 @@ function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
 }
 
 function AppContent() {
-  const { activeTab, setActiveTab, goBack, syncFromPopState, routeParams } = useNavigationStore();
+  const { t } = useTranslation();
+  const { activeTab, setActiveTab, goBack, syncFromPopState, routeParams, navigationDirection, sidebarPosition: rawSidebarPos } = useNavigationStore();
+  const sidebarPosition = rawSidebarPos || 'left';
+  const currentLocale = useLocaleStore((s) => s.currentLocale || s.locale || 'en');
+  const isCurrentRtl = useLocaleStore((s) => s.isRTL ?? isRtl(currentLocale));
+
+  const shellLayoutClass = useMemo(() => {
+    switch (sidebarPosition) {
+      case 'right':
+        return 'flex-row-reverse';
+      case 'top':
+        return 'flex-col';
+      case 'bottom':
+        return 'flex-col-reverse';
+      case 'left':
+      default:
+        return 'flex-row';
+    }
+  }, [sidebarPosition]);
+
   const storeActiveNoteId = useNotesStore((s) => s.activeNoteId);
   const route = useMemo(() => ({ name: activeTab, params: routeParams || {} }), [activeTab, routeParams]);
   const isNewNote = Boolean(routeParams?.isNew || (!routeParams?.noteId && !storeActiveNoteId));
+  const setupCompleted = useProfileStore((s) => s.setupCompleted);
+  const onboardingStep = useProfileStore((s) => s.onboardingStep);
   const isLocked = useSecurityStore((s) => s.isLocked);
   const isAppLockActive = useSecurityStore((s) => s.isAppLockActive);
   const hasPin = useSecurityStore((s) => s.hasPin);
@@ -152,11 +243,16 @@ function AppContent() {
   // App-level Initialization Splash Screen State (runs every time the app launches/reloads)
   const [isAppLoading, setIsAppLoading] = useState(true);
 
+  if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
+    window.setIsAppLoading = setIsAppLoading;
+  }
+
   const hideBottomNav = isAppLoading || isVaultLocked || 
     activeTab.includes('splash_screen') || 
     activeTab.includes('personal_setup') || 
     activeTab.includes('pin_setup') || 
-    activeTab.includes('quick_note_editor');
+    activeTab.includes('quick_note_editor') ||
+    setupCompleted !== true;
   
   const [isWallpaperSelectorOpen, setIsWallpaperSelectorOpen] = useState(false);
   const { syncThemeToScreen, theme } = useTheme();
@@ -166,7 +262,31 @@ function AppContent() {
   // Auto-sync theme based on active screen name
   useEffect(() => {
     syncThemeToScreen(activeTab);
-  }, [activeTab]);
+  }, [activeTab, syncThemeToScreen]);
+
+  // Onboarding route protection guard: prevent deep links, history or dev-navigator from bypassing onboarding
+  useEffect(() => {
+    if (!isAppLoading && setupCompleted !== true) {
+      if (!isOnboardingRoute(activeTab)) {
+        const isDark = activeTab.includes('_dark_mode') || theme === 'dark';
+        const fallbackScreen = onboardingStep === 'security_setup'
+          ? (isDark ? 'pin_setup_change_dark_mode' : 'pin_setup_change_light_mode')
+          : (isDark ? 'personal_setup_dark_mode' : 'personal_setup_light_mode');
+        setActiveTab(fallbackScreen);
+      }
+    }
+  }, [isAppLoading, setupCompleted, onboardingStep, activeTab, theme, setActiveTab]);
+
+  const handleSplashComplete = () => {
+    const isDark = typeof theme === 'string' ? theme === 'dark' : true;
+    const requestedScreen = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('screen')
+      : null;
+
+    const decision = getStartupDecision({ isDark, requestedScreen });
+    setActiveTab(decision.targetScreen);
+    setIsAppLoading(false);
+  };
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -180,10 +300,54 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [syncFromPopState]);
 
-  const handleNavChange = (e) => {
-    const newScreen = e.target.value;
-    setActiveTab(newScreen);
+  // Developer Screen Navigator & Layout Mode States (DEV ONLY)
+  const [isDevNavigatorOpen, setIsDevNavigatorOpen] = useState(false);
+  const [devLayoutMode, setDevLayoutMode] = useState(() => {
+    if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
+      return localStorage.getItem('momentum_dev_layout_mode') || 'responsive';
+    }
+    return 'responsive';
+  });
+
+  const toggleDevLayoutMode = () => {
+    const next = devLayoutMode === 'responsive' ? 'mobile_preview' : 'responsive';
+    setDevLayoutMode(next);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('momentum_dev_layout_mode', next);
+    }
   };
+
+  // Keyboard shortcut listener for Ctrl+Shift+Alt+D and custom open event
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    const handleOpenEvent = () => {
+      if (!isVaultLocked) {
+        setIsDevNavigatorOpen(true);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.altKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        if (!isVaultLocked) {
+          setIsDevNavigatorOpen((prev) => !prev);
+        }
+      }
+    };
+
+    window.addEventListener('momentum:open-dev-navigator', handleOpenEvent);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('momentum:open-dev-navigator', handleOpenEvent);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isVaultLocked]);
 
   const renderScreen = () => {
  switch (activeTab) {
@@ -211,6 +375,10 @@ function AppContent() {
  case 'background_preview_blur_control_dark_mode': return <BackgroundPreviewBlurControlDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'background_blur_control_light_mode':
  case 'background_preview_blur_control_light_mode': return <BackgroundPreviewBlurControlLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'backup_restore':
+   return isDarkMode ? <BackupRestoreDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <BackupRestoreLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'backup_restore_dark_mode': return <BackupRestoreDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'backup_restore_light_mode': return <BackupRestoreLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'background_library_dark_mode':
  case 'background_wallpaper_library_dark_mode': return <BackgroundWallpaperLibraryDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'background_library_light_mode':
@@ -230,10 +398,10 @@ function AppContent() {
    return isDarkMode ? <EditProfileDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <EditProfileLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'edit_profile_dark_mode': return <EditProfileDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'edit_profile_light_mode': return <EditProfileLightMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'finance_dashboard_dark_mode':
- case 'finance_expense_tracker_dark_mode': return <FinanceExpenseTrackerDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'finance_dashboard_light_mode':
- case 'finance_expense_tracker_light_mode': return <FinanceExpenseTrackerLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'finance_dashboard_dark_mode': return <FinanceExpenseTrackerDarkMode setActiveTab={setActiveTab} goBack={goBack} initialTab="dashboard" />;
+ case 'finance_expense_tracker_dark_mode': return <FinanceExpenseTrackerDarkMode setActiveTab={setActiveTab} goBack={goBack} initialTab="expenses" />;
+ case 'finance_dashboard_light_mode': return <FinanceExpenseTrackerLightMode setActiveTab={setActiveTab} goBack={goBack} initialTab="dashboard" />;
+ case 'finance_expense_tracker_light_mode': return <FinanceExpenseTrackerLightMode setActiveTab={setActiveTab} goBack={goBack} initialTab="expenses" />;
  case 'gregorian_calendar_dark_mode': return <GregorianCalendarDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'gregorian_calendar_light_mode': return <GregorianCalendarLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'home_dashboard_dark_mode': return <HomeDashboardDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -242,6 +410,10 @@ function AppContent() {
  case 'income_management_light_mode': return <FinanceExpenseTrackerLightMode setActiveTab={setActiveTab} goBack={goBack} initialTab="income" />;
  case 'islamic_hijri_calendar_dark_mode': return <IslamicHijriCalendarDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'islamic_hijri_calendar_light_mode': return <IslamicHijriCalendarLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'language_settings_dark_mode': return <LanguageSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'language_settings_light_mode': return <LanguageSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'language_settings':
+ case 'language': return isDarkMode ? <LanguageSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <LanguageSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'note_editor_dark_mode':
  case 'long_note_editor_dark_mode': return <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
  case 'note_editor_light_mode':
@@ -254,8 +426,12 @@ function AppContent() {
  case 'notes_main_light_mode': return <NotesMainLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'note_media_attachment_viewer_dark_mode': return <NoteMediaAttachmentViewerDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
  case 'note_media_attachment_viewer_light_mode': return <NoteMediaAttachmentViewerLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
- case 'notifications_settings_dark_mode': return <NotificationsSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'notifications_settings_light_mode': return <NotificationsSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'notifications_settings_dark_mode':
+ case 'notifications_center_dark_mode':
+   return <NotificationsSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'notifications_settings_light_mode':
+ case 'notifications_center_light_mode':
+   return <NotificationsSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'personal_setup_dark_mode': return <PersonalSetupDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'personal_setup_light_mode': return <PersonalSetupLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'pin_setup_change_dark_mode': return <PinSetupChangeDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -287,16 +463,23 @@ function AppContent() {
  case 'tasbeeh_settings_light_mode': return <TasbeehSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'tasks_reminders_dark_mode':
   case 'tasks_reminders_dark_mode_1':
-  case 'tasks_reminders_dark_mode_2': return <TasksRemindersDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
+  case 'tasks_reminders_dark_mode_2': return <TasksRemindersDarkMode setActiveTab={setActiveTab} goBack={goBack} initialSubTab="tasks" />;
   case 'tasks_reminders_light_mode':
   case 'tasks_reminders_light_mode_1':
-  case 'tasks_reminders_light_mode_2': return <TasksRemindersLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+  case 'tasks_reminders_light_mode_2': return <TasksRemindersLightMode setActiveTab={setActiveTab} goBack={goBack} initialSubTab="tasks" />;
  case 'timezone_selection_dark_mode': return <TimezoneSelectionDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'timezone_selection_light_mode': return <TimezoneSelectionLightMode setActiveTab={setActiveTab} goBack={goBack} />;
 
+ case 'task_details_dark_mode': return <TaskDetailsDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
+ case 'task_details_light_mode': return <TaskDetailsLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
+ case 'task_details': return isDarkMode ? <TaskDetailsDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} /> : <TaskDetailsLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
+ case 'routine_details_dark_mode': return <RoutineDetailsDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
+ case 'routine_details_light_mode': return <RoutineDetailsLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
+ case 'routine_details': return isDarkMode ? <RoutineDetailsDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} /> : <RoutineDetailsLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} />;
+
  case 'home': return isDarkMode ? <HomeDashboardDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <HomeDashboardLightMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'finance': return isDarkMode ? <FinanceExpenseTrackerDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <FinanceExpenseTrackerLightMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'tasks': return isDarkMode ? <TasksRemindersDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <TasksRemindersLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'finance': return isDarkMode ? <FinanceExpenseTrackerDarkMode setActiveTab={setActiveTab} goBack={goBack} initialTab="expenses" /> : <FinanceExpenseTrackerLightMode setActiveTab={setActiveTab} goBack={goBack} initialTab="expenses" />;
+ case 'tasks': return isDarkMode ? <TasksRemindersDarkMode setActiveTab={setActiveTab} goBack={goBack} initialSubTab="tasks" /> : <TasksRemindersLightMode setActiveTab={setActiveTab} goBack={goBack} initialSubTab="tasks" />;
  case 'more': return isDarkMode ? <MoreDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <MoreLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'biometric_settings': return isDarkMode ? <BiometricSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <BiometricSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'calendars_and_time':
@@ -330,187 +513,188 @@ function AppContent() {
  case 'settings_profile': return isDarkMode ? <SettingsProfileDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <SettingsProfileLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'islamic_hijri_calendar':
  case 'hijri_calendar': return isDarkMode ? <IslamicHijriCalendarDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <IslamicHijriCalendarLightMode setActiveTab={setActiveTab} goBack={goBack} />;
+ case 'notifications_center':
  case 'notifications': return isDarkMode ? <NotificationsSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <NotificationsSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
 
- default: return <div className="p-8 text-white">Screen not found: {activeTab}</div>;
+ default: return <div className="p-8 text-white">{t('app.screenNotFound', 'Screen not found')}: {activeTab}</div>;
  }
  };
 
 
- return (
- <>
- <div className="min-h-screen w-full flex items-center justify-center p-6 relative font-sans antialiased text-on-surface">
- <GlobalBackground isDarkMode={isDarkMode} />
- 
- {/* Dev Tools Sidebar (Fixed Top-Left) */}
-  {!isAppLoading && (
-  <div className="fixed top-6 left-6 w-72 z-[9999] bg-white/90 /90 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-outline-variant/50 /10 flex flex-col gap-3 font-sans">
- <div className="flex justify-between items-center px-1">
- <label className="text-xs uppercase tracking-wider text-on-surface-variant dark:text-on-surface-variant font-bold">Dev Navigator</label>
- <button 
- onClick={() => setIsWallpaperSelectorOpen(true)}
- className="text-xs uppercase tracking-wider text-primary dark:text-blue-400 font-bold hover:text-primary transition-colors"
- >
- BG Engine
- </button>
- </div>
- <select 
- value={activeTab} 
- onChange={handleNavChange}
- className="bg-surface-container-low dark:bg-surface-container text-on-surface text-sm rounded-xl border border-outline-variant /10 p-3 outline-none focus:ring-2 focus:ring-primary w-full"
- >
- <option value="about_momentum_dark_mode">About Momentum Dark Mode</option>
- <option value="about_momentum_light_mode">About Momentum Light Mode</option>
- <option value="add_edit_expense_dark_mode">Add Edit Expense Dark Mode</option>
- <option value="add_edit_expense_light_mode">Add Edit Expense Light Mode</option>
- <option value="add_edit_income_dark_mode">Add Edit Income Dark Mode</option>
- <option value="add_edit_income_light_mode">Add Edit Income Light Mode</option>
- <option value="add_edit_routine_dark_mode">Add Edit Routine Dark Mode</option>
- <option value="add_edit_routine_light_mode">Add Edit Routine Light Mode</option>
- <option value="add_edit_task_dark_mode">Add Edit Task Dark Mode</option>
- <option value="add_edit_task_light_mode">Add Edit Task Light Mode</option>
- <option value="afghan_solar_hijri_shamsi_calendar_dark_mode">Afghan Solar Hijri Shamsi Calendar Dark Mode</option>
- <option value="afghan_solar_hijri_shamsi_calendar_light_mode">Afghan Solar Hijri Shamsi Calendar Light Mode</option>
- <option value="appearance_dark_mode">Appearance Dark Mode</option>
- <option value="appearance_light_mode">Appearance Light Mode</option>
- <option value="app_lock_dark_mode">App Lock Dark Mode</option>
- <option value="app_lock_light_mode">App Lock Light Mode</option>
- <option value="background_preview_blur_control_dark_mode">Background Preview Blur Control Dark Mode</option>
- <option value="background_preview_blur_control_light_mode">Background Preview Blur Control Light Mode</option>
- <option value="background_wallpaper_library_dark_mode">Background Wallpaper Library Dark Mode</option>
- <option value="background_wallpaper_library_light_mode">Background Wallpaper Library Light Mode</option>
- <option value="biometric_settings_dark_mode">Biometric Settings Dark Mode</option>
- <option value="biometric_settings_light_mode">Biometric Settings Light Mode</option>
- <option value="calendars_main_dark_mode">Calendars Main Dark Mode</option>
- <option value="calendars_main_light_mode">Calendars Main Light Mode</option>
- <option value="city_selection_dark_mode">City Selection Dark Mode</option>
- <option value="city_selection_light_mode">City Selection Light Mode</option>
- <option value="daily_routine_dark_mode">Daily Routine Dark Mode</option>
- <option value="daily_routine_light_mode">Daily Routine Light Mode</option>
- <option value="edit_profile_dark_mode">Edit Profile Dark Mode</option>
- <option value="edit_profile_light_mode">Edit Profile Light Mode</option>
- <option value="finance_dashboard_dark_mode">Finance Dashboard Dark Mode</option>
- <option value="finance_dashboard_light_mode">Finance Dashboard Light Mode</option>
- <option value="finance_expense_tracker_dark_mode">Finance Expense Tracker Dark Mode</option>
- <option value="finance_expense_tracker_light_mode">Finance Expense Tracker Light Mode</option>
- <option value="gregorian_calendar_dark_mode">Gregorian Calendar Dark Mode</option>
- <option value="gregorian_calendar_light_mode">Gregorian Calendar Light Mode</option>
- <option value="home_dashboard_dark_mode">Home Dashboard Dark Mode</option>
- <option value="home_dashboard_light_mode">Home Dashboard Light Mode</option>
- <option value="income_management_dark_mode">Income Management Dark Mode</option>
- <option value="income_management_light_mode">Income Management Light Mode</option>
- <option value="islamic_hijri_calendar_dark_mode">Islamic Hijri Calendar Dark Mode</option>
- <option value="islamic_hijri_calendar_light_mode">Islamic Hijri Calendar Light Mode</option>
- <option value="long_note_editor_dark_mode">Long Note Editor Dark Mode</option>
- <option value="long_note_editor_light_mode">Long Note Editor Light Mode</option>
- <option value="more_dark_mode">More Dark Mode</option>
- <option value="more_light_mode">More Light Mode</option>
- <option value="new_edit_tasbeeh_dark_mode">New Edit Tasbeeh Dark Mode</option>
- <option value="new_edit_tasbeeh_light_mode">New Edit Tasbeeh Light Mode</option>
- <option value="notes_main_dark_mode">Notes Main Dark Mode</option>
- <option value="notes_main_light_mode">Notes Main Light Mode</option>
- <option value="note_media_attachment_viewer_dark_mode">Note Media Attachment Viewer Dark Mode</option>
- <option value="note_media_attachment_viewer_light_mode">Note Media Attachment Viewer Light Mode</option>
- <option value="notifications_settings_dark_mode">Notifications Settings Dark Mode</option>
- <option value="notifications_settings_light_mode">Notifications Settings Light Mode</option>
- <option value="personal_setup_dark_mode">Personal Setup Dark Mode</option>
- <option value="personal_setup_light_mode">Personal Setup Light Mode</option>
- <option value="pin_setup_change_dark_mode">Pin Setup Change Dark Mode</option>
- <option value="pin_setup_change_light_mode">Pin Setup Change Light Mode</option>
- <option value="prayer_times_dark_mode">Prayer Times Dark Mode</option>
- <option value="prayer_times_light_mode">Prayer Times Light Mode</option>
- <option value="quick_note_editor_dark_mode">Quick Note Editor Dark Mode</option>
- <option value="quick_note_editor_light_mode">Quick Note Editor Light Mode</option>
- <option value="settings_profile_dark_mode">Settings Profile Dark Mode</option>
- <option value="settings_profile_light_mode">Settings Profile Light Mode</option>
- <option value="splash_screen_dark_mode">Splash Screen Dark Mode</option>
- <option value="splash_screen_light_mode">Splash Screen Light Mode</option>
- <option value="tasbeeh_history_dark_mode">Tasbeeh History Dark Mode</option>
- <option value="tasbeeh_history_light_mode">Tasbeeh History Light Mode</option>
- <option value="tasbeeh_main_dark_mode">Tasbeeh Main Dark Mode</option>
- <option value="tasbeeh_main_light_mode">Tasbeeh Main Light Mode</option>
- <option value="tasbeeh_settings_dark_mode">Tasbeeh Settings Dark Mode</option>
- <option value="tasbeeh_settings_light_mode">Tasbeeh Settings Light Mode</option>
- <option value="tasks_reminders_dark_mode">Tasks Reminders Dark Mode</option>
-  <option value="tasks_reminders_light_mode">Tasks Reminders Light Mode</option>
- <option value="timezone_selection_dark_mode">Timezone Selection Dark Mode</option>
- <option value="timezone_selection_light_mode">Timezone Selection Light Mode</option>
+  return (
+    <>
+      {devLayoutMode === 'mobile_preview' && Boolean(import.meta.env.DEV) ? (
+        /* ── DEV-ONLY SIMULATED MOBILE PHONE PREVIEW ── */
+        <div className="h-screen w-full flex flex-col items-center justify-center p-2 sm:p-6 relative font-sans antialiased text-on-surface overflow-hidden">
+          <GlobalBackground isDarkMode={isDarkMode} />
 
- </select>
- </div>
-  )}
- 
- {/* Mobile Canvas Frame */}
- <div className="w-full max-w-[412px] h-[892px] mx-auto relative overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] rounded-[40px] border-[8px] border-outline-variant/40 bg-transparent flex flex-col transform-gpu font-sans">
- {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
-  <div className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
-    <AnimatePresence mode="wait">
-      {isAppLoading ? (
-        <SplashScreen 
-          key="initial-app-splash"
-          onComplete={() => setIsAppLoading(false)} 
-        />
+          {/* Dev Mode Banner */}
+          <div className="z-20 mb-2 flex items-center gap-2.5 bg-black/70 text-slate-300 text-xs px-3.5 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
+            <span className="font-medium text-slate-400">{t('app.mobileDeviceMockup', 'Mobile Device Mockup')}</span>
+            <span className="text-white/20">•</span>
+            <button
+              type="button"
+              onClick={toggleDevLayoutMode}
+              className="text-primary font-bold hover:underline cursor-pointer"
+            >
+              {t('app.switchToDesktop', 'Switch to Responsive Desktop')}
+            </button>
+          </div>
+
+          {/* Centered Realistic Mobile Phone Frame Container */}
+          <div className="w-full h-full sm:h-[892px] sm:max-w-[412px] sm:rounded-[40px] sm:border-[8px] sm:border-outline-variant/40 sm:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] mx-auto relative overflow-hidden bg-transparent flex flex-col font-sans">
+            {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
+            <div className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
+              <AnimatePresence mode="wait">
+                {isAppLoading ? (
+                  <SplashScreen 
+                    key="initial-app-splash"
+                    onComplete={handleSplashComplete} 
+                  />
+                ) : (
+                  <AppLockGuard>
+                    <AnimatePresence mode="wait" initial={false}>
+                      <PageTransition
+                        key={activeTab}
+                        screenKey={activeTab}
+                        direction={navigationDirection}
+                        className="w-full h-full flex flex-col"
+                      >
+                        {renderScreen()}
+                      </PageTransition>
+                    </AnimatePresence>
+                  </AppLockGuard>
+                )}
+              </AnimatePresence>
+            </div>
+            {!hideBottomNav && (
+              <BottomNavBar
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                isDarkMode={isDarkMode}
+              />
+            )}
+          </div>
+        </div>
       ) : (
-        <motion.div
-          key="main-app-screen-view"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="w-full h-full"
-        >
-          <AppLockGuard>
-            {renderScreen()}
-          </AppLockGuard>
-        </motion.div>
+        /* ── RESPONSIVE APPLICATION SHELL (DEFAULT FOR DESKTOP, TABLET & MOBILE) ── */
+        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`w-full h-screen overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
+          {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
+
+          {/* Desktop Navigation Sidebar (Only rendered on desktop viewports: >= 1024px) */}
+          {!hideBottomNav && (
+            <DesktopSidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              isDarkMode={isDarkMode}
+              onOpenScreenNavigator={() => setIsDevNavigatorOpen(true)}
+              devLayoutMode={devLayoutMode}
+              onToggleDevLayoutMode={toggleDevLayoutMode}
+              onOpenWallpaperSelector={() => setIsWallpaperSelectorOpen(true)}
+            />
+          )}
+
+          {/* Main Application Canvas Viewport */}
+          <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className="flex-1 h-full overflow-hidden relative flex flex-col items-center min-w-0 transition-all duration-300 z-10">
+
+            <div
+              className={`flex-1 ${
+                isAppLoading || activeTab.includes('splash_screen')
+                  ? 'overflow-hidden overscroll-none'
+                  : 'overflow-y-auto'
+              } relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${
+                isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'
+              } ${hideBottomNav ? 'pb-0' : sidebarPosition === 'bottom' ? 'pb-4' : 'pb-36 lg:pb-8'}`}
+            >
+              <AnimatePresence mode="wait">
+                {isAppLoading ? (
+                  <SplashScreen 
+                    key="initial-app-splash"
+                    onComplete={handleSplashComplete} 
+                  />
+                ) : (
+                  <AppLockGuard>
+                    <div className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto flex-1 flex flex-col items-center px-0 lg:px-6 xl:px-8 py-0 lg:py-4">
+                      <AnimatePresence mode="wait" initial={false}>
+                        <PageTransition
+                          key={activeTab}
+                          screenKey={activeTab}
+                          direction={navigationDirection}
+                          className="w-full flex-1 flex flex-col"
+                        >
+                          {renderScreen()}
+                        </PageTransition>
+                      </AnimatePresence>
+                    </div>
+                  </AppLockGuard>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Mobile Bottom Navigation Bar (Visible on mobile/tablet < 1024px, hidden on desktop lg:hidden) */}
+            {!hideBottomNav && (
+              <div className="lg:hidden w-full">
+                <BottomNavBar
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       )}
-    </AnimatePresence>
-  </div>
-  {!hideBottomNav && (
-   <BottomNavBar
-     activeTab={activeTab}
-     setActiveTab={setActiveTab}
-     isDarkMode={isDarkMode}
-   />
- )}
- </div>
- </div>
- 
- {isWallpaperSelectorOpen && (
- <WallpaperSelector 
- isDarkMode={isDarkMode} 
- onClose={() => setIsWallpaperSelectorOpen(false)} 
- />
- )}
- </>
- );
+
+      {/* Universal Top-Center In-App Toast Viewport */}
+      <ToastViewport />
+
+      {/* Universal Momentum Confirmation & Prompt Dialog Viewport */}
+      <ConfirmationViewport />
+
+      {/* On-Demand Developer Screen Navigator Modal (Strictly isolated to dev mode) */}
+      {Boolean(import.meta.env.DEV) && (
+        <DevScreenNavigatorModal
+          isOpen={isDevNavigatorOpen && !isVaultLocked}
+          onClose={() => setIsDevNavigatorOpen(false)}
+          activeTab={activeTab}
+          onSelectScreen={(screenId) => {
+            setActiveTab(screenId);
+          }}
+          devLayoutMode={devLayoutMode}
+          onToggleDevLayoutMode={toggleDevLayoutMode}
+          onOpenWallpaperSelector={() => setIsWallpaperSelectorOpen(true)}
+        />
+      )}
+
+      {/* Wallpaper Engine Modal */}
+      {isWallpaperSelectorOpen && (
+        <WallpaperSelector 
+          isDarkMode={isDarkMode} 
+          onClose={() => setIsWallpaperSelectorOpen(false)} 
+        />
+      )}
+    </>
+  );
 }
 
 export default function App() {
-  const [hasHydrated, setHasHydrated] = useState(false);
+  const { t } = useTranslation();
+  const [, setHasHydrated] = useState(false);
 
   useEffect(() => {
     async function hydrateStores() {
-      if (typeof localStorage !== 'undefined') {
-        console.log('Hydrating from storage:', localStorage.getItem('momentum-finance-storage'));
-        console.log('[Momentum Mount Audit] momentum-security-storage:', localStorage.getItem('momentum-security-storage'));
-      }
       try {
-        await Promise.all([
-          useFinanceStore.persist.rehydrate(),
-          useSecurityStore.persist.rehydrate(),
-          useThemeStore.persist.rehydrate?.(),
-          useRoutineStore.persist.rehydrate?.(),
-        ]);
+        await hydrateAllStores();
+        // Reconcile and schedule pending alerts after stores are hydrated
+        scheduleAllActiveNotifications().catch(() => {});
       } catch (err) {
-        console.warn('[Momentum Hydration] Manual rehydrate error:', err);
+        console.warn('[Momentum Hydration] Error:', err);
       } finally {
-        useFinanceStore.getState().setHasHydrated(true);
-        useSecurityStore.getState().setHasHydrated(true);
-        useRoutineStore.getState().setHasHydrated(true);
         setHasHydrated(true);
       }
     }
     hydrateStores();
+    initializeNativeLifecycle();
   }, []);
 
   // Stores rehydrate in background while initial SplashScreen animates

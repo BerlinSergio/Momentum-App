@@ -1,11 +1,15 @@
-﻿import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useTasbeehStore } from './store/useTasbeehStore';
+import { toast } from './components/ui/toast/index.js';
+import { confirm, promptInput } from './components/ui/confirmation/index.js';
 import { 
   ArrowLeft, RotateCcw, BookOpen, Sparkles, Minus, Plus, Flag, Bell, ArrowRight, X, Trash2 
 } from 'lucide-react';
 
 export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const { activePreset, updateActivePreset, reset } = useTasbeehStore();
 
   const [title, setTitle] = useState(activePreset?.transliteration || 'Astaghfirullah wa Atubu Ilayh');
@@ -44,7 +48,9 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
       meaning: meaning.trim(),
       target: Number(targetCount) || 33,
     });
-    if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
+    toast.success(t('toasts.presetSaved', 'Dhikr preset saved'));
+    if (goBack) goBack('tasbeeh_main_dark_mode');
+    else if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
   };
 
   const handleCancel = () => {
@@ -52,8 +58,15 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
     else if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
   };
 
-  const handleDelete = () => {
-    if (window.confirm('Reset this Dhikr preset back to Subhanallah (33)?')) {
+  const handleDelete = async () => {
+    const confirmed = await confirm({
+      variant: 'warning',
+      titleKey: 'confirm.resetDhikrTitle',
+      messageKey: 'confirm.resetDhikrDescription',
+      confirmLabelKey: 'confirm.confirm',
+      cancelLabelKey: 'confirm.cancel',
+    });
+    if (confirmed) {
       updateActivePreset({
         id: 'p1',
         arabic: 'سُبْحَانَ ٱللَّٰهِ',
@@ -62,12 +75,19 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
         target: 33,
       });
       reset();
-      if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
+      if (goBack) goBack('tasbeeh_main_dark_mode');
+      else if (setActiveTab) setActiveTab('tasbeeh_main_dark_mode');
     }
   };
 
-  const handleCustomTarget = () => {
-    const custom = window.prompt('Enter custom target bead count:', String(targetCount));
+  const handleCustomTarget = async () => {
+    const custom = await promptInput({
+      titleKey: 'confirm.promptCustomBeadCountTitle',
+      messageKey: 'confirm.promptCustomBeadCountDescription',
+      defaultValue: String(targetCount),
+      inputType: 'number',
+      placeholder: 'e.g. 100',
+    });
     if (custom !== null) {
       const num = parseInt(custom, 10);
       if (!isNaN(num) && num > 0) {
@@ -85,7 +105,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-base font-bold text-white tracking-tight">
-            New Dhikr
+            {t('tasbeeh.newDhikr', 'New Dhikr')}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -105,11 +125,11 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
       {/* Sub-bar */}
       <div className="flex flex-row items-center justify-between w-full px-5 pt-2 pb-4">
         <div className="flex items-center gap-2">
-          <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-xs font-bold bg-primary/15 border border-primary/30 text-primary shadow-sm">
+          <span className="h-9 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-full text-xs font-bold bg-primary/15 border border-primary/30 text-primary shadow-sm uppercase">
             <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-            NEW DHIKR
+            {t('tasbeeh.newDhikr', 'NEW DHIKR')}
           </span>
-          <span className="text-xs font-medium text-slate-400">Custom Counter</span>
+          <span className="text-xs font-medium text-slate-400">{t('tasbeeh.customCounter', 'Custom Counter')}</span>
         </div>
         <button 
           type="button"
@@ -117,7 +137,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
           className="h-9 px-3 rounded-full flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-800/80 border border-slate-700/80 text-slate-300 hover:text-primary hover:bg-slate-700/80 transition-colors shadow-sm active:scale-95 cursor-pointer select-none"
         >
           <RotateCcw className="w-3.5 h-3.5"/>
-          <span>Reset</span>
+          <span>{t('common.reset', 'Reset')}</span>
         </button>
       </div>
 
@@ -128,7 +148,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1">
               Dhikr Title <span className="text-primary">*</span>
             </label>
-            <span className="text-[11px] font-normal text-slate-500">Primary Name</span>
+            <span className="text-[11px] font-normal text-slate-500">{t('tasbeeh.primaryName', 'Primary Name')}</span>
           </div>
           <div className="flex items-center justify-between p-3.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
             <input 
@@ -136,7 +156,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="bg-transparent text-sm font-semibold text-white w-full focus:outline-none" 
-              placeholder="e.g. Astaghfirullah wa Atubu Ilayh"
+              placeholder={t('tasbeeh.astaghfirullahPlaceholder', 'e.g. Astaghfirullah wa Atubu Ilayh')}
             />
             <BookOpen className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
           </div>
@@ -180,7 +200,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
           {/* Content Layer */}
           <div className="relative z-10 space-y-2">
             <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-primary bg-primary/20 border border-primary/50 shadow-2xs uppercase">
-              PREVIEW (SCRIPT)
+              {t('tasbeeh.previewScript', 'PREVIEW (SCRIPT)')}
             </span>
 
             <h3 
@@ -199,7 +219,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
               <Sparkles className="w-3.5 h-3.5 text-primary"/>
               Preset Suggestions
             </span>
-            <span className="text-[10px] text-slate-500 font-normal">Tap to fill</span>
+            <span className="text-[10px] text-slate-500 font-normal">{t('tasbeeh.tapToFill', 'Tap to fill')}</span>
           </div>
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
             {SUGGESTIONS.map((sug) => {
@@ -226,15 +246,15 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
       {/* TRANSLITERATION & MEANING CARD */}
       <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-2 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-slate-300">Transliteration & Meaning</label>
-          <span className="text-[11px] font-normal text-slate-500">Optional</span>
+          <label className="text-xs font-semibold text-slate-300">{t('tasbeeh.transliterationMeaning', 'Transliteration & Meaning')}</label>
+          <span className="text-[11px] font-normal text-slate-500">{t('common.optional', 'Optional')}</span>
         </div>
         <div className="p-3.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
           <input 
             type="text"
             value={meaning}
             onChange={(e) => setMeaning(e.target.value)}
-            placeholder="Meaning of this dhikr..."
+            placeholder={t('tasbeeh.meaningPlaceholder', 'Meaning of this dhikr...')}
             className="bg-transparent text-xs font-normal text-slate-300 leading-relaxed w-full focus:outline-none"
           />
         </div>
@@ -243,8 +263,8 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
       {/* TARGET COUNT & STEPPER CARD */}
       <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-300">Target Count</span>
-          <span className="text-xs font-bold text-primary">{targetCount} cycles</span>
+          <span className="text-xs font-semibold text-slate-300">{t('tasbeeh.targetCount', 'Target Count')}</span>
+          <span className="text-xs font-bold text-primary">{targetCount} {t('tasbeeh.cycles', 'cycles')}</span>
         </div>
         
         {/* 6 Presets Grid */}
@@ -272,7 +292,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
                 : 'bg-slate-800 border border-slate-700/80 text-slate-300 hover:bg-slate-700'
             }`}
           >
-            Custom
+            {t('tasbeeh.custom', 'Custom')}
           </button>
         </div>
 
@@ -287,7 +307,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
           </button>
           <div className="text-center">
             <h4 className="text-3xl font-bold text-primary">{targetCount}</h4>
-            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mt-0.5">Beads Count</span>
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mt-0.5">{t('tasbeeh.beadsCount', 'Beads Count')}</span>
           </div>
           <button 
             type="button"
@@ -308,8 +328,8 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
               <Flag className="w-4 h-4 text-primary"/>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white">Daily Goal</span>
-              <span className="text-[11px] font-normal text-slate-400">Track towards daily momentum ring</span>
+              <span className="text-sm font-semibold text-white">{t('tasbeeh.dailyGoal', 'Daily Goal')}</span>
+              <span className="text-[11px] font-normal text-slate-400">{t('tasbeeh.trackMomentumRing', 'Track towards daily momentum ring')}</span>
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -331,7 +351,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
               goalType === 'daily' ? 'bg-slate-700 shadow-sm text-primary font-semibold' : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Daily Practice
+            {t('common.daily', 'Daily Practice')}
           </button>
           <button 
             type="button"
@@ -340,7 +360,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
               goalType === 'occasions' ? 'bg-slate-700 shadow-sm text-primary font-semibold' : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            Specific Occasions
+            {t('tasbeeh.custom', 'Specific Occasions')}
           </button>
         </div>
 
@@ -353,8 +373,8 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
               <Bell className="w-4 h-4 text-violet-400"/>
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-white">Reminder Notice</span>
-              <span className="text-[11px] font-normal text-slate-400">Gentle prompt before evening</span>
+              <span className="text-sm font-semibold text-white">{t('tasbeeh.reminderNotice', 'Reminder Notice')}</span>
+              <span className="text-[11px] font-normal text-slate-400">{t('tasbeeh.gentlePrompt', 'Gentle prompt before evening')}</span>
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -369,8 +389,8 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
         </div>
 
         <div className="flex items-center justify-between p-3.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
-          <span className="text-xs font-semibold text-slate-400">Preferred Window</span>
-          <span className="text-xs font-bold text-white">After Asr (5:15 PM)</span>
+          <span className="text-xs font-semibold text-slate-400">{t('tasbeeh.preferredWindow', 'Preferred Window')}</span>
+          <span className="text-xs font-bold text-white">{t('tasbeeh.afterAsr', 'After Asr (5:15 PM)')}</span>
         </div>
       </div>
 
@@ -382,7 +402,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
           onClick={handleSave}
           className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2 cursor-pointer select-none"
         >
-          <span>Save Tasbeeh</span>
+          <span>{t('tasbeeh.saveTasbeeh', 'Save Tasbeeh')}</span>
           <ArrowRight className="w-4 h-4"/>
         </button>
 
@@ -394,7 +414,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             className="btn-secondary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer select-none"
           >
             <X className="w-4 h-4 text-slate-400"/>
-            <span>Cancel</span>
+            <span>{t('common.cancel', 'Cancel')}</span>
           </button>
           <button 
             type="button"
@@ -402,7 +422,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer select-none"
           >
             <Trash2 className="w-4 h-4 text-rose-400"/>
-            <span>Delete Tasbeeh</span>
+            <span>{t('tasbeeh.deleteTasbeeh', 'Delete Tasbeeh')}</span>
           </button>
         </div>
       </div>

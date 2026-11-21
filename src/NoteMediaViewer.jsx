@@ -1,12 +1,7 @@
-﻿import GlassInput from "./components/ui/GlassInput";
-import GlassCard from "./components/ui/GlassCard";
-import AppShell from "./components/ui/AppShell";
-import React, { useState, useEffect } from 'react';
+﻿import GlassCard from './components/ui/GlassCard';
 import LiquidButton from './components/ui/LiquidButton';
 import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 const NoteMediaViewer = () => {
-  const [isPinned, setIsPinned] = useState(false);
-  const [noteContent, setNoteContent] = useState('');
   return /*#__PURE__*/_jsxDEV("div", {
     className: "bg-surface-container font-body-md text-on-surface antialiased flex flex-col min-h-screen relative selection:bg-primary/40 selection:text-primary/70",
     children: [/*#__PURE__*/_jsxDEV("header", {
@@ -523,7 +518,7 @@ const NoteMediaViewer = () => {
                   children: [/*#__PURE__*/_jsxDEV("span", {
                     className: "material-symbols-outlined text-[14px]",
                     children: "cloud_done"
-                  }, void 0, false), "Encrypted & Cached"]
+                  }, void 0, false), "Stored & Cached"]
                 }, void 0, true)]
               }, void 0, true)]
             }, void 0, true), /*#__PURE__*/_jsxDEV("div", {

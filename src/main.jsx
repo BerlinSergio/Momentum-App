@@ -1,13 +1,20 @@
-﻿import React from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import i18n from './i18n/index.js'
 import App from './App.jsx'
 import { useSettingsStore } from './store/useSettingsStore'
 import { usePrayerStore } from './store/usePrayerStore'
+import { useLocaleStore } from './store/useLocaleStore'
+import { useProfileStore } from './store/useProfileStore'
+import { useNavigationStore } from './store/useNavigationStore'
 
 if (typeof window !== 'undefined') {
   window.useSettingsStore = useSettingsStore;
   window.usePrayerStore = usePrayerStore;
+  window.useLocaleStore = useLocaleStore;
+  window.useProfileStore = useProfileStore;
+  window.useNavigationStore = useNavigationStore;
 }
 
 class ErrorBoundary extends React.Component {
@@ -29,7 +36,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div style={{ color: 'red', padding: '20px', background: 'black', zIndex: 9999, position: 'relative' }}>
-          <h1>Something went wrong.</h1>
+          <h1>{i18n.t('app.somethingWentWrong', 'Something went wrong.')}</h1>
           <pre>{this.state.error && this.state.error.toString()}</pre>
           <pre>{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
         </div>

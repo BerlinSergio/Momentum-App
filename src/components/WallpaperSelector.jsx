@@ -1,9 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWallpaper } from '../context/WallpaperContext';
 import { useThemeStore } from '../store/useThemeStore';
 import LiquidButton from './ui/LiquidButton';
 
 export default function WallpaperSelector({ isDarkMode, onClose }) {
+  const { t } = useTranslation();
   const {
     wallpapers,
     currentIndex,
@@ -22,11 +24,11 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
   const daysRemaining = Math.max(1, Math.ceil((THIRTY_DAYS_MS - elapsed) / (24 * 60 * 60 * 1000)));
 
   const blurPresets = [
-    { label: 'Crisp', val: 0 },
-    { label: 'Subtle', val: 8 },
-    { label: 'Soft', val: 14 },
-    { label: 'Deep', val: 24 },
-    { label: 'Dreamy', val: 36 },
+    { label: t('appearance.crisp', 'Crisp'), val: 0 },
+    { label: t('appearance.subtle', 'Subtle'), val: 8 },
+    { label: t('appearance.soft', 'Soft'), val: 14 },
+    { label: t('appearance.deep', 'Deep'), val: 24 },
+    { label: t('appearance.dreamy', 'Dreamy'), val: 36 },
   ];
 
   return (
@@ -48,15 +50,15 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
         <div className="p-6 pb-4 border-b border-current/10 flex justify-between items-center shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold tracking-tight">Background Engine</h2>
+              <h2 className="text-xl font-bold tracking-tight">{t('wallpapers.backgroundEngine', 'Background Engine')}</h2>
               <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${
                 isDarkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700'
               }`}>
-                30-Day Rotation
+                {t('wallpapers.rotation30Day', '30-Day Rotation')}
               </span>
             </div>
             <p className="text-xs opacity-60 mt-1">
-              Curated high-resolution mobile wallpapers with daily auto-cycle &amp; local cache.
+              {t('wallpapers.cachedRotationDesc', 'Curated high-resolution mobile wallpapers with daily auto-cycle & local cache.')}
             </p>
           </div>
           <button 
@@ -81,8 +83,8 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h3 className="font-semibold text-sm">Daily Auto-Rotation</h3>
-                  <p className="text-xs opacity-60 mt-0.5">Cycle wallpaper daily (30-day pack)</p>
+                  <h3 className="font-semibold text-sm">{t('appearance.dailyAutoRotation', 'Daily Auto-Rotation')}</h3>
+                  <p className="text-xs opacity-60 mt-0.5">{t('appearance.cycleDaily', 'Cycle wallpaper daily (30-day pack)')}</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -97,9 +99,9 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
                 </label>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-current/10 text-xs">
-                <span className="opacity-70">Current Mode:</span>
+                <span className="opacity-70">{t('wallpapers.currentMode', 'Current Mode:')}</span>
                 <span className="font-semibold text-indigo-500">
-                  {autoDaily ? `Day ${currentIndex + 1} of 30 active` : 'Manual override active'}
+                  {autoDaily ? t('wallpapers.dayActive', 'Day {{day}} of 30 active', { day: currentIndex + 1 }) : t('wallpapers.manualOverrideActive', 'Manual override active')}
                 </span>
               </div>
             </div>
@@ -110,8 +112,8 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
             }`}>
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-semibold text-sm">Blur Intensity</h3>
-                  <p className="text-xs opacity-60">Adjust glass backdrop depth</p>
+                  <h3 className="font-semibold text-sm">{t('wallpapers.blurIntensity', 'Blur Intensity')}</h3>
+                  <p className="text-xs opacity-60">{t('wallpapers.adjustGlassBackdrop', 'Adjust glass backdrop depth')}</p>
                 </div>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-400">
                   {blurLevel}px
@@ -158,11 +160,11 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-base">Wallpaper Collection</h3>
-                <p className="text-xs opacity-60">30 curated wallpapers cached locally for daily rotation</p>
+                <h3 className="font-semibold text-base">{t('appearance.wallpaperCollection', 'Wallpaper Collection')}</h3>
+                <p className="text-xs opacity-60">{t('wallpapers.cachedCount', '30 curated wallpapers cached locally for daily rotation')}</p>
               </div>
               <span className="text-xs opacity-60 font-mono">
-                {wallpapers.length} Wallpapers
+                {t('wallpapers.wallpapersCount', '{{count}} Wallpapers', { count: wallpapers.length })}
               </span>
             </div>
 
@@ -206,17 +208,17 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
                     {/* Day Badge */}
                     <div className="absolute top-1.5 left-1.5">
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-sm">
-                        Day {wp.day || index + 1}
+                        {t('wallpapers.dayNumber', 'Day {{day}}', { day: wp.day || index + 1 })}
                       </span>
                     </div>
 
                     {/* Title */}
                     <div className="absolute bottom-1.5 inset-x-1.5 text-left pointer-events-none">
                       <p className="text-[11px] font-medium text-white truncate drop-shadow-sm">
-                        {wp.title || `Theme ${index + 1}`}
+                        {wp.title || `${t('appearance.theme', 'Theme')} ${index + 1}`}
                       </p>
                       <p className="text-[9px] text-white/70 truncate">
-                        {wp.category || 'Curated'}
+                        {wp.category || t('wallpapers.curated', 'Curated')}
                       </p>
                     </div>
 
@@ -240,9 +242,9 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
         {/* Footer Actions */}
         <div className="p-5 border-t border-current/10 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 bg-current/[0.02]">
           <div className="text-xs opacity-70 text-center sm:text-left">
-            <span>Batch loaded: {new Date(batchFetchedAt).toLocaleDateString()}</span>
+            <span>{t('wallpapers.batchLoaded', 'Batch loaded: {{date}}', { date: new Date(batchFetchedAt).toLocaleDateString() })}</span>
             <span className="mx-1.5">•</span>
-            <span>Next auto-refresh in {daysRemaining} days</span>
+            <span>{t('wallpapers.nextAutoRefresh', 'Next auto-refresh in {{days}} days', { days: daysRemaining })}</span>
           </div>
 
           <div className="w-full sm:w-auto">
@@ -258,7 +260,7 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Downloading 30 Wallpapers...</span>
+                  <span>{t('wallpapers.downloading30', 'Downloading 30 Wallpapers...')}</span>
                 </>
               ) : (
                 <>
@@ -267,7 +269,7 @@ export default function WallpaperSelector({ isDarkMode, onClose }) {
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  <span>Download 30 New Online Wallpapers</span>
+                  <span>{t('wallpapers.download30', 'Download 30 New Online Wallpapers')}</span>
                 </>
               )}
             </LiquidButton>

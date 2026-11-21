@@ -1,3 +1,5 @@
+import { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Home, 
   CreditCard, 
@@ -5,33 +7,75 @@ import {
   CheckSquare, 
   LayoutGrid 
 } from 'lucide-react';
-import { useFinanceStore } from '../store/useFinanceStore';
+import { useNavigationStore } from '../store/useNavigationStore';
+import { useTranslation } from 'react-i18next';
+import { resolveActionContext, executeCreationAction } from '../utils/actionContextResolver';
+import QuickActionsSheet from './QuickActionsSheet';
 
 /**
  * Standardized Global Bottom Navigation Bar for Momentum.
- * Enforces 100% identical icon library, icon sizing, stroke widths, and pill dock geometry across all screens and themes.
+ * Features a fully context-aware central (+) Action Button that dynamically maps
+ * to the appropriate creation workflow (Task, Routine, Note, Expense, Income, Tasbeeh,
+ * or Quick Actions menu) based on the user's active screen and internal tab state.
  *
  * @param {Object} props
- * @param {string} props.activeTab - Current active tab identifier ('home' | 'finance' | 'tasks' | 'more' or screen name)
+ * @param {string} props.activeTab - Current active tab identifier
  * @param {function} props.setActiveTab - State updater for active screen routing
- * @param {boolean} [props.isDarkMode] - Explicit dark mode flag (auto-inferred from activeTab if omitted)
- * @param {function} [props.onPlusClick] - Custom handler for center (+) action button
+ * @param {boolean} [props.isDarkMode] - Explicit dark mode flag (auto-inferred if omitted)
+ * @param {function} [props.onPlusClick] - Custom handler override for center (+) button
  */
 export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkMode, onPlusClick }) {
-  if (activeTab && (activeTab.includes('splash_screen') || activeTab.includes('personal_setup') || activeTab.includes('pin_setup') || activeTab.includes('quick_note_editor'))) {
-    return null;
+  const { t } = useTranslation();
+  // All React Hooks called unconditionally at top of component
+  const tasksSubTab = useNavigationStore((s) => s.tasksSubTab);
+  const financeSubTab = useNavigationStore((s) => s.financeSubTab);
+  const routeParams = useNavigationStore((s) => s.routeParams);
+
+  // Modal state for contextual Quick Actions bottom sheet
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
+  const [prevActiveTab, setPrevActiveTab] = useState(activeTab);
+
+  // Auto-close sheet when activeTab changes without calling setState in an effect
+  if (prevActiveTab !== activeTab) {
+    setPrevActiveTab(activeTab);
+    if (isQuickActionsOpen) {
+      setIsQuickActionsOpen(false);
+    }
   }
 
-  const { setPendingTransactionType } = useFinanceStore();
+  // Click debounce lock to prevent rapid accidental double-clicks or duplicate creation
+  const isActionPendingRef = useRef(false);
 
-  // Normalize active tab domain
+  // Screen visibility restriction guard
+  const isHidden = Boolean(
+    activeTab && (
+      activeTab.includes('splash_screen') || 
+      activeTab.includes('personal_setup') || 
+      activeTab.includes('pin_setup') || 
+      activeTab.includes('quick_note_editor')
+    )
+  );
+
+  // Normalize active tab domain strictly for visual tab highlighting
   const getNormalizedTab = (tab) => {
     if (!tab) return 'home';
     const t = tab.toLowerCase();
     if (t.includes('home') || t.includes('dashboard')) return 'home';
     if (t.includes('finance') || t.includes('expense') || t.includes('income')) return 'finance';
     if (t.includes('task') || t.includes('routine')) return 'tasks';
-    if (t.includes('more') || t.includes('setting') || t.includes('profile') || t.includes('appearance') || t.includes('calendar') || t.includes('note') || t.includes('tasbeeh') || t.includes('city') || t.includes('timezone')) return 'more';
+    if (
+      t.includes('more') || 
+      t.includes('setting') || 
+      t.includes('profile') || 
+      t.includes('appearance') || 
+      t.includes('calendar') || 
+      t.includes('note') || 
+      t.includes('tasbeeh') || 
+      t.includes('city') || 
+      t.includes('timezone')
+    ) {
+      return 'more';
+    }
     return t;
   };
 
@@ -42,7 +86,16 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
     ? isDarkMode
     : (activeTab ? activeTab.toLowerCase().includes('dark') : false);
 
+  // Resolve creation action context independently from visual tab selection
+  const actionContext = resolveActionContext({
+    activeTab,
+    tasksSubTab,
+    financeSubTab,
+    routeParams,
+  });
+
   const handleTabClick = (tabKey) => {
+    setIsQuickActionsOpen(false);
     if (!setActiveTab) return;
     switch (tabKey) {
       case 'home':
@@ -64,18 +117,43 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
 
   const handlePlusClick = (e) => {
     e.preventDefault();
+
+    // Guard against rapid duplicate clicks
+    if (isActionPendingRef.current) return;
+    isActionPendingRef.current = true;
+    setTimeout(() => {
+      isActionPendingRef.current = false;
+    }, 450);
+
+    // If consumer provided an explicit onPlusClick override, execute it
     if (onPlusClick) {
       onPlusClick();
       return;
     }
+
     if (!setActiveTab) return;
-    if (currentTab === 'tasks') {
-      setActiveTab(isDark ? 'add_edit_task_dark_mode' : 'add_edit_task_light_mode');
+
+    // Guard against recursive creation on active editor screens
+    if (actionContext.isBlocked) {
+      return;
+    }
+
+    // Contextual execution
+    if (actionContext.type === 'quick_actions') {
+      setIsQuickActionsOpen(true);
     } else {
-      if (setPendingTransactionType) setPendingTransactionType('expense');
-      setActiveTab(isDark ? 'add_edit_expense_dark_mode' : 'add_edit_expense_light_mode');
+      executeCreationAction(actionContext.type, { setActiveTab, isDark });
     }
   };
+
+  const handleSelectQuickAction = (actionId) => {
+    setIsQuickActionsOpen(false);
+    executeCreationAction(actionId, { setActiveTab, isDark });
+  };
+
+  if (isHidden) {
+    return null;
+  }
 
   // Color tokens
   const dockBg = isDark
@@ -90,71 +168,120 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
   const ringColor = isDark ? 'ring-slate-900 shadow-primary/30' : 'ring-white shadow-primary/30';
 
   return (
-    <nav
-      aria-label="Bottom Navigation"
-      className={`fixed bottom-4 left-0 right-0 mx-auto w-[92%] max-w-md h-16 z-50 px-2 rounded-[2rem] backdrop-blur-3xl flex items-center justify-between pointer-events-auto transition-colors select-none font-sans text-xs ${dockBg}`}
-      style={{ fontFamily: "'Inter', sans-serif" }}
-    >
-      {/* 1. HOME TAB */}
-      <button
-        type="button"
-        onClick={() => handleTabClick('home')}
-        className={`flex flex-col items-center justify-center flex-1 h-full rounded-full transition-colors cursor-pointer pointer-events-auto ${
-          currentTab === 'home' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
-        }`}
+    <>
+      <nav
+        aria-label={t('nav.bottomNavAria')}
+        className={`fixed bottom-4 left-0 right-0 mx-auto w-[92%] max-w-md h-16 z-50 px-2 rounded-[2rem] backdrop-blur-3xl shadow-lg border flex items-center justify-between pointer-events-auto transition-colors select-none ${dockBg}`}
+        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        <Home size={20} strokeWidth={2} className="mb-1" />
-        <span className="text-xs font-sans tracking-tight mt-0.5">Home</span>
-      </button>
-
-      {/* 2. FINANCE TAB */}
-      <button
-        type="button"
-        onClick={() => handleTabClick('finance')}
-        className={`flex flex-col items-center justify-center flex-1 h-full rounded-full transition-colors cursor-pointer pointer-events-auto ${
-          currentTab === 'finance' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
-        }`}
-      >
-        <CreditCard size={20} strokeWidth={2} className="mb-1" />
-        <span className="text-xs font-sans tracking-tight mt-0.5">Finance</span>
-      </button>
-
-      {/* 3. CENTER ACTION (+) BUTTON */}
-      <div className="flex items-center justify-center px-2">
-        <button
+        {/* 1. HOME TAB */}
+        <motion.button
           type="button"
-          onClick={handlePlusClick}
-          aria-label={currentTab === 'tasks' ? 'Add Task' : 'Log Expense'}
-          className={`w-14 h-14 -mt-6 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform ring-4 cursor-pointer pointer-events-auto shadow-primary/30 ${ringColor}`}
+          onClick={() => handleTabClick('home')}
+          whileTap={{ scale: 0.92 }}
+          className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
+            currentTab === 'home' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
+          }`}
         >
-          <Plus size={24} strokeWidth={2.5} />
-        </button>
-      </div>
+          {currentTab === 'home' && (
+            <motion.div
+              layoutId="activeBottomTabPill"
+              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            />
+          )}
+          <Home size={20} strokeWidth={2} className="mb-1" />
+          <span className="text-xs tracking-tight mt-0.5">{t('nav.home')}</span>
+        </motion.button>
 
-      {/* 4. TASKS TAB */}
-      <button
-        type="button"
-        onClick={() => handleTabClick('tasks')}
-        className={`flex flex-col items-center justify-center flex-1 h-full rounded-full transition-colors cursor-pointer pointer-events-auto ${
-          currentTab === 'tasks' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
-        }`}
-      >
-        <CheckSquare size={20} strokeWidth={2} className="mb-1" />
-        <span className="text-xs font-sans tracking-tight mt-0.5">Tasks</span>
-      </button>
+        {/* 2. FINANCE TAB */}
+        <motion.button
+          type="button"
+          onClick={() => handleTabClick('finance')}
+          whileTap={{ scale: 0.92 }}
+          className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
+            currentTab === 'finance' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
+          }`}
+        >
+          {currentTab === 'finance' && (
+            <motion.div
+              layoutId="activeBottomTabPill"
+              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            />
+          )}
+          <CreditCard size={20} strokeWidth={2} className="mb-1" />
+          <span className="text-xs tracking-tight mt-0.5">{t('nav.finance')}</span>
+        </motion.button>
 
-      {/* 5. MORE TAB */}
-      <button
-        type="button"
-        onClick={() => handleTabClick('more')}
-        className={`flex flex-col items-center justify-center flex-1 h-full rounded-full transition-colors cursor-pointer pointer-events-auto ${
-          currentTab === 'more' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
-        }`}
-      >
-        <LayoutGrid size={20} strokeWidth={2} className="mb-1" />
-        <span className="text-xs font-sans tracking-tight mt-0.5">More</span>
-      </button>
-    </nav>
+        {/* 3. CONTEXTUAL PLUS BUTTON */}
+        <div className="flex items-center justify-center px-2">
+          <motion.button
+            type="button"
+            data-testid="central-action-btn"
+            onClick={handlePlusClick}
+            aria-label={actionContext.ariaLabel}
+            title={actionContext.label}
+            whileTap={actionContext.isBlocked ? undefined : { scale: 0.92, rotate: isQuickActionsOpen ? 0 : 45 }}
+            whileHover={actionContext.isBlocked ? undefined : { scale: 1.05 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 380 }}
+            className={`w-14 h-14 -mt-6 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex items-center justify-center shadow-lg ring-4 cursor-pointer pointer-events-auto shadow-primary/30 ${ringColor} ${
+              actionContext.isBlocked ? 'opacity-60 cursor-not-allowed' : ''
+            }`}
+          >
+            <Plus size={24} strokeWidth={2.5} />
+          </motion.button>
+        </div>
+
+        {/* 4. TASKS TAB */}
+        <motion.button
+          type="button"
+          onClick={() => handleTabClick('tasks')}
+          whileTap={{ scale: 0.92 }}
+          className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
+            currentTab === 'tasks' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
+          }`}
+        >
+          {currentTab === 'tasks' && (
+            <motion.div
+              layoutId="activeBottomTabPill"
+              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            />
+          )}
+          <CheckSquare size={20} strokeWidth={2} className="mb-1" />
+          <span className="text-xs tracking-tight mt-0.5">{t('nav.tasks')}</span>
+        </motion.button>
+
+        {/* 5. MORE TAB */}
+        <motion.button
+          type="button"
+          onClick={() => handleTabClick('more')}
+          whileTap={{ scale: 0.92 }}
+          className={`relative flex flex-col items-center justify-center flex-1 h-full rounded-2xl transition-colors cursor-pointer pointer-events-auto ${
+            currentTab === 'more' ? `${activeColor} font-bold` : `${inactiveColor} font-medium`
+          }`}
+        >
+          {currentTab === 'more' && (
+            <motion.div
+              layoutId="activeBottomTabPill"
+              className={`absolute inset-0.5 rounded-2xl -z-10 ${isDark ? 'bg-primary/20' : 'bg-primary/10'}`}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            />
+          )}
+          <LayoutGrid size={20} strokeWidth={2} className="mb-1" />
+          <span className="text-xs tracking-tight mt-0.5">{t('nav.more')}</span>
+        </motion.button>
+      </nav>
+
+      {/* Global Quick Actions Bottom Sheet */}
+      <QuickActionsSheet
+        isOpen={isQuickActionsOpen}
+        onClose={() => setIsQuickActionsOpen(false)}
+        onSelectAction={handleSelectQuickAction}
+        isDark={isDark}
+      />
+    </>
   );
 }
 

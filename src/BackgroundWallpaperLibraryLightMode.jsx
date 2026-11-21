@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import UserAvatar from './components/UserAvatar';
+import { useTranslation } from 'react-i18next';
 import { Image, ArrowLeft, X } from 'lucide-react';
 import { useThemeStore } from './store/useThemeStore';
 import { useWallpaper } from './context/WallpaperContext';
@@ -12,8 +13,10 @@ import {
   NONE_WALLPAPER,
 } from './data/defaultWallpapers';
 import { processImageForStorage, saveWallpaperToIndexedDB } from './utils/wallpaperStorage';
+import { toast } from './components/ui/toast/index.js';
 
 function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSelected, isFav, onSelect, onToggleFavorite }) {
+  const { t } = useTranslation();
   const item = itemProp || bg;
   const [previewMode, setPreviewMode] = useState('light');
   const currentImageSrc = previewMode === 'dark' ? (item.darkImage || item.thumbnail || item.url) : (item.lightImage || item.thumbnail || item.url);
@@ -78,7 +81,7 @@ function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSele
           {isSelected && (
             <div className="px-2.5 py-0.5 rounded-full bg-white/95 backdrop-blur-xl flex items-center gap-1 text-slate-900 shadow-xs">
               <span className="material-symbols-outlined text-[11px] text-primary" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
-              <span className="text-[11px] font-bold text-primary">Active</span>
+              <span className="text-[11px] font-bold text-primary">{t('common.active', 'Active')}</span>
             </div>
           )}
         </div>
@@ -109,6 +112,7 @@ function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSele
 }
 
 export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBack }) {
+  const { t } = useTranslation();
   const activeBackgroundId = useThemeStore((s) => s.activeBackgroundId);
   const setActiveBackgroundId = useThemeStore((s) => s.setActiveBackgroundId);
   const customWallpaper = useThemeStore((s) => s.customWallpaper);
@@ -141,6 +145,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
 
   const handleSelectBackground = (bg) => {
     setActiveBackgroundId(bg.id);
+    const bgName = bg.id === 'none' ? 'Pure Minimal' : (bg.title || bg.name || 'Selected');
+    toast.success(`Wallpaper "${bgName}" applied`);
     if (bg.id === 'none') {
       return;
     }
@@ -165,9 +171,11 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
       // Sync to Zustand store
       setCustomWallpaper(dataUrl);
       setActiveBackgroundId('custom');
+      toast.success(t('toasts.customWallpaperApplied', 'Custom wallpaper applied'));
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       console.error('Failed to process custom wallpaper upload:', err);
+      toast.error(t('toasts.customWallpaperFailed', 'Failed to process custom wallpaper'));
     }
   };
 
@@ -214,13 +222,13 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
           <button
             type="button"
             onClick={() => (goBack ? goBack('settings_profile_light_mode') : (setActiveTab ? setActiveTab('settings_profile_light_mode') : window.history.back()))}
-            aria-label="Go back"
+            aria-label={t('common.back', 'Go back')}
             className="p-2 -ml-2 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer pointer-events-auto"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-base font-bold text-slate-900 tracking-tight">
-            Background Library
+            {t('wallpapers.backgroundLibrary', 'Background Library')}
           </h1>
         </div>
       </div>
@@ -231,14 +239,18 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
           {/* Top Context Header Area */}
           <div className="flex items-center justify-between px-space-xs pt-space-xs">
             <div className="flex flex-col">
-              <span className="text-label-sm font-label-sm uppercase tracking-wider text-slate-900 font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Atmosphere Engine</span>
-              <h2 className="text-headline-sm font-headline-sm text-slate-900 font-bold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Curated Wallpapers</h2>
+              <span className="text-label-sm font-label-sm uppercase tracking-wider text-slate-900 font-semibold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+                {t('appearance.atmosphereEngine', 'Atmosphere Engine')}
+              </span>
+              <h2 className="text-headline-sm font-headline-sm text-slate-900 font-bold" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+                {t('appearance.curatedWallpapers', 'Curated Wallpapers')}
+              </h2>
             </div>
             <div className="flex items-center gap-space-xs">
-              <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_light_mode')} aria-label="Toggle preview accent" className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform" id="themeToggleMini">
+              <button onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_light_mode')} aria-label={t('appearance.adjustBlur', 'Adjust Blur')} className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform" id="themeToggleMini">
                 <span className="material-symbols-outlined text-[19px]">tune</span>
               </button>
-              <button onClick={() => setShowInfoModal(true)} aria-label="Library details" className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+              <button onClick={() => setShowInfoModal(true)} aria-label={t('common.details', 'Details')} className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center shadow-sm active:scale-95 transition-transform">
                 <span className="material-symbols-outlined text-[19px]">info</span>
               </button>
             </div>
@@ -255,11 +267,11 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                 <div className="flex items-center justify-between z-10">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-label-md text-label-md shadow-xs border border-slate-200">
                     <span className="material-symbols-outlined text-[15px] text-emerald-600" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
-                    Current Active Background
+                    {t('wallpapers.currentActiveBackground', 'Current Active Background')}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 font-label-sm text-label-sm border border-slate-200">
                     <span className="material-symbols-outlined text-[13px]">format_paint</span>
-                    Pure Minimal
+                    {t('wallpapers.pureMinimal', 'Pure Minimal')}
                   </span>
                 </div>
                 <div className="flex items-center justify-center py-2">
@@ -268,8 +280,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                   </div>
                 </div>
                 <div className="flex flex-col gap-0.5 z-10">
-                  <span className="text-label-sm font-label-sm text-slate-500 tracking-wide">Solid White Edition</span>
-                  <h3 className="text-headline-md font-headline-md text-slate-900 drop-shadow-xs truncate">Pure Minimal (Solid Background)</h3>
+                  <span className="text-label-sm font-label-sm text-slate-500 tracking-wide">{t('appearance.lightRadiance', 'Solid White Edition')}</span>
+                  <h3 className="text-headline-md font-headline-md text-slate-900 drop-shadow-xs truncate">{t('appearance.pureMinimalSolidBackground', 'Pure Minimal (Solid Background)')}</h3>
                 </div>
               </div>
             ) : (
@@ -295,7 +307,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                 <div className="absolute top-space-sm left-space-sm">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/90 backdrop-blur-xl text-primary font-label-md text-label-md shadow-sm">
                     <span className="material-symbols-outlined text-[15px]" style={{fontVariationSettings: '"FILL" 1'}}>check_circle</span>
-                    Current Active Background
+                    {t('wallpapers.currentActiveBackground', 'Current Active Background')}
                   </span>
                 </div>
                 {/* Quick stats chip on active card */}
@@ -307,7 +319,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                 </div>
                 {/* Bottom Card Details */}
                 <div className="absolute bottom-space-md left-space-md right-space-md flex flex-col gap-0.5">
-                  <span className="text-label-sm font-label-sm text-slate-300 tracking-wide">{isCustomActive ? 'Personalized Photo Edition' : 'Paired Light & Dark Edition'}</span>
+                  <span className="text-label-sm font-label-sm text-slate-300 tracking-wide">{isCustomActive ? t('wallpapers.personalizedPhotoEdition', 'Personalized Photo Edition') : t('wallpapers.pairedLightDarkEdition', 'Paired Light & Dark Edition')}</span>
                   <h3 className="text-headline-md font-headline-md text-white drop-shadow-sm truncate">{isCustomActive ? 'Custom Uploaded Wallpaper' : `Wallpaper ${String(Math.max(1, wallpapers.findIndex((w) => w.id === activeBg?.id) + 1)).padStart(2, '0')}`}</h3>
                 </div>
               </div>
@@ -320,25 +332,26 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                   <span className="material-symbols-outlined text-[15px]">{isNoneActive ? 'palette' : 'contrast'}</span>
                 </div>
                 <span className="text-body-sm font-body-sm text-slate-600">
-                  {isNoneActive ? 'Solid distraction-free background active' : isCustomActive ? 'Custom user wallpaper active' : 'Calibrated for glass contrast'}
+                  {isNoneActive ? t('wallpapers.solidDistractionFreeActive', 'Solid distraction-free background active') : isCustomActive ? t('wallpapers.customUserWallpaperActive', 'Custom user wallpaper active') : t('wallpapers.calibratedForGlassContrast', 'Calibrated for glass contrast')}
                 </span>
               </div>
-              {/* Disable/Hide Adjust Blur when Pure Minimal is active */}
+              {/* Disable/Hide {t('appearance.adjustBlur', 'Adjust Blur')} when Pure Minimal is active */}
               {isNoneActive ? (
                 <button
                   disabled
-                  title="Blur adjustment is not applicable to Pure Minimal solid background"
+                  title={t('wallpapers.blurNotApplicablePureMinimal', 'Blur adjustment is not applicable to Pure Minimal solid background')}
                   className="inline-flex items-center gap-1 px-space-md py-2 rounded-full bg-slate-100 text-slate-400 font-label-md text-label-md shadow-none cursor-not-allowed opacity-60"
                 >
-                  <span>No Blur Layer</span>
+                  <span>{t('wallpapers.noBlurLayer', 'No Blur Layer')}</span>
                 </button>
               ) : (
                 <button 
                   onClick={() => setActiveTab && setActiveTab('background_preview_blur_control_light_mode')} 
                   className="inline-flex items-center gap-1 px-space-md py-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-label-md text-label-md shadow-sm active:scale-95 transition-all"
                 >
-                  <span>Adjust Blur</span>
-                  <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+                  <span>{t('appearance.adjustBlur', 'Adjust Blur')}
+</span>
+<span className="material-symbols-outlined text-[15px]">arrow_forward</span>
                 </button>
               )}
             </div>
@@ -361,9 +374,9 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                 <span className="material-symbols-outlined text-[22px]">format_paint</span>
               </div>
               <div className="flex flex-col min-w-0 flex-1">
-                <h4 className="text-[15px] font-semibold text-slate-900 tracking-tight leading-tight whitespace-nowrap">Pure Minimal</h4>
+                <h4 className="text-[15px] font-semibold text-slate-900 tracking-tight leading-tight whitespace-nowrap">{t('wallpapers.pureMinimal', 'Pure Minimal')}</h4>
                 <p className="text-[12px] text-slate-500 leading-tight mt-0.5">
-                  Pure white in Light mode, deep black in Dark mode.
+                  {t('wallpapers.pureMinimalDesc', 'Pure white in Light mode, deep black in Dark mode.')}
                 </p>
               </div>
             </div>
@@ -371,11 +384,11 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
               {isNoneActive ? (
                 <div className="px-3.5 py-1.5 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center gap-1.5 shadow-xs">
                   <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: '"FILL" 1' }}>check_circle</span>
-                  <span>Selected</span>
+                  <span>{t('common.selected', 'Selected')}</span>
                 </div>
               ) : (
                 <div className="px-3.5 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1 transition-colors">
-                  <span>Apply</span>
+                  <span>{t('common.apply', 'Apply')}</span>
                   <span className="material-symbols-outlined text-[15px]">chevron_right</span>
                 </div>
               )}
@@ -405,11 +418,15 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
           {/* Curated Grid Section Header */}
           <div className="flex items-center justify-between pt-space-xs">
             <div className="flex items-baseline gap-2">
-              <h3 className="text-headline-sm font-headline-sm text-slate-900" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Master Collection</h3>
-              <span className="text-label-sm font-label-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Showing {displayedList.length} of {wallpapers.length}</span>
+              <h3 className="text-headline-sm font-headline-sm text-slate-900" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
+                {t('wallpapers.masterCollection', 'Master Collection')}
+              </h3>
+              <span className="text-label-sm font-label-sm text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
+                {t('wallpapers.showingCount', 'Showing {{current}} of {{total}}', { current: displayedList.length, total: wallpapers.length })}
+              </span>
             </div>
             <button onClick={() => setAutoDaily && setAutoDaily(!autoDaily)} className="text-label-md font-label-md text-primary flex items-center gap-1 active:opacity-75">
-              <span>{autoDaily ? 'Auto-Rotate ON' : 'Auto-Rotate'}</span>
+              <span>{autoDaily ? t('wallpapers.autoRotateOn', 'Auto-Rotate ON') : t('wallpapers.autoRotate', 'Auto-Rotate')}</span>
               <span className="material-symbols-outlined text-[16px]">sync</span>
             </button>
           </div>
@@ -446,7 +463,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
               </span>
               <button onClick={() => setShowAll(!showAll)} className="btn-secondary w-full">
                 <span className="material-symbols-outlined text-[16px] text-slate-500">layers</span>
-                <span>{showAll ? 'Show Curated Highlights (8)' : 'Load All 30 Backgrounds'}</span>
+                <span>{showAll ? 'Show Curated Highlights (8)' : t('appearance.loadAll30', 'Load All 30 Backgrounds')}</span>
               </button>
             </div>
           )}
@@ -457,12 +474,12 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
               <div className="flex justify-center mb-2 px-4 pointer-events-none">
                 <div className="px-4 py-2 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow-lg flex items-center gap-1.5 animate-in fade-in">
                   <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                  <span>30 Online Wallpapers Downloaded Successfully!</span>
+                  <span>{t('wallpapers.downloadedSuccess30', '30 Online Wallpapers Downloaded Successfully!')}</span>
                 </div>
               </div>
             )}
             <div className="p-4 rounded-3xl bg-white/90 backdrop-blur-xl border border-slate-200/80 flex flex-col gap-3 shadow-md">
-              {/* Download 30 Online Wallpapers Button */}
+              {/* Download 30 Online Wallpapers */}
               <button
                 type="button"
                 onClick={handleDownloadCloudBatch}
@@ -475,14 +492,14 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Downloading 30 Wallpapers...</span>
+                    <span>{t('appearance.downloading30', 'Downloading 30 Wallpapers...')}</span>
                   </>
                 ) : downloadSuccess ? (
                   <>
                     <svg className="w-4 h-4 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span>30 Online Wallpapers Downloaded</span>
+                    <span>{t('wallpapers.downloaded30', '30 Online Wallpapers Downloaded')}</span>
                   </>
                 ) : (
                   <>
@@ -491,21 +508,25 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                       <path d="M12 12v9" />
                       <path d="m8 17 4 4 4-4" />
                     </svg>
-                    <span>Download 30 Online Wallpapers</span>
+                    <span>{t('appearance.download30Wallpapers', 'Download 30 Online Wallpapers')}</span>
                   </>
                 )}
               </button>
-              {/* Secondary Action Button - Custom Upload */}
-              <button onClick={() => fileInputRef.current?.click()} className="btn-primary w-full">
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="btn-primary w-full"
+              >
                 <span className="material-symbols-outlined text-[18px] text-white">add_photo_alternate</span>
-                <span>Upload Custom Wallpaper</span>
+                <span>{t('appearance.uploadCustomWallpaper', 'Upload Custom Wallpaper')}</span>
               </button>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Sleek Glassmorphic Atmosphere Engine & Pairing Info Modal */}
+      {/* Sleek Glassmorphic Atmosphere Engine Modal */}
       {showInfoModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowInfoModal(false)} />
@@ -516,8 +537,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                   <span className="material-symbols-outlined text-[18px]">info</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Atmosphere Engine</h3>
-                  <span className="text-[11px] text-primary font-semibold">Visual Calibration Guide</span>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">{t('appearance.atmosphereEngine', 'Atmosphere Engine')}</h3>
+                  <span className="text-[11px] text-primary font-semibold">{t('wallpapers.visualCalibrationGuide', 'Visual Calibration Guide')}</span>
                 </div>
               </div>
               <button onClick={() => setShowInfoModal(false)} className="p-1.5 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
@@ -528,24 +549,24 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
                 <div className="flex items-center gap-1.5 font-semibold text-slate-800">
                   <span className="material-symbols-outlined text-[15px] text-primary">routine</span>
-                  <span>Momentum Dynamic Pairing</span>
+                  <span>{t('wallpapers.dynamicPairing', 'Momentum Dynamic Pairing')}</span>
                 </div>
                 <p>
-                  Each curated wallpaper includes calibrated Light and Dark variants specifically tuned to preserve card legibility and glass translucency seamlessly.
+                  {t('wallpapers.dynamicPairingDesc', 'Each curated wallpaper includes calibrated Light and Dark variants specifically tuned to preserve card legibility and glass translucency seamlessly.')}
                 </p>
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
                 <div className="flex items-center gap-1.5 font-semibold text-slate-800">
                   <span className="material-symbols-outlined text-[15px] text-primary">contrast</span>
-                  <span>Glass Contrast Engine</span>
+                  <span>{t('wallpapers.glassContrastEngine', 'Glass Contrast Engine')}</span>
                 </div>
                 <p>
-                  Background highlights and tones are balanced with real-time backdrop filtering so typography and icons remain razor-sharp across all views.
+                  {t('wallpapers.glassContrastDesc', 'Background highlights and tones are balanced with real-time backdrop filtering so typography and icons remain razor-sharp across all views.')}
                 </p>
               </div>
             </div>
             <button onClick={() => setShowInfoModal(false)} className="btn-primary w-full py-2.5 text-xs font-semibold rounded-2xl shadow-md">
-              <span>Got It</span>
+              <span>{t('common.gotIt', 'Got It')}</span>
             </button>
           </div>
         </div>

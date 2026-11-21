@@ -1,22 +1,39 @@
-﻿import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useMemo } from 'react';
 import { useFinanceStore, formatSingleCurrency, calculateGroupedTotals } from './store/useFinanceStore';
+import { useNavigationStore } from './store/useNavigationStore';
+import { useNotificationStore } from './store/useNotificationStore';
+import { useAppTime } from './hooks/useAppTime';
 import StackedCurrencyDisplay from './components/StackedCurrencyDisplay';
 import UserAvatar from './components/UserAvatar';
+import { toast } from './components/ui/toast/index.js';
+import { confirm } from './components/ui/confirmation/index.js';
 
 import { 
   Coins, Bell, ChevronDown, Wallet, Leaf, ArrowDownLeft, ArrowUpRight, Search, Plus, Upload, Download, FileText, Pencil, Trash2, Edit2, Repeat, Check, X, SearchX, LayoutDashboard, CreditCard, TrendingUp, TrendingDown, CalendarClock, Info, Utensils, Coffee, Heart, Wifi, ShoppingBag, Home as HomeIcon, Building2, Palette, Store, Award 
 } from 'lucide-react';
 
-const getCurrentMonthOptions = () => {
+const getCurrentMonthOptions = (date = new Date(), timeZone) => {
   const options = [];
   const map = {};
   for (let i = 0; i < 3; i++) {
-    const d = new Date();
+    const d = new Date(date);
     d.setDate(1);
     d.setMonth(d.getMonth() - i);
-    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone });
+    let year = d.getFullYear();
+    let month = String(d.getMonth() + 1).padStart(2, '0');
+    if (timeZone) {
+      try {
+        const parts = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: '2-digit', timeZone }).formatToParts(d);
+        for (const p of parts) {
+          if (p.type === 'year') year = p.value;
+          if (p.type === 'month') month = p.value;
+        }
+      } catch {
+        // Fallback
+      }
+    }
     options.push(label);
     map[label] = `${year}-${month}`;
   }
@@ -24,9 +41,6 @@ const getCurrentMonthOptions = () => {
   map['All Months'] = 'all';
   return { options, map };
 };
-
-const { options: MONTH_OPTIONS, map: MONTH_MAP } = getCurrentMonthOptions();
-const CURRENT_MONTH_LABEL = MONTH_OPTIONS[0];
 
 const CATEGORY_OPTIONS = [
   'All Categories',
@@ -60,14 +74,6 @@ const SPENDING_CATEGORIES = [
 ];
 
 const INCOME_CATEGORIES = ['All Sources', 'Salary', 'Freelance', 'Business', 'Bonus', 'Other'];
-
-const getTodayIsoDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const getPreviousMonthKey = (periodKey) => {
   if (!periodKey || periodKey === 'all') {
@@ -148,7 +154,23 @@ const getIncomeBadgeClass = (category) => {
 };
 
 export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTab = 'dashboard' }) {
-  const [activeFinanceTab, setActiveFinanceTab] = useState(initialTab);
+  const { t } = useTranslation();
+  const { now, currentDateKey, currentYear, currentMonth, currentDay, effectiveTimezone } = useAppTime();
+  const { options: MONTH_OPTIONS, map: MONTH_MAP } = useMemo(() => {
+    return getCurrentMonthOptions(now, effectiveTimezone);
+  }, [now, effectiveTimezone]);
+  const CURRENT_MONTH_LABEL = MONTH_OPTIONS[0];
+
+  const storeFinanceSubTab = useNavigationStore((s) => s.financeSubTab);
+  const setFinanceSubTab = useNavigationStore((s) => s.setFinanceSubTab);
+  const unreadNotifCount = useNotificationStore((s) => s.notifications?.filter((n) => !n.read).length || 0);
+
+  const activeFinanceTab = storeFinanceSubTab || initialTab || 'dashboard';
+
+  const handleFinanceTabChange = (tab) => {
+    setFinanceSubTab(tab);
+    setSearchQuery('');
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH_LABEL);
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
@@ -165,7 +187,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
 
   const { accounts, transactions, incomes, monthlyBudgetCap, updateBudgetCap, deleteTransaction, deleteIncome, setEditingIncome, setEditingTransaction, _hasHydrated } = useFinanceStore();
 
-  const todayStr = getTodayIsoDate();
+  const todayStr = currentDateKey;
   const currentPeriodKey = MONTH_MAP[selectedMonth] || MONTH_MAP[CURRENT_MONTH_LABEL];
   const monthTransactions = (_hasHydrated ? (transactions || []) : []).filter((tx) => {
     if (selectedMonth !== 'All Months') {
@@ -195,21 +217,19 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
 
   const getDaysInfoForMonth = (monthLabel) => {
     const ym = MONTH_MAP[monthLabel];
-    const now = new Date();
     if (!ym || ym === 'all') {
-      const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const currentDay = now.getDate();
+      const daysInCurrentMonth = new Date(currentYear, currentMonth, 0).getDate();
       return { totalDays: daysInCurrentMonth, currentDay, remainingDays: Math.max(1, daysInCurrentMonth - currentDay + 1) };
     }
     const [yearStr, monthStr] = ym.split('-');
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10);
     const totalDays = new Date(year, month, 0).getDate();
-    const isCurrentMonth = now.getFullYear() === year && (now.getMonth() + 1) === month;
-    const isPastMonth = (now.getFullYear() > year) || (now.getFullYear() === year && (now.getMonth() + 1) > month);
-    const currentDay = isCurrentMonth ? now.getDate() : (isPastMonth ? totalDays : 1);
-    const remainingDays = isCurrentMonth ? Math.max(1, totalDays - now.getDate() + 1) : (isPastMonth ? 1 : totalDays);
-    return { totalDays, currentDay, remainingDays };
+    const isCurrentMonth = currentYear === year && currentMonth === month;
+    const isPastMonth = (currentYear > year) || (currentYear === year && currentMonth > month);
+    const currentDayVal = isCurrentMonth ? currentDay : (isPastMonth ? totalDays : 1);
+    const remainingDays = isCurrentMonth ? Math.max(1, totalDays - currentDay + 1) : (isPastMonth ? 1 : totalDays);
+    return { totalDays, currentDay: currentDayVal, remainingDays };
   };
 
   const { remainingDays } = getDaysInfoForMonth(selectedMonth);
@@ -218,14 +238,47 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
     const rem = remainingBalanceGrouped[cur] || 0;
     safeToSpendDailyGrouped[cur] = rem > 0 && remainingDays > 0 ? rem / remainingDays : 0;
   });
+  const safeToSpendGrouped = safeToSpendDailyGrouped;
   const isAnyOverBudget = allActiveCurrencies.some((cur) => remainingBalanceGrouped[cur] <= 0 && (expensesGrouped[cur] || 0) > 0);
   const isOverPace = isAnyOverBudget;
   const paceBadgeText = isOverPace ? 'Over budget' : 'Safe pace';
 
-  const activeBudgetCap = (monthlyBudgetCap && (monthlyBudgetCap.AFN || monthlyBudgetCap.USD)) ? monthlyBudgetCap : { AFN: 50000, USD: 1000 };
-  const spentInPrimaryAFN = Number(expensesGrouped.AFN) || 0;
-  const capInPrimaryAFN = Number(activeBudgetCap.AFN) || 50000;
-  const rawBudgetUsedPercent = capInPrimaryAFN > 0 ? (spentInPrimaryAFN / capInPrimaryAFN) * 100 : 0;
+  const activeBudgetCap = monthlyBudgetCap || {};
+  const activeBudgetCurrencies = useMemo(() => {
+    const list = [];
+    ['AFN', 'USD', 'EUR', 'GBP'].forEach((cur) => {
+      const capVal = Number(activeBudgetCap[cur]) || 0;
+      const expVal = Number(expensesGrouped[cur]) || 0;
+      if (capVal > 0 || expVal > 0) {
+        list.push(cur);
+      }
+    });
+    if (list.length === 0) {
+      list.push(allActiveCurrencies[0] || 'AFN');
+    }
+    return list;
+  }, [activeBudgetCap, expensesGrouped, allActiveCurrencies]);
+
+  const budgetSpentDisplayGrouped = useMemo(() => {
+    const res = {};
+    activeBudgetCurrencies.forEach((cur) => {
+      res[cur] = expensesGrouped[cur] || 0;
+    });
+    return res;
+  }, [activeBudgetCurrencies, expensesGrouped]);
+
+  const budgetCapDisplayGrouped = useMemo(() => {
+    const res = {};
+    activeBudgetCurrencies.forEach((cur) => {
+      res[cur] = activeBudgetCap[cur] || 0;
+    });
+    return res;
+  }, [activeBudgetCurrencies, activeBudgetCap]);
+
+  const primaryBudgetCurrency = activeBudgetCurrencies[0] || 'AFN';
+  const spentInPrimary = Number(expensesGrouped[primaryBudgetCurrency]) || 0;
+  const capInPrimary = Number(activeBudgetCap[primaryBudgetCurrency]) || 0;
+  const rawBudgetUsedPercent = capInPrimary > 0 ? (spentInPrimary / capInPrimary) * 100 : 0;
   const budgetUsedPercent = Math.round(rawBudgetUsedPercent);
   const budgetBarWidth = Math.min(Math.max(0, rawBudgetUsedPercent), 100);
 
@@ -276,9 +329,11 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
 
   const activeIncomes = periodIncomes.filter((item) => ['Salary', 'Freelance'].includes(item.category) || item.incomeType === 'active');
   const activeTotalGrouped = calculateGroupedTotals(activeIncomes);
+  const activeIncomeGrouped = activeTotalGrouped;
   const activeTotalNumeric = activeIncomes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const passiveIncomes = periodIncomes.filter((item) => !['Salary', 'Freelance'].includes(item.category) && item.incomeType !== 'active');
   const passiveTotalGrouped = calculateGroupedTotals(passiveIncomes);
+  const passiveIncomeGrouped = passiveTotalGrouped;
   const activePct = incomeTotalInflowNumeric > 0 ? ((activeTotalNumeric / incomeTotalInflowNumeric) * 100).toFixed(1) : '0.0';
   const passivePct = incomeTotalInflowNumeric > 0 ? (((incomeTotalInflowNumeric - activeTotalNumeric) / incomeTotalInflowNumeric) * 100).toFixed(1) : '0.0';
 
@@ -292,9 +347,11 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
   const FIXED_CATS = ['housing', 'utilities', 'bills', 'rent'];
   const fixedExpenses = periodExpenses.filter((tx) => FIXED_CATS.some((fc) => (tx.category || '').toLowerCase().includes(fc)));
   const fixedTotalGrouped = calculateGroupedTotals(fixedExpenses);
+  const fixedExpensesGrouped = fixedTotalGrouped;
   const fixedTotalNumeric = fixedExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const variableExpenses = periodExpenses.filter((tx) => !FIXED_CATS.some((fc) => (tx.category || '').toLowerCase().includes(fc)));
   const variableTotalGrouped = calculateGroupedTotals(variableExpenses);
+  const variableExpensesGrouped = variableTotalGrouped;
   const fixedPct = expenseTotalOutflowNumeric > 0 ? ((fixedTotalNumeric / expenseTotalOutflowNumeric) * 100).toFixed(1) : '0.0';
   const variablePct = expenseTotalOutflowNumeric > 0 ? (((expenseTotalOutflowNumeric - fixedTotalNumeric) / expenseTotalOutflowNumeric) * 100).toFixed(1) : '0.0';
 
@@ -325,16 +382,25 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
     if (setActiveTab) setActiveTab('add_income_light_mode');
   };
 
-  const handleDeleteIncome = (item) => {
-    if (window.confirm(`Delete income stream "${item.title || item.payerName}"?`)) {
+  const handleDeleteIncome = async (item) => {
+    const itemName = item.title || item.payerName || 'this income stream';
+    const confirmed = await confirm({
+      variant: 'destructive',
+      titleKey: 'confirm.deleteIncomeTitle',
+      message: `Delete income stream "${itemName}"? This action cannot be undone.`,
+      confirmLabelKey: 'confirm.delete',
+      cancelLabelKey: 'confirm.cancel',
+    });
+    if (confirmed) {
       deleteIncome(item.id);
+      toast.success(t('toasts.incomeDeleted', 'Income stream deleted'));
     }
   };
 
   const handleExportIncomeCSV = () => {
     const itemsToExport = filteredIncomes.length > 0 ? filteredIncomes : periodIncomes;
     if (itemsToExport.length === 0) {
-      alert('No income records available to export.');
+      toast.warning(t('toasts.noIncomeExport', 'No income records available to export'));
       return;
     }
     const headers = ['ID', 'Title', 'Category', 'Amount', 'Currency', 'Date', 'Status', 'Recurrence', 'Notes'];
@@ -345,7 +411,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
       item.amount || 0,
       `"${item.currency || 'USD'}"`,
       `"${item.date || ''}"`,
-      `"${(item.status || 'Cleared').replace(/"/g, '""')}"`,
+      `"${(item.status || t('finance.cleared', 'Cleared')).replace(/"/g, '""')}"`,
       `"${(item.recurrence || '').replace(/"/g, '""')}"`,
       `"${(item.notes || '').replace(/"/g, '""')}"`,
     ]);
@@ -366,7 +432,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
       ? filteredExpenseTransactions
       : (transactions || []).filter((tx) => tx.type === 'expense');
     if (itemsToExport.length === 0) {
-      alert('No expense records available to export.');
+      toast.info(t('toasts.noExpenseExport', 'No expense records available to export.'));
       return;
     }
     const headers = ['Date', 'Category', 'Title', 'Amount', 'Currency', 'Notes'];
@@ -392,44 +458,41 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
   };
 
   const handleOpenBudgetModal = () => {
-    setBudgetFormAFN(String(activeBudgetCap.AFN || 50000));
-    setBudgetFormUSD(String(activeBudgetCap.USD || 1000));
+    const cap = monthlyBudgetCap || {};
+    setBudgetFormAFN(cap.AFN !== undefined && cap.AFN !== null && Number(cap.AFN) > 0 ? String(cap.AFN) : '');
+    setBudgetFormUSD(cap.USD !== undefined && cap.USD !== null && Number(cap.USD) > 0 ? String(cap.USD) : '');
     setIsBudgetModalOpen(true);
   };
 
   const handleSaveBudgetCap = (e) => {
     if (e) e.preventDefault();
-    const afnVal = Math.max(0, parseFloat(budgetFormAFN) || 0);
-    const usdVal = Math.max(0, parseFloat(budgetFormUSD) || 0);
+    const afnVal = budgetFormAFN.trim() !== '' ? Math.max(0, parseFloat(budgetFormAFN) || 0) : 0;
+    const usdVal = budgetFormUSD.trim() !== '' ? Math.max(0, parseFloat(budgetFormUSD) || 0) : 0;
     updateBudgetCap({ AFN: afnVal, USD: usdVal });
     setIsBudgetModalOpen(false);
   };
 
-  const handlePlusAction = () => {
-    if (!setActiveTab) return;
-    if (activeFinanceTab === 'income') {
-      setActiveTab('add_income_light_mode');
-    } else {
-      if (setEditingTransaction) setEditingTransaction(null);
-      setActiveTab('add_edit_expense_light_mode');
-    }
-  };
-
   return (
     <div className="relative w-full pb-36 bg-slate-50 text-slate-900 font-sans min-h-screen">
-      {/* Top Header Bar */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
+      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Coins className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-bold text-slate-900 tracking-tight">
-            Finance & Wealth
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" aria-label="Notifications" className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer">
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">{t('finance.title', 'Finance & Wealth')}</h1>
+</div>
+<div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab && setActiveTab('notifications_settings_light_mode')}
+            aria-label="Notifications"
+            className="relative p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer"
+          >
             <Bell className="w-5 h-5"/>
+            {unreadNotifCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
           </button>
           <UserAvatar 
             setActiveTab={setActiveTab} 
@@ -438,46 +501,34 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
       </header>
 
       {/* Sleek Glassmorphic Local Navigation Tabs */}
-      <div className="px-5 pt-1 pb-2 relative z-50">
+      <div className="px-5 lg:px-0 pt-1 pb-2 relative z-50">
         <div className="p-1 rounded-2xl bg-slate-200/60 backdrop-blur-xl border border-white/50 shadow-sm flex items-center justify-between gap-1">
           <button
             type="button"
-            onClick={() => {
-              setActiveFinanceTab('dashboard');
-              setSearchQuery('');
-            }}
+            onClick={() => handleFinanceTabChange('dashboard')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer select-none ${activeFinanceTab === 'dashboard' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40 font-medium'}`}
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>Dashboard</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveFinanceTab('expenses');
-              setSearchQuery('');
-            }}
+            <span>{t('finance.dashboard', 'Dashboard')}</span>
+</button>
+<button type="button"
+            onClick={() => handleFinanceTabChange('expenses')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer select-none ${activeFinanceTab === 'expenses' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40 font-medium'}`}
           >
             <CreditCard className="w-3.5 h-3.5" />
-            <span>Expenses</span>
+            <span>{t('finance.expenses', 'Expenses')}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveFinanceTab('income');
-              setSearchQuery('');
-            }}
+          <button type="button"
+            onClick={() => handleFinanceTabChange('income')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer select-none ${activeFinanceTab === 'income' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-white/40 font-medium'}`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>Income</span>
+            <span>{t('finance.income', 'Income')}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="w-full bg-transparent relative z-10 pointer-events-auto">
+      <main className="flex-1 w-full bg-transparent relative z-10 pointer-events-auto">
         {(isMonthOpen || isCategoryOpen || isSortOpen) && (
           <div 
             className="fixed inset-0 z-40 bg-transparent pointer-events-auto"
@@ -498,14 +549,14 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
         <div className="px-5 pt-2 pb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900 tracking-normal">
-              {activeFinanceTab === 'dashboard' && 'Financial Overview'}
-              {activeFinanceTab === 'expenses' && 'Expense Tracker'}
-              {activeFinanceTab === 'income' && 'Income Streams'}
+              {activeFinanceTab === 'dashboard' && t('finance.financialOverview', 'Financial Overview')}
+              {activeFinanceTab === 'expenses' && t('finance.expenseTracker', 'Expense Tracker')}
+              {activeFinanceTab === 'income' && t('finance.incomeStreams', 'Income Streams')}
             </h2>
             <p className="text-xs font-normal text-slate-500 mt-0.5">
-              {activeFinanceTab === 'dashboard' && 'Holistic wealth, spending pace & metrics'}
-              {activeFinanceTab === 'expenses' && 'Manage & categorize all outflows'}
-              {activeFinanceTab === 'income' && 'Recurring inflows, bonuses & deposits'}
+              {activeFinanceTab === 'dashboard' && t('finance.overviewSubtitle', 'Holistic wealth, spending pace & metrics')}
+              {activeFinanceTab === 'expenses' && t('finance.expenseSubtitle', 'Manage & categorize all outflows')}
+              {activeFinanceTab === 'income' && t('finance.incomeSubtitle', 'Recurring inflows, bonuses & deposits')}
             </p>
           </div>
           
@@ -571,9 +622,9 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
               <div className="flex items-center justify-between w-full pt-1">
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full inline-block shrink-0 ${isOverPace ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
-                  <span className="text-xs font-medium text-slate-500">Safe to spend:</span>
+                  <span className="text-xs font-medium text-slate-500">{t('finance.safeToSpend', 'Safe to spend:')}</span>
                 </div>
-                <StackedCurrencyDisplay grouped={safeToSpendDailyGrouped} align="end" suffix=" / day" isDark={false} primaryClass="text-xs sm:text-sm font-semibold text-slate-900" secondaryClass="text-xs text-gray-400 opacity-70 font-medium" />
+                <StackedCurrencyDisplay grouped={safeToSpendGrouped} align="end" suffix=" / day" isDark={false} primaryClass="text-xs sm:text-sm font-semibold text-slate-900" secondaryClass="text-xs text-gray-400 opacity-70 font-medium" />
               </div>
 
               <div className="w-full h-px bg-slate-200/80 my-3"></div>
@@ -599,24 +650,23 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
               <div className="pt-0.5">
                 <div className="flex items-center justify-between mb-1.5 text-[11px] font-medium">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-slate-500">Monthly Budget Cap</span>
+                    <span className="text-slate-500">{t('finance.monthlyBudgetCap', 'Monthly Budget Cap')}</span>
                     <button
                       type="button"
                       onClick={handleOpenBudgetModal}
-                      title="Set Monthly Budget"
-                      className="p-1 rounded-md text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer select-none"
+                      title={t('finance.setMonthlyBudget', 'Set Monthly Budget')} className="p-1 rounded-md text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer select-none"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
                   </div>
-                  <span className={`font-semibold ${budgetUsedPercent >= 100 ? 'text-rose-600' : budgetUsedPercent >= 80 ? 'text-amber-600' : 'text-primary'}`}>{budgetUsedPercent}% used</span>
+                  <span className={`font-semibold ${budgetUsedPercent >= 100 ? 'text-rose-600' : budgetUsedPercent >= 80 ? 'text-amber-600' : 'text-primary'}`}>{t('finance.budgetUsedPercent', { percent: budgetUsedPercent })}</span>
                 </div>
                 <div className="rounded-full h-2.5 bg-slate-100 overflow-hidden">
                   <div className={`h-full rounded-full transition-all duration-500 ${budgetUsedPercent >= 100 ? 'bg-gradient-to-r from-rose-500 to-red-600' : budgetUsedPercent >= 80 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-primary to-cyan-500'}`} style={{ width: `${budgetBarWidth}%` }}></div>
                 </div>
                 <div className="flex items-start justify-between mt-2 text-xs font-normal">
-                  <StackedCurrencyDisplay grouped={{ AFN: expensesGrouped.AFN || 0, USD: expensesGrouped.USD || 0 }} includeZero={true} align="start" suffix=" spent" isDark={false} primaryClass="text-xs font-bold text-slate-800" secondaryClass="text-[10px] text-slate-400 font-medium" />
-                  <StackedCurrencyDisplay grouped={activeBudgetCap} includeZero={true} align="end" suffix=" limit" isDark={false} primaryClass="text-xs font-bold text-slate-800" secondaryClass="text-[10px] text-slate-400 font-medium" />
+                  <StackedCurrencyDisplay grouped={budgetSpentDisplayGrouped} includeZero={false} align="start" suffix=" spent" isDark={false} primaryClass="text-xs font-bold text-slate-800" secondaryClass="text-[10px] text-slate-400 font-medium" />
+                  <StackedCurrencyDisplay grouped={budgetCapDisplayGrouped} includeZero={false} align="end" suffix=" limit" isDark={false} primaryClass="text-xs font-bold text-slate-800" secondaryClass="text-[10px] text-slate-400 font-medium" />
                 </div>
               </div>
             </div>
@@ -632,8 +682,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   <ArrowUpRight className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900 block">Log Expense</span>
-                  <span className="text-[10px] text-slate-500">Track spending</span>
+                  <span className="text-xs font-bold text-slate-900 block">{t('finance.logExpense', 'Log Expense')}</span>
+                  <span className="text-[10px] text-slate-500">{t('finance.trackSpending', 'Track spending')}</span>
                 </div>
               </button>
               <button
@@ -645,24 +695,23 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   <ArrowDownLeft className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900 block">Add Income</span>
-                  <span className="text-[10px] text-slate-500">Record inflow</span>
+                  <span className="text-xs font-bold text-slate-900 block">{t('finance.addIncome', 'Add Income')}</span>
+                  <span className="text-[10px] text-slate-500">{t('finance.recordInflow', 'Record inflow')}</span>
                 </div>
               </button>
             </div>
 
-            {/* SPENDING CATEGORIES CAROUSEL */}
-            <div>
-              <div className="flex items-center justify-between px-5 mb-2.5">
-                <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Spending Categories</span>
-                <button 
-                  type="button" 
-                  onClick={() => setActiveFinanceTab('expenses')}
-                  className="text-xs font-bold text-primary hover:text-primary active:scale-95 transition-all cursor-pointer select-none"
-                >
-                  View Details →
-                </button>
-              </div>
+            {/* SPENDING CATEGORIES SECTION */}
+            <div className="flex items-center justify-between px-5 mb-2.5">
+              <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider">{t('finance.spendingCategories', 'Spending Categories')}</span>
+              <button 
+                type="button" 
+                onClick={() => handleFinanceTabChange('expenses')}
+                className="text-xs font-bold text-primary hover:text-primary active:scale-95 transition-all cursor-pointer select-none"
+              >
+                {t('finance.viewDetails', 'View Details →')}
+              </button>
+            </div>
               <div className="flex items-center gap-3.5 px-5 overflow-x-auto scrollbar-none pb-2 pt-1">
                 {SPENDING_CATEGORIES.map((cat) => {
                   const IconComp = cat.icon;
@@ -672,7 +721,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                       key={cat.id}
                       onClick={() => {
                         setCategoryFilter(cat.filterKey);
-                        setActiveFinanceTab('expenses');
+                        handleFinanceTabChange('expenses');
                       }}
                       className="w-32 min-h-[120px] rounded-2xl transition-all duration-200 ease-out active:scale-[0.98] cursor-pointer select-none flex flex-col items-center justify-center gap-2 flex-shrink-0 p-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg"
                     >
@@ -687,19 +736,19 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   );
                 })}
               </div>
-            </div>
 
             {/* RECENT MIXED ACTIVITY */}
             <div className="px-5 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Recent Activity</span>
+                <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider">{t('finance.recentActivity', 'Recent Activity')}</span>
                 <span className="text-xs font-semibold text-slate-500">
-                  {monthTransactions.length} records
+                  {monthTransactions.length} {t('finance.records', 'records')}
                 </span>
               </div>
+
               {monthTransactions.length === 0 ? (
                 <div className="p-6 rounded-2xl border text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-                  <p className="text-xs text-slate-500">No transactions recorded for this period.</p>
+                  <p className="text-xs text-slate-500">{t('finance.noTransactionsPeriod', 'No transactions recorded for this period.')}</p>
                 </div>
               ) : (
                 monthTransactions.slice(0, 5).map((tx) => (
@@ -749,32 +798,28 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                 <div className="rounded-2xl p-3 flex flex-col items-start justify-between min-h-[92px] bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span className="text-xs font-medium text-slate-500">Fixed Expenses</span>
+                    <span className="text-xs font-medium text-slate-500">{t('finance.fixedExpenses', 'Fixed Expenses')}</span>
                   </div>
-                  <StackedCurrencyDisplay grouped={fixedTotalGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
-                  <span className="text-xs font-medium text-slate-500 mt-1">{fixedPct}% of total</span>
+                  <StackedCurrencyDisplay grouped={fixedExpensesGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                  <span className="text-xs font-medium text-slate-500 mt-1">{fixedPct}% {t('finance.ofTotal', 'of total')}</span>
                 </div>
                 <div className="rounded-2xl p-3 flex flex-col items-start justify-between min-h-[92px] bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span className="text-xs font-medium text-slate-500">Variable Expenses</span>
+                    <span className="text-xs font-medium text-slate-500">{t('finance.variableExpenses', 'Variable Expenses')}</span>
                   </div>
-                  <StackedCurrencyDisplay grouped={variableTotalGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
-                  <span className="text-xs font-medium text-slate-500 mt-1">{variablePct}% of total</span>
+                  <StackedCurrencyDisplay grouped={variableExpensesGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                  <span className="text-xs font-medium text-slate-500 mt-1">{variablePct}% {t('finance.ofTotal', 'of total')}</span>
                 </div>
               </div>
             </div>
 
-            {/* SEARCH, FILTER & ACTION CONTROLS */}
             <div className="mx-5 flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input 
                   type="text" 
-                  placeholder="Search expenses..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full py-3 pl-10 pr-4 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 pointer-events-auto" 
+                  placeholder={t('finance.searchExpensesPlaceholder', 'Search expenses...')} className="w-full py-3 pl-10 pr-4 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 pointer-events-auto" 
                 />
               </div>
               <button 
@@ -883,9 +928,9 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-primary/10 text-primary">
                   <SearchX className="w-8 h-8"/>
                 </div>
-                <h3 className="text-base font-semibold mb-1 text-slate-900">No Expenses Found</h3>
+                <h3 className="text-base font-semibold mb-1 text-slate-900">{t('finance.noExpensesFound', 'No Expenses Found')}</h3>
                 <p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-500">
-                  {searchQuery || categoryFilter !== 'All Categories' ? 'No expense records match your active filters.' : 'No expenses recorded yet for this period.'}
+                  {searchQuery || categoryFilter !== 'All Categories' ? t('finance.noExpenseMatchFilter', 'No expense records match your active filters.') : t('finance.noExpensesRecordedYet', 'No expenses recorded yet for this period.')}
                 </p>
                 <button 
                   type="button"
@@ -898,9 +943,9 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
             ) : (
               <>
                 <div className="flex items-center justify-between px-5 py-1">
-                  <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Expense Records</span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    {filteredExpenseTransactions.length} {filteredExpenseTransactions.length === 1 ? 'entry' : 'entries'}
+                  <span className="text-xs font-semibold text-slate-900 uppercase tracking-wider">{t('finance.expenseRecords', 'Expense Records')}</span>
+<span className="text-xs font-semibold text-slate-500">
+                    {filteredExpenseTransactions.length} {filteredExpenseTransactions.length === 1 ? t('finance.entry', 'entry') : t('finance.entries', 'entries')}
                   </span>
                 </div>
 
@@ -934,7 +979,10 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (deleteTransaction) deleteTransaction(tx.id);
+                            if (deleteTransaction) {
+                              deleteTransaction(tx.id);
+                              toast.success(t('toasts.transactionDeleted', 'Transaction deleted'));
+                            }
                           }}
                           aria-label="Delete transaction" 
                           className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:scale-90 transition-transform cursor-pointer select-none pointer-events-auto"
@@ -976,22 +1024,22 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                 <div className="rounded-2xl p-3 flex flex-col items-start justify-between min-h-[92px] bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="w-2 h-2 rounded-full bg-primary"></span>
-                    <span className="text-xs font-medium text-slate-500">Active Income</span>
+                    <span className="text-xs font-medium text-slate-500">{t('finance.activeIncome', 'Active Income')}</span>
                   </div>
-                  <StackedCurrencyDisplay grouped={activeTotalGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
-                  <span className="text-xs font-medium text-slate-500 mt-1">{activePct}% of total</span>
+                  <StackedCurrencyDisplay grouped={activeIncomeGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                  <span className="text-xs font-medium text-slate-500 mt-1">{activePct}% {t('finance.ofTotal', 'of total')}</span>
                 </div>
                 <div className="rounded-2xl p-3 flex flex-col items-start justify-between min-h-[92px] bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span className="text-xs font-medium text-slate-500">Passive & Other</span>
+                    <span className="text-xs font-medium text-slate-500">{t('finance.passiveAndOther', 'Passive & Other')}</span>
                   </div>
-                  <StackedCurrencyDisplay grouped={passiveTotalGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
-                  <span className="text-xs font-medium text-slate-500 mt-1">{passivePct}% of total</span>
+                  <StackedCurrencyDisplay grouped={passiveIncomeGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                  <span className="text-xs font-medium text-slate-500 mt-1">{passivePct}% {t('finance.ofTotal', 'of total')}</span>
                 </div>
               </div>
 
-              {/* Next Expected Deposit Widget */}
+              {/* Next Scheduled Deposit Pill */}
               <div className="flex items-center justify-between rounded-2xl px-3.5 py-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0">
@@ -999,15 +1047,15 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-bold text-slate-900 truncate">
-                      {nextExpectedDeposit ? `${nextExpectedDeposit.title || nextExpectedDeposit.payerName} (+${formatSingleCurrency(nextExpectedDeposit.amount, nextExpectedDeposit.currency)})` : 'No Scheduled Deposits'}
+                      {nextExpectedDeposit ? `${nextExpectedDeposit.title || nextExpectedDeposit.payerName} (+${formatSingleCurrency(nextExpectedDeposit.amount, nextExpectedDeposit.currency)})` : t('finance.noScheduledDeposits', 'No Scheduled Deposits')}
                     </span>
                     <span className="text-xs font-medium text-slate-500">
-                      {nextExpectedDeposit ? `${formatIncomeDate(nextExpectedDeposit.date)} • ${getDaysRemainingText(nextExpectedDeposit.date, todayStr)}` : 'All incoming streams up to date'}
+                      {nextExpectedDeposit ? `${formatIncomeDate(nextExpectedDeposit.date)} • ${getDaysRemainingText(nextExpectedDeposit.date, todayStr)}` : t('finance.allStreamsUpToDate', 'All incoming streams up to date')}
                     </span>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-primary bg-white border border-primary/20 px-2 py-1 rounded-full shrink-0 shadow-sm">
-                  {nextExpectedDeposit ? 'Scheduled' : 'Up to date'}
+                  {nextExpectedDeposit ? t('finance.scheduled', 'Scheduled') : t('finance.upToDate', 'Up to date')}
                 </span>
               </div>
             </div>
@@ -1022,13 +1070,12 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                 className="btn-primary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 cursor-pointer select-none"
               >
                 <Plus className="w-5 h-5" />
-                <span>Add Income</span>
+                <span>{t('finance.addIncome', 'Add Income')}</span>
               </button>
               <div className="flex items-center gap-2">
                 <button 
                   type="button"
-                  aria-label="Export CSV" 
-                  onClick={handleExportIncomeCSV}
+                  aria-label={t('common.exportCsv', 'Export CSV')} 
                   className="h-12 w-12 rounded-2xl bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center cursor-pointer select-none"
                 >
                   <Download className="w-5 h-5" />
@@ -1052,19 +1099,17 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full py-3 pl-10 pr-4 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-sm text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 pointer-events-auto" 
-                  placeholder="Search income sources or notes..." 
-                  type="text"
+                  placeholder={t('finance.searchIncomePlaceholder', 'Search income sources or notes...')} type="text"
                 />
               </div>
               <button 
                 onClick={() => setSearchQuery('')}
                 className="h-11 px-3 bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-sm rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer select-none"
               >
-                <span className="text-sm font-semibold">Reset</span>
+                <span className="text-sm font-semibold">{t('common.reset', 'Reset')}</span>
               </button>
             </div>
 
-            {/* Source Filter Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 px-5 no-scrollbar">
               {INCOME_CATEGORIES.map((cat) => {
                 const isSelected = selectedIncomeCategory === cat;
@@ -1084,7 +1129,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
             <div className="px-5 space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-bold text-slate-900 tracking-wider uppercase">{selectedMonth}</span>
-                <span className="text-xs font-semibold text-slate-500">{filteredIncomes.length} Streams</span>
+                <span className="text-xs font-semibold text-slate-500">{filteredIncomes.length} {t('finance.streams', 'Streams')}</span>
               </div>
 
               {filteredIncomes.length === 0 ? (
@@ -1092,19 +1137,33 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-primary/10 text-primary">
                     <SearchX className="w-8 h-8"/>
                   </div>
-                  <h3 className="text-base font-semibold mb-1 text-slate-900">No Income Streams Found</h3>
+                  <h3 className="text-base font-semibold mb-1 text-slate-900">
+                    {searchQuery || selectedIncomeCategory !== 'All Sources' ? t('finance.noIncomeFound', 'No Income Streams Found') : t('finance.noIncomeRecordsYet', 'No Income Records Yet')}
+                  </h3>
                   <p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-500">
-                    {searchQuery || selectedIncomeCategory !== 'All Sources' ? 'No records match your filters.' : 'No income streams recorded for this period.'}
+                    {searchQuery || selectedIncomeCategory !== 'All Sources' ? t('finance.noExpenseMatchFilter', 'No records match your active filters.') : t('finance.noIncomeStreamsPeriod', 'No income streams recorded for this period.')}
                   </p>
-                  <button 
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSelectedIncomeCategory('All Sources');
-                    }}
-                    className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
-                  >
-                    Clear Search Filter
-                  </button>
+                  {searchQuery || selectedIncomeCategory !== 'All Sources' ? (
+                    <button 
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedIncomeCategory('All Sources');
+                      }}
+                      className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
+                    >
+                      Clear Search Filter
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        if (setEditingIncome) setEditingIncome(null);
+                        if (setActiveTab) setActiveTab('add_income_light_mode');
+                      }}
+                      className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
+                    >
+                      <Plus className="w-4 h-4"/> Add First Income
+                    </button>
+                  )}
                 </div>
               ) : (
                 filteredIncomes.map((item) => (
@@ -1115,10 +1174,10 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                           {getIncomeCategoryIcon(item.category)}
                         </div>
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-base font-bold text-slate-900 truncate">{item.title || item.payerName || 'Income'}</span>
+                          <span className="text-base font-bold text-slate-900 truncate">{item.title || item.payerName || t('finance.income', 'Income')}</span>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${getIncomeBadgeClass(item.category)}`}>
-                              {item.category || 'Income'}
+                              {item.category || t('finance.income', 'Income')}
                             </span>
                             <span className="text-xs font-medium text-slate-500 truncate">{formatIncomeDate(item.date)}</span>
                           </div>
@@ -1128,13 +1187,13 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                         <span className="text-lg font-bold text-emerald-600">
                           +{formatSingleCurrency(item.amount, item.currency)}
                         </span>
-                        <span className="text-xs font-medium text-slate-500">{item.status || 'Cleared'}</span>
+                        <span className="text-xs font-medium text-slate-500">{item.status || t('finance.cleared', 'Cleared')}</span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                       <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full">
                         <Repeat className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                        <span className="text-xs font-medium text-slate-600">{item.recurrence || item.notes || 'Income deposit'}</span>
+                        <span className="text-xs font-medium text-slate-600">{item.recurrence || item.notes || t('finance.incomeDeposit', { defaultValue: 'Income deposit' })}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button 
@@ -1164,22 +1223,21 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
               )}
             </div>
 
-            {/* Mindful Prosperity Quote Pill */}
+            {/* Mindful Prosperity Note */}
             <div className="mx-5 rounded-3xl p-5 flex items-center gap-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center shrink-0">
                 <Leaf className="w-5 h-5" />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-slate-900">Mindful Prosperity</span>
-                <span className="text-xs font-medium text-slate-500 mt-0.5 leading-relaxed">"Steady discipline creates lasting tranquility and sustainable abundance."</span>
+                <span className="text-sm font-bold text-slate-900">{t('finance.mindfulProsperity', 'Mindful Prosperity')}</span>
+                <span className="text-xs font-medium text-slate-500 mt-0.5 leading-relaxed">{t('finance.disciplineQuote', 'Steady discipline creates lasting tranquility and sustainable abundance.')}</span>
               </div>
             </div>
           </div>
         )}
-
       </main>
 
-      {/* Statement Report Modal */}
+      {/* REPORT MODAL */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl p-5 bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl space-y-4">
@@ -1189,7 +1247,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Income Statement</h3>
+                  <h3 className="text-sm font-bold text-slate-900">{t('finance.incomeStatement', 'Income Statement')}</h3>
                   <p className="text-[10px] text-slate-500">{selectedMonth}</p>
                 </div>
               </div>
@@ -1204,20 +1262,20 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
 
             <div className="space-y-2">
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 flex items-center justify-between">
-                <span className="text-xs font-medium">Total Inflow</span>
-                <StackedCurrencyDisplay grouped={incomeTotalInflowGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium">{t('finance.totalInflow', 'Total Inflow')}</span>
+                <StackedCurrencyDisplay grouped={incomeGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
               </div>
               <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-between">
-                <span className="text-xs font-medium">Active Income ({activePct}%)</span>
-                <StackedCurrencyDisplay grouped={activeTotalGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-primary" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium">{t('finance.activeIncome', 'Active Income')}</span>
+                <StackedCurrencyDisplay grouped={activeIncomeGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-primary" secondaryClass="text-xs text-slate-500 font-medium" />
               </div>
               <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100/50 text-emerald-900 flex items-center justify-between">
-                <span className="text-xs font-medium">Passive & Other ({passivePct}%)</span>
-                <StackedCurrencyDisplay grouped={passiveTotalGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-emerald-600" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium">{t('finance.passiveAndOther', 'Passive & Other')}</span>
+                <StackedCurrencyDisplay grouped={passiveIncomeGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-emerald-600" secondaryClass="text-xs text-slate-500 font-medium" />
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 flex items-center justify-between text-xs">
-                <span>Total Recorded Streams</span>
-                <span className="font-semibold text-slate-900">{periodIncomes.length} entries</span>
+                <span>{t('finance.totalRecordedStreams', 'Total Recorded Streams')}</span>
+                <span className="font-semibold text-slate-900">{periodIncomes.length} {t('finance.entries', 'entries')}</span>
               </div>
             </div>
 
@@ -1228,14 +1286,14 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                 className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
+                <span>{t('common.exportCsv', 'Export CSV')}</span>
               </button>
-              <button
+              <button 
                 type="button"
                 onClick={() => setIsReportModalOpen(false)}
                 className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary text-white font-semibold text-xs transition-colors cursor-pointer select-none"
               >
-                Done
+                {t('common.done', 'Done')}
               </button>
             </div>
           </div>
@@ -1243,16 +1301,16 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
       )}
 
       {isBudgetModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl p-5 bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl p-6 bg-white/80 backdrop-blur-2xl border border-white/60 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                   <Pencil className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Set Monthly Budget</h3>
-                  <p className="text-[10px] text-slate-500">Configure your independent spending limits</p>
+                  <h3 className="text-sm font-bold text-slate-900">{t('finance.setMonthlyBudget', 'Set Monthly Budget')}</h3>
+                  <p className="text-[10px] text-slate-500">{t('finance.configureSpendingLimits', 'Configure your independent spending limits')}</p>
                 </div>
               </div>
               <button 
@@ -1267,7 +1325,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
             <form onSubmit={handleSaveBudgetCap} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Primary AFN Limit (افـ)
+                  {t('finance.primaryAfnLimit', 'Primary AFN Limit (افـ)')}
                 </label>
                 <div className="relative">
                   <input
@@ -1276,8 +1334,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                     step="any"
                     value={budgetFormAFN}
                     onChange={(e) => setBudgetFormAFN(e.target.value)}
-                    placeholder="50000"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/70 border border-slate-200/80 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                     AFN
@@ -1287,7 +1345,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Secondary USD Limit ($)
+                  {t('finance.secondaryUsdLimit', 'Secondary USD Limit ($)')}
                 </label>
                 <div className="relative">
                   <input
@@ -1296,8 +1354,8 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                     step="any"
                     value={budgetFormUSD}
                     onChange={(e) => setBudgetFormUSD(e.target.value)}
-                    placeholder="1000"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/70 border border-slate-200/80 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                     USD
@@ -1317,7 +1375,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary text-white font-semibold text-xs shadow-md shadow-primary/20 transition-all cursor-pointer select-none"
                 >
-                  Save Budget
+                  {t('finance.saveBudget', 'Save Budget')}
                 </button>
               </div>
             </form>

@@ -1,24 +1,9 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { createIndexedDbStorage } from '../storage/index.js';
 
-const getSafeStorage = () => {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const testKey = '__momentum_settings_test__';
-      window.localStorage.setItem(testKey, testKey);
-      window.localStorage.removeItem(testKey);
-      return window.localStorage;
-    }
-  } catch (e) {
-    console.warn('LocalStorage unavailable for settings store, falling back to memory store:', e);
-  }
-  const memoryStore = new Map();
-  return {
-    getItem: (key) => memoryStore.get(key) || null,
-    setItem: (key, value) => { memoryStore.set(key, String(value)); },
-    removeItem: (key) => { memoryStore.delete(key); },
-  };
-};
+const settingsStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum_settings_store' });
+const getSafeStorage = () => settingsStorage;
 
 export const INITIAL_NOTIFICATION_SETTINGS = {
   masterEnabled: true,
@@ -57,7 +42,9 @@ export const useSettingsStore = create(
               if (window.usePrayerStore.getState().adhanOffset !== value) {
                 window.usePrayerStore.getState().setAdhanOffset(value);
               }
-            } catch {}
+            } catch (err) {
+              void err;
+            }
           }
         } else {
           set({ [key]: value });
@@ -71,7 +58,9 @@ export const useSettingsStore = create(
             if (window.usePrayerStore.getState().adhanOffset !== offset) {
               window.usePrayerStore.getState().setAdhanOffset(offset);
             }
-          } catch {}
+          } catch (err) {
+            void err;
+          }
         }
       },
       setAdhanOffset: (offset) => {
@@ -82,7 +71,9 @@ export const useSettingsStore = create(
             if (window.usePrayerStore.getState().adhanOffset !== offset) {
               window.usePrayerStore.getState().setAdhanOffset(offset);
             }
-          } catch {}
+          } catch (err) {
+            void err;
+          }
         }
       },
       toggleSetting: (key) => set((state) => ({ [key]: !state[key] })),
@@ -109,18 +100,7 @@ export const useSettingsStore = create(
     }),
     {
       name: 'momentum_settings_store',
-      storage: {
-        getItem: (name) => {
-          const item = getSafeStorage().getItem(name);
-          return item ? JSON.parse(item) : null;
-        },
-        setItem: (name, value) => {
-          getSafeStorage().setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          getSafeStorage().removeItem(name);
-        },
-      },
+      storage: createJSONStorage(() => getSafeStorage()),
     }
   )
 );

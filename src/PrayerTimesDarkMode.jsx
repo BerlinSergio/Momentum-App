@@ -1,29 +1,26 @@
-﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState, useEffect, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useLocationStore } from './store/useLocationStore';
 import { useSettingsStore } from './store/useSettingsStore';
 import { usePrayerStore, INITIAL_CANONICAL_PRAYERS } from './store/usePrayerStore';
+import { useNotificationStore } from './store/useNotificationStore';
+import { getHijriDateParts } from './utils/afghanCalendar';
+import { toast } from './components/ui/toast/index.js';
 import {
   DEFAULT_KABUL_COORDINATES,
-  calculatePrayerTimes,
-  calculateSunAndTwilight,
+  CALCULATION_METHODS,
+  MADHABS,
+  HIGH_LATITUDE_RULES,
   getPrayerDate,
   getNextPrayerInfo,
 } from './utils/prayerTimes';
 import {
   Sparkles, Bell, BellRing, BellOff, MapPin, Compass, Calendar, Check, CheckCircle2, Bookmark,
-  Clock, Sunrise, Moon, RefreshCw
+  Clock, Sunrise, Moon, RefreshCw, Sliders, X, AlertCircle
 } from 'lucide-react';
 
-export {
-  DEFAULT_KABUL_COORDINATES,
-  calculatePrayerTimes,
-  calculateSunAndTwilight,
-  getPrayerDate,
-  getNextPrayerInfo,
-};
-
-export const DAILY_INSPIRATION_QUOTES = [
+const DAILY_INSPIRATION_QUOTES = [
   {
     ayah: "Guard strictly your habit of prayers, especially the middle prayer, and stand before Allah in profound devotion.",
     surah: "Surah Al-Baqarah 2:238",
@@ -82,15 +79,30 @@ function getDailyInspiration(baseDate = new Date()) {
   return DAILY_INSPIRATION_QUOTES[index];
 }
 
-export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
+export default function PrayerTimesDarkMode({ setActiveTab }) {
+  const { t } = useTranslation();
+  const unreadNotifCount = useNotificationStore((s) => s.notifications?.filter((n) => !n.read).length || 0);
   const selectedCity = useLocationStore((s) => s.selectedCity);
-  const lat = Number(selectedCity?.latitude) || DEFAULT_KABUL_COORDINATES.latitude;
-  const lng = Number(selectedCity?.longitude) || DEFAULT_KABUL_COORDINATES.longitude;
-  const storedPrayers = usePrayerStore((s) => s.prayers) || INITIAL_CANONICAL_PRAYERS;
-  const togglePrayer = usePrayerStore((s) => s.togglePrayer);
-  const advanceToNextPrayer = usePrayerStore((s) => s.advanceToNextPrayer);
-  const logPrayer = usePrayerStore((s) => s.logPrayer);
+  const lat = selectedCity?.latitude != null ? Number(selectedCity.latitude) : DEFAULT_KABUL_COORDINATES.latitude;
+  const lng = selectedCity?.longitude != null ? Number(selectedCity.longitude) : DEFAULT_KABUL_COORDINATES.longitude;
+  const prayerTimezone = selectedCity?.timezone || DEFAULT_KABUL_COORDINATES.timezone;
 
+  // Authoritative prayer calculation settings from usePrayerStore
+  const calculationMethod = usePrayerStore((s) => s.calculationMethod) || 'Karachi';
+  const madhab = usePrayerStore((s) => s.madhab) || 'Hanafi';
+  const highLatitudeRule = usePrayerStore((s) => s.highLatitudeRule) || 'recommended';
+  const polarCircleResolution = usePrayerStore((s) => s.polarCircleResolution) || 'AqrabBalad';
+  const prayerAdjustments = usePrayerStore((s) => s.prayerAdjustments);
+
+  const setCalculationMethod = usePrayerStore((s) => s.setCalculationMethod);
+  const setMadhab = usePrayerStore((s) => s.setMadhab);
+  const setHighLatitudeRule = usePrayerStore((s) => s.setHighLatitudeRule);
+
+  // Prayer history & user worship logs (SEPARATED FROM AUTOMATIC TIMERS)
+  const prayerLogs = usePrayerStore((s) => s.prayerLogs) || [];
+  const togglePrayer = usePrayerStore((s) => s.togglePrayer);
+
+  // Notification offset and preferences
   const prayerNotificationOffset = useSettingsStore(
     (s) => s.prayerNotificationOffset ?? s.adhanOffset
   );
@@ -112,10 +124,36 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [nextPrayerData, setNextPrayerData] = useState(() => getNextPrayerInfo(new Date(), lat, lng, storedPrayers));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Calculate next prayer data using centralized engine with explicit parameters
+  const [nextPrayerData, setNextPrayerData] = useState(() =>
+    getNextPrayerInfo({
+      baseDate: new Date(),
+      latitude: lat,
+      longitude: lng,
+      timezone: prayerTimezone,
+      calculationMethod,
+      madhab,
+      highLatitudeRule,
+      polarCircleResolution,
+      adjustments: prayerAdjustments,
+    })
+  );
+
   const [countdown, setCountdown] = useState(() => {
-    const info = getNextPrayerInfo(new Date(), lat, lng, storedPrayers);
-    const diffMs = Math.max(0, info.prayerDate.getTime() - Date.now());
+    const info = getNextPrayerInfo({
+      baseDate: new Date(),
+      latitude: lat,
+      longitude: lng,
+      timezone: prayerTimezone,
+      calculationMethod,
+      madhab,
+      highLatitudeRule,
+      polarCircleResolution,
+      adjustments: prayerAdjustments,
+    });
+    const diffMs = info.prayerDate ? Math.max(0, info.prayerDate.getTime() - Date.now()) : 0;
     const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
     const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
     const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
@@ -135,18 +173,37 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
       const currentNowMs = Date.now();
       setCurrentTime(now);
 
-      let info = getNextPrayerInfo(now, lat, lng, storedPrayers);
-      let diffMs = info.prayerDate.getTime() - currentNowMs;
+      let info = getNextPrayerInfo({
+        baseDate: now,
+        latitude: lat,
+        longitude: lng,
+        timezone: prayerTimezone,
+        calculationMethod,
+        madhab,
+        highLatitudeRule,
+        polarCircleResolution,
+        adjustments: prayerAdjustments,
+      });
+
+      let diffMs = info.prayerDate ? info.prayerDate.getTime() - currentNowMs : 0;
 
       // Transition Logic: If countdown reached 00 : 00 : 00
+      // CRITICAL ARCHITECTURAL SEPARATION:
+      // Countdown reaching zero advances schedule state only.
+      // It DOES NOT fabricate or create a completed prayer history record!
       if (diffMs <= 0) {
-        if (advanceToNextPrayer) {
-          advanceToNextPrayer(info.nextPrayer.id);
-        } else if (logPrayer) {
-          logPrayer(info.nextPrayer.id, { status: 'completed', isOnTime: true });
-        }
-        info = getNextPrayerInfo(new Date(), lat, lng, storedPrayers);
-        diffMs = Math.max(0, info.prayerDate.getTime() - Date.now());
+        info = getNextPrayerInfo({
+          baseDate: new Date(),
+          latitude: lat,
+          longitude: lng,
+          timezone: prayerTimezone,
+          calculationMethod,
+          madhab,
+          highLatitudeRule,
+          polarCircleResolution,
+          adjustments: prayerAdjustments,
+        });
+        diffMs = info.prayerDate ? Math.max(0, info.prayerDate.getTime() - Date.now()) : 0;
       }
 
       setNextPrayerData(info);
@@ -168,15 +225,48 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
     updateCountdown();
     const timerId = setInterval(updateCountdown, 1000);
     return () => clearInterval(timerId);
-  }, [lat, lng, storedPrayers, advanceToNextPrayer, logPrayer]);
+  }, [lat, lng, prayerTimezone, calculationMethod, madhab, highLatitudeRule, polarCircleResolution, prayerAdjustments]);
 
-  const prayersList = nextPrayerData.prayers;
-  const displayedDate = nextPrayerData.isTomorrow
-    ? new Date(currentTime.getTime() + 86400000)
-    : currentTime;
+  const prayersList = nextPrayerData.prayers || INITIAL_CANONICAL_PRAYERS;
+  const displayedDate = useMemo(() => {
+    return nextPrayerData.isTomorrow
+      ? new Date(currentTime.getTime() + 86400000)
+      : currentTime;
+  }, [nextPrayerData.isTomorrow, currentTime]);
 
   const sunTwilight = nextPrayerData.sunTwilight;
-  const dailyQuote = getDailyInspiration(displayedDate);
+  const dailyQuote = useMemo(() => getDailyInspiration(displayedDate), [displayedDate]);
+
+  // Dynamic Hijri and Gregorian date strings in the target prayer location's timezone
+  const dynamicHijriDate = useMemo(() => {
+    try {
+      const hijri = getHijriDateParts(displayedDate, prayerTimezone);
+      return hijri?.formatted || '13 Rabi\' al-Thani 1448 AH';
+    } catch {
+      return '13 Rabi\' al-Thani 1448 AH';
+    }
+  }, [displayedDate, prayerTimezone]);
+
+  const formattedGregorianDate = useMemo(() => {
+    try {
+      return displayedDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: prayerTimezone,
+      });
+    } catch {
+      return displayedDate.toDateString();
+    }
+  }, [displayedDate, prayerTimezone]);
+
+  const isUnconfigured = selectedCity?.status === 'unconfigured';
+  const locationBadge = selectedCity?.mode === 'auto' || selectedCity?.isGps
+    ? 'GPS AUTO'
+    : selectedCity?.isCustom
+    ? 'CUSTOM'
+    : 'MANUAL';
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col pb-28 font-sans font-inter antialiased select-none">
@@ -186,16 +276,31 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-base font-semibold text-white tracking-tight font-sans">Prayer Times</h1>
+          <h1 className="text-base font-semibold text-white tracking-tight font-sans">
+            {t('prayer.title', 'Prayer Times')}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* Calculation Settings Button */}
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer pointer-events-auto"
+            title={t('prayer.configureCalculationMethod', 'Configure Calculation Method & Asr')}
+            data-testid="prayer-settings-btn"
+          >
+            <Sliders className="w-5 h-5" />
+          </button>
           <button 
             type="button"
             onClick={() => (setActiveTab ? setActiveTab('notifications_settings_dark_mode') : null)}
-            className="p-2 rounded-full hover:bg-slate-800 text-slate-400 transition-colors cursor-pointer pointer-events-auto"
-            title="Open Notification Settings"
+            className="relative p-2 rounded-full hover:bg-slate-800 text-slate-400 transition-colors cursor-pointer pointer-events-auto"
+            title={t('prayer.openNotificationSettings', 'Open Notification Settings')}
           >
             <Bell className="w-5 h-5" />
+            {unreadNotifCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-slate-900" />
+            )}
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
@@ -204,8 +309,8 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
       {/* Title & Alerts Row */}
       <div className="flex items-center justify-between px-5 pt-2 pb-1">
         <div>
-          <h2 className="text-xl font-semibold text-white tracking-tight font-sans">Prayer Times</h2>
-          <p className="text-xs font-medium text-slate-400 mt-0.5 font-sans">Stay connected to your spiritual rhythm</p>
+          <h2 className="text-xl font-semibold text-white tracking-tight font-sans">{t('prayer.title', 'Prayer Times')}</h2>
+          <p className="text-xs font-medium text-slate-400 mt-0.5 font-sans">{t('prayer.staySpiritualRhythm', 'Stay connected to your spiritual rhythm')}</p>
         </div>
         <button
           type="button"
@@ -216,83 +321,108 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
           title={isAlertsActive ? 'Prayer Alerts Active (Tap to configure)' : 'Prayer Alerts Off (Tap to configure)'}
         >
           {isAlertsActive ? (
-            <BellRing className={`w-3.5 h-3.5 text-primary`} />
+            <BellRing className="w-3.5 h-3.5 text-primary" />
           ) : (
             <BellOff className="w-3.5 h-3.5 text-slate-400" />
           )}
-          <span>{isAlertsActive ? 'Alerts On' : 'Alerts Off'}</span>
+          <span>{isAlertsActive ? t('prayer.alertsOn', 'Alerts On') : t('prayer.alertsOff', 'Alerts Off')}</span>
         </button>
       </div>
+
+      {/* Unconfigured Location Warning Banner if applicable */}
+      {isUnconfigured && (
+        <div className="mx-5 my-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>{t('prayer.prayerLocationNotConfigured', 'Prayer location not configured. Showing default times.')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab && setActiveTab('city_selection_dark_mode')}
+            className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 font-semibold text-amber-200 transition-colors whitespace-nowrap cursor-pointer pointer-events-auto"
+          >
+            {t('common.configure', 'Configure')}
+          </button>
+        </div>
+      )}
 
       {/* Top Location & Date Widget */}
       <div className="flex flex-col gap-3.5 mx-5 my-3 bg-black/40 backdrop-blur-md border border-white/10 shadow-xl rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div 
+            onClick={() => setActiveTab && setActiveTab('city_selection_dark_mode')}
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            title={t('prayer.tapChangeCity', 'Tap to change city or coordinates')}
+          >
             <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="text-xs font-semibold text-white font-sans">{selectedCity?.name || 'Kabul'}, {selectedCity?.country || 'Afghanistan'}</span>
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-primary/20 text-primary border border-primary/30">AUTO</span>
+            <span className="text-xs font-semibold text-white font-sans">
+              {selectedCity?.name || t('cities.kabul', 'Kabul')}{selectedCity?.country ? `, ${selectedCity.country}` : ''}
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-primary/20 text-primary border border-primary/30 uppercase">
+              {locationBadge}
+            </span>
           </div>
           <div className="flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border text-violet-300 bg-violet-500/20 border-violet-500/30">
             <Compass className="w-3.5 h-3.5" />
-            <span>247° WSW</span>
+            <span>{nextPrayerData.qibla?.text || '251° WSW'}</span>
           </div>
         </div>
         <div className="flex items-center justify-between pt-2.5 border-t border-slate-800 text-slate-400 text-[11px] font-medium font-sans">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-400 font-medium">{displayedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            <span className="text-slate-400 font-medium">{formattedGregorianDate}</span>
           </div>
           <span className="font-semibold text-slate-300">
-            {nextPrayerData.isTomorrow ? '14 Rabi\' al-Thani 1448 AH' : '13 Rabi\' al-Thani 1448 AH'}
+            {dynamicHijriDate}
           </span>
         </div>
       </div>
 
       {/* Next Prayer Hero Card */}
       <div className="flex flex-col gap-3.5 mx-5 mb-4 p-4 sm:p-5 rounded-2xl relative overflow-hidden bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl">
-        {/* Top Header: Badge on Left, Adhan in Kabul on Right with strict flex justify-between items-center */}
+        {/* Top Header: Badge on Left, Adhan in Location on Right */}
         <div className="flex justify-between items-center w-full">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/20">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
             <span className="font-bold text-[10px] tracking-wider text-primary uppercase font-sans">
-              {nextPrayerData.isTomorrow ? 'TOMORROW' : 'NEXT PRAYER'}
+              {nextPrayerData.isTomorrow ? t('prayer.tomorrow', 'TOMORROW') : t('prayer.nextPrayer', 'NEXT PRAYER')}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 font-sans">
             <BellRing className="w-3.5 h-3.5 text-primary" />
-            <span>Adhan in {selectedCity?.name || 'Kabul'}</span>
+            <span>{t('prayer.adhanIn', 'Adhan in')} {selectedCity?.name || t('cities.kabul', 'Kabul')}</span>
           </div>
         </div>
 
-        {/* Primary Prayer & Scheduled Time: Clean Flexbox integration without nested white background box */}
+        {/* Primary Prayer & Scheduled Time */}
         <div className="flex items-start justify-between pt-0.5">
           <div>
             <span className="text-2xl sm:text-3xl font-semibold text-white tracking-tight block font-sans">
-              {nextPrayerData.nextPrayer.name}
+              {nextPrayerData.nextPrayer?.name ? t('prayer.' + nextPrayerData.nextPrayer.name.toLowerCase(), nextPrayerData.nextPrayer.name) : t('prayer.fajr', 'Fajr')}
             </span>
             <span className="text-xs font-medium text-slate-400 mt-0.5 block font-sans">
-              {nextPrayerData.nextPrayer.subtitle || `${nextPrayerData.nextPrayer.name} prayer`}
+              {nextPrayerData.nextPrayer?.subtitle ? nextPrayerData.nextPrayer.subtitle : t('prayer.prayerSubtitleDynamic', '{{name}} prayer', { name: nextPrayerData.nextPrayer?.name ? t('prayer.' + nextPrayerData.nextPrayer.name.toLowerCase(), nextPrayerData.nextPrayer.name) : t('prayer.fajr', 'Fajr') })}
             </span>
           </div>
           <div className="text-right">
             <span className="text-2xl sm:text-3xl font-semibold text-primary font-mono block tracking-tight">
-              {nextPrayerData.nextPrayer.time}
+              {nextPrayerData.nextPrayer?.time || '05:00 AM'}
             </span>
             <span className="text-[10px] font-medium text-slate-400 block mt-0.5 font-sans">
-              Adhan Time
+              {t('prayer.adhanTime', 'Adhan Time')}
             </span>
           </div>
         </div>
 
-        {/* Sleek Inline Monospace Countdown Timer with Real-Time Synced Zero-Padding */}
+        {/* Monospace Countdown Timer */}
         <div className="pt-0.5">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 block font-sans">Time Remaining</span>
+          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400 block font-sans">{t('prayer.timeRemaining', 'Time Remaining')}</span>
           <span className="font-mono text-3xl font-bold tracking-widest text-white leading-none block mt-1">
             {countdown.formatted}
           </span>
         </div>
 
-        {/* Perfectly Centered Notification Button */}
+        {/* Notification Button */}
         <button 
           type="button"
           onClick={() => (setActiveTab ? setActiveTab('notifications_settings_dark_mode') : null)}
@@ -309,38 +439,57 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
         </button>
       </div>
 
-      {/* Streamlined Canonical Prayers List with Date-Aware Chronological State */}
-      <div className="block mx-5 mb-4 p-4 rounded-2xl space-y-2 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl">
-        {/* Canonical Prayers Section Header */}
+      {/* {t('prayer.canonicalPrayers', 'Canonical Prayers')} */}
+<div className="block mx-5 mb-4 p-4 rounded-2xl space-y-2 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl">
         <div className="flex items-center justify-between mb-3 px-1">
           <h3 className="text-xs font-semibold text-slate-400 tracking-wider uppercase font-sans">
-            Canonical Prayers
+            {t('prayer.canonicalPrayers', 'Canonical Prayers')}
           </h3>
-          {nextPrayerData.isTomorrow && (
-            <span className="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase rounded-full font-sans">
-              TOMORROW
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500">
+              {calculationMethod} • {madhab}
             </span>
-          )}
+            {nextPrayerData.isTomorrow && (
+              <span className="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase rounded-full font-sans">
+                TOMORROW
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-1.5">
           {prayersList.map((prayer) => {
-            const prayerDate = prayer.prayerDate || getPrayerDate(prayer.time, nextPrayerData.isTomorrow, currentTime);
-            const isFutureTime = prayerDate.getTime() > Date.now();
+            const prayerDate = prayer.prayerDate || getPrayerDate(prayer.time, nextPrayerData.isTomorrow, currentTime, prayerTimezone);
+            const nowEpoch = currentTime.getTime();
+            const isFutureTime = prayerDate ? prayerDate.getTime() > nowEpoch : true;
             const isPast = !isFutureTime;
-            const isNext = isFutureTime && (prayer.id === nextPrayerData.nextPrayer.id);
+            const isNext = isFutureTime && (prayer.id === nextPrayerData.nextPrayer?.id);
             const isFuture = isFutureTime && !isNext;
 
-            // Date-Aware state determination:
-            // 1. If in the future, it can NEVER be marked Missed. It defaults to 'Upcoming' (or 'Next').
-            // 2. If in the past, it defaults to Completed unless explicitly toggled to 'missed'.
-            const isCompleted = isPast && (prayer.status === 'completed' || prayer.status === 'upcoming' || prayer.status === undefined || prayer.status !== 'missed');
-            const isMissed = isPast && !isCompleted;
+            // Worship History Integrity:
+            // Check actual user-recorded worship in prayerLogs for today's civil date
+            const targetDateKey = nextPrayerData.dateKey;
+            const userLog = prayerLogs.find(
+              (l) => (l.prayerId === prayer.id || l.name?.toLowerCase() === prayer.id) && l.date === targetDateKey
+            );
+
+            const isCompleted = userLog?.status === 'completed';
+            const isMissed = userLog?.status === 'missed';
+            const isUnrecorded = isPast && !userLog;
 
             return (
               <div
                 key={prayer.id}
-                onClick={() => (isPast ? togglePrayer(prayer.id, prayerDate) : null)}
+                onClick={() => {
+                  if (isPast) {
+                    togglePrayer(prayer.id, prayerDate, targetDateKey);
+                    if (isCompleted) {
+                      toast.info(`${prayer.name} prayer unlogged`);
+                    } else {
+                      toast.success(`${prayer.name} prayer logged`);
+                    }
+                  }
+                }}
                 className={`py-3 px-3.5 rounded-xl flex items-center justify-between bg-white/5 border border-white/10 transition-all select-none border ${
                   isNext
                     ? 'border-primary/40 ring-1 ring-primary/20 bg-primary/5'
@@ -350,7 +499,7 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
                     ? 'border-amber-500/30'
                     : 'border-transparent opacity-75'
                 } ${isPast ? `hover:bg-white/10 cursor-pointer active:scale-[0.99]` : 'cursor-default'}`}
-                title={isFuture ? 'Future prayer (locked until time arrives)' : isNext ? 'Upcoming next prayer' : 'Tap to toggle completion'}
+                title={isFuture ? 'Future prayer (locked until time arrives)' : isNext ? 'Upcoming next prayer' : 'Tap to toggle user worship completion'}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
@@ -382,10 +531,10 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
                         ? 'text-white'
                         : 'text-slate-400'
                     }`}>
-                      {prayer.name}
+                      {prayer.name ? t('prayer.' + (prayer.key || prayer.name).toLowerCase(), prayer.name) : prayer.name}
                     </div>
                     <div className="text-[10px] font-medium text-slate-400 font-sans">
-                      {prayer.subtitle || `${prayer.name} prayer`}
+                      {prayer.subtitle ? prayer.subtitle : t('prayer.prayerSubtitleDynamic', '{{name}} prayer', { name: t('prayer.' + (prayer.key || prayer.name).toLowerCase(), prayer.name) })}
                     </div>
                   </div>
                 </div>
@@ -402,26 +551,32 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
                       ? 'bg-primary/20 text-primary border border-primary/30'
                       : isMissed
                       ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                      : isUnrecorded
+                      ? 'bg-white/5 text-slate-400 border border-white/10'
                       : 'text-slate-400 bg-white/5 border border-white/5'
                   }`}>
                     {isCompleted ? (
                       <>
                         <CheckCircle2 className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
-                        <span>Completed</span>
+                        <span>{t('prayer.completed', 'Completed')}</span>
                       </>
                     ) : isNext ? (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                        <span>Next</span>
+                        <span>{t('prayer.next', 'Next')}</span>
                       </>
                     ) : isMissed ? (
                       <>
                         <Clock className="w-3 h-3 text-amber-500" />
-                        <span>Missed</span>
+                        <span>{t('prayer.missed', 'Missed')}</span>
+                      </>
+                    ) : isUnrecorded ? (
+                      <>
+                        <span>{t('prayer.logPrayer', 'Log Prayer')}</span>
                       </>
                     ) : (
                       <>
-                        <span>Upcoming</span>
+                        <span>{t('prayer.upcoming', 'Upcoming')}</span>
                       </>
                     )}
                   </span>
@@ -432,39 +587,39 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
         </div>
       </div>
 
-      {/* Sun & Twilight Reference Grid: Modern 3-Column Glassmorphic Rectangular Mini-Cards */}
-      <div className="block mx-5 mb-4 p-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl">
+      {/* Sun & Twilight Reference Grid */}
+      <div className="block mx-5 mb-5 p-5 rounded-3xl bg-black/30 backdrop-blur-md border border-white/10 shadow-xl">
         <div className="flex items-center justify-between mb-3 px-1">
           <h3 className="text-xs font-semibold text-slate-400 tracking-wider uppercase font-sans">
-            Sun &amp; Twilight Reference
+            {t('prayer.sunTwilightReference', 'Sun & Twilight Reference')}
           </h3>
         </div>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-white/5 backdrop-blur-md border border-white/10 shadow-sm rounded-2xl p-3 flex flex-col items-center justify-center text-center gap-1.5">
             <Sunrise className="w-5 h-5 text-amber-500 dark:text-amber-400 flex-shrink-0" />
             <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide leading-tight font-sans block">
-              Sunrise
+              {t('prayer.sunrise', 'Sunrise')}
             </span>
             <span className="text-sm font-bold text-white font-mono block">
-              {sunTwilight.sunrise}
+              {sunTwilight?.sunrise || '--:--'}
             </span>
           </div>
           <div className="bg-white/5 backdrop-blur-md border border-white/10 shadow-sm rounded-2xl p-3 flex flex-col items-center justify-center text-center gap-1.5">
             <Moon className="w-5 h-5 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
             <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide leading-tight font-sans block">
-              Midnight
+              {t('prayer.midnight', 'Midnight')}
             </span>
             <span className="text-sm font-bold text-white font-mono block">
-              {sunTwilight.midnight}
+              {sunTwilight?.midnight || '--:--'}
             </span>
           </div>
           <div className="bg-white/5 backdrop-blur-md border border-white/10 shadow-sm rounded-2xl p-3 flex flex-col items-center justify-center text-center gap-1.5">
             <Sparkles className="w-5 h-5 text-violet-500 dark:text-violet-400 flex-shrink-0" />
             <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wide leading-tight font-sans block">
-              Tahajjud
+              {t('prayer.tahajjud', 'Tahajjud')}
             </span>
             <span className="text-sm font-bold text-white font-mono block">
-              {sunTwilight.tahajjud}
+              {sunTwilight?.tahajjud || '--:--'}
             </span>
           </div>
         </div>
@@ -475,7 +630,7 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5 text-primary">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-[10px] font-semibold tracking-wider uppercase font-sans">Daily Inspiration</span>
+            <span className="text-[10px] font-semibold tracking-wider uppercase font-sans">{t('prayer.dailyInspiration', 'Daily Inspiration')}</span>
           </div>
           <button
             type="button"
@@ -492,9 +647,127 @@ export default function PrayerTimesDarkMode({ setActiveTab, goBack }) {
         </p>
         <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 pt-1 font-sans">
           <span>— {dailyQuote.surah}</span>
-          <span className="text-[10px] font-medium text-teal-500 dark:text-teal-400 font-sans">Ayah of the Day</span>
+          <span className="text-[10px] font-medium text-teal-500 dark:text-teal-400 font-sans">{t('prayer.ayahOfTheDay', 'Ayah of the Day')}</span>
         </div>
       </div>
+
+      {/* Prayer Calculation Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <Sliders className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-semibold text-white">{t('prayer.calculationSettings', 'Prayer Calculation Settings')}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(false)}
+                className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
+              {/* 1. Calculation Method */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                  {t('prayer.calculationMethod', 'Calculation Method')}
+                </label>
+                <select
+                  value={calculationMethod}
+                  onChange={(e) => setCalculationMethod(e.target.value)}
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none focus:border-primary"
+                  data-testid="method-select"
+                >
+                  {CALCULATION_METHODS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.shortName})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {t('prayer.adjustsSolarAngles', 'Adjusts the astronomical solar angles for Fajr and Isha calculations.')}
+                </p>
+              </div>
+
+              {/* 2. Asr Juristic Convention (Madhab) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                  {t('prayer.asrJuristicConvention', 'Asr Juristic Convention (Madhab)')}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {MADHABS.map((m) => {
+                    const isSelected = madhab === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setMadhab(m.id)}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-primary/20 border-primary text-white'
+                            : 'bg-slate-800/50 border-slate-700/80 text-slate-300 hover:bg-slate-800'
+                        }`}
+                        data-testid={`madhab-${m.id}`}
+                      >
+                        <div className="font-semibold text-xs">{m.name}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{m.description}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. High Latitude Rule */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                  {t('prayer.highLatitudeRule', 'High Latitude Rule')}
+                </label>
+                <select
+                  value={highLatitudeRule}
+                  onChange={(e) => setHighLatitudeRule(e.target.value)}
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none focus:border-primary"
+                  data-testid="high-lat-select"
+                >
+                  {HIGH_LATITUDE_RULES.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} — {r.description}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {t('prayer.preventsTwilightFailures', 'Prevents twilight failures in high-latitude regions during summer.')}
+                </p>
+              </div>
+
+              {/* Note on Mosque Schedules */}
+              <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/60 text-[11px] text-slate-400 leading-relaxed">
+                <span className="font-semibold text-slate-300 block mb-0.5">
+                  {t('prayer.noteOnMosqueSchedules', 'Note on Mosque Schedules')}
+                </span>
+                <p>
+                  {t('prayer.prepareAblutions', 'Prepare your mind and ablutions peacefully before entry time.')}
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs hover:bg-primary/90 transition-all cursor-pointer"
+              >
+                Apply &amp; Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

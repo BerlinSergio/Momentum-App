@@ -1,10 +1,14 @@
-﻿import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useFinanceStore, formatSingleCurrency, calculateGroupedTotals } from './store/useFinanceStore';
+import { useNotificationStore } from './store/useNotificationStore';
 import StackedCurrencyDisplay from './components/StackedCurrencyDisplay';
+import { toast } from './components/ui/toast/index.js';
+import { confirm } from './components/ui/confirmation/index.js';
 
 import { 
-  ArrowLeft, Coins, Bell, Calendar, ChevronDown, Info, TrendingUp, TrendingDown, CalendarClock, PlusCircle, Download, FileText, Search, Building2, Palette, Store, Award, Repeat, Edit2, Trash2, Leaf, Home, Wallet, Plus, CheckSquare, Grid, SearchX, X 
+  Coins, Bell, Calendar, ChevronDown, Info, TrendingUp, TrendingDown, CalendarClock, PlusCircle, Download, FileText, Search, Building2, Palette, Store, Award, Repeat, Edit2, Trash2, Leaf, Wallet, Plus, SearchX, X 
 } from 'lucide-react';
 
 const getTodayIsoDate = () => {
@@ -98,7 +102,9 @@ const getCategoryIcon = (category) => {
 const CATEGORIES = ['All Sources', 'Salary', 'Freelance', 'Business', 'Bonus', 'Other'];
 
 export default function IncomeManagementLightMode({ setActiveTab }) {
+  const { t } = useTranslation();
   const { incomes, deleteIncome, setEditingIncome, _hasHydrated } = useFinanceStore();
+  const unreadNotifCount = useNotificationStore((s) => s.notifications?.filter((n) => !n.read).length || 0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Sources');
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false);
@@ -124,9 +130,11 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
 
   const activeIncomes = periodIncomes.filter((item) => ['Salary', 'Freelance'].includes(item.category) || item.incomeType === 'active');
   const activeTotalGrouped = calculateGroupedTotals(activeIncomes);
+  const activeIncomeGrouped = activeTotalGrouped;
   const activeTotal = activeIncomes.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const passiveIncomes = periodIncomes.filter((item) => !['Salary', 'Freelance'].includes(item.category) && item.incomeType !== 'active');
   const passiveTotalGrouped = calculateGroupedTotals(passiveIncomes);
+  const passiveIncomeGrouped = passiveTotalGrouped;
   const passiveTotal = Math.max(0, totalInflow - activeTotal);
   const activePct = totalInflow > 0 ? ((activeTotal / totalInflow) * 100).toFixed(1) : '0.0';
   const passivePct = totalInflow > 0 ? ((passiveTotal / totalInflow) * 100).toFixed(1) : '0.0';
@@ -167,16 +175,25 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
     if (setActiveTab) setActiveTab('add_income_light_mode');
   };
 
-  const handleDelete = (item) => {
-    if (window.confirm(`Delete income stream "${item.title || item.payerName}"?`)) {
+  const handleDelete = async (item) => {
+    const itemName = item.title || item.payerName || 'this income stream';
+    const confirmed = await confirm({
+      variant: 'destructive',
+      titleKey: 'confirm.deleteIncomeTitle',
+      message: `Delete income stream "${itemName}"? This action cannot be undone.`,
+      confirmLabelKey: 'confirm.delete',
+      cancelLabelKey: 'confirm.cancel',
+    });
+    if (confirmed) {
       deleteIncome(item.id);
+      toast.success(t('toasts.incomeDeleted', 'Income stream deleted'));
     }
   };
 
   const handleExportCSV = () => {
     const itemsToExport = filteredIncomes.length > 0 ? filteredIncomes : periodIncomes;
     if (itemsToExport.length === 0) {
-      alert('No income records available to export.');
+      toast.warning(t('toasts.noIncomeExport', 'No income records available to export'));
       return;
     }
     const headers = ['ID', 'Title', 'Category', 'Amount', 'Currency', 'Date', 'Status', 'Recurrence', 'Notes'];
@@ -187,7 +204,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
       item.amount || 0,
       `"${item.currency || 'USD'}"`,
       `"${item.date || ''}"`,
-      `"${(item.status || 'Cleared').replace(/"/g, '""')}"`,
+      `"${(item.status || t('finance.cleared', 'Cleared')).replace(/"/g, '""')}"`,
       `"${(item.recurrence || '').replace(/"/g, '""')}"`,
       `"${(item.notes || '').replace(/"/g, '""')}"`,
     ]);
@@ -212,13 +229,21 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
             <Coins className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">Income Management</h1>
-            <p className="text-[11px] font-medium text-slate-500">Track and plan income cashflows</p>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight">{t('finance.incomeManagement', 'Income Management')}</h1>
+            <p className="text-[11px] font-medium text-slate-500">{t('finance.trackPlanIncome', 'Track and plan income cashflows')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" aria-label="Notifications" className="p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer">
+          <button
+            type="button"
+            onClick={() => setActiveTab && setActiveTab('notifications_settings_light_mode')}
+            aria-label="Notifications"
+            className="relative p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer"
+          >
             <Bell className="w-5 h-5" />
+            {unreadNotifCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
           </button>
           <UserAvatar 
             setActiveTab={setActiveTab} 
@@ -230,7 +255,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
       <div className="flex items-center justify-between px-5 py-2 mb-2 relative z-50">
         <div className="flex items-center gap-2 relative">
           <Calendar className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Period:</span>
+          <span className="text-sm font-medium text-slate-800" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>{t('common.period', 'Period:')}</span>
           <button 
             type="button"
             onClick={() => setIsPeriodMenuOpen(!isPeriodMenuOpen)}
@@ -261,7 +286,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
         </div>
         <div className="flex items-center gap-1.5 text-primary text-xs font-semibold bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20">
           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-          <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>Live Sync</span>
+          <span style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>{t('finance.liveSync', 'Live Sync')}</span>
         </div>
       </div>
 
@@ -304,23 +329,22 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
               <div className="rounded-2xl p-3 flex flex-col items-start justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg min-h-[92px]">
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="w-2 h-2 rounded-full bg-primary"></span>
-                  <span className="text-xs font-medium text-slate-500">Active Income</span>
+                  <span className="text-xs font-medium text-slate-500">{t('finance.activeIncome', 'Active Income')}</span>
                 </div>
-                <StackedCurrencyDisplay grouped={activeTotalGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
-                <span className="text-xs font-medium text-slate-500 mt-1">{activePct}% of total</span>
+                <StackedCurrencyDisplay grouped={activeIncomeGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium text-slate-500 mt-1">{activePct}% {t('finance.ofTotal', 'of total')}</span>
               </div>
-              
+
               <div className="rounded-2xl p-3 flex flex-col items-start justify-between bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg min-h-[92px]">
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span className="text-xs font-medium text-slate-500">Passive &amp; Other</span>
+                  <span className="text-xs font-medium text-slate-500">{t('finance.passiveAndOther', 'Passive & Other')}</span>
                 </div>
-                <StackedCurrencyDisplay grouped={passiveTotalGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
-                <span className="text-xs font-medium text-slate-500 mt-1">{passivePct}% of total</span>
+                <StackedCurrencyDisplay grouped={passiveIncomeGrouped} align="start" isDark={false} primaryClass="text-sm sm:text-base font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium text-slate-500 mt-1">{passivePct}% {t('finance.ofTotal', 'of total')}</span>
               </div>
             </div>
 
-            {/* Next Expected Deposit Widget */}
             <div className="flex items-center justify-between rounded-2xl px-3.5 py-3 mt-1 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
@@ -328,7 +352,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-sm font-bold text-slate-900 truncate">
-                    {nextExpectedDeposit ? `${nextExpectedDeposit.title || nextExpectedDeposit.payerName} (+${formatSingleCurrency(nextExpectedDeposit.amount, nextExpectedDeposit.currency)})` : 'No Scheduled Deposits'}
+                    {nextExpectedDeposit ? `${nextExpectedDeposit.title || nextExpectedDeposit.payerName} (+${formatSingleCurrency(nextExpectedDeposit.amount, nextExpectedDeposit.currency)})` : t('finance.noScheduledDeposits', 'No Scheduled Deposits')}
                   </span>
                   <span className="text-xs font-medium text-slate-500">
                     {nextExpectedDeposit ? `${formatIncomeDate(nextExpectedDeposit.date)} • ${getDaysRemainingText(nextExpectedDeposit.date, todayStr)}` : 'All incoming streams up to date'}
@@ -336,7 +360,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                 </div>
               </div>
               <span className="text-xs font-bold text-primary bg-white border border-primary/20 px-2 py-1 rounded-full shrink-0 shadow-sm">
-                {nextExpectedDeposit ? 'Scheduled' : 'Up to date'}
+                {nextExpectedDeposit ? t('finance.scheduled', 'Scheduled') : t('finance.upToDate', 'Up to date')}
               </span>
             </div>
           </div>
@@ -352,14 +376,12 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
             className="btn-primary flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 cursor-pointer select-none"
           >
             <PlusCircle className="w-5 h-5" />
-            <span>Add Income</span>
+            <span>{t('finance.addIncome', 'Add Income')}</span>
           </button>
           <div className="flex flex-row items-center gap-2">
             <button 
               type="button"
-              aria-label="Export CSV" 
-              onClick={handleExportCSV}
-              className="h-12 w-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-slate-50 cursor-pointer select-none"
+              aria-label={t('common.exportCsv', 'Export CSV')} className="h-12 w-12 rounded-2xl bg-white border border-slate-200 text-slate-700 flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-slate-50 cursor-pointer select-none"
             >
               <Download className="w-5 h-5" />
             </button>
@@ -382,8 +404,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-11 pl-10 pr-4 bg-white border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm transition-all" 
-              placeholder="Search income sources or notes..." 
-              type="text"
+              placeholder={t('finance.searchIncomePlaceholder', 'Search income sources or notes...')} type="text"
             />
           </div>
           <button 
@@ -391,11 +412,11 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
             className="h-11 px-3 bg-white border border-slate-200 rounded-2xl text-slate-700 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-transform hover:bg-slate-50 cursor-pointer select-none"
           >
             <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-sm font-semibold">Reset</span>
+            <span className="text-sm font-semibold">{t('common.reset', 'Reset')}</span>
           </button>
         </div>
 
-        {/* Source Filter Tabs (Horizontal Scrollable) */}
+        {/* Filter Category Chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-5 px-5 no-scrollbar">
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat;
@@ -418,7 +439,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
               {currentPeriodLabel}
             </span>
             <span className="text-xs font-semibold text-slate-900" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.8)' }}>
-              {filteredIncomes.length} Transaction{filteredIncomes.length === 1 ? '' : 's'}
+              {filteredIncomes.length} {filteredIncomes.length === 1 ? t('finance.transaction', 'Transaction') : t('finance.transactions', 'Transactions')}
             </span>
           </div>
 
@@ -428,20 +449,32 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                 <SearchX className="w-8 h-8"/>
               </div>
               <h3 className="text-base font-semibold mb-1 text-slate-900">
-                No Income Streams Found
+                {searchQuery || selectedCategory !== 'All Sources' ? t('finance.noIncomeStreamsFound', 'No Income Streams Found') : t('finance.noIncomeRecordsYet', 'No Income Records Yet')}
               </h3>
               <p className="text-xs max-w-[240px] leading-relaxed mb-5 text-slate-600">
-                {searchQuery || selectedCategory !== 'All Sources' ? 'No income records match your current filters. Try resetting your search.' : 'No income streams recorded for this period. Click below to add one.'}
+                {searchQuery || selectedCategory !== 'All Sources' ? t('finance.noIncomeMatchFilter', 'No income records match your current filters. Try resetting your search.') : t('finance.noIncomeStreamsPeriod', 'No income streams recorded for this period. Click below to add one.')}
               </p>
-              <button 
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('All Sources');
-                }}
-                className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
-              >
-                Clear Search Filter
-              </button>
+              {searchQuery || selectedCategory !== 'All Sources' ? (
+                <button 
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('All Sources');
+                  }}
+                  className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
+                >
+                  Clear Search Filter
+                </button>
+              ) : (
+                <button 
+                  onClick={() => {
+                    if (setEditingIncome) setEditingIncome(null);
+                    if (setActiveTab) setActiveTab('add_edit_income_light_mode');
+                  }}
+                  className="px-5 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 bg-primary text-white shadow-md active:scale-95 transition-all cursor-pointer select-none"
+                >
+                  <Plus className="w-4 h-4"/> Record First Income
+                </button>
+              )}
             </div>
           ) : (
             filteredIncomes.map((item) => (
@@ -456,11 +489,11 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                     </div>
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-base font-bold text-slate-900 truncate">
-                        {item.title || item.payerName || 'Income'}
+                        {item.title || item.payerName || t('finance.income', 'Income')}
                       </span>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${getCategoryBadgeClass(item.category)}`}>
-                          {item.category || 'Income'}
+                          {item.category || t('finance.income', 'Income')}
                         </span>
                         <span className="text-xs font-medium text-slate-500 truncate">
                           {formatIncomeDate(item.date)}
@@ -472,14 +505,14 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                     <span className="text-lg font-bold text-emerald-600">
                       +{formatSingleCurrency(item.amount, item.currency)}
                     </span>
-                    <span className="text-xs font-medium text-slate-500">{item.status || 'Cleared'}</span>
+                    <span className="text-xs font-medium text-slate-500">{item.status || t('finance.cleared', 'Cleared')}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-full">
                     <Repeat className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="text-xs font-medium text-slate-600">
-                      {item.recurrence || item.notes || 'Income deposit'}
+                      {item.recurrence || item.notes || t('finance.incomeDeposit', { defaultValue: 'Income deposit' })}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -516,14 +549,13 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
             <Leaf className="w-5 h-5 text-teal-600" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-slate-900">Mindful Prosperity</span>
-            <span className="text-xs font-medium text-slate-500 mt-0.5 leading-relaxed">"Steady discipline creates lasting tranquility and sustainable abundance."</span>
+            <span className="text-sm font-bold text-slate-900">{t('finance.mindfulProsperity', 'Mindful Prosperity')}</span>
+            <span className="text-xs font-medium text-slate-500 mt-0.5 leading-relaxed">"{t('finance.disciplineQuote', 'Steady discipline creates lasting tranquility and sustainable abundance.')}"</span>
           </div>
         </div>
       </div>
 
-
-      {/* Statement Report Modal */}
+      {/* Floating Bottom Navigation Dock / Report Modal */}
       {isReportModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl p-5 bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl space-y-4">
@@ -533,7 +565,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Income Statement</h3>
+                  <h3 className="text-sm font-bold text-slate-900">{t('finance.incomeStatement', 'Income Statement')}</h3>
                   <p className="text-[10px] text-slate-500">{currentPeriodLabel}</p>
                 </div>
               </div>
@@ -548,20 +580,20 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
 
             <div className="space-y-2">
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-600">Total Inflow</span>
+                <span className="text-xs font-medium text-slate-600">{t('finance.totalInflow', 'Total Inflow')}</span>
                 <StackedCurrencyDisplay grouped={incomeTotalInflowGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-slate-900" secondaryClass="text-xs text-slate-500 font-medium" />
               </div>
               <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-between">
-                <span className="text-xs font-medium text-primary">Active Income ({activePct}%)</span>
-                <StackedCurrencyDisplay grouped={activeTotalGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-primary" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium text-primary">{t('finance.activeIncome', 'Active Income')}</span>
+                <StackedCurrencyDisplay grouped={activeIncomeGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-primary" secondaryClass="text-xs text-slate-500 font-medium" />
               </div>
               <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100/50 flex items-center justify-between">
-                <span className="text-xs font-medium text-emerald-900">Passive &amp; Other ({passivePct}%)</span>
-                <StackedCurrencyDisplay grouped={passiveTotalGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-emerald-600" secondaryClass="text-xs text-slate-500 font-medium" />
+                <span className="text-xs font-medium text-emerald-900">{t('finance.passiveAndOther', 'Passive & Other')}</span>
+                <StackedCurrencyDisplay grouped={passiveIncomeGrouped} align="end" isDark={false} primaryClass="text-sm font-bold text-emerald-600" secondaryClass="text-xs text-slate-500 font-medium" />
               </div>
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                <span>Total Recorded Streams</span>
-                <span className="font-semibold text-slate-900">{periodIncomes.length} entries</span>
+                <span>{t('finance.totalRecordedStreams', 'Total Recorded Streams')}</span>
+                <span className="font-semibold text-slate-900">{periodIncomes.length} {t('finance.entries', 'entries')}</span>
               </div>
             </div>
 
@@ -572,14 +604,14 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
                 className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer select-none"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
+                <span>{t('common.exportCsv', 'Export CSV')}</span>
               </button>
-              <button
+              <button 
                 type="button"
                 onClick={() => setIsReportModalOpen(false)}
                 className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary text-white font-semibold text-xs transition-colors cursor-pointer select-none"
               >
-                Done
+                {t('common.done', 'Done')}
               </button>
             </div>
           </div>

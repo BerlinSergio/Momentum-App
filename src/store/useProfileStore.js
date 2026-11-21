@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { createIndexedDbStorage } from '../storage/index.js';
+
+const profileStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-profile-storage' });
+const getSafeProfileStorage = () => profileStorage;
 
 export const DEFAULT_PROFILE = {
   fullName: '',
@@ -12,17 +16,8 @@ export const DEFAULT_PROFILE = {
   hijriShamsi: true,
   lastSynced: null,
   setupCompleted: false,
-};
-
-const getSafeProfileStorage = () => {
-  if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
-  if (typeof localStorage !== 'undefined') return localStorage;
-  const memoryStore = new Map();
-  return {
-    getItem: (key) => memoryStore.get(key) || null,
-    setItem: (key, value) => { memoryStore.set(key, String(value)); },
-    removeItem: (key) => { memoryStore.delete(key); },
-  };
+  onboardingStep: 'not_started', // 'not_started' | 'personal_setup' | 'security_setup' | 'completed'
+  isLegacyMigrated: false,
 };
 
 const getInitialProfileState = () => {
@@ -55,7 +50,9 @@ const getInitialProfileState = () => {
           };
         }
       }
-    } catch (e) {}
+    } catch (_err) {
+      void _err;
+    }
   }
   return {
     ...DEFAULT_PROFILE,
@@ -73,7 +70,11 @@ const syncProfileToLocalStorage = (patch) => {
         ...(parsed.state || {}),
         ...patch,
       };
-      storageObj.setItem('momentum-profile-storage', JSON.stringify(parsed));
+      const serialized = JSON.stringify(parsed);
+      storageObj.setItem('momentum-profile-storage', serialized);
+      profileStorage.setItem('momentum-profile-storage', serialized).catch((err) => {
+        console.warn('[Momentum Profile] IndexedDB sync error:', err);
+      });
     }
   } catch (e) {
     console.warn('[Momentum Profile] Direct localStorage sync error:', e);
@@ -110,7 +111,14 @@ export const useProfileStore = create(
       },
 
       completeSetup: () => {
-        get().updateProfile({ setupCompleted: true });
+        get().updateProfile({
+          setupCompleted: true,
+          onboardingStep: 'completed',
+        });
+      },
+
+      setOnboardingStep: (step) => {
+        get().updateProfile({ onboardingStep: step });
       },
 
       setHasHydrated: (val) => set({ _hasHydrated: val }),
@@ -155,7 +163,9 @@ if (typeof window !== 'undefined' && window.localStorage) {
         });
       }
     }
-  } catch (e) {}
+  } catch (_err) {
+    void _err;
+  }
 }
 
 export default useProfileStore;
