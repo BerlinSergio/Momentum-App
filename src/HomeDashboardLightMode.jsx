@@ -217,7 +217,7 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
   return (
     <div className="relative w-full pb-32 lg:pb-6 bg-transparent font-sans">
       {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl momentum-home-blur-test flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Momentum Logo" className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/20" />
           <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h1>
