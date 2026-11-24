@@ -536,3 +536,13 @@ html.enable-transitions [class*="transition-"] {
     overflow-x: auto;
   }
 }
+
+/* Home Light header ONLY: 48px blur experiment. No tint, layout or global changes.
+   Higher specificity than the app-wide 18px [class*=backdrop-blur] override.
+   Opt-out respects the user's existing disable-glass setting. */
+html:not(.disable-glass) header.momentum-home-blur-test {
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: blur(48px) !important;
+  -webkit-backdrop-filter: blur(48px) !important;
+}
