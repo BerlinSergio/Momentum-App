@@ -1,0 +1,134 @@
+name: Momentum Independent Full Application Audit
+
+on:
+  push:
+    branches:
+      - audit/independent-full-app-20261124
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-audit:
+    name: Build, source, browser, storage and responsive audits
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-fund
+      - name: Prepare artifact output
+        run: mkdir -p audit-results
+      - name: Production build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm run build > audit-results/build.log 2>&1
+          echo "build=$?" >> audit-results/checks.env
+          tail -25 audit-results/build.log
+      - name: Static lint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm run lint > audit-results/lint.log 2>&1
+          echo "lint=$?" >> audit-results/checks.env
+          tail -40 audit-results/lint.log
+      - name: Dependency vulnerability advisory scan (read-only)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm audit --omit=dev --json > audit-results/npm-security-audit.json 2>audit-results/npm-security-audit.stderr
+          echo "dependency_audit=$?" >> audit-results/checks.env
+      - name: Node navigation unit suite
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          node --test tests/navigation/themeNavigation.test.mjs > audit-results/navigation-tests.log 2>&1
+          echo "navigation_tests=$?" >> audit-results/checks.env
+          tail -30 audit-results/navigation-tests.log
+      - name: Launch isolated Vite test server
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort >audit-results/vite.log 2>&1 &
+          for i in $(seq 1 80); do
+            if curl --silent --fail http://127.0.0.1:5173/ >/dev/null; then
+              echo "Isolated Vite server ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          tail -80 audit-results/vite.log
+          exit 1
+      - name: Independent inventory + 84-screen browser matrix + CRUD persistence
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          node audit/autonomous_audit.cjs > audit-results/automated-audit.log 2>&1
+          result=$?
+          echo "independent_audit=$result" >> audit-results/checks.env
+          tail -75 audit-results/automated-audit.log
+      - name: Existing note-delete browser regression
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          MOMENTUM_URL=http://127.0.0.1:5173/ node tests/notes/test_note_delete_confirmation.cjs > audit-results/note-tests.log 2>&1
+          echo "note_tests=$?" >> audit-results/checks.env
+          tail -30 audit-results/note-tests.log
+      - name: Existing full mobile and multilingual geometry audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          MOMENTUM_URL=http://127.0.0.1:5173/ node tests/mobile/test_mobile_layout_audit.cjs > audit-results/mobile-tests.log 2>&1
+          echo "mobile_tests=$?" >> audit-results/checks.env
+          tail -40 audit-results/mobile-tests.log
+      - name: Preserve reports, errors and synthetic screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: momentum-independent-audit
+          path: |
+            audit-results/
+            scratch/mobile_layout_audit.json
+            scratch/mobile_layout_audit_screenshots/
+            scratch/note_delete_qa/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Print audit outcome
+        if: always()
+        shell: bash
+        run: |
+          echo "Audit result status codes (0=pass, nonzero=failure or blocked):"
+          if [ -f audit-results/checks.env ]; then cat audit-results/checks.env; fi
+          echo "Reports are downloadable from this run's artifact."
+      - name: Enforce audit outcomes
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -s audit-results/checks.env ]; then
+            echo "::error::Audit status file missing or empty"
+            exit 1
+          fi
+          echo "Audit step exit codes:"
+          cat audit-results/checks.env
+          failed=$(awk -F= 'NF != 2 || $2 !~ /^[0-9]+$/ || $2 != 0 { print }' audit-results/checks.env)
+          if [ -n "$failed" ]; then
+            printf "::error::Audit checks failed: %s\n" "$failed"
+            exit 1
+          fi
+          if [ ! -s audit-results/audit.json ]; then
+            echo "::error::Independent audit JSON result missing"
+            exit 1
+          fi
+          echo "All recorded audit checks passed."
