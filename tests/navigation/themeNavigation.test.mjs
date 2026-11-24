@@ -19,6 +19,19 @@ test('render theme is resolved from global setting regardless of legacy route', 
   assert.equal(themedScreenId('home', 'dark'), 'home'); // Legacy alias remains compatible.
 });
 
+test('income edit routes resolve to the registered form in both themes', () => {
+  // Income management calls setActiveTab('add_income_*_mode'), which gets
+  // normalized to 'add_income' before rendering.
+  assert.equal(logicalScreenId('add_income_light_mode'), 'add_income');
+  assert.equal(logicalScreenId('add_income_dark_mode'), 'add_income');
+  assert.equal(themedScreenId('add_income', 'light'), 'add_edit_income_light_mode');
+  assert.equal(themedScreenId('add_income', 'dark'), 'add_edit_income_dark_mode');
+  assert.equal(themedScreenId('add_income_dark_mode', 'light'), 'add_edit_income_light_mode');
+  assert.equal(themedScreenId('add_income_light_mode', 'dark'), 'add_edit_income_dark_mode');
+  assert.equal(themedScreenId('add_edit_income', 'light'), 'add_edit_income_light_mode');
+  assert.equal(themedScreenId('add_edit_income', 'dark'), 'add_edit_income_dark_mode');
+});
+
 test('legacy history is normalized without losing route params or sub-tabs', () => {
   const old = [{ screen: 'task_details_dark_mode', params: { taskId: 'a1' }, tasksSubTab: 'tasks' }];
   const next = logicalHistoryStack(old);
