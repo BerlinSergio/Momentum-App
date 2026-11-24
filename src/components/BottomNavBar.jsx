@@ -57,13 +57,7 @@ function ActiveTabGlass({ isDark }) {
       >
         <span className="block h-full w-full" />
       </Glass>
-      <span
-        className={`absolute inset-0 rounded-[1.1rem] border-[1.5px] ${
-          isDark
-            ? 'border-indigo-100/65 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18),0_1px_7px_rgba(0,0,0,0.23)]'
-            : 'border-slate-800/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.88),0_1px_7px_rgba(63,49,121,0.12)]'
-        }`}
-      />
+      {/* No decorative outline: the liquid-glass surface alone indicates selection. */}
     </motion.div>
   );
 }
