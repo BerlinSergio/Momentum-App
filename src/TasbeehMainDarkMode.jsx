@@ -167,7 +167,7 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
             </div>
           </div>
           <div className="text-center py-1 space-y-1">
-            <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-2xl font-bold font-quran text-white" dir="rtl">{activePreset?.arabic || 'سُبْحَانَ ٱللَّٰهِ'}</h2>
+            <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-center text-2xl font-bold font-quran text-white" dir="rtl">{activePreset?.arabic || 'سُبْحَانَ ٱللَّٰهِ'}</h2>
             <p className="text-sm font-semibold text-slate-200">{activePreset?.transliteration || t('tasbeeh.subhanallahTranslit', 'Subhanallah')}</p>
             <p className="text-xs font-normal italic text-slate-400">“{activePreset?.meaning || t('tasbeeh.subhanallahMeaning', 'Glory be to Allah')}”</p>
           </div>
