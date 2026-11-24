@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { Image, ArrowLeft, X } from 'lucide-react';
@@ -217,7 +218,7 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab, goBac
       <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileUpload} className="hidden" aria-hidden="true" />
       
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -231,7 +232,7 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab, goBac
             {t('wallpapers.backgroundLibrary', 'Background Library')}
           </h1>
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface">
         <div className="flex flex-col w-full pb-52 space-y-space-lg">

@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useNotesStore } from './store/useNotesStore';
@@ -62,7 +63,8 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
         attachments: []
       };
     }
-    const found = notes.find((n) => n.id === effectiveNoteId && n.type === 'long') || notes.find((n) => n.id === effectiveNoteId);
+    const idStr = String(effectiveNoteId);
+    const found = notes.find((n) => String(n.id) === idStr && n.type === 'long') || notes.find((n) => String(n.id) === idStr);
     if (found) return found;
     return {
       id: 'new',
@@ -641,9 +643,14 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
 
   const handleDeleteNote = async () => {
     setIsMenuOpen(false);
-    // Capture the selected saved note before awaiting the confirmation.
-    // React can re-render this editor while the dialog is open.
-    const targetId = currentNote?.id && currentNote.id !== 'new' ? currentNote.id : null;
+    // Resolve targetId from all available sources so we never lose the note reference
+    const rawTarget = (currentNote?.id && currentNote.id !== 'new')
+      ? currentNote.id
+      : (effectiveNoteId && effectiveNoteId !== 'new'
+        ? effectiveNoteId
+        : (storeNoteId && storeNoteId !== 'new' ? storeNoteId : null));
+    const targetId = rawTarget ? String(rawTarget) : null;
+
     const confirmed = await confirm({
       variant: 'destructive',
       title: t('notes.deleteNoteTitle', 'Delete Note?'),
@@ -681,7 +688,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     <div className="w-full min-h-full font-sans relative text-slate-100 flex flex-col items-center pb-24 sm:pb-32 px-3 sm:px-6 py-2 sm:py-4">
       <div className="w-full max-w-4xl lg:max-w-5xl flex flex-col gap-4 sm:gap-6">
         {/* TOP FLOATING GLASS HEADER */}
-        <header className="sticky top-2 sm:top-3 z-40 bg-[rgba(15,23,42,0.78)] backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-[24px] px-4 py-2.5 sm:py-3 flex flex-row items-center justify-between w-full shadow-[0_12px_32px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.08)]">
+        <MomentumGlassHeader isDarkMode={true} className="w-full !px-0" capsuleClassName="w-full">
           {/* Left Section */}
           <div className="flex flex-row items-center gap-2">
             <button 
@@ -774,7 +781,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
               )}
             </div>
           </div>
-        </header>
+        </MomentumGlassHeader>
 
         {/* ELEGANT STRUCTURED FLOATING GLASS SHEET */}
         <div className="note-sheet-card flex-1 bg-[rgba(15,23,42,0.68)] backdrop-blur-2xl rounded-[28px] sm:rounded-[36px] border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(255,255,255,0.08)] px-5 sm:px-8 pt-6 pb-8 space-y-6 w-full">

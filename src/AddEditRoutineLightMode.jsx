@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { 
@@ -36,7 +37,7 @@ export default function AddEditRoutineLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Sticky Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Clock className="w-5 h-5 text-white" />
@@ -59,7 +60,7 @@ export default function AddEditRoutineLightMode({ setActiveTab, goBack }) {
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 w-full min-w-0 max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-32">
         {/* Validation Error Banner */}

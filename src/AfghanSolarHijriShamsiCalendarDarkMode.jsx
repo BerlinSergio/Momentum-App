@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
@@ -130,7 +131,7 @@ export default function AfghanSolarHijriShamsiCalendarDarkMode({ setActiveTab, g
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Calendar className="w-5 h-5 text-white" />
@@ -144,7 +145,7 @@ export default function AfghanSolarHijriShamsiCalendarDarkMode({ setActiveTab, g
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
       <main className="flex flex-col relative w-full pb-safe min-h-screen px-4 pt-2">
         <div className="flex flex-col w-full pb-28 space-y-4">
           {/* Atmospheric Backdrop Glow & Seasonal Top Banner */}

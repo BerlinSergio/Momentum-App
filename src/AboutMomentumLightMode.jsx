@@ -1,4 +1,5 @@
 import UserAvatar from './components/UserAvatar';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { 
   Info, 
   ArrowLeft, 
@@ -22,7 +23,7 @@ export default function AboutMomentumLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-white/40 shadow-xs flex items-center justify-between px-5 pt-6 pb-3">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <button 
             type="button"
@@ -42,7 +43,7 @@ export default function AboutMomentumLightMode({ setActiveTab, goBack }) {
         <div className="flex items-center gap-2">
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex flex-col flex-1 relative w-full pb-safe bg-transparent">
         <div className="w-full max-w-md mx-auto px-4 py-4 space-y-6 pb-36 select-none relative">

@@ -438,7 +438,7 @@ export const useNotesStore = create(
       updateNote: (noteId, updates) =>
         set(
           produce((state) => {
-            const index = state.notes.findIndex((n) => n.id === noteId);
+            const index = state.notes.findIndex((n) => String(n.id) === String(noteId));
             if (index !== -1) {
               state.notes[index] = {
                 ...state.notes[index],
@@ -454,25 +454,27 @@ export const useNotesStore = create(
       deleteNote: (noteId) => {
         // A delete must act only on an existing saved note. Do not claim
         // success when the editor holds an unsaved/stale note ID.
-        if (!noteId || noteId === 'new') return false;
-        if (!get().notes.some((note) => note.id === noteId)) return false;
+        if (!noteId || String(noteId) === 'new') return false;
+        const stringId = String(noteId);
+        const exists = get().notes.some((note) => String(note.id) === stringId);
+        if (!exists) return false;
         set(
           produce((state) => {
-            state.notes = state.notes.filter((note) => note.id !== noteId);
-            if (state.activeNoteId === noteId) {
+            state.notes = state.notes.filter((note) => String(note.id) !== stringId);
+            if (String(state.activeNoteId) === stringId) {
               state.activeNoteId = null;
               state.activeAttachmentId = null;
             }
             state.reflectionStreak = calculateReflectionStreak(state.notes);
           })
         );
-        return !get().notes.some((note) => note.id === noteId);
+        return !get().notes.some((note) => String(note.id) === stringId);
       },
 
       togglePin: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isPinned = !note.isPinned;
             }
@@ -482,7 +484,7 @@ export const useNotesStore = create(
       archiveNote: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isArchived = true;
             }
@@ -492,7 +494,7 @@ export const useNotesStore = create(
       unarchiveNote: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isArchived = false;
             }
@@ -502,7 +504,7 @@ export const useNotesStore = create(
       toggleArchive: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isArchived = !note.isArchived;
             }
@@ -512,9 +514,9 @@ export const useNotesStore = create(
       toggleMilestone: (noteId, milestoneId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.milestones)) {
-              const ms = note.milestones.find((m) => m.id === milestoneId);
+              const ms = note.milestones.find((m) => String(m.id) === String(milestoneId));
               if (ms) {
                 ms.completed = !ms.completed;
               }
@@ -525,7 +527,7 @@ export const useNotesStore = create(
       addMilestone: (noteId, text) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               if (!Array.isArray(note.milestones)) note.milestones = [];
               note.milestones.push({
@@ -540,9 +542,9 @@ export const useNotesStore = create(
       deleteMilestone: (noteId, milestoneId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.milestones)) {
-              note.milestones = note.milestones.filter((m) => m.id !== milestoneId);
+              note.milestones = note.milestones.filter((m) => String(m.id) !== String(milestoneId));
             }
           })
         ),
@@ -550,7 +552,7 @@ export const useNotesStore = create(
       addAttachment: (noteId, attachment) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               if (!Array.isArray(note.attachments)) note.attachments = [];
               note.attachments.push({
@@ -569,9 +571,9 @@ export const useNotesStore = create(
         deleteAttachmentFile(attachmentId).catch(() => {});
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.attachments)) {
-              note.attachments = note.attachments.filter((a) => a.id !== attachmentId);
+              note.attachments = note.attachments.filter((a) => String(a.id) !== String(attachmentId));
             }
           })
         );
@@ -580,7 +582,7 @@ export const useNotesStore = create(
       addTag: (noteId, tag) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               if (!Array.isArray(note.tags)) note.tags = [];
               if (!note.tags.includes(tag)) {
@@ -593,7 +595,7 @@ export const useNotesStore = create(
       removeTag: (noteId, tag) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.tags)) {
               note.tags = note.tags.filter((t) => t !== tag);
             }

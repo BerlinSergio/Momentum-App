@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
 import { useProfileStore } from './store/useProfileStore';
 import { useTimeStore } from './store/useTimeStore';
@@ -56,7 +57,7 @@ export default function TimezoneSelectionLightMode({ setActiveTab, goBack }) {
       <div className="flex-1">
         
         {/* Top Header Bar (Standardized: Back arrow on far left, clean title, no redundant icon or avatar) */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={false}>
           <div className="flex items-center gap-3">
             <button 
               type="button"
@@ -70,7 +71,7 @@ export default function TimezoneSelectionLightMode({ setActiveTab, goBack }) {
               {t('calendar.timezoneSelection', 'Timezone Selection')}
             </h1>
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* ACTIVE TIMEZONE CARD */}
         <div className="block mx-5 my-3 p-5 rounded-3xl space-y-4 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">

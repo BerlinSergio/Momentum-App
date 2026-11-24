@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -327,7 +328,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-40 relative">
       {/* 1. TOP HEADER */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
             <Image className="w-5 h-5 text-white" />
@@ -346,7 +347,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* 2. MEDIA HERO SECTION (EXPLICIT ATTACHMENT[CURRENTINDEX].URL BINDING) */}
       <div 

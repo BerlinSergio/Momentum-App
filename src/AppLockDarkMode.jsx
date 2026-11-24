@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { Lock, ArrowLeft, X } from 'lucide-react';
@@ -152,7 +153,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Lock className="w-5 h-5 text-white" />
@@ -169,7 +170,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface">
         <div className="flex flex-col w-full pb-28 space-y-space-lg">

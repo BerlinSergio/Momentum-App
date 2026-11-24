@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { CheckSquare, ArrowLeft } from 'lucide-react';
@@ -389,7 +390,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <header data-testid="add-edit-task-header" className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true} data-testid="add-edit-task-header">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <CheckSquare className="w-5 h-5 text-white" />
@@ -404,7 +405,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </header>
+      </MomentumGlassHeader>
       <main className="flex-1 w-full min-w-0 max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-28 relative">
         {/* Ambient Backdrop Glow Spots */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">

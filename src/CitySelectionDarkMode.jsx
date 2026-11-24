@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import UserAvatar from './components/UserAvatar';
@@ -144,7 +145,7 @@ export default function CitySelectionDarkMode({ setActiveTab, goBack }) {
       </div>
 
       {/* Top Header Bar (Standardized: Back arrow on far left, clean title, no redundant icon or avatar) */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -159,7 +160,7 @@ export default function CitySelectionDarkMode({ setActiveTab, goBack }) {
           </h1>
         </div>
         <UserAvatar setActiveTab={setActiveTab} />
-      </header>
+      </MomentumGlassHeader>
 
       <main className="flex flex-col relative w-full pb-36 px-margin z-10 flex-1">
         <div className="flex flex-col w-full space-y-4">

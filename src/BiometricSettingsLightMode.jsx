@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useSecurityStore } from './store/useSecurityStore';
@@ -55,7 +56,7 @@ export default function BiometricSettingsLightMode({ setActiveTab, goBack }) {
   return (
     <>
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden"><div className="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[120vw] h-[55vh] rounded-full bg-gradient-to-b from-primary-fixed/30 via-surface-container/20 to-transparent blur-3xl"></div><div className="absolute top-[40%] right-[-10%] w-[80vw] h-[40vh] rounded-full bg-gradient-to-tr from-secondary-fixed/20 via-tertiary-fixed/10 to-transparent blur-3xl"></div></div>{/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Fingerprint className="w-5 h-5 text-white" />
@@ -70,7 +71,7 @@ export default function BiometricSettingsLightMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-28 space-y-4">
+      </MomentumGlassHeader><main className="flex flex-col relative w-full pb-safe px-margin z-10 flex-1"><div className="flex flex-col w-full pb-28 space-y-4">
 {/*  Protection Status Badge  */}
 <div className="relative overflow-hidden rounded-3xl p-5 mb-5 space-y-4 bg-white/70 backdrop-blur-xl border border-slate-200/80 shadow-md">
 <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-gradient-to-br from-primary-fixed via-tertiary-fixed/30 to-transparent blur-2xl pointer-events-none"></div>

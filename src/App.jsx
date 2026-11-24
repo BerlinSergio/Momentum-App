@@ -414,9 +414,9 @@ function AppContent() {
  case 'language_settings':
  case 'language': return isDarkMode ? <LanguageSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <LanguageSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'note_editor_dark_mode':
- case 'long_note_editor_dark_mode': return <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'long_note_editor_dark_mode': return <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'note_editor_light_mode':
- case 'long_note_editor_light_mode': return <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'long_note_editor_light_mode': return <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'more_dark_mode': return <MoreDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'more_light_mode': return <MoreLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'new_edit_tasbeeh_dark_mode': return <NewEditTasbeehDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -442,8 +442,8 @@ function AppContent() {
    return <NotificationsSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'prayer_times_dark_mode': return <PrayerTimesDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'prayer_times_light_mode': return <PrayerTimesLightMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'quick_note_editor_dark_mode': return <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
- case 'quick_note_editor_light_mode': return <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'quick_note_editor_dark_mode': return <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
+ case 'quick_note_editor_light_mode': return <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'settings_profile_dark_mode': return <SettingsProfileDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'settings_profile_light_mode': return <SettingsProfileLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'splash_screen_dark_mode': return <SplashScreenDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -501,8 +501,8 @@ function AppContent() {
  case 'notes_main':
  case 'reflections': return isDarkMode ? <NotesMainDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <NotesMainLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'note_editor':
- case 'long_note_editor': return isDarkMode ? <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} /> : <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
- case 'quick_note_editor': return isDarkMode ? <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} /> : <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'long_note_editor': return isDarkMode ? <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} /> : <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
+ case 'quick_note_editor': return isDarkMode ? <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} /> : <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'AttachmentDetails':
  case 'attachment_details':
  case 'note_media_attachment_viewer':

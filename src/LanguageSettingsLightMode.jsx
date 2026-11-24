@@ -1,4 +1,5 @@
 import React from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Check, Globe, Sparkles, Hash, Languages } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -37,7 +38,7 @@ export default function LanguageSettingsLightMode({ setActiveTab, goBack }) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* ── STICKY TOP HEADER BAR ── */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-5 py-4 bg-white/85 backdrop-blur-2xl border-b border-slate-200/80">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -60,7 +61,7 @@ export default function LanguageSettingsLightMode({ setActiveTab, goBack }) {
         <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
           <Languages className="w-5 h-5" />
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       {/* ── MAIN CONTENT CONTAINER ── */}
       <main className="flex-1 px-4 sm:px-6 pt-6 space-y-6 max-w-2xl mx-auto w-full relative z-10">

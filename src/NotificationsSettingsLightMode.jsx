@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from './store/useSettingsStore';
@@ -230,7 +231,7 @@ export default function NotificationsSettingsLightMode({
   return (
     <div className="min-h-screen bg-slate-50 pb-40 relative font-sans">
       {/* TOP HEADER BAR */}
-      <div className="sticky top-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-slate-200/60 flex items-center justify-between px-5 py-3 shadow-xs">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30 relative">
             <Bell className="w-5 h-5 text-white" />
@@ -262,7 +263,7 @@ export default function NotificationsSettingsLightMode({
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4">
         {/* SEGMENTED TAB SELECTOR: NOTIFICATIONS FEED vs PREFERENCES */}

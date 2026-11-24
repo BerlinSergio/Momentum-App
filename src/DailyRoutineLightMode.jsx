@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import { 
   Sparkles, 
@@ -110,7 +111,7 @@ export default function DailyRoutineLightMode({ setActiveTab, goBack, hideHeader
     <div className="relative w-full pb-0 mb-0 bg-transparent font-sans">
       {/* Top Header Bar */}
       {!hideHeader && (
-        <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+        <MomentumGlassHeader isDarkMode={false}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <Sparkles className="w-5 h-5 text-white" />
@@ -136,7 +137,7 @@ export default function DailyRoutineLightMode({ setActiveTab, goBack, hideHeader
             </button>
             <UserAvatar setActiveTab={navigateScreen} />
           </div>
-        </header>
+        </MomentumGlassHeader>
       )}
 
       <main className="flex-1 flex flex-col relative w-full pb-32 bg-transparent z-10">

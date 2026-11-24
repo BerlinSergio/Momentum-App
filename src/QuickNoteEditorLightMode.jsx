@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNotesStore } from './store/useNotesStore';
@@ -7,6 +8,7 @@ import { saveAttachmentFile } from './storage/index.js';
 import UserAvatar from './components/UserAvatar';
 import { MomentumDatePicker, MomentumTimePicker } from './components/ui/picker/index.js';
 import { toast } from './components/ui/toast/index.js';
+import { confirm } from './components/ui/confirmation/index.js';
 import { 
   ArrowLeft, Sparkles, Pin, Trash2, X, 
   Camera, CheckSquare, List, Edit3, Bell, BellOff, Clock, ArrowRight, Check,
@@ -527,7 +529,8 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
 
   const existingNote = useMemo(() => {
     if (isNew) return null;
-    return notes.find((n) => n.id === effectiveNoteId && (n.type === 'quick' || !n.type)) || null;
+    const idStr = String(effectiveNoteId);
+    return notes.find((n) => String(n.id) === idStr && (n.type === 'quick' || !n.type)) || notes.find((n) => String(n.id) === idStr) || null;
   }, [notes, effectiveNoteId, isNew]);
 
   const routeParams = route?.params || {};
@@ -780,11 +783,41 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     }, 200);
   };
 
-  const handleDelete = () => {
-    if (existingNote?.id) {
-      deleteNote(existingNote.id);
+  const handleDeleteNote = async () => {
+    setIsMenuOpen(false);
+    const rawTarget = (existingNote?.id && existingNote.id !== 'new')
+      ? existingNote.id
+      : (effectiveNoteId && effectiveNoteId !== 'new'
+        ? effectiveNoteId
+        : (storeActiveNoteId && storeActiveNoteId !== 'new' ? storeActiveNoteId : null));
+    const targetId = rawTarget ? String(rawTarget) : null;
+
+    const confirmed = await confirm({
+      variant: 'destructive',
+      title: t('notes.deleteNoteTitle', 'Delete Note?'),
+      description: t('notes.deleteNotePermanent', 'This note will be permanently removed from your storage.'),
+      confirmText: t('common.delete', 'Delete'),
+      cancelText: t('common.cancel', 'Cancel'),
+    });
+    if (!confirmed) return;
+
+    if (!targetId) {
+      handleNavigateBack();
+      return;
     }
-    handleNavigateBack();
+
+    try {
+      const removed = deleteNote(targetId);
+      if (!removed) {
+        toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+        return;
+      }
+      toast.success(t('toasts.noteDeleted', 'Note deleted'));
+      handleNavigateBack();
+    } catch (error) {
+      console.error('[Momentum Quick Note] Deletion failed:', error);
+      toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -867,7 +900,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
       />
 
       {/* 1. TOP HEADER & STATUS BAR */}
-      <header className="sticky top-0 z-[60] bg-white/80 backdrop-blur-xl border-b border-slate-200/80 px-4 py-2 flex flex-row items-center justify-between w-full shadow-xs">
+      <MomentumGlassHeader isDarkMode={false}>
         {/* Left Section */}
         <div className="flex flex-row items-center gap-2">
           <button 
@@ -950,7 +983,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
 
                 <button 
                   type="button" 
-                  onClick={() => { handleDelete(); setIsMenuOpen(false); }} 
+                  onClick={handleDeleteNote} 
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-left transition-colors cursor-pointer font-medium"
                 >
                   <Trash2 className="w-4 h-4 text-rose-600" />
@@ -960,7 +993,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             )}
           </div>
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       {/* 2. AUTOSAVED SUB-BAR */}
       <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
@@ -1223,7 +1256,7 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
             </button>
             <button 
               type="button"
-              onClick={handleDelete}
+              onClick={handleDeleteNote}
               className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer active:scale-[0.99] transition-all"
             >
               <Trash2 className="w-4 h-4 text-rose-500"/>

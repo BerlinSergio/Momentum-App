@@ -1,4 +1,5 @@
 import UserAvatar from './components/UserAvatar';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useProfileStore } from './store/useProfileStore';
 import { useThemeStore } from './store/useThemeStore';
 import useSecurityStore from './store/useSecurityStore';
@@ -49,7 +50,7 @@ export default function SettingsProfileLightMode({ setActiveTab, goBack }) {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-36 font-sans text-slate-900">
       {/* ── TOP HEADER BAR (Hidden on desktop since DesktopSidebar provides branding & navigation) ── */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false} className="lg:hidden">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -63,7 +64,7 @@ export default function SettingsProfileLightMode({ setActiveTab, goBack }) {
             {t('settings.profileSettings', 'Settings & Profile')}
           </h1>
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* ── TOP COMPACT PROFILE CARD ────────────────────────────────────────── */}
       <div

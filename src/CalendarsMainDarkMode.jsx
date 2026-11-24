@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { Calendar, Bell, CheckSquare } from 'lucide-react';
@@ -201,7 +202,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
   return (
     <div className="relative w-full min-h-screen bg-transparent font-sans flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto shrink-0">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Calendar className="w-5 h-5 text-white" />
@@ -226,7 +227,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       {/* Main Scroll Container with Scroll Trap Fix */}
       <main className="flex-1 overflow-y-auto w-full px-margin pb-32 space-y-4">

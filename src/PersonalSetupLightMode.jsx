@@ -260,23 +260,42 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
   };
 
   return (
-    <div className="w-full min-h-full px-4 pt-6 pb-8 flex flex-col items-center justify-between select-none">
-      <div className="w-full max-w-sm flex flex-col items-center space-y-4">
-        {/* PROGRESS STEPPER ({t('onboarding.step1of2', 'Step 1 of 2')}w-full flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-[11px] font-bold text-primary uppercase tracking-widest">{t('onboarding.step1of2', 'Step 1 of 2')}text-[11px] font-semibold text-slate-500">{t('onboarding.personalSetup', 'Personal Setup')}text-center space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{t('onboarding.welcomeTitle', 'Welcome to Momentum')}</h1>
-<p className="text-xs text-slate-600 font-normal">
-            {t('onboarding.welcomeSubtitle', 'Personalize your experience with clean, local defaults.')}w-full space-y-3.5 pt-1">
+    <div className="w-full min-h-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-10 flex flex-col items-center justify-between select-none">
+      <div className="w-full max-w-xl lg:max-w-3xl flex flex-col items-center space-y-6">
+        
+        {/* PROGRESS STEPPER */}
+        <div className="w-full flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs font-bold text-primary uppercase tracking-widest">
+              {t('onboarding.step1of2', 'Step 1 of 2')}
+            </span>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {t('onboarding.personalSetup', 'Personal Setup')}
+          </span>
+        </div>
+
+        {/* WELCOME HEADER */}
+        <div className="text-center space-y-1.5 max-w-lg">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            {t('onboarding.welcomeTitle', 'Welcome to Momentum')}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 font-normal">
+            {t('onboarding.welcomeSubtitle', 'Personalize your experience with clean, local defaults.')}
+          </p>
+        </div>
+
+        {/* FORM CONTENT */}
+        <div className="w-full space-y-5 pt-2">
           
           {/* 0. LANGUAGE SELECTION */}
-          <div className="space-y-1.5" data-testid="onboarding-language-picker">
-            <label className="text-[10px] font-bold tracking-wider text-slate-700 uppercase px-1 flex items-center justify-between">
+          <div className="space-y-2" data-testid="onboarding-language-picker">
+            <label className="text-xs font-bold tracking-wider text-slate-700 uppercase px-1 flex items-center justify-between">
               <span>{t('onboarding.chooseLanguage')}</span>
-<span className="text-primary font-mono text-[9px]">{currentLocale.toUpperCase()}</span>
+              <span className="text-primary font-mono text-[11px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">{currentLocale.toUpperCase()}</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
               {SUPPORTED_LOCALES.map((loc) => {
                 const isSelected = currentLocale === loc.code;
                 return (
@@ -284,223 +303,235 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
                     key={loc.code}
                     type="button"
                     onClick={() => setLocale(loc.code)}
-                    className={`py-2 px-1.5 rounded-xl border text-center transition-all cursor-pointer pointer-events-auto flex flex-col items-center justify-center ${
+                    className={`py-3 px-2 sm:px-3 rounded-2xl border text-center transition-all cursor-pointer pointer-events-auto flex flex-col items-center justify-center min-h-[58px] ${
                       isSelected
-                        ? 'bg-primary/10 border-primary text-primary shadow-sm shadow-primary/10'
-                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
+                        ? 'bg-primary/10 border-primary text-primary shadow-sm shadow-primary/10 ring-1 ring-primary/30'
+                        : 'bg-white/80 backdrop-blur-md border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <span className="text-xs font-bold leading-tight">{loc.nativeName}</span>
-                    <span className="text-[9px] text-slate-400 font-mono mt-0.5">{loc.code === 'en' ? 'EN' : loc.code === 'ps-AF' ? 'پښتو' : 'دری'}</span>
+                    <span className="text-sm font-bold leading-tight">{loc.nativeName}</span>
+                    <span className="text-[11px] text-slate-400 font-medium mt-0.5">{loc.code === 'en' ? 'English' : loc.code === 'ps-AF' ? 'Pashto' : 'Dari'}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* 1. DISPLAY NAME CARD */}
-          {/* 1. DISPLAY NAME CARD */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold tracking-wider text-slate-700 uppercase px-1">
-              {t('onboarding.displayName', 'Your Display Name')}
-            </label>
-            <div className="relative flex items-center">
-              <div className="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
-                <User className="w-4 h-4"/>
-              </div>
-              <input
-                type="text"
-                value={name}
-                onChange={handleNameChange}
-                placeholder={t('onboarding.enterYourName', 'Enter your name')} 
-                className="w-full h-12 pl-10 pr-10 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200/80 text-slate-900 placeholder-slate-400 text-sm font-medium outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all shadow-xs"
-              />
-              {isValidName && (
-                <div className="absolute right-3.5 flex items-center pointer-events-none text-emerald-600">
-                  <CheckCircle2 className="w-4 h-4"/>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* TWO-COLUMN ROW ON DESKTOP/TABLET: DISPLAY NAME & PREFERRED CURRENCY */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
 
-          {/* 2. BASE CURRENCY CARD */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold tracking-wider text-slate-700 uppercase px-1">
-              {t('onboarding.preferredCurrency', 'Preferred Currency')}
-            </label>
-            {/* Quick Currency Selector Grid */}
-            <div className="grid grid-cols-4 gap-2">
-              {Object.keys(CURRENCIES).map((code) => {
-                const item = CURRENCIES[code];
-                const isSelected = currCode === code;
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => handleCurrencySelect(code)}
-                    className={`h-11 rounded-2xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-xs scale-[1.02]'
-                        : 'bg-white/80 border-slate-200/80 text-slate-700 hover:bg-slate-50 font-medium'
-                    }`}
-                  >
-                    <span className="text-xs font-bold leading-tight">{code}</span>
-                    <span className="text-[10px] opacity-75 font-serif leading-none mt-0.5">{item.symbol}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. TIMEZONE CARD */}
-          <div className="space-y-1.5 relative">
-            <div className="flex items-center justify-between px-1">
-              <label className="text-[10px] font-bold tracking-wider text-slate-700 uppercase">
-                {t('onboarding.timezone', 'Timezone')}
+            {/* 1. DISPLAY NAME CARD */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold tracking-wider text-slate-700 uppercase px-1 block">
+                {t('onboarding.displayName', 'Your Display Name')}
               </label>
-              <span className="text-[9px] font-semibold text-indigo-600 tracking-wide uppercase">
-                {getTimezoneDesc(globalTimezone.split(' ')[0])}
-              </span>
-            </div>
-
-            <div className="relative">
-              <div 
-                data-testid="tz-trigger"
-                onClick={() => { setIsTzOpen(!isTzOpen); setIsCityOpen(false); }}
-                className="p-3 rounded-2xl flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-xs cursor-pointer active:scale-[0.99] transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <Compass className="w-4 h-4"/>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900">{globalTimezone}</p>
-                    <span className="text-[10px] font-normal text-slate-500">{getTimezoneDesc(globalTimezone.split(' ')[0])}</span>
-                  </div>
+              <div className="relative flex items-center">
+                <div className="absolute start-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="w-4 h-4"/>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isTzOpen ? 'rotate-180 text-indigo-600' : ''}`}/>
-              </div>
-
-              {/* Inline Overlaid Timezone Dropdown Menu */}
-              {isTzOpen && (
-                <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-[100] p-1.5 rounded-2xl max-h-48 overflow-y-auto bg-white border border-slate-100 shadow-xl space-y-1">
-                  {timezoneOptions.map((tz) => {
-                    const isSelected = globalTimezone.includes(tz.id);
-                    return (
-                      <div
-                        key={tz.id}
-                        onClick={() => handleSelectTimezone(tz)}
-                        className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200'
-                            : 'text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-slate-900">{tz.label}</p>
-                          <span className="text-[10px] text-slate-500">{tz.desc}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 4. CITY SELECTION CARD */}
-          <div className="space-y-1.5 relative">
-            <div className="flex items-center justify-between px-1">
-              <label className="text-[10px] font-bold tracking-wider text-slate-700 uppercase">
-                {t('onboarding.locationCoordinates', 'Location & Coordinates')}
-              </label>
-              <button
-                type="button"
-                onClick={handleAutoDetect}
-                disabled={isLocating}
-                className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                {isLocating ? (
-                  <>
-                    <Loader2 className="w-2.5 h-2.5 animate-spin"/>
-                    <span>{t('onboarding.detecting', 'Detecting...')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Compass className="w-2.5 h-2.5" />
-                    <span>{t('onboarding.autoDetect', 'Auto-Detect')}</span>
-                  </>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={handleNameChange}
+                  placeholder={t('onboarding.enterYourName', 'Enter your name')} 
+                  className="w-full h-12 ps-10 pe-10 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200/80 text-slate-900 placeholder-slate-400 text-sm font-medium outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 transition-all shadow-xs"
+                />
+                {isValidName && (
+                  <div className="absolute end-3.5 flex items-center pointer-events-none text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4"/>
+                  </div>
                 )}
-              </button>
+              </div>
             </div>
 
-            <div className="relative">
-              <div 
-                data-testid="city-trigger"
-                onClick={() => { setIsCityOpen(!isCityOpen); setIsTzOpen(false); }}
-                className="p-3 rounded-2xl flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-xs cursor-pointer active:scale-[0.99] transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-4 h-4"/>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900">{globalCity}</p>
-                    <span className="text-[10px] font-normal text-slate-500">{getCityDesc(globalCity)}</span>
-                  </div>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isCityOpen ? 'rotate-180 text-indigo-600' : ''}`}/>
+            {/* 2. BASE CURRENCY CARD */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold tracking-wider text-slate-700 uppercase px-1 block">
+                {t('onboarding.preferredCurrency', 'Preferred Currency')}
+              </label>
+              {/* Quick Currency Selector Grid */}
+              <div className="grid grid-cols-4 gap-2">
+                {Object.keys(CURRENCIES).map((code) => {
+                  const item = CURRENCIES[code];
+                  const isSelected = currCode === code;
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => handleCurrencySelect(code)}
+                      className={`h-12 rounded-2xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold shadow-xs scale-[1.02] ring-1 ring-indigo-500/30'
+                          : 'bg-white/80 backdrop-blur-md border-slate-200/80 text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
+                    >
+                      <span className="text-xs font-bold leading-tight">{code}</span>
+                      <span className="text-[11px] opacity-80 font-serif leading-none mt-0.5">{item.symbol}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+
+          {/* TWO-COLUMN ROW ON DESKTOP/TABLET: TIMEZONE & LOCATION */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+
+            {/* 3. TIMEZONE CARD */}
+            <div className="space-y-2 relative">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-xs font-bold tracking-wider text-slate-700 uppercase">
+                  {t('onboarding.timezone', 'Timezone')}
+                </label>
+                <span className="text-[11px] font-semibold text-indigo-600 tracking-wide uppercase px-2 py-0.5 rounded-full bg-indigo-50">
+                  {getTimezoneDesc(globalTimezone.split(' ')[0])}
+                </span>
               </div>
 
-              {/* Inline Overlaid City Dropdown Menu */}
-              {isCityOpen && (
-                <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-[100] p-1.5 rounded-2xl max-h-48 overflow-y-auto bg-white border border-slate-100 shadow-xl space-y-1">
-                  {CITY_OPTIONS.map((city) => {
-                    const isSelected = globalCity?.toLowerCase().includes(city.name.toLowerCase());
-                    return (
-                      <div
-                        key={city.id}
-                        onClick={() => handleSelectCity(city)}
-                        className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200'
-                            : 'text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-slate-900">{city.full}</p>
-                          <span className="text-[10px] text-slate-500">{city.desc}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />}
-                      </div>
-                    );
-                  })}
+              <div className="relative">
+                <div 
+                  data-testid="tz-trigger"
+                  onClick={() => { setIsTzOpen(!isTzOpen); setIsCityOpen(false); }}
+                  className="p-3 rounded-2xl flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-xs cursor-pointer active:scale-[0.99] hover:border-slate-300 transition-all min-h-[56px]"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                      <Compass className="w-4 h-4"/>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{globalTimezone}</p>
+                      <span className="text-[11px] font-normal text-slate-500 block truncate">{getTimezoneDesc(globalTimezone.split(' ')[0])}</span>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 ms-2 transition-transform duration-200 ${isTzOpen ? 'rotate-180 text-indigo-600' : ''}`}/>
                 </div>
-              )}
+
+                {/* Inline Overlaid Timezone Dropdown Menu */}
+                {isTzOpen && (
+                  <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-[100] p-1.5 rounded-2xl max-h-56 overflow-y-auto bg-white border border-slate-200 shadow-xl space-y-1">
+                    {timezoneOptions.map((tz) => {
+                      const isSelected = globalTimezone.includes(tz.id);
+                      return (
+                        <div
+                          key={tz.id}
+                          onClick={() => handleSelectTimezone(tz)}
+                          className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200'
+                              : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-900 truncate">{tz.label}</p>
+                            <span className="text-[11px] text-slate-500 truncate block">{tz.desc}</span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0 ms-2" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* 4. CITY SELECTION CARD */}
+            <div className="space-y-2 relative">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-xs font-bold tracking-wider text-slate-700 uppercase">
+                  {t('onboarding.locationCoordinates', 'Location & Coordinates')}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAutoDetect}
+                  disabled={isLocating}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer transition-colors px-2 py-0.5 rounded-full hover:bg-indigo-50"
+                >
+                  {isLocating ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin"/>
+                      <span>{t('onboarding.detecting', 'Detecting...')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Compass className="w-3 h-3" />
+                      <span>{t('onboarding.autoDetect', 'Auto-Detect')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="relative">
+                <div 
+                  data-testid="city-trigger"
+                  onClick={() => { setIsCityOpen(!isCityOpen); setIsTzOpen(false); }}
+                  className="p-3 rounded-2xl flex items-center justify-between bg-white/90 backdrop-blur-xl border border-slate-200/80 shadow-xs cursor-pointer active:scale-[0.99] hover:border-slate-300 transition-all min-h-[56px]"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-4 h-4"/>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{globalCity}</p>
+                      <span className="text-[11px] font-normal text-slate-500 block truncate">{getCityDesc(globalCity)}</span>
+                    </div>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 ms-2 transition-transform duration-200 ${isCityOpen ? 'rotate-180 text-indigo-600' : ''}`}/>
+                </div>
+
+                {/* Inline Overlaid City Dropdown Menu */}
+                {isCityOpen && (
+                  <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-[100] p-1.5 rounded-2xl max-h-56 overflow-y-auto bg-white border border-slate-200 shadow-xl space-y-1">
+                    {CITY_OPTIONS.map((city) => {
+                      const isSelected = globalCity?.toLowerCase().includes(city.name.toLowerCase());
+                      return (
+                        <div
+                          key={city.id}
+                          onClick={() => handleSelectCity(city)}
+                          className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200'
+                              : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-900 truncate">{city.full}</p>
+                            <span className="text-[11px] text-slate-500 truncate block">{city.desc}</span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0 ms-2" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
 
         </div>
 
         {/* ENCRYPTION & LOCAL STORAGE NOTICE */}
-        <div className={`flex items-center gap-1.5 px-2 text-slate-800/90 drop-shadow-sm transition-opacity duration-200 ${isTzOpen || isCityOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <Lock className="w-3 h-3 flex-shrink-0 text-slate-800"/>
-          <p className="text-[10px] font-medium leading-tight text-slate-800/90">
+        <div className={`flex items-center justify-center gap-2 px-2 text-slate-700 drop-shadow-sm transition-opacity duration-200 pt-1 ${isTzOpen || isCityOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-600"/>
+          <p className="text-xs font-medium leading-tight text-center">
             {t('onboarding.storedLocally', 'Stored locally on your device. You can modify settings anytime.')}
           </p>
         </div>
 
-        <div className="w-full max-w-sm pt-4">
+        {/* CONTINUE BUTTON */}
+        <div className="w-full max-w-md pt-2">
           <button
             type="button"
             onClick={handleContinue}
-            className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all cursor-pointer"
+            className="w-full h-13 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all cursor-pointer"
           >
             <span>{t('onboarding.continue', 'Continue')}</span>
-            <ArrowRight className="w-5 h-5 stroke-[2.2]"/>
+            <ArrowRight className="w-5 h-5 stroke-[2.2] rtl:rotate-180"/>
           </button>
         </div>
+
+      </div>
     </div>
   );
 }

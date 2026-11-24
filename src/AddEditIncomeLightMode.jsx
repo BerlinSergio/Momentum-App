@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useFinanceStore } from './store/useFinanceStore';
@@ -198,7 +199,7 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Wallet className="w-5 h-5 text-white" />
@@ -219,7 +220,7 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 w-full bg-surface pb-safe px-4 lg:px-8 pt-2">
         <div className="w-full max-w-md lg:max-w-5xl mx-auto pb-28 flex flex-col select-none">

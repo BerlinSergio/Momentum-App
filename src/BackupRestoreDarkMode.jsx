@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
 import {
   ArrowLeft,
@@ -203,7 +204,7 @@ export default function BackupRestoreDarkMode({ setActiveTab, goBack }) {
   return (
     <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col font-sans select-none overflow-y-auto pb-24">
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-xl border-b border-white/10 px-5 py-4 flex items-center justify-between">
+      <MomentumGlassHeader isDarkMode={true}>
         <button
           onClick={handleBack}
           className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
@@ -218,7 +219,7 @@ export default function BackupRestoreDarkMode({ setActiveTab, goBack }) {
         <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
           <ShieldCheck className="w-5 h-5" />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="max-w-md lg:max-w-5xl w-full mx-auto px-5 lg:px-8 pt-5 pb-28 flex flex-col gap-5">
         {/* Mode Selector Segmented Tabs */}

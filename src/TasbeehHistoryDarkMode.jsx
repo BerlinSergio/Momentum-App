@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useTasbeehStore } from './store/useTasbeehStore';
@@ -68,7 +69,7 @@ export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
       <div className="flex-1 pb-40">
         
         {/* 1. TOP HEADER BAR */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={true}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
               <History className="w-5 h-5 text-white" />
@@ -88,7 +89,7 @@ export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* 2. SUB-BAR: DATE & DESCRIPTION */}
         <div className="px-5 pt-2 pb-3">

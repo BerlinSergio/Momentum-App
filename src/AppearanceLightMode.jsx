@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
@@ -65,7 +66,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar (Standardized: Back arrow on far left, clean title, no redundant icon or avatar) */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -79,7 +80,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
             {t('appearance.appearance', 'Appearance')}
           </h1>
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <div className="flex-1 flex flex-col relative w-full px-4 pb-36">
         <div className="flex flex-col w-full space-y-4 pt-2">

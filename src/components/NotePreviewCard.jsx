@@ -251,6 +251,8 @@ export default function NotePreviewCard({
   return (
     <motion.div
       onClick={() => onOpen(note)}
+      data-testid={`note-card-${note.id}`}
+      data-note-id={note.id}
       layout="position"
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.985 }}

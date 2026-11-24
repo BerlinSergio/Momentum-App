@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
 import { useFinanceStore } from './store/useFinanceStore';
 import { getLocalDateKey, getLocalDateParts } from './utils/timeService';
@@ -195,7 +196,7 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
 
   return (
     <div className="relative w-full min-h-screen bg-transparent font-sans">
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Coins className="w-5 h-5 text-white" />
@@ -213,7 +214,7 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
             <ArrowLeft className="w-5 h-5" />
           </button>
         </div>
-      </header>
+      </MomentumGlassHeader>
 
             <main className="flex-1 w-full bg-transparent pb-safe px-5 lg:px-8 pt-2">
         <div className="w-full max-w-md lg:max-w-5xl mx-auto pb-28">

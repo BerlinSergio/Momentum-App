@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import { useFinanceStore, formatSingleCurrency, calculateGroupedTotals } from './store/useFinanceStore';
 import { useNavigationStore } from './store/useNavigationStore';
@@ -475,7 +476,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
   return (
     <div className="relative w-full pb-36 bg-slate-50 text-slate-900 font-sans min-h-screen">
       {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader isDarkMode={false} className="lg:hidden">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Coins className="w-5 h-5 text-white" />
@@ -498,7 +499,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
             setActiveTab={setActiveTab} 
           />
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       {/* Sleek Glassmorphic Local Navigation Tabs */}
       <div className="px-5 lg:px-0 pt-1 pb-2 relative z-50">

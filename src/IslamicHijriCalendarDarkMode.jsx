@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
@@ -223,7 +224,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
   return (
     <div className="min-h-screen bg-slate-950 font-sans pb-32 text-white relative">
       {/* TOP HEADER BAR */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Moon className="w-5 h-5 text-white" />
@@ -236,7 +237,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* MAIN HIJRI CALENDAR CONTAINER */}
       <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">

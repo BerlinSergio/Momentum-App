@@ -64,6 +64,7 @@ export default function NewNoteFloatingMenu({
         {/* Top Pill: Long Note */}
         <button
           type="button"
+          data-testid="fab-create-long-note"
           onClick={onSelectLongNote}
           className={`group flex items-center gap-3 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-150 cursor-pointer active:scale-95 animate-speed-dial-1 ${
             isDarkMode
@@ -91,6 +92,7 @@ export default function NewNoteFloatingMenu({
         <div className="relative flex flex-col items-end">
           <button
             type="button"
+            data-testid="fab-create-quick-note"
             onClick={onSelectQuickNote}
             className={`group flex items-center gap-3 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-150 cursor-pointer active:scale-95 animate-speed-dial-2 ${
               isDarkMode

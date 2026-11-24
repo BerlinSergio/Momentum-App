@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useLocationStore } from './store/useLocationStore';
@@ -271,7 +272,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col pb-28 font-sans font-inter antialiased select-none">
       {/* Top Header */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Sparkles className="w-5 h-5 text-white" />
@@ -304,7 +305,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* Title & Alerts Row */}
       <div className="flex items-center justify-between px-5 pt-2 pb-1">

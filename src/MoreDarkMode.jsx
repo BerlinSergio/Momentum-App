@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useProfileStore } from './store/useProfileStore';
@@ -157,7 +158,7 @@ export default function MoreDarkMode({ setActiveTab }) {
   return (
     <div className="min-h-screen bg-[#0B0F19] pb-36 font-sans text-white">
       {/* Header */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <img
             src="/logo.png"
@@ -178,7 +179,7 @@ export default function MoreDarkMode({ setActiveTab }) {
             )}
           </button>
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* Profile Hero Card */}
       <div

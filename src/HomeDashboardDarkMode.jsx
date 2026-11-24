@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { motion } from 'framer-motion';
 import { useFinanceStore, calculateGroupedTotals, getMonthlyFinanceSummary, getSavingsTargetStats } from './store/useFinanceStore';
 import StackedCurrencyDisplay from './components/StackedCurrencyDisplay';
@@ -217,9 +218,9 @@ export default function HomeDashboardDarkMode({ setActiveTab }) {
   return (
     <div className="relative w-full pb-32 lg:pb-6 bg-transparent font-sans">
       {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader className="lg:hidden" isDarkMode={true}>
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Momentum Logo" className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-lg shadow-primary/30" />
+          <img src="/logo.png" alt="Momentum Logo" className="w-9 h-9 object-cover rounded-xl aspect-square flex-shrink-0 shadow-lg shadow-primary/30" />
           <h1 className="text-base font-bold text-white tracking-tight">Momentum</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -231,7 +232,7 @@ export default function HomeDashboardDarkMode({ setActiveTab }) {
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       <main className="w-full bg-transparent relative z-10 pointer-events-auto">
         {/* Premium Glass Welcome Hero */}

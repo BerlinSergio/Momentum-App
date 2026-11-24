@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { ArrowLeft, Pencil, Trash2, UserCheck, User, Mail, Globe, Sun, ArrowRight, RefreshCw, Check, Wallet, Clock, Compass, ChevronRight, MapPin } from 'lucide-react';
@@ -174,7 +175,7 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
   return (
     <>
       <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/png,image/jpeg,image/webp" className="hidden" />
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <User className="w-5 h-5 text-white" />
@@ -189,7 +190,7 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 flex flex-col w-full max-w-md lg:max-w-5xl mx-auto pb-28 px-5 lg:px-8 bg-transparent relative z-10">
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
