@@ -253,7 +253,7 @@ async function browserAudit(screens) {
             window.setIsAppLoading(false);
             window.useNavigationStore.getState().setActiveTab(id);
           }, { id: screen.id, theme: screen.theme, locale });
-          await pause(125);
+          await pause(460);
           const result = await page.evaluate(({ id, width, locale }) => {
             const text = (document.body.innerText || '').trim();
             const labels = [];
