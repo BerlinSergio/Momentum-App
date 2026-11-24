@@ -28,6 +28,14 @@ export function resolveThemeMode(setting) {
 export function themedScreenId(screen, setting) {
   if (typeof screen !== 'string' || !screen) return screen;
   const mode = resolveThemeMode(setting);
+
+  // Income management still navigates to the historical "add_income" route,
+  // while the screen registry uses "add_edit_income". Resolve both legacy
+  // themed links and their normalized logical ID to the real edit form.
+  if (logicalScreenId(screen) === 'add_income') {
+    return `add_edit_income_${mode}_mode`;
+  }
+
   const legacy = screen.match(variantPattern);
   if (legacy) return `${legacy[1]}_${mode}_mode${legacy[3] || ''}`;
 
