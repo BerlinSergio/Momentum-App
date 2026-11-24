@@ -164,7 +164,7 @@ async function main() {
               const nav = document.querySelector('[data-testid="mobile-bottom-nav"]');
               if (nav) {
                 const tabs = ['home', 'finance', 'tasks', 'more'].map((id) =>
-                  nav.querySelector('[data-testid="mobile-tab-' + id + '"] svg')
+                  nav.querySelector('[data-testid="mobile-tab-' + id + '"] > svg')
                 );
                 if (tabs.every(Boolean)) {
                   const centers = tabs.map((icon) => {
