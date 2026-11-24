@@ -204,7 +204,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             </span>
 
             <h3 
-              className="text-2xl sm:text-3xl font-bold text-primary/70 font-quran leading-relaxed py-2 select-all tracking-wide"
+              className="text-center text-2xl sm:text-3xl font-bold text-primary/70 font-quran leading-relaxed py-2 select-all tracking-wide"
               dir="rtl"
             >
               {arabic}
