@@ -334,14 +334,21 @@ export function clearLockoutState() {
 /**
  * Safe, idempotent migration of legacy plaintext PINs to PBKDF2 verifiers
  */
-export async function migrateLegacyPin() {
+export async function migrateLegacyPin({ allowLegacyImport = true } = {}) {
   try {
-    // 1. Check if a PBKDF2 credential verifier already exists
+    // 1. Check if a PBKDF2 credential verifier already exists.
     const existing = await getCredentialRecord();
     if (existing && existing.verifier) {
-      // Already has a verifier. Clean up any leftover plaintext PIN in localStorage or IDB
       await sanitizeOrdinaryStorage();
       return { migrated: false, alreadyMigrated: true };
+    }
+    // A completed schema migration is a durable trust boundary. After that
+    // point a stale localStorage mirror must NEVER be promoted to a new
+    // authentication credential. Only the audited first migration may read a
+    // plaintext legacy PIN.
+    if (!allowLegacyImport) {
+      await sanitizeOrdinaryStorage();
+      return { migrated: false, legacyImportClosed: true };
     }
 
     // 2. Look for legacy plaintext PIN in localStorage
