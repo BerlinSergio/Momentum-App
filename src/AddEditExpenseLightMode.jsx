@@ -135,18 +135,24 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
     setAmount(finalVal.toFixed(2));
   };
 
-  const handleSave = (e) => {
+  const saveInFlight = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
+    if (saveInFlight.current) return;
     const numericAmount = parseFloat(amount) || 0;
     if (numericAmount <= 0) {
       toast.error(t('toasts.validAmount', 'Please enter a valid amount'));
       return;
     }
+    saveInFlight.current = true;
+    setIsSaving(true);
+    try {
     const title = note.trim() || `${selectedCategory} ${transactionType === 'expense' ? 'Expense' : 'Income'}`;
     const selectedDate = dateTime.split('T')[0] || getLocalDateKey();
 
     if (editingTransaction && updateTransaction) {
-      updateTransaction({
+      await updateTransaction({
         ...editingTransaction,
         title,
         amount: numericAmount,
@@ -157,10 +163,10 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
         note: note.trim(),
         notes: note.trim(),
       });
-      if (setEditingTransaction) setEditingTransaction(null);
+      if (setEditingTransaction) await setEditingTransaction(null);
       toast.success(transactionType === 'expense' ? t('toasts.expenseUpdated', 'Expense updated') : t('toasts.incomeUpdated', 'Income updated'));
     } else {
-      addTransaction({
+      await addTransaction({
         title,
         amount: numericAmount,
         type: transactionType,
@@ -174,6 +180,13 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
     }
 
     handleNavigate('finance_expense_tracker_light_mode');
+    } catch (error) {
+      console.error('[Finance] Save failed:', error);
+      toast.error(t('storage.financeConflictTitle', 'Finance changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
   };
 
   const isDirty = editingTransaction
@@ -426,7 +439,7 @@ export default function AddEditExpenseLightMode({ setActiveTab, goBack }) {
               {/* Form Action Buttons Card */}
               <div className="w-full rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
                 <button 
-                  onClick={handleSave}
+                  onClick={handleSave} disabled={isSaving}
                   className={`btn-primary w-full h-12 text-sm font-bold shadow-lg cursor-pointer pointer-events-auto ${
                     transactionType === 'income' ? '!bg-emerald-600 hover:!bg-emerald-700' : ''
                   }`}
