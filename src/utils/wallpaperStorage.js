@@ -9,10 +9,18 @@ const DB_VERSION = 1;
 const STORE_NAME = 'wallpapers';
 
 function openWallpaperDB() {
-  return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !window.indexedDB) {
-      return resolve(null);
-    }
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.indexedDB) return resolve(null);
+
+    let settled = false;
+    let timeoutId;
+    const finish = (db) => {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(db);
+      return true;
+    };
     try {
       const request = window.indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = (event) => {
@@ -21,14 +29,24 @@ function openWallpaperDB() {
           db.createObjectStore(STORE_NAME, { keyPath: 'id' });
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => {
-        console.warn('IndexedDB open error:', request.error);
-        resolve(null);
+      request.onsuccess = () => {
+        if (!finish(request.result)) request.result?.close?.();
       };
+      request.onerror = () => {
+        console.warn('Wallpaper IndexedDB open error:', request.error);
+        finish(null);
+      };
+      request.onblocked = () => {
+        console.warn('Wallpaper IndexedDB open blocked');
+        finish(null);
+      };
+      timeoutId = setTimeout(() => {
+        console.warn('Wallpaper IndexedDB open timed out');
+        finish(null);
+      }, 8000);
     } catch (e) {
-      console.warn('IndexedDB initialization failed:', e);
-      resolve(null);
+      console.warn('Wallpaper IndexedDB initialization failed:', e);
+      finish(null);
     }
   });
 }
@@ -277,6 +295,89 @@ export async function getAllCustomWallpapersForBackup(timeoutMs = 20000) {
     ]);
   } finally {
     clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Restore one or more custom-wallpaper records inside ONE wallpaper-database
+ * transaction. All inputs must be staged before opening the transaction.
+ */
+export async function commitWallpaperRestoreBatch(wallpapers) {
+  if (!Array.isArray(wallpapers) ||
+      wallpapers.some(wp => !wp || typeof wp.id !== 'string' || !wp.id ||
+        typeof wp.dataUrl !== 'string' || !wp.dataUrl) ||
+      new Set(wallpapers.map(wp => wp.id)).size !== wallpapers.length) {
+    throw new TypeError('Invalid custom wallpaper restore batch');
+  }
+  if (wallpapers.length === 0) return true;
+  const db = await openWallpaperDB();
+  if (!db) return false;
+  try {
+    return await new Promise((resolve) => {
+      let tx;
+      let done = false;
+      const finish = ok => { if (!done) { done = true; resolve(ok); } };
+      try {
+        tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.oncomplete = () => finish(true);
+        tx.onerror = () => finish(false);
+        tx.onabort = () => finish(false);
+        const dest = tx.objectStore(STORE_NAME);
+        for (const wp of wallpapers) {
+          dest.put({
+            id: wp.id, dataUrl: wp.dataUrl, meta: wp.meta || {},
+            updatedAt: Date.now(),
+          });
+        }
+      } catch (err) {
+        console.warn('[Momentum Wallpaper] Restore batch failed:', err);
+        try { tx?.abort(); } catch { /* inactive */ }
+        finish(false);
+      }
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Reapply the preimage from the durable cross-DB journal.
+ * 'previous:null' means the wallpaper did not exist before restore, so delete
+ * it. Both update and delete are idempotent and in one wallpaper transaction.
+ */
+export async function restoreWallpaperPreimage(before) {
+  if (!Array.isArray(before) ||
+      before.some(item => !item || typeof item.id !== 'string' || !item.id ||
+        (item.previous !== null && (!item.previous || item.previous.id !== item.id))) ||
+      new Set(before.map(item => item.id)).size !== before.length) {
+    throw new TypeError('Invalid wallpaper recovery preimage');
+  }
+  if (!before.length) return true;
+  const db = await openWallpaperDB();
+  if (!db) return false;
+  try {
+    return await new Promise((resolve) => {
+      let tx;
+      let done = false;
+      const finish = ok => { if (!done) { done = true; resolve(ok); } };
+      try {
+        tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.oncomplete = () => finish(true);
+        tx.onerror = () => finish(false);
+        tx.onabort = () => finish(false);
+        const store = tx.objectStore(STORE_NAME);
+        for (const { id, previous } of before) {
+          if (previous === null) store.delete(id);
+          else store.put(previous);
+        }
+      } catch (err) {
+        console.warn('[Momentum Wallpaper] Preimage recovery failed:', err);
+        try { tx?.abort(); } catch { /* inactive */ }
+        finish(false);
+      }
+    });
+  } finally {
+    db.close();
   }
 }
 
