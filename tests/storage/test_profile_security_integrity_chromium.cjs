@@ -360,11 +360,38 @@ async function credentialIntegrity(browser) {
       const s = window.useSecurityStore.getState();
       return { active: s.isAppLockActive, hasPin: s.hasPin, locked: s.isLocked };
     }), { active: false, hasPin: true, locked: false });
-    await a.evaluate(() => window.useSecurityStore.getState().setAppLockActive(true));
-    await a.waitForFunction(async () => {
+    // Observe the actual commit instead of masking a rejected write with
+    // a generic polling timeout. Do not log PINs or verifier contents.
+    const enabled = await a.evaluate(async () => {
       const db = await import('/src/storage/db.js');
-      return (await db.getStoreItem('momentum-security-storage'))?.state?.isAppLockActive === true;
-    }, { timeout: 30000, polling: 200 });
+      const adapter = await import('/src/storage/zustandIndexedDbStorage.js');
+      const store = window.useSecurityStore;
+      let error = null;
+      try {
+        const result = await store.getState().setAppLockActive(true);
+        if (result?.success === false) error = result.error;
+      } catch (e) { error = e.code || e.message; }
+      const row = await db.getCommittedStoreRecord('momentum-security-storage');
+      return { error, active: store.getState().isAppLockActive,
+        durable: row?.value?.state?.isAppLockActive,
+        failure: adapter.getDomainStorageFailure() };
+    });
+    assert.equal(enabled.error, null, JSON.stringify(enabled));
+    assert.equal(enabled.active, true, JSON.stringify(enabled));
+    assert.equal(enabled.durable, true, JSON.stringify(enabled));
+    const transient = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const store = window.useSecurityStore;
+      const key = 'momentum-security-storage';
+      const before = await db.getCommittedStoreRecord(key);
+      store.getState().setLocked(true);
+      const locked = store.getState().isLocked;
+      store.getState().setLocked(false);
+      const unlocked = !store.getState().isLocked;
+      const after = await db.getCommittedStoreRecord(key);
+      return { locked, unlocked, unchanged: JSON.stringify(before) === JSON.stringify(after) };
+    });
+    assert.deepEqual(transient, { locked:true, unlocked:true, unchanged:true });
     console.log('PASS: App Lock pause requires current PIN and retains the verifier across reload.');
 
 
