@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import useSecurityStore, { isCredentialTransitionPending } from '../store/useSecurityStore';
+import useSecurityStore, { isCredentialTransitionPending, useSecuritySessionGate } from '../store/useSecurityStore';
 import { useTranslation } from 'react-i18next';
 import { authenticateBiometrics, completeBiometricUnlock } from '../utils/biometricAuth';
 import {
@@ -24,7 +24,6 @@ import { flushPendingNotificationRoute } from '../utils/nativeNotifications';
 
 // Kept only in this tab's memory, including shell layout remounts.
 let liveSession = null;
-let restartRequired = false;
 
 export default function AppLockGuard({ children }) {
   const { t } = useTranslation();
@@ -44,7 +43,7 @@ export default function AppLockGuard({ children }) {
   const [isShaking, setIsShaking] = useState(false);
   const isSuccess = false;
   const [isTabHidden, setIsTabHidden] = useState(false);
-  const [sessionRevoked, setSessionRevoked] = useState(() => restartRequired);
+  const sessionRevoked = useSecuritySessionGate(s => s.restartRequired);
 
   const lastHiddenTimeRef = useRef(0);
   const hasTriggeredInitialBioRef = useRef(false);
@@ -120,9 +119,8 @@ export default function AppLockGuard({ children }) {
       const current = useSecurityStore.getState();
       if (current.isLocked || !current.hasPin || !current.isAppLockActive) return;
       liveSession = null;
-      restartRequired = true;
       authEpoch.current += 1;
-      setSessionRevoked(true);
+      useSecuritySessionGate.getState().requireRestart();
       setStoreLocked(true);
     };
     void check();
@@ -161,9 +159,8 @@ export default function AppLockGuard({ children }) {
       const current = useSecurityStore.getState();
       if (!current._hasHydrated || (current.hasPin && current.isAppLockActive)) return;
       liveSession = null;
-      restartRequired = true;
       authEpoch.current += 1;
-      setSessionRevoked(true);
+      useSecuritySessionGate.getState().requireRestart();
       setStoreLocked(true);
     };
     void check();
