@@ -393,6 +393,47 @@ async function credentialIntegrity(browser) {
   } finally { await context.close(); }
 }
 
+async function credentialAttemptLimits(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const page = await context.newPage();
+    await boot(page, 'security');
+    await page.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000, polling:200});
+    const outcome = await page.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      const db = await import('/src/storage/db.js');
+      const snapshot = async () => [
+        await db.getCommittedStoreRecord(svc.CREDENTIAL_STORE_KEY),
+        await db.getCommittedStoreRecord('momentum-security-storage')
+      ];
+      const setup = await svc.createCredential('2468');
+      if (!setup.success) return {setup:false};
+      const before = await snapshot();
+      svc.clearLockoutState();
+      for (let i = 0; i < 4; i++) svc.recordFailedAttempt();
+      const wrong = await svc.changeCredential('0000','1357');
+      const locked = svc.getLockoutState().isLockedOut;
+      const change = await svc.changeCredential('2468','1357');
+      const remove = await svc.removeCredential('2468');
+      const pause = await svc.pauseAppLock('2468');
+      const unchanged = JSON.stringify(before) === JSON.stringify(await snapshot());
+      // Simulate expiry in the isolated test session only.
+      const state = JSON.parse(sessionStorage.getItem(svc.LOCKOUT_STORAGE_KEY));
+      sessionStorage.setItem(svc.LOCKOUT_STORAGE_KEY, JSON.stringify({...state,lockedUntil:Date.now()-1}));
+      const recovered = await svc.changeCredential('2468','1357');
+      const cleared = svc.getLockoutState().failedAttempts === 0;
+      const finalRemove = await svc.removeCredential('1357');
+      return {setup:true,wrong:!wrong.success,locked,blocked:[change,remove,pause].every(r=>!r.success),
+        unchanged,recovered:recovered.success,cleared,removed:finalRemove.success};
+    });
+    assert.deepEqual(outcome,{setup:true,wrong:true,locked:true,blocked:true,unchanged:true,recovered:true,cleared:true,removed:true});
+    console.log('PASS: credential mutations share the existing session attempt limit and recover after expiry.');
+  } finally { await context.close(); }
+}
+
 async function main() {
   const browser = await puppeteer.launch({
     headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -403,6 +444,7 @@ async function main() {
     await casStress(browser, 'profile');
     await casStress(browser, 'security');
     await credentialIntegrity(browser);
+    await credentialAttemptLimits(browser);
   } finally { await browser.close(); }
 }
 main().catch(err => {
