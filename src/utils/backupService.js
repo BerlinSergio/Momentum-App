@@ -21,10 +21,7 @@ import {
   commitRestoreBatch,
 } from '../storage/db.js';
 
-import {
-  getAllCustomWallpapersFromIndexedDB,
-  saveWallpaperToIndexedDB,
-} from './wallpaperStorage.js';
+import { getAllCustomWallpapersFromIndexedDB } from './wallpaperStorage.js';
 
 // Specific store keys containing durable user data
 export const SUPPORTED_BACKUP_STORES = [
