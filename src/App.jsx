@@ -210,7 +210,7 @@ function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
   );
 }
 
-function AppContent() {
+function AppContent({ startupStatus = 'ready' }) {
   const { t } = useTranslation();
   const { activeTab, setActiveTab, goBack, syncFromPopState, routeParams, navigationDirection, sidebarPosition: rawSidebarPos } = useNavigationStore();
   const sidebarPosition = rawSidebarPos || 'left';
@@ -275,6 +275,7 @@ function AppContent() {
   }, [isAppLoading, setupCompleted, onboardingStep, activeTab, theme, setActiveTab]);
 
   const handleSplashComplete = () => {
+    if (startupStatus !== 'ready') return;
     const isDark = typeof theme === 'string' ? theme === 'dark' : true;
     const requestedScreen = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('screen')
@@ -284,6 +285,16 @@ function AppContent() {
     setActiveTab(decision.targetScreen);
     setIsAppLoading(false);
   };
+
+  const startupFailureView = (
+    <div role="alert" className="h-full w-full flex flex-col items-center justify-center gap-4 px-6 py-12 text-center bg-slate-950 text-white">
+      <h2 className="text-lg font-bold">{t('startup.storageErrorTitle', 'Cannot safely load saved data')}</h2>
+      <p className="text-sm text-slate-300 max-w-md">{t('startup.storageErrorBody', 'Your data has not been cleared. Storage could be unavailable or slow. Do not reset the app or restore a backup here.')}</p>
+      <button type="button" onClick={() => window.location.reload()} className="px-6 py-3 bg-primary text-white rounded-xl font-semibold">
+        {t('startup.retryLoading', 'Retry loading')}
+      </button>
+    </div>
+  );
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -546,10 +557,13 @@ function AppContent() {
             <div className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
               <AnimatePresence mode="wait">
                 {isAppLoading ? (
-                  <SplashScreen 
-                    key="initial-app-splash"
-                    onComplete={handleSplashComplete} 
-                  />
+                  startupStatus === 'failed' ? startupFailureView : (
+                    <SplashScreen
+                      key="initial-app-splash"
+                      onComplete={handleSplashComplete}
+                      ready={startupStatus === 'ready'}
+                    />
+                  )
                 ) : (
                   <AppLockGuard>
                     <AnimatePresence mode="wait" initial={false}>
@@ -607,10 +621,13 @@ function AppContent() {
             >
               <AnimatePresence mode="wait">
                 {isAppLoading ? (
-                  <SplashScreen 
-                    key="initial-app-splash"
-                    onComplete={handleSplashComplete} 
-                  />
+                  startupStatus === 'failed' ? startupFailureView : (
+                    <SplashScreen
+                      key="initial-app-splash"
+                      onComplete={handleSplashComplete}
+                      ready={startupStatus === 'ready'}
+                    />
+                  )
                 ) : (
                   <AppLockGuard>
                     <div className="w-full min-w-0 max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto flex-1 flex flex-col items-center px-0 lg:px-6 xl:px-8 py-0 lg:py-4">
@@ -677,31 +694,33 @@ function AppContent() {
 }
 
 export default function App() {
-  const { t } = useTranslation();
-  const [, setHasHydrated] = useState(false);
+  const [startupStatus, setStartupStatus] = useState('loading');
 
   useEffect(() => {
+    let active = true;
     async function hydrateStores() {
       try {
         await hydrateAllStores();
-        // Reconcile and schedule pending alerts after stores are hydrated
-        scheduleAllActiveNotifications().catch(() => {});
+        if (!active) return;
+        setStartupStatus('ready');
+        // Only schedule notifications when persisted data is confirmed loaded.
+        scheduleAllActiveNotifications().catch((error) => {
+          console.warn('[Momentum Startup] Notification scheduling warning:', error);
+        });
       } catch (err) {
-        console.warn('[Momentum Hydration] Error:', err);
-      } finally {
-        setHasHydrated(true);
+        console.warn('[Momentum Startup] Safe hydration failed:', err);
+        if (active) setStartupStatus('failed');
       }
     }
     hydrateStores();
     initializeNativeLifecycle();
+    return () => { active = false; };
   }, []);
-
-  // Stores rehydrate in background while initial SplashScreen animates
 
   return (
     <ThemeProvider>
       <WallpaperProvider>
-        <AppContent />
+        <AppContent startupStatus={startupStatus} />
       </WallpaperProvider>
     </ThemeProvider>
   );
