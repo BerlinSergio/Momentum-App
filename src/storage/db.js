@@ -1027,6 +1027,9 @@ export async function commitCredentialTransition(expectedCredential, expectedSec
           }
           const state = { ...(payload?.state || {}), pin: '', alphanumeric: '',
             hasPin: nextCredential !== null, passcodeType: 'pin', lastModified };
+          // A new, rotated or removed PIN invalidates the previous enrollment.
+          // A pause retains the PIN revision and the enrollment preference.
+          if (!pauseLock) state.biometricsEnabled = false;
           if (nextCredential !== null && !pauseLock) {
             state.isAppLockActive = true;
           } else {
