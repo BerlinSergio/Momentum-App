@@ -37,29 +37,38 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
   const wallpapers = new Map();
   const migration = new Map();
   const localWrites = new Map();
+  const tables = { stores: records, attachments, wallpapers, migration_meta: migration };
   const db = {
     close() {},
     transaction(storeNames) {
       const targets = Array.isArray(storeNames) ? storeNames : [storeNames];
-      const tables = { stores: records, attachments, wallpapers, migration_meta: migration };
       const pending = [];
+      let activeReads = 0;
       let scheduled = false;
-      let completedBulkReads = 0;
+      let settled = false;
       const tx = {
         oncomplete: null, onabort: null, onerror: null,
-        abort() { this.onabort?.({ target: this }); },
+        abort() {
+          if (settled) return;
+          settled = true;
+          this.onabort?.({ target: this });
+        },
         objectStore(name) {
           if (!targets.includes(name)) throw new Error('Store not in transaction');
           const table = tables[name];
           if (!table) throw new Error('Unknown store ' + name);
+
           function scheduleCompletion() {
-            if (scheduled) return;
+            if (scheduled || settled) return;
             scheduled = true;
             queueMicrotask(() => {
-              if ((abortWrites && targets.includes('stores')) ||
+              scheduled = false;
+              if (settled || activeReads) return;
+              if ((abortWrites && pending.some(op => op.store === 'stores')) ||
                   (abortOnAttachment && pending.some(op => op.store === 'attachments'))) {
+                // Model the crucial false-positive request-success case.
                 for (const op of pending) op.request.onsuccess?.({ target: op.request });
-                tx.onabort?.({ target: tx });
+                tx.abort();
                 return;
               }
               for (const op of pending) {
@@ -67,32 +76,30 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
                 else tables[op.store].delete(op.key);
                 op.request.onsuccess?.({ target: op.request });
               }
+              settled = true;
               tx.oncomplete?.({ target: tx });
             });
           }
+          function queueRead(read) {
+            const req = { result: null, onsuccess: null, onerror: null };
+            activeReads += 1;
+            queueMicrotask(() => {
+              if (settled) return;
+              req.result = read();
+              req.onsuccess?.({ target: req });
+              activeReads -= 1;
+              scheduleCompletion();
+            });
+            return req;
+          }
           return {
-            get(key) {
-              const req = { result: null, onsuccess: null, onerror: null };
-              queueMicrotask(() => {
-                req.result = table.get(key) ?? null;
-                req.onsuccess?.({ target: req });
-                tx.oncomplete?.({ target: tx });
-              });
-              return req;
-            },
-            getAll() {
-              const req = { result: null, onsuccess: null, onerror: null };
-              queueMicrotask(() => {
-                req.result = [...table.values()];
-                req.onsuccess?.({ target: req });
-                completedBulkReads += 1;
-                if (completedBulkReads === targets.length) tx.oncomplete?.({ target: tx });
-              });
-              return req;
-            },
+            get(key) { return queueRead(() => table.get(key) ?? null); },
+            getAll() { return queueRead(() => [...table.values()]); },
             put(record) {
               const req = { onsuccess: null, onerror: null };
-              pending.push({ type: 'put', store: name, key: name === 'stores' ? record.name : record.id, value: record, request: req });
+              const key = name === 'stores' ? record.name :
+                          name === 'migration_meta' ? record.key : record.id;
+              pending.push({ type: 'put', store: name, key, value: record, request: req });
               scheduleCompletion();
               return req;
             },
