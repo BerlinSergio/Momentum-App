@@ -196,7 +196,11 @@ export default function BackupRestoreDarkMode({ setActiveTab, goBack }) {
 
       setRestoreSuccess(res);
       setRestoreProgress(null);
-      toast.success(t('toasts.dataRestored', 'All data restored successfully'));
+      if (res.requiresReload) {
+        toast.info(t('backup.restoreReloadTitle', 'Restore saved — restart required'));
+      } else {
+        toast.success(t('toasts.dataRestored', 'All data restored successfully'));
+      }
     } catch (err) {
       console.error('[BackupRestore] Restore error:', err);
       const errMsg = getBackupErrorMessage(err, 'Restoration failed. Please retry safely.');
@@ -725,7 +729,16 @@ export default function BackupRestoreDarkMode({ setActiveTab, goBack }) {
             )}
 
             {/* Restore Success Card */}
-            {restoreSuccess && (
+            {restoreSuccess?.requiresReload && (
+              <div role="alert" className="p-5 rounded-3xl border border-amber-500/40 bg-amber-500/10 flex flex-col gap-3">
+                <h3 className="text-sm font-bold">{t('backup.restoreReloadTitle', 'Restore saved — restart required')}</h3>
+                <p className="text-xs leading-relaxed">{t('backup.restoreReloadDescription', 'Your restored records were saved, but could not be loaded into this session. Restart Momentum before editing. Do not repeat the restore or clear app data.')}</p>
+                <button type="button" onClick={() => window.location.reload()} className="w-full h-12 rounded-2xl bg-amber-600 text-white font-semibold text-sm">
+                  {t('backup.restartMomentum', 'Restart Momentum')}
+                </button>
+              </div>
+            )}
+            {restoreSuccess && !restoreSuccess.requiresReload && (
               <div className="p-5 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
