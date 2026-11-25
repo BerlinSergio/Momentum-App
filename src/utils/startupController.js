@@ -15,6 +15,8 @@ import { useTimeStore } from '../store/useTimeStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { runStorageMigration } from '../storage/index.js';
 import { migrateLegacyPin } from './credentialService.js';
+import { openAppDB } from '../storage/db.js';
+import { coordinateHydration } from './hydrationCoordinator.js';
 
 /**
  * Momentum Central Startup & Onboarding Controller
@@ -40,63 +42,46 @@ export function isOnboardingRoute(screen) {
 }
 
 /**
- * Coordinate hydration of all persistent stores with a safety timeout
+ * Hydrate authoritative IndexedDB state without marking stores ready early.
+ * Timed-out, blocked, or failed storage leaves startup in a safe error state.
  */
-export async function hydrateAllStores(timeoutMs = 2500) {
-  // 1. Run safe, non-destructive migration from legacy localStorage to IndexedDB
-  try {
-    await runStorageMigration();
-  } catch (migErr) {
-    console.warn('[StartupController] Storage migration warning:', migErr);
-  }
+export async function hydrateAllStores(timeoutMs = 12000) {
+  const stores = [
+    ['profile', useProfileStore], ['security', useSecurityStore],
+    ['finance', useFinanceStore], ['theme', useThemeStore],
+    ['routine', useRoutineStore], ['task', useTaskStore],
+    ['notes', useNotesStore], ['calendar', useCalendarStore],
+    ['tasbeeh', useTasbeehStore], ['prayer', usePrayerStore],
+    ['location', useLocationStore], ['navigation', useNavigationStore],
+    ['settings', useSettingsStore], ['time', useTimeStore],
+    ['notification', useNotificationStore],
+  ].map(([name, store]) => ({ name, store }));
 
-  // 1b. Run safe migration from legacy plaintext PIN to PBKDF2 verifier
-  try {
-    await migrateLegacyPin();
-  } catch (credErr) {
-    console.warn('[StartupController] Credential migration warning:', credErr);
-  }
+  const result = await coordinateHydration({
+    stores,
+    timeoutMs,
+    prepare: async () => {
+      // Fail closed: volatile memory is not a replacement for IndexedDB.
+      if (!(await openAppDB())) {
+        throw new Error('[Momentum Startup] IndexedDB is unavailable; your data is not safely loaded');
+      }
 
-  // 2. Hydrate all persistent stores in parallel
-  const hydrationPromise = Promise.all([
-    useProfileStore.persist?.rehydrate?.(),
-    useSecurityStore.persist?.rehydrate?.(),
-    useFinanceStore.persist?.rehydrate?.(),
-    useThemeStore.persist?.rehydrate?.(),
-    useRoutineStore.persist?.rehydrate?.(),
-    useTaskStore.persist?.rehydrate?.(),
-    useNotesStore.persist?.rehydrate?.(),
-    useCalendarStore.persist?.rehydrate?.(),
-    useTasbeehStore.persist?.rehydrate?.(),
-    usePrayerStore.persist?.rehydrate?.(),
-    useLocationStore.persist?.rehydrate?.(),
-    useNavigationStore.persist?.rehydrate?.(),
-    useSettingsStore.persist?.rehydrate?.(),
-    useTimeStore.persist?.rehydrate?.(),
-    useNotificationStore.persist?.rehydrate?.(),
-  ]);
+      // Migration is the single authoritative legacy import path.
+      const migration = await runStorageMigration();
+      if (!migration?.success) {
+        throw new Error('[Momentum Startup] Legacy data migration was not confirmed successful');
+      }
 
-  const timeoutPromise = new Promise((resolve) => setTimeout(resolve, timeoutMs));
+      try {
+        await migrateLegacyPin();
+      } catch (credentialError) {
+        console.warn('[StartupController] Legacy credential migration warning:', credentialError);
+      }
+    },
+  });
 
-  try {
-    await Promise.race([hydrationPromise, timeoutPromise]);
-  } catch (err) {
-    console.warn('[StartupController] Hydration race error:', err);
-  } finally {
-    useProfileStore.getState().setHasHydrated?.(true);
-    useSecurityStore.getState().setHasHydrated?.(true);
-    useFinanceStore.getState().setHasHydrated?.(true);
-    useRoutineStore.getState().setHasHydrated?.(true);
-    useTaskStore.getState().setHasHydrated?.(true);
-    useNotesStore.getState().setHasHydrated?.(true);
-    useCalendarStore.getState().setHasHydrated?.(true);
-    useTasbeehStore.getState().setHasHydrated?.(true);
-    usePrayerStore.getState().setHasHydrated?.(true);
-    useLocationStore.getState().setHasHydrated?.(true);
-    useNavigationStore.getState().setHasHydrated?.(true);
-    useTimeStore.getState().setHasHydrated?.(true);
-    useTimeStore.getState().refreshTime?.();
-  }
+  useTimeStore.getState().refreshTime?.();
+  return result;
 }
 
 /**

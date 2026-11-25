@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { useTheme } from './context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 
-export default function SplashScreen({ onComplete, mode, setActiveTab, goBack }) {
+export default function SplashScreen({ onComplete, mode, setActiveTab, goBack, ready = true }) {
   const { t } = useTranslation();
   const { theme } = useTheme();
   const isDark = mode ? mode === 'dark' : (theme !== 'light');
 
   const [progress, setProgress] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
+  const [animationDone, setAnimationDone] = useState(false);
   const hasFinishedRef = useRef(false);
   const rafIdRef = useRef(null);
 
@@ -19,6 +20,7 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
     }
     setProgress(0);
     setIsExiting(false);
+    setAnimationDone(false);
     hasFinishedRef.current = false;
 
     const duration = 2200; // 2.2 seconds initialization simulation
@@ -40,12 +42,8 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
         setProgress(100);
         if (!hasFinishedRef.current) {
           hasFinishedRef.current = true;
-          if (onComplete) {
-            // Hold for 300ms once progress reaches 100%
-            setTimeout(() => {
-              setIsExiting(true);
-            }, 300);
-          }
+          // Wait for verified storage readiness before exiting the splash.
+          setAnimationDone(true);
         }
       }
     };
@@ -61,6 +59,12 @@ export default function SplashScreen({ onComplete, mode, setActiveTab, goBack })
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!animationDone || !ready || !onComplete || isExiting) return;
+    const hold = setTimeout(() => setIsExiting(true), 300);
+    return () => clearTimeout(hold);
+  }, [animationDone, ready, onComplete, isExiting]);
 
   return (
     <motion.div
