@@ -21,7 +21,7 @@ async function testConcurrentBackup(browser) {
     const baseline = await a.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       return main.commitRestoreBatch({
-        stores: [{ name: 'qa-snapshot-domain', value: { state: { tasks: [{ id: 'old' }] } } }],
+        stores: [{ name: 'momentum-task-storage', value: { state: { tasks: [{ id: 'old' }] } } }],
         attachments: [{ id: 'qa-snapshot-attachment', blob: new Blob(['old-attachment']) }],
       });
     });
@@ -58,7 +58,7 @@ async function testConcurrentBackup(browser) {
     const committed = await a.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       return main.commitRestoreBatch({
-        stores: [{ name: 'qa-snapshot-domain', value: { state: { tasks: [{ id: 'new' }] } } }],
+        stores: [{ name: 'momentum-task-storage', value: { state: { tasks: [{ id: 'new' }] } } }],
         attachments: [{ id: 'qa-snapshot-attachment', blob: new Blob(['new-attachment']) }],
       });
     });
@@ -75,12 +75,11 @@ async function testConcurrentBackup(browser) {
       const { base64ToBuffer } = await import('/src/utils/backupCrypto.js');
       const attachment = payload.attachments.find(att => att.id === 'qa-snapshot-attachment');
       return {
-        task: payload.domains['qa-snapshot-domain']?.state?.tasks?.[0]?.id,
+        task: payload.domains['momentum-task-storage']?.state?.tasks?.[0]?.id,
         attachment: new TextDecoder().decode(base64ToBuffer(attachment.base64Bytes)),
       };
     });
-    // qa-snapshot-domain isn't a supported domain backup key. Check the chosen
-    // supported task store below instead; the attachment must still be new.
+    assert.equal(content.task, 'new');
     assert.equal(content.attachment, 'new-attachment');
     console.log('PASS: A held the cross-tab lock; B waited until release and captured the committed new attachment.');
   } finally {
