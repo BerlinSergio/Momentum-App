@@ -240,7 +240,6 @@ export const useSecurityStore = create(
           lastModified: getFormattedTimestamp(),
         })),
     }),
-    }),
     {
       name: 'momentum-security-storage',
       storage: createJSONStorage(() => getSafeStorage()),
