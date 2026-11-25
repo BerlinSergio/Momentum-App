@@ -358,75 +358,68 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     if (editorImageInputRef.current) editorImageInputRef.current.value = '';
   };
 
+  // This is dictation, not audio-file recording. Never invent a transcript.
+  const stopDictation = () => {
+    const rec=recognitionRef.current;
+    recognitionRef.current=null;
+    if(rec) {
+      rec.onresult=null; rec.onerror=null; rec.onend=null; rec.onstart=null;
+      try {rec.abort();} catch {}
+    }
+    setIsRecording(false);
+  };
+  useEffect(()=>{
+    const onHidden=()=>{if(document.hidden)stopDictation();};
+    document.addEventListener('visibilitychange',onHidden);
+    return ()=>{
+      document.removeEventListener('visibilitychange',onHidden);
+      const rec=recognitionRef.current;
+      recognitionRef.current=null;
+      if(rec){rec.onresult=null;rec.onerror=null;rec.onend=null;rec.onstart=null;try{rec.abort();}catch{}}
+    };
+  },[effectiveNoteId]);
+  useEffect(()=>{if(!isEditing)stopDictation();},[isEditing]);
+
   const handleToggleVoice = (e) => {
     e.preventDefault();
-    if (isRecording) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (err) { /* ignore */ } 
-      }
-      setIsRecording(false);
-      showToast(t('toasts.voiceMemoStopped', 'Voice memo stopped'));
+    if(recognitionRef.current) {
+      try {recognitionRef.current.stop();}
+      catch {stopDictation();}
       return;
     }
-    setIsRecording(true);
-    showToast(t('toasts.recordingVoiceMemo', 'Recording voice memo...'));
-    const SpeechRec = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (SpeechRec) {
-      try {
-        const rec = new SpeechRec();
-        rec.continuous = true;
-        rec.interimResults = false;
-        rec.lang = 'en-US';
-        let speechReceived = false;
-        rec.onstart = () => {
-          showToast(t('toasts.listeningSpeakNow', 'Listening... Speak now'));
-        };
-        rec.onresult = (evt) => {
-          speechReceived = true;
-          const results = Array.from(evt.results);
-          const transcript = results.map((r) => r[0].transcript).join(' ');
-          if (transcript && editorRef.current) {
-            editorRef.current.focus();
-            document.execCommand('insertText', false, ' ' + transcript);
-            setBody(editorRef.current.innerHTML);
-          }
-        };
-        rec.onerror = () => {
-          if (!speechReceived) {
-            setTimeout(() => {
-              if (editorRef.current) {
-                editorRef.current.focus();
-                document.execCommand('insertText', false, ' [Voice Note: 15-minute Fajr reflection completed with calm focus.]');
-                setBody(editorRef.current.innerHTML);
-              }
-              setIsRecording(false);
-              showToast(t('toasts.voiceMemoTranscribed', 'Voice memo transcribed'));
-            }, 1800);
-          } else {
-            setIsRecording(false);
-          }
-        };
-        rec.onend = () => {
-          if (speechReceived) {
-            setIsRecording(false);
-          }
-        };
-        recognitionRef.current = rec;
-        rec.start();
-        return;
-      } catch {
-        // Fallback simulation below
-      }
-    }
-    setTimeout(() => {
-      if (editorRef.current) {
-        editorRef.current.focus();
-        document.execCommand('insertText', false, ' [Voice Note: 15-minute Fajr reflection completed with calm focus.]');
-        setBody(editorRef.current.innerHTML);
-      }
-      setIsRecording(false);
-      showToast(t('toasts.voiceMemoTranscribed', 'Voice memo transcribed'));
-    }, 1800);
+    const SpeechRec=window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRec){toast.error(t('notes.dictationUnavailable','Voice dictation is unavailable on this device. You can type or attach an audio file.'));return;}
+    try{
+      const rec=new SpeechRec();
+      recognitionRef.current=rec;
+      rec.continuous=true;
+      rec.interimResults=false;
+      rec.lang=document.documentElement.lang || navigator.language || 'en-US';
+      let committedResults=0;
+      const active=()=>recognitionRef.current===rec && !document.hidden;
+      const finish=()=>{if(recognitionRef.current===rec){recognitionRef.current=null;setIsRecording(false);}};
+      rec.onstart=()=>{if(active())toast.info(t('toasts.listeningSpeakNow','Listening... Speak now'));};
+      rec.onresult=evt=>{
+        if(!active()||!editorRef.current)return;
+        // Results are cumulative. Append only new, final segments.
+        const parts=[];
+        for(let index=committedResults;index<evt.results.length;index++){
+          const result=evt.results[index];
+          if(!result.isFinal)break;
+          if(result[0]?.transcript?.trim())parts.push(result[0].transcript.trim());
+          committedResults=index+1;
+        }
+        if(parts.length){
+          editorRef.current.focus();
+          document.execCommand('insertText',false,' '+parts.join(' '));
+          setBody(editorRef.current.innerHTML);
+        }
+      };
+      rec.onerror=()=>{if(active())toast.error(t('notes.dictationFailed','Voice dictation failed. Check microphone permission or type your note.'));finish();};
+      rec.onend=finish;
+      setIsRecording(true);
+      rec.start();
+    }catch{stopDictation();toast.error(t('notes.dictationFailed','Voice dictation failed. Check microphone permission or type your note.'));}
   };
 
   const handleTogglePin = () => {
@@ -522,7 +515,13 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
   };
 
-  const handleSaveNote = () => {
+  const saveInFlight=useRef(false);
+  const [savingNote,setSavingNote]=useState(false);
+  const handleSaveNote = async () => {
+    if(saveInFlight.current)return;
+    saveInFlight.current=true;setSavingNote(true);
+    stopDictation();
+    try {
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const currentHtml = editorRef.current ? editorRef.current.innerHTML : body;
     const notePayload = {
@@ -543,21 +542,24 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     };
 
     if (currentNote.id && currentNote.id !== 'new') {
-      updateNote(currentNote.id, notePayload);
+      if(!useNotesStore.getState().notes.some(note=>String(note.id)===String(currentNote.id)))throw Error('Note no longer exists');
+      await updateNote(currentNote.id, notePayload);
       setIsEditing(false);
       showToast(t('toasts.noteUpdated', 'Note updated successfully!'));
     } else {
-      const created = addNote(notePayload);
+      await addNote(notePayload);
       showToast(t('toasts.noteSaved', 'Note saved successfully!'));
-      setTimeout(() => {
         if (goBack) goBack('notes_main_dark_mode');
         else if (setActiveTab) setActiveTab('notes_main_dark_mode');
         else window.history.back();
-      }, 350);
     }
+    }catch{toast.error(t('notes.saveFailed','Note could not be saved safely'));}
+    finally{saveInFlight.current=false;setSavingNote(false);}
   };
 
   const handleCancelDraft = async () => {
+    if(saveInFlight.current)return;
+    stopDictation();
     if (!isEditing) {
       if (goBack) goBack('notes_main_dark_mode');
       else if (setActiveTab) setActiveTab('notes_main_dark_mode');
@@ -721,7 +723,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
             ) : (
               <button
                 type="button"
-                onClick={handleSaveNote}
+                onClick={handleSaveNote} disabled={savingNote}
                 aria-label={t('notes.doneEditing', 'Done Editing')}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/20 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-2xs"
                 title={t('notes.doneEditing', 'Done Editing')}
@@ -866,7 +868,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleToggleQuote} aria-label="Quote" className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors cursor-pointer ${activeFormats.quote ? 'bg-indigo-500/25 text-indigo-300 font-bold border border-indigo-400/30 shadow-xs' : 'hover:bg-white/10 text-slate-300'}`}><Quote className="w-3.5 h-3.5" /></button>
             <div className="w-px h-4 bg-white/10 mx-1"></div>
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editorImageInputRef.current?.click()} aria-label="Insert Image" className="w-8 h-8 rounded-xl hover:bg-white/10 text-indigo-400 flex items-center justify-center shrink-0 transition-colors cursor-pointer"><ImageIcon className="w-3.5 h-3.5" /></button>
-            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleToggleVoice} aria-label="Record Audio" className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs ml-auto transition-all cursor-pointer ${isRecording ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-400/50 scale-105' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}><Mic className="w-3.5 h-3.5" /></button>
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleToggleVoice} aria-label="Voice dictation" aria-pressed={isRecording} disabled={savingNote} className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs ml-auto transition-all cursor-pointer ${isRecording ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-400/50 scale-105' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}><Mic className="w-3.5 h-3.5" /></button>
           </div>
         )}
         <input type="file" ref={editorImageInputRef} onChange={handleInsertEditorImage} className="hidden" accept="image/*" />
@@ -1065,7 +1067,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
         {/* ACTION BUTTONS IN EDIT MODE */}
         {isEditing && (
           <div className="pt-2 space-y-3">
-            <button type="button" onClick={handleSaveNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
+            <button type="button" onClick={handleSaveNote} disabled={savingNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
               <Check className="w-4 h-4 stroke-[2.5]" />
               <span>{t('common.save', 'Save Note')}</span>
             </button>
