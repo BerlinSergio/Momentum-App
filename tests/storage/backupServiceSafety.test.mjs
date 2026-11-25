@@ -13,13 +13,21 @@ const passphrase = 'synthetic-qa-restore-only';
 async function withWindow(fakeWindow, work, cleanup = () => {}) {
   const had = Object.prototype.hasOwnProperty.call(globalThis, 'window');
   const old = globalThis.window;
+  const hadStorage = Object.prototype.hasOwnProperty.call(globalThis, 'localStorage');
+  const oldStorage = globalThis.localStorage;
   if (fakeWindow === undefined) delete globalThis.window;
   else globalThis.window = fakeWindow;
+  // Browser scripts can access localStorage both via window and as a global.
+  // Recreate both aliases so the synthetic fixture models browser semantics.
+  if (fakeWindow?.localStorage) globalThis.localStorage = fakeWindow.localStorage;
+  else delete globalThis.localStorage;
   try { return await work(); }
   finally {
     cleanup();
     if (had) globalThis.window = old;
     else delete globalThis.window;
+    if (hadStorage) globalThis.localStorage = oldStorage;
+    else delete globalThis.localStorage;
   }
 }
 
