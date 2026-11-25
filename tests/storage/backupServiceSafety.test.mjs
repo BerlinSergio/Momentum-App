@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBackupPackage, restoreBackup } from '../../src/utils/backupService.js';
 import { encryptBackupPayload, decryptBackupPayload } from '../../src/utils/backupCrypto.js';
+import { commitRestoreBatch } from '../../src/storage/db.js';
 
 const STORE = 'momentum-task-storage';
 const passphrase = 'synthetic-qa-restore-only';
@@ -403,5 +404,68 @@ test('backup fails closed when recovery journal read aborts after the request su
       createBackupPackage(passphrase),
       /Journal read transaction aborted/
     );
+  }, () => fixture.db.onclose?.());
+});
+
+test('stale domain snapshot cannot overwrite a newer task update from another tab', async () => {
+  const fixture = fakeDatabase();
+  const initial = { state: { tasks: [{ id: 'original' }] }, version: 0 };
+  fixture.records.set(STORE, { name: STORE, value: structuredClone(initial) });
+  await withWindow(fixture.fakeWindow, async () => {
+    // A staged its merge from the earlier original state.
+    const expectedStoreValues = { [STORE]: structuredClone(initial) };
+    // B committed an edit while A was preparing its restore.
+    fixture.records.set(STORE, {
+      name: STORE, value: { state: { tasks: [{ id: 'other-tab' }] }, version: 0 },
+    });
+    await assert.rejects(
+      commitRestoreBatch({
+        stores: [{ name: STORE, value: { state: { tasks: [{ id: 'restored' }] }, version: 0 } }],
+        expectedStoreValues,
+      }),
+      error => error?.code === 'RESTORE_CONFLICT' && /domain/.test(error.message)
+    );
+    assert.equal(fixture.records.get(STORE).value.state.tasks[0].id, 'other-tab');
+  }, () => fixture.db.onclose?.());
+});
+
+test('attachment version conflict rejects the entire task and attachment restore', async () => {
+  const fixture = fakeDatabase();
+  const before = {
+    id: 'note-attachment', updatedAt: 100, fileName: 'document.txt',
+    mimeType: 'text/plain', blob: new Blob(['before']),
+  };
+  fixture.attachments.set(before.id, before);
+  await withWindow(fixture.fakeWindow, async () => {
+    // Same identifier, changed by another tab after the restore snapshot.
+    fixture.attachments.set(before.id, {
+      ...before, updatedAt: 101, blob: new Blob(['newer']),
+    });
+    await assert.rejects(
+      commitRestoreBatch({
+        stores: [{ name: STORE, value: { state: { tasks: [{ id: 'must-not-write' }] } } }],
+        attachments: [{ ...before, blob: new Blob(['restore']) }],
+        expectedStoreValues: { [STORE]: null },
+        expectedAttachmentRecords: { [before.id]: before },
+      }),
+      error => error?.code === 'RESTORE_CONFLICT' && /attachment/.test(error.message)
+    );
+    assert.equal(fixture.records.has(STORE), false);
+    assert.equal(fixture.attachments.get(before.id).updatedAt, 101);
+  }, () => fixture.db.onclose?.());
+});
+
+test('unchanged optimistic snapshot commits domain and attachment together', async () => {
+  const fixture = fakeDatabase();
+  await withWindow(fixture.fakeWindow, async () => {
+    const committed = await commitRestoreBatch({
+      stores: [{ name: STORE, value: { state: { tasks: [{ id: 'committed' }] }, version: 0 } }],
+      attachments: [{ id: 'new-attachment', blob: new Blob(['safe']) }],
+      expectedStoreValues: { [STORE]: null },
+      expectedAttachmentRecords: { 'new-attachment': null },
+    });
+    assert.equal(committed, true);
+    assert.equal(fixture.records.get(STORE).value.state.tasks[0].id, 'committed');
+    assert.equal(await fixture.attachments.get('new-attachment').blob.text(), 'safe');
   }, () => fixture.db.onclose?.());
 });
