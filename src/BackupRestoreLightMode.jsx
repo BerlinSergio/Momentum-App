@@ -26,6 +26,8 @@ import {
   restoreBackup,
 } from './utils/backupService';
 import { exportBackupNatively } from './utils/nativeBackup';
+import { MAX_BACKUP_FILE_BYTES } from './utils/backupLimits';
+import { getBackupErrorMessage } from './utils/backupErrorMessages';
 import { toast } from './components/ui/toast/index.js';
 
 export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
@@ -56,6 +58,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
   const [restoreSuccess, setRestoreSuccess] = useState(null);
 
   const fileInputRef = useRef(null);
+  const pendingReaderRef = useRef(null);
 
   const handleBack = () => {
     if (goBack) goBack();
@@ -108,7 +111,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
       toast.success(t('toasts.backupCreated', 'Backup archive created successfully'));
     } catch (err) {
       console.error('[BackupRestore] Create backup error:', err);
-      const errMsg = err.message || 'Failed to generate encrypted backup';
+      const errMsg = getBackupErrorMessage(err, 'Failed to generate encrypted backup');
       setCreateError(errMsg);
       setCreateProgress(null);
       toast.error(errMsg);
@@ -121,12 +124,21 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    pendingReaderRef.current?.abort();
     setSelectedFileName(file.name);
+    setSelectedFileContent(null);
+    setFileInspection(null);
     setRestoreError('');
     setRestorePreview(null);
     setRestoreSuccess(null);
 
+    // No FileReader allocation for a backup beyond our in-memory limit.
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      setRestoreError(getBackupErrorMessage({ code: 'BACKUP_FILE_TOO_LARGE' }));
+      return;
+    }
     const reader = new FileReader();
+    pendingReaderRef.current = reader;
     reader.onload = (event) => {
       const content = event.target?.result;
       setSelectedFileContent(content);
@@ -156,12 +168,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
       toast.info(t('toasts.backupDecrypted', 'Backup decrypted and validated'));
     } catch (err) {
       console.error('[BackupRestore] Decrypt preview error:', err);
-      let errMsg = err.message || 'Failed to decrypt backup.';
-      if (err.code === 'INVALID_PASSPHRASE') {
-        errMsg = 'Incorrect backup passphrase. Please check and try again.';
-      } else if (err.code === 'CORRUPTED_PAYLOAD') {
-        errMsg = 'File authentication failed. The backup appears modified or corrupted.';
-      }
+      const errMsg = getBackupErrorMessage(err, 'Failed to decrypt backup.');
       setRestoreError(errMsg);
       toast.error(errMsg);
     } finally {
@@ -187,7 +194,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
       toast.success(t('toasts.dataRestored', 'All data restored successfully'));
     } catch (err) {
       console.error('[BackupRestore] Restore error:', err);
-      const errMsg = err.message || 'Restoration failed. Any partial writes have been safely rolled back.';
+      const errMsg = getBackupErrorMessage(err, 'Restoration failed. Please retry safely.');
       setRestoreError(errMsg);
       setRestoreProgress(null);
       toast.error(errMsg);
@@ -476,6 +483,12 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
                 <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-[11px] text-emerald-800 flex items-center justify-between">
                   <span>{t('backup.validEnvelope', { version: fileInspection.version })}</span>
                   <span className="font-mono text-[10px] text-emerald-700">{fileInspection.kdfAlgorithm}</span>
+                </div>
+              )}
+              {restoreError && !fileInspection?.valid && (
+                <div role="alert" className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{restoreError}</span>
                 </div>
               )}
             </div>
