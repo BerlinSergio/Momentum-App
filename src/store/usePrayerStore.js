@@ -9,7 +9,10 @@ import {
 } from '../utils/prayerTimes.js';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const prayerStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-prayer-storage' });
+const prayerStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-prayer-storage',
+  optimisticDomains: ['momentum-prayer-storage'],
+});
 const getSafeStorage = () => prayerStorage;
 
 export const INITIAL_CANONICAL_PRAYERS = [
@@ -348,41 +351,19 @@ export const usePrayerStore = create(
     {
       name: 'momentum-prayer-storage',
       storage: createJSONStorage(() => getSafeStorage()),
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
+          // This is derived from explicit worship logs, never a new
+          // completed/missed prayer. Do not enqueue a duplicate persist.
           state.punctualPercentage = calculateRate(state.prayerLogs);
-          state.setHasHydrated(true);
         }
       },
     }
   )
 );
 
-// Eager synchronous rehydration
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-prayer-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        usePrayerStore.setState({
-          ...parsed.state,
-          calculationMethod: parsed.state.calculationMethod || 'Karachi',
-          madhab: parsed.state.madhab || 'Hanafi',
-          highLatitudeRule: parsed.state.highLatitudeRule || 'recommended',
-          polarCircleResolution: parsed.state.polarCircleResolution || 'AqrabBalad',
-          punctualPercentage: calculateRate(parsed.state.prayerLogs || []),
-          _hasHydrated: true,
-        });
-      } else {
-        usePrayerStore.setState({ punctualPercentage: 0, _hasHydrated: true });
-      }
-    } else {
-      usePrayerStore.setState({ punctualPercentage: 0, _hasHydrated: true });
-    }
-  } catch {
-    usePrayerStore.setState({ punctualPercentage: 0, _hasHydrated: true });
-  }
-}
+// StartupController performs the only authoritative hydration from
+// IndexedDB after migration and crash recovery. Never trust a mirror here.
 
 export default usePrayerStore;
