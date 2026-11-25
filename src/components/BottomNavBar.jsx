@@ -226,7 +226,7 @@ export default function BottomNavBar({ activeTab = 'home', setActiveTab, isDarkM
       <nav
         aria-label={t('nav.bottomNavAria')}
         data-testid="mobile-bottom-nav"
-        className={`fixed bottom-4 left-0 right-0 mx-auto w-[92%] max-w-md h-16 z-50 px-2 rounded-[2rem] backdrop-blur-3xl shadow-lg border flex items-center justify-between pointer-events-auto transition-colors select-none ${dockBg}`}
+        className={`fixed bottom-[calc(1rem+var(--momentum-inset-bottom))] left-0 right-0 mx-auto w-[92%] max-w-md h-16 z-50 px-2 rounded-[2rem] backdrop-blur-3xl shadow-lg border flex items-center justify-between pointer-events-auto transition-colors select-none ${dockBg}`}
         style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {/* 1. HOME TAB */}
