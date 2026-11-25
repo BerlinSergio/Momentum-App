@@ -54,6 +54,8 @@ export function createIndexedDbStorage(options = {}) {
     try {
       if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' &&
           typeof window.CustomEvent === 'function') {
+        // Catch a conflict that occurred before the top-level UI mounted.
+        window.__momentumStorageConflict = name;
         window.dispatchEvent(new window.CustomEvent('momentum:storage-conflict', {
           detail: { store: name },
         }));
