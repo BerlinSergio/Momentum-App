@@ -100,7 +100,7 @@ export async function getStoreItem(name) {
     return memoryFallback.get(`store:${name}`) ?? null;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.DATA, 'readonly');
       const store = tx.objectStore(STORES.DATA);
@@ -108,11 +108,12 @@ export async function getStoreItem(name) {
       req.onsuccess = () => resolve(req.result ? req.result.value : null);
       req.onerror = () => {
         console.warn('[Momentum DB] getStoreItem error:', req.error);
-        resolve(null);
+        reject(req.error || new Error('[Momentum DB] Store read failed'));
       };
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Store read transaction aborted'));
     } catch (err) {
       console.warn('[Momentum DB] getStoreItem exception:', err);
-      resolve(null);
+      reject(err);
     }
   });
 }
@@ -306,15 +307,16 @@ export async function getMigrationMeta(key) {
     return memoryFallback.get(`mig:${key}`) ?? null;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.MIGRATION, 'readonly');
       const store = tx.objectStore(STORES.MIGRATION);
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    } catch {
-      resolve(null);
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Migration metadata read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Migration metadata transaction aborted'));
+    } catch (err) {
+      reject(err);
     }
   });
 }
