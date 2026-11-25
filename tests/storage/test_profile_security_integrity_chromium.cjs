@@ -108,6 +108,14 @@ async function uiConflict(browser, domain) {
       assert.deepEqual(actual, { phantom: false, current: winner });
     } else {
       assert.deepEqual(actual, { phantom: false, pin: '' });
+      // A forged/plaintext mirror AFTER the completed migration marker
+      // must NOT silently become a fresh PBKDF2 verifier on reload.
+      const credentials = await b.evaluate(async () => {
+        const service = await import('/src/utils/credentialService.js');
+        return service.hasCredential();
+      });
+      assert.equal(credentials, false,
+        'Post-migration stale PIN mirror must not create a credential');
     }
     assert.equal(await b.$('[data-testid="domain-storage-conflict"]'), null);
     await change(b, domain, domain === 'profile' ? 'QA profile recovered 216' : 'recovered');
