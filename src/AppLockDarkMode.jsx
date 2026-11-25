@@ -20,6 +20,10 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
 
   const [isSaved, setIsSaved] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pausePin, setPausePin] = useState('');
+  const [pauseError, setPauseError] = useState('');
+  const [pauseBusy, setPauseBusy] = useState(false);
   const [showAlphaModal, setShowAlphaModal] = useState(false);
   const [currentPinInput, setCurrentPinInput] = useState('');
   const [pinInput, setPinInput] = useState('');
@@ -88,11 +92,64 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
     }
   };
 
-  const handleSave = () => {
-    security.updatePreferences(draft);
+  const handleSave = async () => {
+    try {
+      const result = await security.updatePreferences(draft);
+      if (result?.success === false) { toast.error(result.error); return; }
+    } catch {
+      toast.error(t('security.saveFailed', 'Security preferences could not be saved.'));
+      return;
+    }
     setIsSaved(true);
     toast.success(t('toasts.appLockSaved', 'App Lock preferences saved'));
     setTimeout(() => setIsSaved(false), 2200);
+  };
+
+  const handleMasterToggle = async () => {
+    const next = !security.isAppLockActive;
+    if (!next && security.hasPin) {
+      setPausePin('');
+      setPauseError('');
+      setShowPauseModal(true);
+      return;
+    }
+    try {
+      const result = await security.setAppLockActive(next);
+      if (result?.success === false) { toast.error(result.error); return; }
+      setDraft(prev => ({ ...prev, isAppLockActive: next }));
+    } catch {
+      toast.error(t('security.saveFailed', 'Security preferences could not be saved.'));
+    }
+  };
+
+  const closePauseModal = () => {
+    if (pauseBusy) return;
+    setPausePin('');
+    setPauseError('');
+    setShowPauseModal(false);
+  };
+
+  const handlePause = async (e) => {
+    e.preventDefault();
+    if (pauseBusy) return;
+    if (!/^\d{4}$/.test(pausePin)) {
+      setPauseError(t('security.currentPinRequired', 'Enter your current 4-digit PIN.'));
+      return;
+    }
+    setPauseBusy(true);
+    try {
+      const result = await security.pauseAppLock(pausePin);
+      if (!result.success) { setPauseError(result.error); return; }
+      setDraft(prev => ({ ...prev, isAppLockActive: false }));
+      setPausePin('');
+      setPauseError('');
+      setShowPauseModal(false);
+      toast.success(t('security.lockPaused', 'App Lock paused. Your PIN is retained.'));
+    } catch {
+      setPauseError(t('security.saveFailed', 'Security preferences could not be saved.'));
+    } finally {
+      setPauseBusy(false);
+    }
   };
 
   const handleSavePin = async (e) => {
@@ -195,7 +252,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                 {/* Master Switch */}
                 <button
                   aria-checked={draft.isAppLockActive}
-                  onClick={() => { const next = !draft.isAppLockActive; setDraft((prev) => ({ ...prev, isAppLockActive: next })); security.setAppLockActive(next); }}
+                  onClick={handleMasterToggle}
                   className={`w-12 h-7 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.isAppLockActive ? 'bg-primary' : 'bg-slate-700'}`}
                   id="master-toggle"
                   role="switch"
@@ -429,6 +486,20 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
       </main>
 
       {/* {t('security.changePin', 'Change 4-Digit PIN')} Modal */}
+      {showPauseModal && (
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handlePause} role="dialog" aria-modal="true" aria-labelledby="pause-lock-title" className="w-full max-w-sm rounded-3xl p-6 border shadow-2xl space-y-4 bg-slate-900 border-slate-700 text-slate-100">
+            <h3 id="pause-lock-title" className="text-sm font-bold">{t('security.pauseLock', 'Pause App Lock')}</h3>
+            <p className="text-xs">{t('security.pauseLockDescription', 'Confirm your current PIN. Your PIN will be retained.')}</p>
+            <label className="block text-xs font-semibold" htmlFor="pause-lock-pin">{t('security.enterCurrentPin', 'Enter Current PIN')}</label>
+            <input id="pause-lock-pin" type="password" inputMode="numeric" maxLength={4} autoComplete="off" autoFocus disabled={pauseBusy} value={pausePin} onChange={e => setPausePin(e.target.value.replace(/\D/g, ''))} className="w-full p-3 text-center tracking-widest rounded-2xl border bg-slate-800 border-slate-600"/>
+            {pauseError && <p role="alert" className="text-xs text-red-500">{pauseError}</p>}
+            <button type="submit" disabled={pauseBusy} className="w-full rounded-2xl py-3 bg-primary text-white text-xs font-semibold">{t('security.pauseLock', 'Pause App Lock')}</button>
+            <button type="button" disabled={pauseBusy} onClick={closePauseModal} className="w-full rounded-2xl py-2 text-xs">{t('common.cancel', 'Cancel')}</button>
+          </form>
+        </div>
+      )}
+
       {showPinModal && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl p-6 bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-4">
