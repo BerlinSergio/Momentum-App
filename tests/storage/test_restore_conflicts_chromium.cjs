@@ -17,23 +17,42 @@ async function testSimultaneousColdStart(browser) {
     await Promise.all(pages.map(page =>
       page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })
     ));
-    await Promise.all(pages.map(page => page.waitForFunction(() => {
-      const ready = window.useProfileStore?.persist?.hasHydrated?.() === true;
-      const failedSafely = document.querySelector('[role="alert"]')
-        ?.textContent?.includes('Cannot safely load saved data') === true;
+    const result = await Promise.allSettled(pages.map(page => page.waitForFunction(() => {
+      const ready = window.useProfileStore?.persist?.hasHydrated?.() === true &&
+        window.useTaskStore?.persist?.hasHydrated?.() === true;
+      const failedSafely = [...document.querySelectorAll('[role="alert"]')]
+        .some(el => el.textContent?.includes('Cannot safely load saved data'));
       return ready || failedSafely;
-    }, { timeout: 35000 })));
+    }, { polling: 100, timeout: 35000 })));
+    if (result.some(item => item.status === 'rejected')) {
+      const diagnostic = await Promise.all(pages.map(async (page, i) => {
+        try {
+          return await page.evaluate(() => ({
+            profile: window.useProfileStore?.persist?.hasHydrated?.(),
+            task: window.useTaskStore?.persist?.hasHydrated?.(),
+            notes: window.useNotesStore?.persist?.hasHydrated?.(),
+            taskFlag: window.useTaskStore?.getState?.()._hasHydrated,
+            conflict: window.__momentumStorageConflict || null,
+            visible: document.body?.innerText?.slice(0, 500),
+          }));
+        } catch (e) { return { page: i, error: String(e) }; }
+      }));
+      throw new Error('Simultaneous cold-start did not finish safely: ' + JSON.stringify(diagnostic));
+    }
     const results = await Promise.all(pages.map(page => page.evaluate(() => ({
-      hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
-      safeError: document.querySelector('[role="alert"]')
-        ?.textContent?.includes('Cannot safely load saved data') === true,
-      canRetry: Array.from(document.querySelectorAll('button')).some(
-        button => button.textContent?.includes('Retry loading')
+      hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true &&
+        window.useTaskStore?.persist?.hasHydrated?.() === true,
+      safeError: [...document.querySelectorAll('[role="alert"]')].some(
+        el => el.textContent?.includes('Cannot safely load saved data')
+      ),
+      canRetry: [...document.querySelectorAll('[role="alert"]')].some(
+        el => el.textContent?.includes('Cannot safely load saved data') &&
+          Boolean(el.querySelector('button'))
       ),
     }))));
     for (const result of results) {
       assert.ok(result.hydrated || (result.safeError && result.canRetry),
-        'Cold-start must either finish hydration or fail closed with a retry');
+        'Cold-start must hydrate or fail closed with a retry: ' + JSON.stringify(results));
     }
     console.log('PASS: Concurrent cold-start tabs each hydrate or show safe retry; no silent partial startup.');
   } finally {
@@ -53,9 +72,9 @@ async function main() {
     // These tests measure concurrent edits AFTER safe hydration, not first-run
     // onboarding (which has a separate cold-start test).
     await a.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await a.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 });
+    await a.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { polling: 100, timeout: 30000 });
     await b.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await b.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 });
+    await b.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { polling: 100, timeout: 30000 });
 
     const old = await a.evaluate(async key => {
       const db = await import('/src/storage/db.js');

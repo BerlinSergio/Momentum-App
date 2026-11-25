@@ -195,6 +195,91 @@ export async function setStoreItem(name, value, meta = {}) {
 }
 
 /**
+ * Read one domain under a committed readonly transaction. This deliberately
+ * does not fall back to memory or a non-authoritative localStorage mirror.
+ * The guarded task writer records this exact value as its expected snapshot.
+ */
+export async function getCommittedStoreValue(name) {
+  const db = await openAppDB();
+  if (!db) throw new Error('[Momentum DB] Cannot read a durable store snapshot');
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORES.DATA, 'readonly');
+      const req = tx.objectStore(STORES.DATA).get(name);
+      let value = null;
+      req.onsuccess = () => { value = req.result?.value ?? null; };
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Durable store snapshot read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Durable store snapshot transaction aborted'));
+      tx.onerror = () => reject(tx.error || new Error('[Momentum DB] Durable store snapshot transaction failed'));
+      tx.oncomplete = () => resolve(value);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Compare-and-swap one application domain INSIDE a single readwrite IDB
+ * transaction. A second tab cannot slip a write between the get and put.
+ *
+ * A conflict rejects and preserves the other tab's committed data. Identical
+ * proposed values are safe no-ops, which avoids false conflicts when multiple
+ * tabs hydrate the same persisted Zustand state.
+ *
+ * A failed transaction resolves false; it is never reported as durable.
+ * Ordinary unguarded callers continue to use setStoreItem/removeStoreItem.
+ */
+export async function commitStoreItemIfUnchanged(
+  name, value, expectedValue, { remove = false } = {}
+) {
+  if (typeof name !== 'string' || !name) {
+    throw new TypeError('Guarded store write requires a valid key');
+  }
+  const db = await openAppDB();
+  if (!db) return false;
+  return new Promise((resolve, reject) => {
+    let tx;
+    let conflict = null;
+    try {
+      tx = db.transaction(STORES.DATA, 'readwrite');
+      const store = tx.objectStore(STORES.DATA);
+      tx.oncomplete = () => resolve(true);
+      tx.onabort = () => conflict ? reject(conflict) : resolve(false);
+      tx.onerror = () => conflict ? reject(conflict) : resolve(false);
+      const read = store.get(name);
+      read.onsuccess = () => {
+        const current = read.result?.value ?? null;
+        const proposed = remove ? null : value;
+        // Already synchronized: do not invalidate another tab's snapshot
+        // with a pointless write during store rehydration.
+        if (sameStoreValue(current, proposed)) return;
+
+        if (!sameStoreValue(current, expectedValue)) {
+          conflict = new Error(`Concurrent write refused for store "${name}": another tab has newer saved data`);
+          conflict.code = 'STORAGE_WRITE_CONFLICT';
+          try { tx.abort(); } catch { reject(conflict); }
+          return;
+        }
+        try {
+          if (remove) store.delete(name);
+          else store.put({ name, value, updatedAt: Date.now() });
+        } catch (error) {
+          console.warn('[Momentum DB] Guarded write failed:', error);
+          try { tx.abort(); } catch { resolve(false); }
+        }
+      };
+      read.onerror = () => {
+        try { tx.abort(); } catch { resolve(false); }
+      };
+    } catch (error) {
+      console.warn('[Momentum DB] Guarded store transaction failed:', error);
+      try { tx?.abort(); } catch { /* no transaction */ }
+      resolve(false);
+    }
+  });
+}
+
+/**
  * Delete a record from the 'stores' object store.
  */
 export async function removeStoreItem(name) {

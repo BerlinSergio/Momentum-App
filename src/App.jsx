@@ -695,6 +695,19 @@ function AppContent({ startupStatus = 'ready' }) {
 
 export default function App() {
   const [startupStatus, setStartupStatus] = useState('loading');
+  const [storageConflict, setStorageConflict] = useState(() =>
+    typeof window !== 'undefined' ? window.__momentumStorageConflict || null : null
+  );
+
+  useEffect(() => {
+    const handleConflict = (event) => {
+      // Never silently clear a stale task snapshot or overwrite another tab.
+      setStorageConflict(event.detail?.store || 'saved records');
+    };
+    window.addEventListener('momentum:storage-conflict', handleConflict);
+    if (window.__momentumStorageConflict) setStorageConflict(window.__momentumStorageConflict);
+    return () => window.removeEventListener('momentum:storage-conflict', handleConflict);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -721,6 +734,23 @@ export default function App() {
     <ThemeProvider>
       <WallpaperProvider>
         <AppContent startupStatus={startupStatus} />
+        {storageConflict && (
+          <div role="alert" aria-live="assertive" className="fixed top-3 left-3 right-3 z-[9999] mx-auto max-w-2xl rounded-2xl border border-amber-500/60 bg-slate-950/95 text-white shadow-2xl p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="flex-1 min-w-0">
+              <strong className="block text-sm text-amber-300">Another Momentum tab has newer saved data</strong>
+              <p className="mt-1 text-xs leading-relaxed text-slate-100">
+                This tab refused to overwrite those changes. Further edits here cannot be saved safely. Copy any unsaved text before reloading, and close other Momentum tabs.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-xl bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-300 shrink-0"
+            >
+              Reload this tab
+            </button>
+          </div>
+        )}
       </WallpaperProvider>
     </ThemeProvider>
   );

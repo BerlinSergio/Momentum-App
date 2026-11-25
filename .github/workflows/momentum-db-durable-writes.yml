@@ -12,6 +12,7 @@ on:
       - fix/db-phase28-optimistic-conflicts-20261125
       - fix/db-phase29-attachment-revision-quota-20261125
       - fix/db-phase210-large-backup-ui-20261125
+      - fix/db-phase211-task-write-cas-20261125
   workflow_dispatch:
 
 permissions:
@@ -30,7 +31,7 @@ jobs:
       - name: Install dependencies from lockfile
         run: npm ci --no-fund
       - name: Durable database and navigation regression
-        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/storage/backupSizeLimits.test.mjs tests/navigation/themeNavigation.test.mjs
+        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/storage/backupSizeLimits.test.mjs tests/storage/taskWriteCas.test.mjs tests/navigation/themeNavigation.test.mjs
       - name: Production build
         run: npm run build
       - name: Start isolated Vite server
@@ -46,6 +47,10 @@ jobs:
           done
           cat /tmp/momentum-vite.log
           exit 1
+      - name: Real two-tab task writer conflict and safe-reload Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_task_cross_tab_cas_chromium.cjs
       - name: Real Chromium atomic restore regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/

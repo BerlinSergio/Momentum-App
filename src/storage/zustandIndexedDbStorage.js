@@ -4,7 +4,10 @@
  * serialized FIFO write queues and a post-commit localStorage mirror.
  */
 
-import { getStoreItem, setStoreItem, removeStoreItem } from './db.js';
+import {
+  getStoreItem, setStoreItem, removeStoreItem,
+  getCommittedStoreValue, commitStoreItemIfUnchanged,
+} from './db.js';
 
 // Per-key FIFO write queues to guarantee strict sequential consistency
 const writeQueues = new Map();
@@ -30,9 +33,54 @@ function enqueueWrite(key, task) {
  * @param {Object} options
  * @param {string} [options.legacyLocalStorageKey] - Retained for caller compatibility; migration is separate
  * @param {boolean} [options.mirrorToLocalStorage=true] - Mirror committed small payloads only
+ * @param {boolean} [options.preventConcurrentWrites=false] - Reject stale writes from another tab
  */
 export function createIndexedDbStorage(options = {}) {
-  const { mirrorToLocalStorage = true } = options;
+  const { mirrorToLocalStorage = true, preventConcurrentWrites = false } = options;
+  const expectedValues = new Map();
+  const staleKeys = new Set();
+
+  const throwIfStale = (name) => {
+    if (staleKeys.has(name)) {
+      const error = new Error(`Store "${name}" has stale data from another tab; reload before editing`);
+      error.code = 'STORAGE_WRITE_CONFLICT';
+      throw error;
+    }
+  };
+
+  const markStale = (name) => {
+    if (staleKeys.has(name)) return;
+    staleKeys.add(name);
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' &&
+          typeof window.CustomEvent === 'function') {
+        // Catch a conflict that occurred before the top-level UI mounted.
+        window.__momentumStorageConflict = name;
+        window.dispatchEvent(new window.CustomEvent('momentum:storage-conflict', {
+          detail: { store: name },
+        }));
+      }
+    } catch (error) {
+      console.warn('[Momentum Storage] Cannot announce concurrent write conflict:', error);
+    }
+  };
+
+  const guardedWrite = async (name, parsed, remove = false) => {
+    throwIfStale(name);
+    if (!expectedValues.has(name)) {
+      throw new Error(`[Momentum Storage] Guarded store "${name}" has not finished authoritative hydration`);
+    }
+    try {
+      const ok = await commitStoreItemIfUnchanged(
+        name, parsed, expectedValues.get(name), { remove }
+      );
+      if (ok === true) expectedValues.set(name, remove ? null : parsed);
+      return ok;
+    } catch (error) {
+      if (error?.code === 'STORAGE_WRITE_CONFLICT') markStale(name);
+      throw error;
+    }
+  };
 
   return {
     /**
@@ -42,7 +90,11 @@ export function createIndexedDbStorage(options = {}) {
       try {
         // IndexedDB is authoritative. Only runStorageMigration may import
         // legacy localStorage: otherwise stale mirrors can revive deleted data.
-        const idbValue = await getStoreItem(name);
+        if (preventConcurrentWrites) throwIfStale(name);
+        const idbValue = preventConcurrentWrites
+          ? await getCommittedStoreValue(name)
+          : await getStoreItem(name);
+        if (preventConcurrentWrites) expectedValues.set(name, idbValue);
         if (idbValue === null || idbValue === undefined) return null;
         return typeof idbValue === 'string' ? idbValue : JSON.stringify(idbValue);
       } catch (err) {
@@ -63,7 +115,9 @@ export function createIndexedDbStorage(options = {}) {
         } catch {
           parsed = value;
         }
-        const ok = await setStoreItem(name, parsed);
+        const ok = preventConcurrentWrites
+          ? await guardedWrite(name, parsed)
+          : await setStoreItem(name, parsed);
         if (ok !== true) {
           throw new Error(`[Momentum Storage] Durable save failed for store "${name}"`);
         }
@@ -87,7 +141,9 @@ export function createIndexedDbStorage(options = {}) {
     removeItem: async (name) => {
       return enqueueWrite(name, async () => {
         // Do not erase the durable mirror until IndexedDB deletion commits.
-        const ok = await removeStoreItem(name);
+        const ok = preventConcurrentWrites
+          ? await guardedWrite(name, null, true)
+          : await removeStoreItem(name);
         if (ok !== true) {
           throw new Error(`[Momentum Storage] Durable delete failed for store "${name}"`);
         }
