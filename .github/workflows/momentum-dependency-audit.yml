@@ -1,0 +1,56 @@
+name: Momentum Dependency Security Audit
+
+on:
+  push:
+    branches:
+      - fix/db-phase217-migration-recovery-20261125
+    paths:
+      - '.github/workflows/momentum-dependency-audit.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Collect locked dependency advisories
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dependency-audit
+          full_status=0
+          production_status=0
+          npm audit --package-lock-only --json > dependency-audit/all.json || full_status=$?
+          npm audit --package-lock-only --omit=dev --audit-level=high --json > dependency-audit/production.json || production_status=$?
+          printf 'full=%s\nproduction_high=%s\n' "$full_status" "$production_status" > dependency-audit/status.txt
+          git rev-parse HEAD > dependency-audit/commit.txt
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          for (const name of ['all', 'production']) {
+            const report = JSON.parse(fs.readFileSync('dependency-audit/' + name + '.json', 'utf8'));
+            if (report.error || !report.metadata?.vulnerabilities) throw Error('Audit unavailable: ' + name);
+            console.log(name, JSON.stringify(report.metadata.vulnerabilities));
+            for (const [pkg, entry] of Object.entries(report.vulnerabilities || {})) {
+              console.log(name, pkg, entry.severity, JSON.stringify(entry.fixAvailable));
+            }
+          }
+          NODE
+          # Fail the release gate if high/critical production findings remain.
+          # Preserve the full report, including dev-only findings, for review.
+          exit "$production_status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: momentum-dependency-audit-${{ github.sha }}
+          path: dependency-audit/
+          if-no-files-found: error
+          retention-days: 14
