@@ -517,7 +517,36 @@ export async function removeStoreItems(names) {
  * @param {{stores?: Array<{name: string, value: any}>, attachments?: Array<Object>}} batch
  * @returns {Promise<boolean>} true only after the *entire* transaction commits.
  */
-export async function commitRestoreBatch({ stores = [], attachments = [], restoreJournalToken = null } = {}) {
+/**
+ * The restore plans are computed from a snapshot *before* a user may write
+ * from another tab. Compare that snapshot with durable records INSIDE the
+ * final readwrite transaction, then queue every put in the last get callback.
+ * There is no await inside the transaction.
+ *
+ * A Blob cannot be byte-compared synchronously inside IDB callbacks, so
+ * attachments are guarded by their durable version/metadata. Any caller
+ * bypassing the app's updatedAt metadata contract is still an open risk.
+ */
+function sameStoreValue(a, b) {
+  try { return JSON.stringify(a) === JSON.stringify(b); }
+  catch { return false; }
+}
+
+function attachmentRevision(record) {
+  if (!record) return null;
+  return JSON.stringify([
+    record.id, record.updatedAt ?? null, record.createdAt ?? null,
+    record.noteId ?? null, record.fileName ?? null, record.name ?? null,
+    record.mimeType ?? null, record.sizeBytes ?? null, record.type ?? null,
+    record.blob?.size ?? null, record.blob?.type ?? null,
+    typeof record.blob === 'string' ? record.blob : null,
+  ]);
+}
+
+export async function commitRestoreBatch({
+  stores = [], attachments = [], restoreJournalToken = null,
+  expectedStoreValues = null, expectedAttachmentRecords = null,
+} = {}) {
   if (!Array.isArray(stores) || !Array.isArray(attachments)) {
     throw new TypeError('Restore batch must contain arrays of stores and attachments');
   }
@@ -531,19 +560,37 @@ export async function commitRestoreBatch({ stores = [], attachments = [], restor
       new Set(attachments.map(item => item.id)).size !== attachments.length) {
     throw new TypeError('Restore batch contains duplicate record keys');
   }
+  if (expectedStoreValues !== null &&
+      (typeof expectedStoreValues !== 'object' || Array.isArray(expectedStoreValues) ||
+       stores.some(item => !Object.hasOwn(expectedStoreValues, item.name)))) {
+    throw new TypeError('Missing optimistic restore precondition for a domain');
+  }
+  if (expectedAttachmentRecords !== null &&
+      (typeof expectedAttachmentRecords !== 'object' || Array.isArray(expectedAttachmentRecords) ||
+       attachments.some(item => !Object.hasOwn(expectedAttachmentRecords, item.id)))) {
+    throw new TypeError('Missing optimistic restore precondition for an attachment');
+  }
 
   const db = await openAppDB();
   if (!db) return false;
   if (!stores.length && !attachments.length && !restoreJournalToken) return true;
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let tx;
-    let finished = false;
-    const finish = (ok) => {
-      if (finished) return;
-      finished = true;
-      resolve(ok);
+    let settled = false;
+    let conflict = null;
+    const finish = ok => {
+      if (settled) return;
+      settled = true;
+      if (conflict) reject(conflict);
+      else resolve(ok);
     };
+    const failConflict = (type, key) => {
+      conflict = new Error(`Restore conflict: ${type} "${key}" changed after the snapshot; no restore records were committed`);
+      conflict.code = 'RESTORE_CONFLICT';
+      try { tx.abort(); } catch { finish(false); }
+    };
+
     try {
       const targets = [];
       if (stores.length) targets.push(STORES.DATA);
@@ -554,41 +601,84 @@ export async function commitRestoreBatch({ stores = [], attachments = [], restor
       tx.onabort = () => finish(false);
       tx.onerror = () => finish(false);
 
-      // Both object stores participate in exactly one IndexedDB transaction.
-      // Synchronous DataCloneError, quota error, or subsequent abort must
-      // roll back all the writes, including earlier request successes.
-      if (stores.length) {
-        const destination = tx.objectStore(STORES.DATA);
-        for (const item of stores) {
-          destination.put({ name: item.name, value: item.value, updatedAt: Date.now() });
-        }
-      }
-      if (attachments.length) {
-        const destination = tx.objectStore(STORES.ATTACHMENTS);
-        for (const item of attachments) {
-          destination.put({ ...item, updatedAt: Date.now() });
-        }
-      }
-      // Commit restored application records and remove the pending cross-DB
-      // journal in the SAME transaction. If this aborts the journal remains,
-      // so startup can roll the wallpaper database back to its preimage.
-      if (restoreJournalToken) {
-        const meta = tx.objectStore(STORES.MIGRATION);
-        const check = meta.get(RESTORE_JOURNAL_KEY);
-        check.onsuccess = () => {
-          if (check.result?.token !== restoreJournalToken) {
-            try { tx.abort(); } catch { finish(false); }
-            return;
+      const enqueueWrites = () => {
+        if (conflict) return;
+        try {
+          if (stores.length) {
+            const destination = tx.objectStore(STORES.DATA);
+            for (const item of stores) {
+              destination.put({ name: item.name, value: item.value, updatedAt: Date.now() });
+            }
           }
-          meta.delete(RESTORE_JOURNAL_KEY);
-        };
-        check.onerror = () => {
+          if (attachments.length) {
+            const destination = tx.objectStore(STORES.ATTACHMENTS);
+            for (const item of attachments) {
+              destination.put({ ...item, updatedAt: Date.now() });
+            }
+          }
+          if (restoreJournalToken) {
+            const meta = tx.objectStore(STORES.MIGRATION);
+            const check = meta.get(RESTORE_JOURNAL_KEY);
+            check.onsuccess = () => {
+              if (check.result?.token !== restoreJournalToken) {
+                try { tx.abort(); } catch { finish(false); }
+                return;
+              }
+              meta.delete(RESTORE_JOURNAL_KEY);
+            };
+            check.onerror = () => {
+              try { tx.abort(); } catch { finish(false); }
+            };
+          }
+        } catch (err) {
+          console.warn('[Momentum DB] Atomic restore write failed:', err);
           try { tx.abort(); } catch { finish(false); }
-        };
+        }
+      };
+
+      // Enqueue all precondition reads synchronously. Writes queue only after
+      // the last successful read callback; the readwrite transaction holds
+      // an exclusive store lock until complete, so no time-of-check race.
+      let pending = (expectedStoreValues ? stores.length : 0) +
+                    (expectedAttachmentRecords ? attachments.length : 0);
+      const verified = () => {
+        pending -= 1;
+        if (pending === 0 && !conflict) enqueueWrites();
+      };
+      if (expectedStoreValues && stores.length) {
+        const store = tx.objectStore(STORES.DATA);
+        for (const item of stores) {
+          const req = store.get(item.name);
+          req.onsuccess = () => {
+            const current = req.result ? req.result.value : null;
+            if (!sameStoreValue(current, expectedStoreValues[item.name])) {
+              failConflict('domain', item.name);
+            } else {
+              verified();
+            }
+          };
+          req.onerror = () => { try { tx.abort(); } catch { finish(false); } };
+        }
       }
+      if (expectedAttachmentRecords && attachments.length) {
+        const store = tx.objectStore(STORES.ATTACHMENTS);
+        for (const item of attachments) {
+          const req = store.get(item.id);
+          req.onsuccess = () => {
+            const expected = expectedAttachmentRecords[item.id];
+            if (attachmentRevision(req.result || null) !== attachmentRevision(expected)) {
+              failConflict('attachment', item.id);
+            } else {
+              verified();
+            }
+          };
+          req.onerror = () => { try { tx.abort(); } catch { finish(false); } };
+        }
+      }
+      if (pending === 0) enqueueWrites();
     } catch (err) {
       console.warn('[Momentum DB] Atomic restore transaction failed:', err);
-      try { tx?.abort(); } catch { /* transaction may already be inactive */ }
+      try { tx?.abort(); } catch { finish(false); }
       finish(false);
     }
   });

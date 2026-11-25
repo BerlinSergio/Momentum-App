@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBackupPackage, restoreBackup } from '../../src/utils/backupService.js';
 import { encryptBackupPayload, decryptBackupPayload } from '../../src/utils/backupCrypto.js';
+import { commitRestoreBatch } from '../../src/storage/db.js';
 
 const STORE = 'momentum-task-storage';
 const passphrase = 'synthetic-qa-restore-only';
@@ -37,29 +38,38 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
   const wallpapers = new Map();
   const migration = new Map();
   const localWrites = new Map();
+  const tables = { stores: records, attachments, wallpapers, migration_meta: migration };
   const db = {
     close() {},
     transaction(storeNames) {
       const targets = Array.isArray(storeNames) ? storeNames : [storeNames];
-      const tables = { stores: records, attachments, wallpapers, migration_meta: migration };
       const pending = [];
+      let activeReads = 0;
       let scheduled = false;
-      let completedBulkReads = 0;
+      let settled = false;
       const tx = {
         oncomplete: null, onabort: null, onerror: null,
-        abort() { this.onabort?.({ target: this }); },
+        abort() {
+          if (settled) return;
+          settled = true;
+          this.onabort?.({ target: this });
+        },
         objectStore(name) {
           if (!targets.includes(name)) throw new Error('Store not in transaction');
           const table = tables[name];
           if (!table) throw new Error('Unknown store ' + name);
+
           function scheduleCompletion() {
-            if (scheduled) return;
+            if (scheduled || settled) return;
             scheduled = true;
             queueMicrotask(() => {
-              if ((abortWrites && targets.includes('stores')) ||
+              scheduled = false;
+              if (settled || activeReads) return;
+              if ((abortWrites && pending.some(op => op.store === 'stores')) ||
                   (abortOnAttachment && pending.some(op => op.store === 'attachments'))) {
+                // Model the crucial false-positive request-success case.
                 for (const op of pending) op.request.onsuccess?.({ target: op.request });
-                tx.onabort?.({ target: tx });
+                tx.abort();
                 return;
               }
               for (const op of pending) {
@@ -67,32 +77,30 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
                 else tables[op.store].delete(op.key);
                 op.request.onsuccess?.({ target: op.request });
               }
+              settled = true;
               tx.oncomplete?.({ target: tx });
             });
           }
+          function queueRead(read) {
+            const req = { result: null, onsuccess: null, onerror: null };
+            activeReads += 1;
+            queueMicrotask(() => {
+              if (settled) return;
+              req.result = read();
+              req.onsuccess?.({ target: req });
+              activeReads -= 1;
+              scheduleCompletion();
+            });
+            return req;
+          }
           return {
-            get(key) {
-              const req = { result: null, onsuccess: null, onerror: null };
-              queueMicrotask(() => {
-                req.result = table.get(key) ?? null;
-                req.onsuccess?.({ target: req });
-                tx.oncomplete?.({ target: tx });
-              });
-              return req;
-            },
-            getAll() {
-              const req = { result: null, onsuccess: null, onerror: null };
-              queueMicrotask(() => {
-                req.result = [...table.values()];
-                req.onsuccess?.({ target: req });
-                completedBulkReads += 1;
-                if (completedBulkReads === targets.length) tx.oncomplete?.({ target: tx });
-              });
-              return req;
-            },
+            get(key) { return queueRead(() => table.get(key) ?? null); },
+            getAll() { return queueRead(() => [...table.values()]); },
             put(record) {
               const req = { onsuccess: null, onerror: null };
-              pending.push({ type: 'put', store: name, key: name === 'stores' ? record.name : record.id, value: record, request: req });
+              const key = name === 'stores' ? record.name :
+                          name === 'migration_meta' ? record.key : record.id;
+              pending.push({ type: 'put', store: name, key, value: record, request: req });
               scheduleCompletion();
               return req;
             },
@@ -396,5 +404,68 @@ test('backup fails closed when recovery journal read aborts after the request su
       createBackupPackage(passphrase),
       /Journal read transaction aborted/
     );
+  }, () => fixture.db.onclose?.());
+});
+
+test('stale domain snapshot cannot overwrite a newer task update from another tab', async () => {
+  const fixture = fakeDatabase();
+  const initial = { state: { tasks: [{ id: 'original' }] }, version: 0 };
+  fixture.records.set(STORE, { name: STORE, value: structuredClone(initial) });
+  await withWindow(fixture.fakeWindow, async () => {
+    // A staged its merge from the earlier original state.
+    const expectedStoreValues = { [STORE]: structuredClone(initial) };
+    // B committed an edit while A was preparing its restore.
+    fixture.records.set(STORE, {
+      name: STORE, value: { state: { tasks: [{ id: 'other-tab' }] }, version: 0 },
+    });
+    await assert.rejects(
+      commitRestoreBatch({
+        stores: [{ name: STORE, value: { state: { tasks: [{ id: 'restored' }] }, version: 0 } }],
+        expectedStoreValues,
+      }),
+      error => error?.code === 'RESTORE_CONFLICT' && /domain/.test(error.message)
+    );
+    assert.equal(fixture.records.get(STORE).value.state.tasks[0].id, 'other-tab');
+  }, () => fixture.db.onclose?.());
+});
+
+test('attachment version conflict rejects the entire task and attachment restore', async () => {
+  const fixture = fakeDatabase();
+  const before = {
+    id: 'note-attachment', updatedAt: 100, fileName: 'document.txt',
+    mimeType: 'text/plain', blob: new Blob(['before']),
+  };
+  fixture.attachments.set(before.id, before);
+  await withWindow(fixture.fakeWindow, async () => {
+    // Same identifier, changed by another tab after the restore snapshot.
+    fixture.attachments.set(before.id, {
+      ...before, updatedAt: 101, blob: new Blob(['newer']),
+    });
+    await assert.rejects(
+      commitRestoreBatch({
+        stores: [{ name: STORE, value: { state: { tasks: [{ id: 'must-not-write' }] } } }],
+        attachments: [{ ...before, blob: new Blob(['restore']) }],
+        expectedStoreValues: { [STORE]: null },
+        expectedAttachmentRecords: { [before.id]: before },
+      }),
+      error => error?.code === 'RESTORE_CONFLICT' && /attachment/.test(error.message)
+    );
+    assert.equal(fixture.records.has(STORE), false);
+    assert.equal(fixture.attachments.get(before.id).updatedAt, 101);
+  }, () => fixture.db.onclose?.());
+});
+
+test('unchanged optimistic snapshot commits domain and attachment together', async () => {
+  const fixture = fakeDatabase();
+  await withWindow(fixture.fakeWindow, async () => {
+    const committed = await commitRestoreBatch({
+      stores: [{ name: STORE, value: { state: { tasks: [{ id: 'committed' }] }, version: 0 } }],
+      attachments: [{ id: 'new-attachment', blob: new Blob(['safe']) }],
+      expectedStoreValues: { [STORE]: null },
+      expectedAttachmentRecords: { 'new-attachment': null },
+    });
+    assert.equal(committed, true);
+    assert.equal(fixture.records.get(STORE).value.state.tasks[0].id, 'committed');
+    assert.equal(await fixture.attachments.get('new-attachment').blob.text(), 'safe');
   }, () => fixture.db.onclose?.());
 });
