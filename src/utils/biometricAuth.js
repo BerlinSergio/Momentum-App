@@ -12,7 +12,7 @@
 
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { getCommittedStoreRecord } from '../storage/db.js';
-import { authenticatePin, withPinAttemptLock } from './credentialService.js';
+import { authenticatePin, withPinAttemptLock, validCurrentSecret } from './credentialService.js';
 
 const NativeBiometric = registerPlugin('MomentumBiometric');
 const nativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
@@ -197,7 +197,8 @@ export async function registerBiometrics({
   try {
     const pinRevision = await currentPinRevision();
     if (!pinRevision) return {success:false,error:'Set up your PIN before enabling biometric unlock.'};
-    if (!/^\d{4}$/.test(String(currentPin ?? ''))) return {success:false,error:'Confirm your current 4-digit PIN before enabling biometrics.'};
+    const credential = await getCommittedStoreRecord('momentum-credential-verifier');
+    if (!validCurrentSecret(currentPin,credential?.value?.credentialKind)) return {success:false,error:'Confirm your current credential before enabling biometrics.'};
     const authorization = await authenticatePin(currentPin);
     if (!authorization.success) return authorization;
     if (signal?.aborted || await currentPinRevision() !== pinRevision) {

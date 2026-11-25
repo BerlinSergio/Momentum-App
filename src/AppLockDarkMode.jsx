@@ -5,6 +5,8 @@ import UserAvatar from './components/UserAvatar';
 import { Lock, ArrowLeft, X } from 'lucide-react';
 import useSecurityStore, { LOCK_TIMING_OPTIONS } from './store/useSecurityStore';
 import { clearBiometricCredential } from './utils/biometricAuth';
+import PasscodeChangeDialog from './components/PasscodeChangeDialog';
+import { validCurrentSecret } from './utils/credentialService';
 import BiometricEnrollmentDialog from './components/BiometricEnrollmentDialog';
 import { toast } from './components/ui/toast/index.js';
 
@@ -26,10 +28,6 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
   const [pauseError, setPauseError] = useState('');
   const [pauseBusy, setPauseBusy] = useState(false);
   const [showAlphaModal, setShowAlphaModal] = useState(false);
-  const [currentPinInput, setCurrentPinInput] = useState('');
-  const [pinInput, setPinInput] = useState('');
-  const [alphaInput, setAlphaInput] = useState('');
-  const [modalFeedback, setModalFeedback] = useState('');
   const [bioPrompting, setBioPrompting] = useState(false);
 
   // Synchronize draft state when security store finishes rehydrating
@@ -42,9 +40,6 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
           lockTiming: security.lockTiming,
           hideInMultitasking: security.hideInMultitasking,
         });
-        setPinInput('');
-        setCurrentPinInput('');
-        setAlphaInput('');
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -116,8 +111,8 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
   const handlePause = async (e) => {
     e.preventDefault();
     if (pauseBusy) return;
-    if (!/^\d{4}$/.test(pausePin)) {
-      setPauseError(t('security.currentPinRequired', 'Enter your current 4-digit PIN.'));
+    if (!validCurrentSecret(pausePin,security.passcodeType)) {
+      setPauseError(t('security.currentSecretRequired', 'Enter your current credential.'));
       return;
     }
     setPauseBusy(true);
@@ -134,51 +129,6 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
     } finally {
       setPauseBusy(false);
     }
-  };
-
-  const handleSavePin = async (e) => {
-    e.preventDefault();
-    if (pinInput.length !== 4 || isNaN(Number(pinInput))) {
-      setModalFeedback('New PIN must be exactly 4 digits');
-      return;
-    }
-
-    if (security.hasPin) {
-      if (!currentPinInput || currentPinInput.length !== 4) {
-        setModalFeedback('Current PIN is required to change PIN');
-        return;
-      }
-      const changed = await security.changePin(currentPinInput, pinInput);
-      if (!changed.success) {
-        setModalFeedback(changed.error || 'Failed to update PIN');
-        return;
-      }
-    } else {
-      const created = await security.setPin(pinInput);
-      if (!created.success) {
-        setModalFeedback(created.error || 'Failed to create PIN');
-        return;
-      }
-    }
-
-    setModalFeedback('PIN updated successfully!');
-    setTimeout(() => {
-      setModalFeedback('');
-      setShowPinModal(false);
-      setPinInput('');
-      setCurrentPinInput('');
-    }, 1000);
-  };
-
-  const handleSaveAlpha = (e) => {
-    e.preventDefault();
-    if (alphaInput.trim().length < 6) {
-      setModalFeedback('Passcode must be at least 6 characters');
-      return;
-    }
-    const result = security.setAlphanumeric(alphaInput);
-    setAlphaInput('');
-    setModalFeedback(result?.error || t('security.alphaUnsupported', 'Alphanumeric passcodes are not supported yet. Keep using your PIN.'));
   };
 
   return (
@@ -355,7 +305,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                   </div>
                   <div className="grid grid-cols-1 gap-2 pt-1">
                     <button
-                      onClick={() => setActiveTab ? setActiveTab('pin_setup_change_dark_mode') : setShowPinModal(true)}
+                      onClick={() => security.passcodeType==='alphanumeric' ? setShowPinModal(true) : setActiveTab ? setActiveTab('pin_setup_change_dark_mode') : setShowPinModal(true)}
                       className="w-full flex items-center justify-between p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors text-left cursor-pointer"
                       type="button"
                     >
@@ -372,7 +322,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
                     >
                       <div className="flex items-center space-x-2.5">
                         <span className="material-symbols-outlined text-primary text-[18px]">lock_reset</span>
-                        <span className="text-xs font-semibold text-slate-200">{t('security.switchToAlpha', 'Switch to Alphanumeric Passcode')}</span>
+                        <span className="text-xs font-semibold text-slate-200">{security.passcodeType==='alphanumeric'?t('security.changePasscode','Change passcode'):t('security.switchToAlpha', 'Switch to Alphanumeric Passcode')}</span>
                       </div>
                       <span className="material-symbols-outlined text-slate-400 text-[18px]">chevron_right</span>
                     </button>
@@ -474,9 +424,9 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handlePause} role="dialog" aria-modal="true" aria-labelledby="pause-lock-title" className="w-full max-w-sm rounded-3xl p-6 border shadow-2xl space-y-4 bg-slate-900 border-slate-700 text-slate-100">
             <h3 id="pause-lock-title" className="text-sm font-bold">{t('security.pauseLock', 'Pause App Lock')}</h3>
-            <p className="text-xs">{t('security.pauseLockDescription', 'Confirm your current PIN. Your PIN will be retained.')}</p>
-            <label className="block text-xs font-semibold" htmlFor="pause-lock-pin">{t('security.enterCurrentPin', 'Enter Current PIN')}</label>
-            <input id="pause-lock-pin" type="password" inputMode="numeric" maxLength={4} autoComplete="off" autoFocus disabled={pauseBusy} value={pausePin} onChange={e => setPausePin(e.target.value.replace(/\D/g, ''))} className="w-full p-3 text-center tracking-widest rounded-2xl border bg-slate-800 border-slate-600"/>
+            <p className="text-xs">{t('security.pauseCredentialDescription', 'Confirm your current credential. It will be retained.')}</p>
+            <label className="block text-xs font-semibold" htmlFor="pause-lock-pin">{security.passcodeType==='alphanumeric'?t('security.currentPasscode','Current passcode'):t('security.enterCurrentPin', 'Enter Current PIN')}</label>
+            <input id="pause-lock-pin" type="password" inputMode={security.passcodeType==='alphanumeric'?'text':'numeric'} maxLength={security.passcodeType==='alphanumeric'?128:4} autoComplete="current-password" autoFocus disabled={pauseBusy} value={pausePin} onChange={e => setPausePin(security.passcodeType==='alphanumeric'?e.target.value:e.target.value.replace(/\D/g, ''))} className="w-full p-3 text-center tracking-widest rounded-2xl border bg-slate-800 border-slate-600"/>
             {pauseError && <p role="alert" className="text-xs text-red-500">{pauseError}</p>}
             <button type="submit" disabled={pauseBusy} className="w-full rounded-2xl py-3 bg-primary text-white text-xs font-semibold">{t('security.pauseLock', 'Pause App Lock')}</button>
             <button type="button" disabled={pauseBusy} onClick={closePauseModal} className="w-full rounded-2xl py-2 text-xs">{t('common.cancel', 'Cancel')}</button>
@@ -484,116 +434,8 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
         </div>
       )}
 
-      {showPinModal && (
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-3xl p-6 bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <Lock className="w-4 h-4 text-primary" />
-                </div>
-                <h3 className="text-sm font-bold text-white">{security.hasPin ? t('security.changePIN', 'Change PIN') : t('security.setPIN', 'Set PIN')}</h3>
-              </div>
-              <button onClick={() => setShowPinModal(false)} className="p-1 rounded-full text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSavePin} className="space-y-4">
-              {security.hasPin && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-300">{t('security.enterCurrentPin', 'Enter Current PIN')}</label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={currentPinInput}
-                    onChange={(e) => setCurrentPinInput(e.target.value.replace(/\D/g, ''))}
-                    className="w-full mt-1.5 p-3 text-center text-xl tracking-[0.5em] font-mono rounded-2xl bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="••••"
-                    autoFocus
-                  />
-                </div>
-              )}
-              <div>
-                <label className="text-xs font-semibold text-slate-300">{security.hasPin ? t('security.enterNewPin', 'Enter New 4-Digit PIN') : t('security.enterNewPIN', 'Enter 4-Digit PIN')}</label>
-                <input
-                  type="password"
-                  maxLength={4}
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-                  className="w-full mt-1.5 p-3 text-center text-xl tracking-[0.5em] font-mono rounded-2xl bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="••••"
-                  autoFocus={!security.hasPin}
-                />
-              </div>
-              {modalFeedback && (
-                <p className="text-xs text-center font-medium text-primary">{modalFeedback}</p>
-              )}
-              <div className="space-y-2 pt-1">
-                <button type="submit" className="w-full py-3 rounded-2xl bg-primary text-white text-xs font-semibold shadow-md shadow-primary/25 hover:brightness-105">
-                  {t('security.savePin', 'Update PIN')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPinModal(false);
-                    setActiveTab && setActiveTab('pin_setup_change_dark_mode');
-                  }}
-                  className="w-full py-2.5 rounded-2xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition-colors"
-                >
-                  {t('settings.pinSetupChange', 'Open Full PIN Setup Screen')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Switch to Alphanumeric Modal */}
-      {showAlphaModal && (
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-3xl p-6 bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[18px]">lock_reset</span>
-                </div>
-                <h3 className="text-sm font-bold text-white">{t('security.alphaPasscode', 'Alphanumeric Passcode')}</h3>
-              </div>
-              <button onClick={() => setShowAlphaModal(false)} className="p-1 rounded-full text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveAlpha} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-300">{t('security.enterComplexPasscode', 'Enter Complex Passcode (min 6 chars)')}</label>
-                <input
-                  type="text"
-                  value={alphaInput}
-                  onChange={(e) => setAlphaInput(e.target.value)}
-                  className="w-full mt-1.5 p-3 text-sm rounded-2xl bg-slate-800/80 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder={t('security.passcodePlaceholder', 'e.g. MySecur3Passcode!#')}
-                  autoFocus
-                />
-              </div>
-              {modalFeedback && (
-                <p className="text-xs text-center font-medium text-primary">{modalFeedback}</p>
-              )}
-              <div className="space-y-2 pt-1">
-                <button type="submit" className="w-full py-3 rounded-2xl bg-primary text-white text-xs font-semibold shadow-md shadow-primary/25 hover:brightness-105">
-                  {t('security.activatePasscode', 'Activate Passcode')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAlphaModal(false)}
-                  className="w-full py-2.5 rounded-2xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 transition-colors"
-                >
-                  {t('common.cancel', 'Cancel')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {showPinModal && <PasscodeChangeDialog isDarkMode={true} toPin onClose={()=>setShowPinModal(false)}/>}
+      {showAlphaModal && <PasscodeChangeDialog isDarkMode={true} onClose={()=>setShowAlphaModal(false)}/>}
       {bioPrompting && <BiometricEnrollmentDialog isDarkMode={true} onClose={() => setBioPrompting(false)} />}
     </>
   );
