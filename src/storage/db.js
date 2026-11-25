@@ -981,3 +981,69 @@ export async function clearRestoreJournal(token) {
     }
   });
 }
+
+/**
+ * Atomic credential transition. Caller must authenticate against the exact
+ * committed credential snapshot before requesting a rotation or deletion.
+ * Both revisions are checked under the same exclusive transaction lock.
+ * No crypto awaits inside the transaction; success means oncomplete.
+ */
+export async function commitCredentialTransition(expectedCredential, expectedSecurity, nextCredential, lastModified) {
+  const credentialKey = 'momentum-credential-verifier';
+  const securityKey = 'momentum-security-storage';
+  if ((expectedCredential !== null && expectedCredential?.name !== credentialKey) ||
+      (expectedSecurity !== null && expectedSecurity?.name !== securityKey) ||
+      (nextCredential !== null && (!nextCredential?.salt || !nextCredential?.verifier))) {
+    throw new TypeError('Invalid credential transition snapshots');
+  }
+  const db = await openAppDB();
+  if (!db) throw new Error('Durable credential storage unavailable');
+  const matches = (a,b) => a === null || b === null ? a === b :
+    (a.revisionId ?? null) === (b.revisionId ?? null) && sameStoreValue(a.value,b.value);
+  return new Promise((resolve,reject) => {
+    let tx, failure, committed;
+    try {
+      tx = db.transaction(STORES.DATA, 'readwrite');
+      tx.oncomplete = () => resolve(committed);
+      tx.onabort = () => reject(failure || tx.error || new Error('Credential transaction aborted'));
+      const store = tx.objectStore(STORES.DATA);
+      const credential = store.get(credentialKey);
+      const security = store.get(securityKey);
+      security.onsuccess = () => {
+        try {
+          if (!matches(credential.result || null, expectedCredential) ||
+              !matches(security.result || null, expectedSecurity)) {
+            const err = new Error('Credential or security preferences changed; reload and retry.');
+            err.code = 'CREDENTIAL_WRITE_CONFLICT';
+            throw err;
+          }
+          const raw = security.result?.value;
+          const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (payload != null && (!payload.state || typeof payload.state !== 'object' || Array.isArray(payload.state))) {
+            throw new Error('Malformed security metadata');
+          }
+          const state = { ...(payload?.state || {}), pin: '', alphanumeric: '',
+            hasPin: nextCredential !== null, passcodeType: 'pin', lastModified };
+          if (nextCredential !== null) {
+            state.isAppLockActive = true;
+          } else {
+            state.isAppLockActive = false;
+            state.isLocked = false;
+          }
+          const now = Date.now();
+          if (nextCredential === null) store.delete(credentialKey);
+          else store.put({name: credentialKey, value: nextCredential, updatedAt: now, revisionId: mintDurableRevision()});
+          committed = {name: securityKey, value: {...(payload || {version:0}), state}, updatedAt: now, revisionId: mintDurableRevision()};
+          store.put(committed);
+        } catch (error) {
+          failure = error;
+          tx.abort();
+        }
+      };
+    } catch (error) {
+      failure = error;
+      if (tx) { try { tx.abort(); } catch { reject(error); } }
+      else reject(error);
+    }
+  });
+}

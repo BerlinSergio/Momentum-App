@@ -226,6 +226,34 @@ async function credentialIntegrity(browser) {
     assert.equal(securityRecord.value.state.pin, '');
     assert.equal(securityRecord.value.state.alphanumeric, '');
     assert.doesNotMatch(JSON.stringify(securityRecord.value), /2468/);
+    const blockedMetadata = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const store = window.useSecurityStore.getState();
+      const key = 'momentum-security-storage';
+      const before = await db.getCommittedStoreRecord(key);
+      const outcomes = [
+        store.setHasPin(false),
+        store.setGuardrail('hasPin', false),
+        store.updatePreferences({ hasPin: false, lockFinance: false }),
+        store.updatePreferences(() => ({ pin: '0000' })),
+        store.updatePreferences({ _hasHydrated: false, isLocked: false }),
+      ];
+      const current = window.useSecurityStore.getState();
+      const after = await db.getCommittedStoreRecord(key);
+      return {
+        rejected: outcomes.every(result => result?.success === false),
+        unchanged: JSON.stringify(before) === JSON.stringify(after),
+        hasPin: current.hasPin,
+        hydrated: current._hasHydrated,
+        noPlaintext: current.pin === '' && current.alphanumeric === '',
+        lockFinanceUnchanged: current.lockFinance === store.lockFinance,
+      };
+    });
+    assert.deepEqual(blockedMetadata, {
+      rejected: true, unchanged: true, hasPin: true, hydrated: true,
+      noPlaintext: true, lockFinanceUnchanged: true,
+    });
+    console.log('PASS: generic security preferences cannot mutate credential metadata.');
     const lockedBefore = await a.evaluate(() => {
       window.useSecurityStore.getState().setAppLockActive(true);
       return window.useSecurityStore.getState().isAppLockActive;
@@ -260,10 +288,42 @@ async function credentialIntegrity(browser) {
       return { old: old.success, next: next.success };
     });
     assert.deepEqual(verification, { old: false, next: true });
-    const removed = await b.evaluate(async () => {
+    const rejected = await b.evaluate(async () => {
       const creds = await import('/src/utils/credentialService.js');
       return creds.removeCredential();
     });
+    assert.equal(rejected.success, false);
+    // Force the second put to throw after the first request is queued.
+    // IndexedDB must roll back BOTH records; test only isolated synthetic data.
+    const rollback = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const svc = await import('/src/utils/credentialService.js');
+      const key = 'momentum-credential-verifier', meta = 'momentum-security-storage';
+      const before = [await db.getCommittedStoreRecord(key), await db.getCommittedStoreRecord(meta)];
+      const put = IDBObjectStore.prototype.put;
+      let injected = false;
+      IDBObjectStore.prototype.put = function(value, ...args) {
+        if (value?.name === meta) { injected = true; throw new Error('QA injected second-write failure'); }
+        return put.call(this, value, ...args);
+      };
+      let result;
+      try { result = await svc.changeCredential('1357','9753'); }
+      finally { IDBObjectStore.prototype.put = put; }
+      const after = [await db.getCommittedStoreRecord(key), await db.getCommittedStoreRecord(meta)];
+      return {injected, rejected: !result.success, unchanged: JSON.stringify(before) === JSON.stringify(after)};
+    });
+    assert.deepEqual(rollback, {injected:true,rejected:true,unchanged:true});
+    console.log('PASS: second-write failure rolls back both credential and metadata.');
+    const race = await Promise.all([a,b].map((page,i) => page.evaluate(async i => {
+      const svc = await import('/src/utils/credentialService.js');
+      return (await svc.changeCredential('1357', i ? '8642' : '9753')).success;
+    },i)));
+    assert.equal(race.filter(Boolean).length,1);
+    const winnerPin = race[0] ? '9753' : '8642';
+    const removed = await b.evaluate(async (winnerPin) => {
+      const creds = await import('/src/utils/credentialService.js');
+      return creds.removeCredential(winnerPin);
+    }, winnerPin);
     assert.equal(removed.success, true);
     const afterRemove = await a.evaluate(async () => {
       const creds = await import('/src/utils/credentialService.js');
@@ -271,6 +331,8 @@ async function credentialIntegrity(browser) {
         stillValid: (await creds.verifyCredential('1357')).success };
     });
     assert.deepEqual(afterRemove, { configured: false, stillValid: false });
+    assert.equal((await record(a, 'security')).value.state.hasPin, false);
+    assert.equal((await record(a, 'security')).value.state.isAppLockActive, false);
     console.log('PASS: Cross-tab PIN rotation and committed deletion revoke old verifier; no cache fallback.');
   } finally { await context.close(); }
 }
