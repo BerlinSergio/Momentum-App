@@ -706,7 +706,9 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
           expectedStoreValues, expectedAttachmentRecords,
         });
     if (committed !== true) {
-      throw new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
+      const error = new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
+      error.code = 'RESTORE_WRITE_ABORTED';
+      throw error;
     }
     // Update disposable mirrors only after a successful transaction commit.
     if (typeof localStorage !== 'undefined') {
