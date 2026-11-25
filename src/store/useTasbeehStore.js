@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { isToday } from '../utils/timeService';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const tasbeehStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-tasbeeh-storage' });
+const tasbeehStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-tasbeeh-storage',
+  optimisticDomains: ['momentum-tasbeeh-storage'],
+});
 const getSafeStorage = () => tasbeehStorage;
 
 const playFeedbackAudio = () => {
@@ -317,33 +320,12 @@ export const useTasbeehStore = create(
     {
       name: 'momentum-tasbeeh-storage',
       storage: createJSONStorage(() => getSafeStorage()),
-      onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          state.setHasHydrated(true);
-        }
-      },
+      skipHydration: true,
+      // Central startup coordinator confirms durable hydration; do not
+      // queue a second whole-domain save from this callback.
     }
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-tasbeeh-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        useTasbeehStore.setState({
-          ...parsed.state,
-          _hasHydrated: true,
-        });
-      } else {
-        useTasbeehStore.setState({ _hasHydrated: true });
-      }
-    } else {
-      useTasbeehStore.setState({ _hasHydrated: true });
-    }
-  } catch {
-    useTasbeehStore.setState({ _hasHydrated: true });
-  }
-}
+// Legacy localStorage mirrors are never authoritative. runStorageMigration
+// handles any one-time legacy import before coordinated IndexedDB hydration.
