@@ -226,6 +226,34 @@ async function credentialIntegrity(browser) {
     assert.equal(securityRecord.value.state.pin, '');
     assert.equal(securityRecord.value.state.alphanumeric, '');
     assert.doesNotMatch(JSON.stringify(securityRecord.value), /2468/);
+    const blockedMetadata = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const store = window.useSecurityStore.getState();
+      const key = 'momentum-security-storage';
+      const before = await db.getCommittedStoreRecord(key);
+      const outcomes = [
+        store.setHasPin(false),
+        store.setGuardrail('hasPin', false),
+        store.updatePreferences({ hasPin: false, lockFinance: false }),
+        store.updatePreferences(() => ({ pin: '0000' })),
+        store.updatePreferences({ _hasHydrated: false, isLocked: false }),
+      ];
+      const current = window.useSecurityStore.getState();
+      const after = await db.getCommittedStoreRecord(key);
+      return {
+        rejected: outcomes.every(result => result?.success === false),
+        unchanged: JSON.stringify(before) === JSON.stringify(after),
+        hasPin: current.hasPin,
+        hydrated: current._hasHydrated,
+        noPlaintext: current.pin === '' && current.alphanumeric === '',
+        lockFinanceUnchanged: current.lockFinance === store.lockFinance,
+      };
+    });
+    assert.deepEqual(blockedMetadata, {
+      rejected: true, unchanged: true, hasPin: true, hydrated: true,
+      noPlaintext: true, lockFinanceUnchanged: true,
+    });
+    console.log('PASS: generic security preferences cannot mutate credential metadata.');
     const lockedBefore = await a.evaluate(() => {
       window.useSecurityStore.getState().setAppLockActive(true);
       return window.useSecurityStore.getState().isAppLockActive;
