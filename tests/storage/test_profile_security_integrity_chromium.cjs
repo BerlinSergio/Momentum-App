@@ -461,8 +461,8 @@ async function credentialAttemptLimits(browser) {
       const pause = await svc.pauseAppLock('2468');
       const unchanged = JSON.stringify(before) === JSON.stringify(await snapshot());
       // Simulate expiry in the isolated test session only.
-      const state = JSON.parse(sessionStorage.getItem(svc.LOCKOUT_STORAGE_KEY));
-      sessionStorage.setItem(svc.LOCKOUT_STORAGE_KEY, JSON.stringify({...state,lockedUntil:Date.now()-1}));
+      const state = JSON.parse(localStorage.getItem(svc.LOCKOUT_STORAGE_KEY));
+      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY, JSON.stringify({...state,lockedUntil:Date.now()-1}));
       const recovered = await svc.changeCredential('2468','1357');
       const cleared = svc.getLockoutState().failedAttempts === 0;
       const finalRemove = await svc.removeCredential('1357');
@@ -470,7 +470,60 @@ async function credentialAttemptLimits(browser) {
         unchanged,recovered:recovered.success,cleared,removed:finalRemove.success};
     });
     assert.deepEqual(outcome,{setup:true,wrong:true,locked:true,blocked:true,unchanged:true,recovered:true,cleared:true,removed:true});
-    console.log('PASS: credential mutations share the existing session attempt limit and recover after expiry.');
+    console.log('PASS: credential mutations share the shared persistent attempt limit and recover after expiry.');
+  } finally { await context.close(); }
+}
+
+async function sharedAttemptLimits(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage();
+    const b = await context.newPage();
+    await boot(a,'security');
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000,polling:200});
+    assert.equal((await a.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      return svc.createCredential('2468');
+    })).success,true);
+    await boot(b,'security');
+    // Concurrent checks must share a single counter, without lost increments.
+    const attempts = await Promise.all(Array.from({length:6},(_,i) =>
+      (i%2 ? a:b).evaluate(async () => {
+        const svc = await import('/src/utils/credentialService.js');
+        return svc.authenticatePin('0000');
+      })));
+    assert.equal(attempts.every(r=>!r.success),true);
+    const read = page => page.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      return svc.getLockoutState();
+    });
+    for (const page of [a,b]) {
+      const state = await read(page);
+      assert.equal(state.failedAttempts,5);
+      assert.equal(state.isLockedOut,true);
+    }
+    await b.close();
+    const reopened = await context.newPage();
+    await boot(reopened,'security');
+    assert.equal((await read(reopened)).isLockedOut,true);
+    const blocked = await reopened.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      return Promise.all([svc.authenticatePin('2468'),svc.changeCredential('2468','1357'),
+        svc.removeCredential('2468'),svc.pauseAppLock('2468')]);
+    });
+    assert.equal(blocked.every(r=>!r.success),true);
+    const recovered = await a.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      const state = JSON.parse(localStorage.getItem(svc.LOCKOUT_STORAGE_KEY));
+      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY,JSON.stringify({...state,lockedUntil:Date.now()-1}));
+      return svc.authenticatePin('2468');
+    });
+    assert.equal(recovered.success,true);
+    assert.equal((await read(reopened)).failedAttempts,0);
+    console.log('PASS: shared PIN attempt limit serializes tabs, survives tab closure, and clears on successful authentication.');
   } finally { await context.close(); }
 }
 
@@ -544,6 +597,7 @@ async function main() {
     await casStress(browser, 'security');
     await credentialIntegrity(browser);
     await credentialAttemptLimits(browser);
+    await sharedAttemptLimits(browser);
     await lockScreenSingleFlight(browser);
   } finally { await browser.close(); }
 }
