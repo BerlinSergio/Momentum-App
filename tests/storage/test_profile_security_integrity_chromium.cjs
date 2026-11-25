@@ -233,6 +233,7 @@ async function credentialIntegrity(browser) {
       const before = await db.getCommittedStoreRecord(key);
       const outcomes = [
         store.setHasPin(false),
+        store.setAlphanumeric('synthetic-passcode'),
         store.setGuardrail('hasPin', false),
         store.updatePreferences({ hasPin: false, lockFinance: false }),
         store.updatePreferences(() => ({ pin: '0000' })),
@@ -246,12 +247,13 @@ async function credentialIntegrity(browser) {
         hasPin: current.hasPin,
         hydrated: current._hasHydrated,
         noPlaintext: current.pin === '' && current.alphanumeric === '',
+        passcodeType: current.passcodeType,
         lockFinanceUnchanged: current.lockFinance === store.lockFinance,
       };
     });
     assert.deepEqual(blockedMetadata, {
       rejected: true, unchanged: true, hasPin: true, hydrated: true,
-      noPlaintext: true, lockFinanceUnchanged: true,
+      noPlaintext: true, passcodeType: 'pin', lockFinanceUnchanged: true,
     });
     console.log('PASS: generic security preferences cannot mutate credential metadata.');
     const lockedBefore = await a.evaluate(() => {
