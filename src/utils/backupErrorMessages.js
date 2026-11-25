@@ -13,6 +13,8 @@ export function getBackupErrorMessage(error, fallback = 'Backup or restore could
       return 'Another Momentum tab changed saved data while this restore was preparing. The restore was cancelled to protect newer edits. Close other Momentum tabs and retry.';
     case 'RESTORE_RECOVERY_REQUIRED':
       return 'The interrupted restore could not be safely recovered. Do not clear this app\'s site data. Restart Momentum to retry recovery; seek help if the warning continues.';
+    case 'RESTORE_WRITE_ABORTED':
+      return 'Restore could not be durably saved. Device storage may be full or temporarily unavailable. Your earlier records were kept. Free space without clearing Momentum site data and retry.';
     case 'BACKUP_LOCKS_UNAVAILABLE':
     case 'RESTORE_LOCKS_UNAVAILABLE':
       return 'This browser does not support the storage locking needed for this operation. Open Momentum in an updated compatible browser and try again.';
