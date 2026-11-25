@@ -39,7 +39,7 @@ export const useProfileStore = create(
       updateProfile: (updates) => {
         // Persist once through Zustand, not a second concurrent write
         // composed from stale localStorage.
-        set(updates);
+        return set(updates);
       },
 
       setAvatar: (avatar) => {
