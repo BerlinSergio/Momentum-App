@@ -619,6 +619,10 @@ async function biometricAssertionIntegrity(browser) {
     const page = await context.newPage();
     await page.bringToFront();
     await boot(page,'security');
+    await page.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000,polling:200});
     const session = await page.createCDPSession();
     await session.send('WebAuthn.enable');
     await session.send('WebAuthn.addVirtualAuthenticator', {options:{
@@ -630,6 +634,11 @@ async function biometricAssertionIntegrity(browser) {
       const key = svc.BIOMETRIC_CREDENTIAL_STORAGE_KEY;
       localStorage.setItem(key,'bGVnYWN5');
       const legacy = await svc.authenticateBiometrics();
+      const noPin = await svc.registerBiometrics();
+      const creds = await import('/src/utils/credentialService.js');
+      const db = await import('/src/storage/db.js');
+      const setup = await creds.createCredential('2468');
+      if (!setup.success) return {setupError:setup.error};
       const registered = await svc.registerBiometrics();
       if (!registered.success) return {registrationError:registered.error};
       const enrollment = JSON.parse(localStorage.getItem(key));
@@ -665,11 +674,28 @@ async function biometricAssertionIntegrity(browser) {
       const challenge = await tamper('challenge');
       const uv = await tamper('uv');
       const revoked = await tamper('revoked');
-      return {legacyRejected:!legacy.success,registered:registered.success,version:enrollment.version,
-        good:good.success,signature,credential,challenge,uv,revoked};
+      // Restore the synthetic record only to test invalidation independently
+      // of localStorage cleanup. No real user credentials are used.
+      localStorage.setItem(key,JSON.stringify(enrollment));
+      const metaKey = 'momentum-security-storage';
+      const before = await db.getCommittedStoreRecord(metaKey);
+      await db.compareAndSwapDomainStore(metaKey,{...before.value,state:{...before.value.state,biometricsEnabled:true}},before);
+      const rotation = await creds.changeCredential('2468','1357');
+      const oldRejected = !(await svc.authenticateBiometrics()).success;
+      const disabled = (await db.getStoreItem(metaKey)).state.biometricsEnabled === false;
+      const renewed = await svc.registerBiometrics();
+      const renewedValid = (await svc.authenticateBiometrics()).success;
+      const removed = await creds.removeCredential('1357');
+      const removedRejected = !(await svc.authenticateBiometrics()).success;
+      const recreated = await creds.createCredential('9753');
+      const recreatedRejected = !(await svc.authenticateBiometrics()).success;
+      return {legacyRejected:!legacy.success,noPinRejected:!noPin.success,registered:registered.success,version:enrollment.version,
+        good:good.success,signature,credential,challenge,uv,revoked,rotation:rotation.success,oldRejected,disabled,
+        renewed:renewed.success,renewedValid,removed:removed.success,removedRejected,recreated:recreated.success,recreatedRejected};
     });
-    assert.deepEqual(results,{legacyRejected:true,registered:true,version:2,good:true,
-      signature:true,credential:true,challenge:true,uv:true,revoked:true});
+    assert.deepEqual(results,{legacyRejected:true,noPinRejected:true,registered:true,version:3,good:true,
+      signature:true,credential:true,challenge:true,uv:true,revoked:true,rotation:true,oldRejected:true,disabled:true,
+      renewed:true,renewedValid:true,removed:true,removedRejected:true,recreated:true,recreatedRejected:true});
     console.log('PASS: virtual WebAuthn enrollment and signed assertions reject tampering and revocation.');
   } finally { await context.close(); }
 }
