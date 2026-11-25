@@ -720,20 +720,27 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
 
     onProgress({ stage: 'REHYDRATING', percent: 95, message: 'Rehydrating application state...' });
 
-    // 7. Rehydrate in-memory Zustand persistent stores
+    // 7. The durable restore has already committed. A session hydration
+    // failure must not be presented as either a rollback or a fully ready UI.
+    let requiresReload = false;
     if (typeof window !== 'undefined') {
       try {
         const startup = await import('./startupController.js');
-        await startup.hydrateAllStores(3000);
+        const hydrated = await startup.hydrateAllStores();
+        requiresReload = hydrated?.success !== true;
       } catch (hydrateErr) {
+        requiresReload = true;
         console.warn('[BackupService] Rehydration warning:', hydrateErr);
       }
     }
 
-    onProgress({ stage: 'COMPLETE', percent: 100, message: 'Restoration completed successfully!' });
+    onProgress(requiresReload
+      ? { stage: 'RELOAD_REQUIRED', percent: 100, message: 'Restore saved. Restart Momentum to load the restored data before editing.' }
+      : { stage: 'COMPLETE', percent: 100, message: 'Restoration completed successfully!' });
 
     return {
-      success: true,
+      success: true, // Durable commit, not a guarantee of session readiness.
+      requiresReload,
       mode,
       restoredAt: new Date().toISOString(),
       manifest: decrypted.manifest,
