@@ -366,6 +366,6 @@ export async function completeBiometricUnlock(receipt, onUnlock) {
         value?.state?.hasPin !== true || value?.state?.isAppLockActive !== true || value?.state?.biometricsEnabled !== true) {
       return {success:false,error:'Biometric authorization expired or security settings changed. Verify again.'};
     }
-    return {success:onUnlock() === true};
+    return {success:onUnlock({pinRevision:revision,method:'biometric'}) === true};
   });
 }
