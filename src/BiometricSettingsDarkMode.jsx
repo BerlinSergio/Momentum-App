@@ -3,7 +3,8 @@ import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useSecurityStore } from './store/useSecurityStore';
-import { registerBiometrics, clearBiometricCredential } from './utils/biometricAuth';
+import { clearBiometricCredential } from './utils/biometricAuth';
+import BiometricEnrollmentDialog from './components/BiometricEnrollmentDialog';
 import { Fingerprint, ArrowLeft } from 'lucide-react';
 import { toast } from './components/ui/toast/index.js';
 
@@ -11,6 +12,7 @@ export default function BiometricSettingsDarkMode({ setActiveTab, goBack }) {
   const { t } = useTranslation();
   const { isAppLockActive, lockReflections, biometricsEnabled, setAppLockActive, setLockReflections, setBiometricsEnabled, updatePreferences } = useSecurityStore();
   const hasPin = useSecurityStore((s) => s.hasPin);
+  const [bioPrompting, setBioPrompting] = useState(false);
 
   const showToast = (msg) => {
     if (typeof msg === 'string') {
@@ -28,29 +30,23 @@ export default function BiometricSettingsDarkMode({ setActiveTab, goBack }) {
   };
 
   const handleToggleBiometrics = async () => {
+    if (bioPrompting) return;
     if (biometricsEnabled) {
-      clearBiometricCredential();
-      setBiometricsEnabled(false);
-      showToast(t('toasts.bioDisabled', 'Biometric unlock disabled.'));
+      try {
+        const result = await setBiometricsEnabled(false);
+        if (result?.success === false) { toast.error(result.error); return; }
+        clearBiometricCredential();
+        toast.info(t('toasts.bioDisabled', 'Biometric unlock disabled.'));
+      } catch {
+        toast.error(t('security.saveFailed', 'Security preferences could not be saved.'));
+      }
       return;
     }
-
-    try {
-      const res = await registerBiometrics({
-        title: 'Momentum Security',
-      });
-      if (res.success) {
-        setBiometricsEnabled(true);
-        showToast(t('toasts.bioRegistered', 'Biometric authentication registered and enabled!'));
-      } else {
-        const msg = res.cancelled
-          ? 'Biometric registration cancelled.'
-          : (res.error || 'Biometrics not supported on this device.');
-        showToast(msg);
-      }
-    } catch {
-      showToast(t('toasts.bioFailed', 'Biometric registration failed.'));
+    if (!hasPin) {
+      toast.error(t('security.pinRequiredForBiometrics', 'Set up your PIN before enabling biometric unlock.'));
+      return;
     }
+    setBioPrompting(true);
   };
 
   return (
@@ -100,7 +96,7 @@ export default function BiometricSettingsDarkMode({ setActiveTab, goBack }) {
 <span className="font-label-sm text-label-sm text-primary font-medium mt-0.5">{t('security.platformBiometric', 'Platform Biometric Authentication (WebAuthn)')}</span>
 </div>
 {/*  Interactive Toggle  */}
-<button onClick={handleToggleBiometrics} aria-checked={biometricsEnabled} className={`relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${biometricsEnabled ? 'bg-gradient-to-r from-primary to-secondary' : 'bg-slate-700'}`} id="master-toggle" role="switch">
+<button onClick={handleToggleBiometrics} disabled={bioPrompting} aria-checked={biometricsEnabled} className={`relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${biometricsEnabled ? 'bg-gradient-to-r from-primary to-secondary' : 'bg-slate-700'}`} id="master-toggle" role="switch">
 <span className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out mt-0.5 ml-0.5 ${biometricsEnabled ? 'translate-x-6' : 'translate-x-0'}`} id="master-thumb"></span>
 </button>
 </div>
@@ -179,6 +175,7 @@ export default function BiometricSettingsDarkMode({ setActiveTab, goBack }) {
 </div>
 </div>
 </main>
+      {bioPrompting && <BiometricEnrollmentDialog isDarkMode={true} onClose={() => setBioPrompting(false)} />}
     </>
   );
 }
