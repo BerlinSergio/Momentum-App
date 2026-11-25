@@ -478,31 +478,9 @@ export function getShamsiDate(date = new Date(), timeZone) {
 }
 
 export function getIslamicDateParts(date = new Date(), timeZone) {
-  try {
-    const options = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    };
-    if (timeZone) {
-      options.timeZone = timeZone;
-    }
-    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', options).formatToParts(date);
-
-    let hy = 1448;
-    let hm = 'Jumada I';
-    let hd = 15;
-
-    for (const p of parts) {
-      if (p.type === 'year') hy = p.value;
-      if (p.type === 'month') hm = p.value;
-      if (p.type === 'day') hd = p.value;
-    }
-
-    return { hy, hm, hd, formatted: `${hd} ${hm} ${hy} AH` };
-  } catch {
-    return { hy: '1448', hm: 'Rabi\' al-Thani', hd: '13', formatted: '13 Rabi\' al-Thani 1448 AH' };
-  }
+  // Read numeric Hijri parts rather than WebView-dependent month labels.
+  const {hy, hm, hd, monthName, formatted} = getHijriDateParts(date, timeZone);
+  return { hy: String(hy), hm: monthName, hd: String(hd), monthIndex: hm, formatted };
 }
 
 export function findFirstDayOfShamsiMonth(jy, jm) {
