@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import NotePreviewCard from './components/NotePreviewCard';
@@ -239,7 +240,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
       </div>
 
       {/* 6. PREMIUM EXTENDED FLOATING NEW NOTE FAB & COMPACT POPOVER */}
-      <div className="fixed bottom-24 right-5 z-50">
+      {createPortal(<div className="fixed bottom-[calc(6rem+var(--momentum-inset-bottom))] right-[calc(1.25rem+var(--momentum-inset-right))] z-[70]" data-testid="note-fab-layer">
         {/* Floating Pop-up Menu */}
         <NewNoteFloatingMenu
           isOpen={isMenuOpen}
@@ -263,13 +264,13 @@ export default function NotesMainLightMode({ setActiveTab }) {
           <PenTool className={`w-4 h-4 stroke-[2.2] text-white transition-transform duration-200 ${isMenuOpen ? 'rotate-45' : 'group-hover:rotate-6'}`}/>
           <span>{t('notes.newNote', 'New Note')}</span>
         </button>
-      </div>
+      </div>, document.body)}
 
       {/* 7. INTERACTIVE ARCHIVE DRAWER MODAL */}
-      {isArchiveOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      {isArchiveOpen && createPortal(
+        <div className="momentum-picker-overlay flex items-end justify-center">
           <div onClick={() => setIsArchiveOpen(false)} className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity cursor-pointer" />
-          <div className="relative z-10 w-full max-w-md max-h-[85vh] bg-white border-t border-slate-200 rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4 animate-in slide-in-from-bottom duration-200">
+          <div role="dialog" aria-modal="true" aria-label={t('notes.archivedNotes', 'Archived Notes & Journals')} className="momentum-picker-panel relative z-10 w-full max-w-md bg-white border-t border-slate-200 rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4 animate-in slide-in-from-bottom duration-200">
             <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto shrink-0 mb-1" />
             
             <div className="flex items-center justify-between shrink-0">
@@ -330,7 +331,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
               Back to Notes Dashboard
             </button>
           </div>
-        </div>
+        </div>, document.body
       )}
 
     </div>
