@@ -4,7 +4,7 @@
  * or corrupting existing user records. Fully idempotent and safe against mid-run interruptions.
  */
 
-import { getStoreItem, setStoreItem, getMigrationMeta, setMigrationMeta } from './db.js';
+import { getStoreItem, setStoreItem, getMigrationMeta, setMigrationMeta, getCommittedStoreRecord, compareAndSwapDomainStore } from './db.js';
 import { migrateLegacyNoteAttachments } from './attachmentStorage.js';
 
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -33,7 +33,7 @@ export const LEGACY_STORAGE_KEYS = [
  *
  * @returns {Promise<{ success: boolean, migratedCount: number, skippedCount: number, details: Object }>}
  */
-export async function runStorageMigration() {
+export async function runStorageMigration({ migrateCredential } = {}) {
   if (typeof window === 'undefined' || !window.localStorage) {
     return { success: true, migratedCount: 0, skippedCount: 0, details: { reason: 'No localStorage available' } };
   }
@@ -63,30 +63,23 @@ export async function runStorageMigration() {
       // Check if already present in destination IndexedDB
       const existingInIdb = await getStoreItem(key);
       if (existingInIdb && existingInIdb.state) {
-        // Sanitize any existing plaintext security credentials in IndexedDB
+        // An IndexedDB-only legacy PIN must survive until the credential
+        // service commits its verifier. Never strip the only source first.
         if (domain === 'security' && (existingInIdb.state.pin || existingInIdb.state.alphanumeric)) {
-          const hasPin = Boolean(
-            existingInIdb.state.hasPin ||
-            (existingInIdb.state.pin && String(existingInIdb.state.pin).trim().length === 4)
-          );
-          const sanitizedRecord = {
-            ...existingInIdb,
-            state: {
-              ...existingInIdb.state,
-              pin: '',
-              alphanumeric: '',
-              hasPin,
-            },
-          };
-          const sanitizationSaved = await setStoreItem(key, sanitizedRecord);
-          if (sanitizationSaved !== true) {
-            migrationSummary.errors.push({ key, error: 'Security sanitization was not committed' });
+          if (typeof migrateCredential !== 'function') {
+            migrationSummary.errors.push({ key, error: 'Credential migration callback required' });
           } else {
-            // A commit acknowledgement is necessary but not a substitute for
-            // validating the authoritative IndexedDB record after migration.
-            const persisted = await getStoreItem(key);
-            if (JSON.stringify(persisted) !== JSON.stringify(sanitizedRecord)) {
-              migrationSummary.errors.push({ key, error: 'Security sanitization read-back mismatch' });
+            const migrated = await migrateCredential();
+            if (migrated?.error) {
+              migrationSummary.errors.push({ key, error: 'Credential migration failed' });
+            } else {
+              const snapshot = await getCommittedStoreRecord(key);
+              const payload = typeof snapshot?.value === 'string'
+                ? JSON.parse(snapshot.value) : snapshot?.value;
+              if (payload?.state?.pin || payload?.state?.alphanumeric) {
+                const state = { ...payload.state, pin: '', alphanumeric: '' };
+                await compareAndSwapDomainStore(key, { ...payload, state }, snapshot);
+              }
             }
           }
         }
@@ -141,11 +134,14 @@ export async function runStorageMigration() {
         }
 
         // Write to IndexedDB
-        const writeSuccess = await setStoreItem(key, transformedState, {
-          migratedFrom: usedKey,
-          domain,
-          migratedAt: Date.now(),
-        });
+        // Security import cannot overwrite a concurrent credential transition.
+        const writeSuccess = domain === 'security'
+          ? Boolean(await compareAndSwapDomainStore(key, transformedState, null))
+          : await setStoreItem(key, transformedState, {
+              migratedFrom: usedKey,
+              domain,
+              migratedAt: Date.now(),
+            });
 
         if (writeSuccess === true) {
           // Verify a committed read-back before counting this legacy key as migrated.
@@ -172,6 +168,16 @@ export async function runStorageMigration() {
 
     // 3. Verify destination integrity
     let hasCriticalErrors = migrationSummary.errors.length > 0;
+    if (!hasCriticalErrors && typeof migrateCredential === 'function') {
+      // Close the one-time plaintext import boundary ONLY after the
+      // credential transaction has completed. A failed or interrupted import
+      // leaves this marker absent and can be retried on startup.
+      const credential = await migrateCredential();
+      if (credential?.error) {
+        migrationSummary.errors.push({ key: 'momentum-credential-verifier', error: 'Credential migration failed' });
+        hasCriticalErrors = true;
+      }
+    }
     if (!hasCriticalErrors) {
       const markerCommitted = await setMigrationMeta(MIGRATION_KEY, {
         version: CURRENT_SCHEMA_VERSION,
