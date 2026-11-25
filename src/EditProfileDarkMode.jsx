@@ -119,42 +119,39 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSave = () => {
-    if (saveStatus !== 'idle') return;
+  const saveInFlight = useRef(false);
+  const handleSave = async () => {
+    if (saveInFlight.current || saveStatus !== 'idle') return;
+    saveInFlight.current = true;
     setSaveStatus('saving');
     const payload = { fullName: fullName.trim(), email: email.trim(), avatar, currency, timezone, city, calculationConvention, hijriShamsi, lastSynced: new Date().toISOString() };
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const raw = window.localStorage.getItem('momentum-profile-storage');
-        const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-        parsed.state = { ...(parsed.state || {}), ...payload, _hasHydrated: true };
-        window.localStorage.setItem('momentum-profile-storage', JSON.stringify(parsed));
+      await updateProfile(payload);
+      // The profile is committed first. Prayer calculation synchronization
+      // reports its own error; never write an unverified localStorage mirror.
+      if (usePrayerStore.getState().calculationMethod !== calculationConvention) {
+        await usePrayerStore.getState().setCalculationMethod?.(calculationConvention);
       }
-    } catch (e) {
-      console.warn('Direct storage sync warning:', e);
-    }
-    updateProfile(payload);
-    try {
-      usePrayerStore.getState().setCalculationMethod?.(calculationConvention);
-    } catch (e) {
-      void e;
-    }
-    setTimeout(() => {
       setSaveStatus('saved');
       toast.success(t('toasts.profileUpdated', 'Profile updated successfully'));
-      setTimeout(() => {
-        if (goBack) goBack('settings_profile_dark_mode');
-        else if (setActiveTab) setActiveTab('settings_profile_dark_mode');
-        else window.history.back();
-      }, 350);
-    }, 450);
+      if (goBack) goBack('settings_profile_dark_mode');
+      else if (setActiveTab) setActiveTab('settings_profile_dark_mode');
+      else window.history.back();
+    } catch (error) {
+      console.error('[Profile] Save failed:', error);
+      setSaveStatus('idle');
+      toast.error(t('storage.profileConflictTitle', 'Profile changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+    }
   };
 
   const isDirty = fullName !== (profile.fullName || '') ||
     email !== (profile.email || '') ||
     currency !== (profile.currency || 'AFN / ؋ (Afghan Afghani)') ||
     timezone !== (profile.timezone || 'Asia/Kabul (UTC+4:30)') ||
-    city !== (profile.city || 'Kabul, Afghanistan');
+    city !== (profile.city || 'Kabul, Afghanistan') ||
+    avatar !== (profile.avatar || null) || calculationConvention !== profile.calculationConvention || hijriShamsi !== profile.hijriShamsi;
 
   const handleDiscard = async () => {
     if (isDirty) {
@@ -252,32 +249,7 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
             </div>
           </div>
         </div>
-            <div className="rounded-3xl p-5 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl flex flex-col items-center w-full">
-              {/* BOTTOM ACTION BUTTONS */}
-        <div className="pt-2 relative z-0 flex flex-col items-center">
-          <button type="button" onClick={handleSave} disabled={saveStatus !== 'idle'} className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99] transition-transform">
-            {saveStatus === 'saving' ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                <span>{t('profile.savingChanges', 'Saving Changes...')}</span>
-              </>
-            ) : saveStatus === 'saved' ? (
-              <>
-                <Check className="w-4 h-4 text-white" />
-                <span>{t('settings.changesSaved', 'Changes Saved!')}</span>
-              </>
-            ) : (
-              <>
-                <span>{t('settings.saveChanges', 'Save Changes')}</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-          <button type="button" onClick={handleDiscard} className="w-full py-3 mt-3 text-center text-sm font-medium text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-2xl transition-all duration-150 cursor-pointer shadow-sm active:scale-[0.99] flex items-center justify-center">
-            {t('settings.discardChanges', 'Discard Changes')}
-          </button>
-        </div>
-            </div>
+            
           </div>
 
           {/* ── RIGHT COLUMN (Cols 6-12 on Desktop): Regional & Spiritual ── */}
@@ -379,6 +351,32 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
           </div>
         </div>
           </div>
+          <div className="rounded-3xl p-5 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl flex flex-col items-center w-full mt-4 lg:col-span-12">
+              {/* BOTTOM ACTION BUTTONS */}
+        <div className="w-full flex flex-col sm:flex-row gap-3 items-stretch">
+          <button type="button" onClick={handleSave} disabled={saveStatus !== 'idle'} className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99] transition-transform">
+            {saveStatus === 'saving' ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                <span>{t('profile.savingChanges', 'Saving Changes...')}</span>
+              </>
+            ) : saveStatus === 'saved' ? (
+              <>
+                <Check className="w-4 h-4 text-white" />
+                <span>{t('settings.changesSaved', 'Changes Saved!')}</span>
+              </>
+            ) : (
+              <>
+                <span>{t('settings.saveChanges', 'Save Changes')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+          <button type="button" onClick={handleDiscard} className="w-full py-3 text-center text-sm font-medium text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 rounded-2xl transition-all duration-150 cursor-pointer shadow-sm active:scale-[0.99] flex items-center justify-center">
+            {t('settings.discardChanges', 'Discard Changes')}
+          </button>
+        </div>
+            </div>
         </div>
       </main>
     </>
