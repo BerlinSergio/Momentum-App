@@ -74,6 +74,7 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
               queueMicrotask(() => {
                 req.result = [...table.values()];
                 req.onsuccess?.({ target: req });
+                tx.oncomplete?.({ target: tx });
               });
               return req;
             },
@@ -255,5 +256,58 @@ test('restore containing separate-database custom wallpapers is rejected before 
     assert.equal(fixture.records.size, 0);
     assert.equal(fixture.attachments.size, 0);
     assert.equal(fixture.localWrites.size, 0);
+  }, () => fixture.db.onclose?.());
+});
+
+test('backup aborts instead of silently dropping an unreadable attachment', async () => {
+  const fixture = fakeDatabase();
+  fixture.attachments.set('unreadable-file', { id: 'unreadable-file', blob: 'not-a-blob-or-data-url' });
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      /Backup aborted: attachment unreadable-file could not be bundled/
+    );
+    assert.equal(fixture.attachments.has('unreadable-file'), true);
+  }, () => fixture.db.onclose?.());
+});
+
+test('backup rejects a failed wallpaper query rather than producing an incomplete archive', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(storeNames, mode) {
+    if (storeNames === 'wallpapers') throw new Error('Injected wallpaper database read error');
+    return original.call(this, storeNames, mode);
+  };
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      /Injected wallpaper database read error/
+    );
+  }, () => fixture.db.onclose?.());
+});
+
+test('backup refuses a wallpaper transaction aborted after request success', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(storeNames, mode) {
+    if (storeNames !== 'wallpapers') return original.call(this, storeNames, mode);
+    const tx = { oncomplete: null, onabort: null, onerror: null };
+    tx.objectStore = () => ({
+      getAll() {
+        const req = { result: [], onsuccess: null, onerror: null };
+        queueMicrotask(() => {
+          req.onsuccess?.({ target: req });
+          tx.onabort?.({ target: tx });
+        });
+        return req;
+      },
+    });
+    return tx;
+  };
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      /wallpaper read transaction aborted/
+    );
   }, () => fixture.db.onclose?.());
 });

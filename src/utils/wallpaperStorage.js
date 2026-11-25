@@ -236,6 +236,51 @@ export async function getAllCustomWallpapersFromIndexedDB() {
 }
 
 /**
+ * Strict full-wallpaper snapshot for encrypted backups.
+ * UI best-effort reads may return [] on unavailable storage, but backups MUST
+ * distinguish a genuinely empty wallpaper table from a failed/blocked read.
+ * The connection is closed after the read and late opens are also cleaned up.
+ */
+export async function getAllCustomWallpapersForBackup(timeoutMs = 20000) {
+  let timeoutId;
+  const read = (async () => {
+    const db = await openWallpaperDB();
+    if (!db) throw new Error('Backup aborted: wallpaper IndexedDB is unavailable');
+    try {
+      return await new Promise((resolve, reject) => {
+        try {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const req = tx.objectStore(STORE_NAME).getAll();
+          let records = [];
+          req.onsuccess = () => { records = req.result || []; };
+          req.onerror = () => reject(req.error || new Error('Backup aborted: wallpaper record read failed'));
+          tx.onabort = () => reject(tx.error || new Error('Backup aborted: wallpaper read transaction aborted'));
+          tx.oncomplete = () => resolve(records);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    } finally {
+      db.close();
+    }
+  })();
+
+  try {
+    return await Promise.race([
+      read,
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error('Backup aborted: wallpaper database read timed out')),
+          timeoutMs
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Delete a custom wallpaper from IndexedDB
  */
 export async function deleteWallpaperFromIndexedDB(id) {

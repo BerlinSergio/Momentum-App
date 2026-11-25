@@ -6,6 +6,7 @@ on:
       - fix/db-durable-writes-20261125
       - fix/db-phase23-integrity-20261125
       - fix/db-phase24-atomic-restore-20261125
+      - fix/db-phase25-backup-completeness-20261125
   workflow_dispatch:
 
 permissions:
