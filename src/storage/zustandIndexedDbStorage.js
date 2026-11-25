@@ -4,7 +4,32 @@
  * serialized FIFO write queues and a post-commit localStorage mirror.
  */
 
-import { getStoreItem, setStoreItem, removeStoreItem } from './db.js';
+import {
+  getStoreItem, setStoreItem, removeStoreItem,
+  getCommittedStoreRecord, compareAndSwapTaskStore,
+} from './db.js';
+
+const TASK_STORE = 'momentum-task-storage';
+let taskStorageFailure = null;
+
+/** A retained, non-sensitive warning until the user reloads authoritative data. */
+export function getTaskStorageFailure() {
+  return taskStorageFailure;
+}
+
+function notifyTaskStorageFailure(error) {
+  if (!taskStorageFailure) {
+    taskStorageFailure = {
+      code: error?.code || 'TASK_STORAGE_UNAVAILABLE',
+      message: error?.message || 'Task data could not be safely saved',
+    };
+  }
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' &&
+      typeof CustomEvent !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('momentum:task-storage-failure', { detail: taskStorageFailure }));
+  }
+}
+
 
 // Per-key FIFO write queues to guarantee strict sequential consistency
 const writeQueues = new Map();
@@ -32,7 +57,21 @@ function enqueueWrite(key, task) {
  * @param {boolean} [options.mirrorToLocalStorage=true] - Mirror committed small payloads only
  */
 export function createIndexedDbStorage(options = {}) {
-  const { mirrorToLocalStorage = true } = options;
+  const { mirrorToLocalStorage = true, optimisticTaskWrites = false } = options;
+  // This baseline belongs to one tab/adapter instance and is obtained from
+  // the committed IndexedDB record at coordinated hydration, never a mirror.
+  let taskBaseline = undefined;
+  const isGuarded = name => optimisticTaskWrites && name === TASK_STORE;
+  const parsedState = value => {
+    if (typeof value !== 'string') return value;
+    try { return JSON.parse(value); } catch { return null; }
+  };
+  const sameTaskItems = (a, b) => {
+    try {
+      return JSON.stringify(parsedState(a)?.state?.tasks || []) ===
+             JSON.stringify(parsedState(b)?.state?.tasks || []);
+    } catch { return false; }
+  };
 
   return {
     /**
@@ -42,6 +81,13 @@ export function createIndexedDbStorage(options = {}) {
       try {
         // IndexedDB is authoritative. Only runStorageMigration may import
         // legacy localStorage: otherwise stale mirrors can revive deleted data.
+        if (isGuarded(name)) {
+          const record = await getCommittedStoreRecord(name);
+          taskBaseline = record;
+          if (!record) return null;
+          const value = record.value;
+          return typeof value === 'string' ? value : JSON.stringify(value);
+        }
         const idbValue = await getStoreItem(name);
         if (idbValue === null || idbValue === undefined) return null;
         return typeof idbValue === 'string' ? idbValue : JSON.stringify(idbValue);
@@ -63,9 +109,34 @@ export function createIndexedDbStorage(options = {}) {
         } catch {
           parsed = value;
         }
-        const ok = await setStoreItem(name, parsed);
-        if (ok !== true) {
-          throw new Error(`[Momentum Storage] Durable save failed for store "${name}"`);
+        if (isGuarded(name)) {
+          if (taskStorageFailure) {
+            const error = new Error(taskStorageFailure.message);
+            error.code = taskStorageFailure.code;
+            throw error;
+          }
+          if (taskBaseline === undefined) {
+            const error = new Error('Task write rejected before authoritative IndexedDB hydration');
+            error.code = 'TASK_HYDRATION_REQUIRED';
+            notifyTaskStorageFailure(error);
+            throw error;
+          }
+          // setHasHydrated/editingTaskId mutate transient in-memory state; they
+          // must not cause a spurious whole-task-domain write or revision bump.
+          if (sameTaskItems(parsed, taskBaseline?.value)) return true;
+
+          try {
+            const committed = await compareAndSwapTaskStore(name, parsed, taskBaseline);
+            taskBaseline = committed;
+          } catch (error) {
+            notifyTaskStorageFailure(error);
+            throw error;
+          }
+        } else {
+          const ok = await setStoreItem(name, parsed);
+          if (ok !== true) {
+            throw new Error(`[Momentum Storage] Durable save failed for store "${name}"`);
+          }
         }
 
         // Mirror only committed data, never speculative changes from an
@@ -86,6 +157,14 @@ export function createIndexedDbStorage(options = {}) {
      */
     removeItem: async (name) => {
       return enqueueWrite(name, async () => {
+        // A stale tab must NEVER delete the entire current task record by
+        // bypassing our compare-and-swap protocol.
+        if (isGuarded(name)) {
+          const error = new Error('Deleting the task domain requires a reviewed conflict-aware reset');
+          error.code = 'TASK_DELETE_UNSUPPORTED';
+          notifyTaskStorageFailure(error);
+          throw error;
+        }
         // Do not erase the durable mirror until IndexedDB deletion commits.
         const ok = await removeStoreItem(name);
         if (ok !== true) {
