@@ -1,0 +1,44 @@
+name: Momentum DB Durable Writes Regression
+
+on:
+  push:
+    branches:
+      - fix/db-durable-writes-20261125
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storage-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies from lockfile
+        run: npm ci --no-fund
+      - name: Durable database and navigation regression
+        run: node --test tests/storage/dbDurability.test.mjs tests/navigation/themeNavigation.test.mjs
+      - name: Production build
+        run: npm run build
+      - name: Start isolated Vite server
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/momentum-vite.log 2>&1 &
+          for i in $(seq 1 70); do
+            if curl --silent --fail http://127.0.0.1:5173/ >/dev/null; then
+              echo "Vite test server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/momentum-vite.log
+          exit 1
+      - name: Existing note deletion/persistence browser test
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/notes/test_note_delete_confirmation.cjs
