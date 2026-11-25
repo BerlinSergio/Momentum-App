@@ -23,7 +23,10 @@ Earlier failed runs remain visible in PR history. In particular the external act
 
 ## Startup hardening after verified baseline
 
-Commits `83d7d44`, `fb7051f`, `074bbbf`, `4e84170` return the profile persistence result, move legacy completion into coordinated startup, check committed profile completion, remove direct localStorage fallback and exclude navigation history as proof of legacy use. A Chromium test injects an obsolete mirror after migration and expects fresh onboarding to remain incomplete. These commits require a new successful CI run. Do not substitute baseline results for current HEAD.
+Commits `83d7d44`, `fb7051f`, `074bbbf`, `4e84170` return the profile persistence result, move legacy completion into coordinated startup, check committed profile completion, remove direct localStorage fallback and exclude navigation history as proof of legacy use. A Chromium test injects an obsolete mirror after migration and expects fresh onboarding to remain incomplete. **Confirmed:** both independent CI runs completed successfully:
+- Code commit `4e8417027087420beb803d12e2a098bc6fda6b0f`: [45685837633](https://github.com/BerlinSergio/Momentum-App/actions/runs/45685837633), job 139458100074, 24/24 steps.
+- Code-identical report commit `dfda57525ff1eebacf5c32c7c6424a84d535fe35`: [45685891566](https://github.com/BerlinSergio/Momentum-App/actions/runs/45685891566), job 139458269407, 24/24 steps.
+Both logs explicitly confirm obsolete legacy mirror rejection, startup, cross-tab security, shell confirmation cancellation and signed virtual WebAuthn checks. No failed workflow steps. This report-only update does not change the verified application code.
 
 ## Recovery and security boundary
 
@@ -32,12 +35,12 @@ The four-digit PIN protects the application UI, not an encrypted vault. Direct b
 ## Release gates
 
 - [x] Exact baseline CI result checked and logs reviewed.
-- [ ] Current code HEAD: all configured CI steps must pass.
-- [ ] Repeat security regression for intermittent cross-tab failures; no disabled assertions or suppressed errors.
+- [x] Current application code: all configured CI steps passed twice.
+- [x] Repeat configured security regression passed on two independent runs. This does not prove absence of intermittent defects.
 - [ ] Android physical device and supported WebView: fresh install, upgrade, PIN setup/change/pause/re-enable, background/foreground, process death, biometric enrollment/cancel/revocation and fallback, offline operation and backup/restore.
 - [ ] iOS physical device / supported browser equivalent if included in release scope.
 - [ ] Verify native permissions, notification delivery after process death, device lock behavior and storage pressure.
 - [ ] Review user-facing recovery policy, unsupported devices and mixed-version tabs.
 - [ ] Review dependent PRs and final diff before explicit merge/release authorization.
 
-No main branch, backup, real user storage or release package has been modified by this report. The verified baseline and pending HEAD are distinct. Physical device results and full-project production readiness must not be invented.
+No main branch, backup, real user storage or release package has been modified by this report. The verified application code and any later documentation-only commit are distinct. Physical device results and full-project production readiness must not be invented.
