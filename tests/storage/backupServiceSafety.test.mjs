@@ -35,12 +35,13 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
   const records = new Map();
   const attachments = new Map();
   const wallpapers = new Map();
+  const migration = new Map();
   const localWrites = new Map();
   const db = {
     close() {},
     transaction(storeNames) {
       const targets = Array.isArray(storeNames) ? storeNames : [storeNames];
-      const tables = { stores: records, attachments, wallpapers };
+      const tables = { stores: records, attachments, wallpapers, migration_meta: migration };
       const pending = [];
       let scheduled = false;
       const tx = {
@@ -69,6 +70,15 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
             });
           }
           return {
+            get(key) {
+              const req = { result: null, onsuccess: null, onerror: null };
+              queueMicrotask(() => {
+                req.result = table.get(key) ?? null;
+                req.onsuccess?.({ target: req });
+                tx.oncomplete?.({ target: tx });
+              });
+              return req;
+            },
             getAll() {
               const req = { result: null, onsuccess: null, onerror: null };
               queueMicrotask(() => {
@@ -110,7 +120,7 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
       },
     },
   };
-  return { db, fakeWindow, records, attachments, localWrites };
+  return { db, fakeWindow, records, attachments, migration, localWrites };
 }
 
 test('backup refuses an unavailable IndexedDB rather than exporting a stale mirror', async () => {
@@ -240,7 +250,7 @@ test('attachment transaction abort preserves prior domain and attachment data', 
   }, () => fixture.db.onclose?.());
 });
 
-test('restore containing separate-database custom wallpapers is rejected before any writes', async () => {
+test('cross-database restore without Web Locks fails before writing anything', async () => {
   const fixture = fakeDatabase();
   const envelope = await encryptBackupPayload(JSON.stringify({
     manifest: { version: 1 },
@@ -251,7 +261,7 @@ test('restore containing separate-database custom wallpapers is rejected before 
   await withWindow(fixture.fakeWindow, async () => {
     await assert.rejects(
       restoreBackup(envelope, passphrase),
-      error => error?.code === 'CROSS_DATABASE_RESTORE_UNSAFE'
+      error => error?.code === 'RESTORE_LOCKS_UNAVAILABLE'
     );
     assert.equal(fixture.records.size, 0);
     assert.equal(fixture.attachments.size, 0);

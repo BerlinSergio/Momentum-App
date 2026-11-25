@@ -7,6 +7,7 @@ on:
       - fix/db-phase23-integrity-20261125
       - fix/db-phase24-atomic-restore-20261125
       - fix/db-phase25-backup-completeness-20261125
+      - fix/db-phase26-cross-db-recovery-20261125
   workflow_dispatch:
 
 permissions:
@@ -25,7 +26,7 @@ jobs:
       - name: Install dependencies from lockfile
         run: npm ci --no-fund
       - name: Durable database and navigation regression
-        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/navigation/themeNavigation.test.mjs
+        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/navigation/themeNavigation.test.mjs
       - name: Production build
         run: npm run build
       - name: Start isolated Vite server
@@ -45,6 +46,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_atomic_restore_chromium.cjs
+      - name: Cross-database restore crash recovery Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_cross_db_restore_recovery_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
