@@ -201,6 +201,9 @@ export const GUARDED_DOMAINS = Object.freeze([
   'momentum-task-storage',
   'momentum-notes-storage',
   'momentum-finance-storage',
+  // Phase 2.14: user-owned calendar events and dhikr counters/history.
+  'momentum-calendar-storage-v1',
+  'momentum-tasbeeh-storage',
 ]);
 
 function noteAttachmentIds(snapshot) {
