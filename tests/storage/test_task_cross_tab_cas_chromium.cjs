@@ -10,18 +10,40 @@ const URL = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
 const KEY = 'momentum-task-storage';
 
 async function loadReady(page, label) {
+  const runtimeErrors = [];
+  page.on('pageerror', error => runtimeErrors.push(String(error.stack || error)));
+  page.on('console', msg => {
+    if (msg.type() === 'error') runtimeErrors.push(msg.text().slice(0, 400));
+  });
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
   for (let attempt = 0; attempt < 2; attempt++) {
-    await page.waitForFunction(() => {
-      const hydrated = window.useTaskStore?.persist?.hasHydrated?.() === true &&
-        window.useProfileStore?.persist?.hasHydrated?.() === true;
-      const error = document.querySelector('[role="alert"]')?.textContent?.includes('Cannot safely load saved data');
-      return hydrated || error;
-    }, { timeout: 30000 });
+    try {
+      await page.waitForFunction(() => {
+        const hydrated = window.useTaskStore?.persist?.hasHydrated?.() === true &&
+          window.useProfileStore?.persist?.hasHydrated?.() === true;
+        const error = [...document.querySelectorAll('[role="alert"]')]
+          .some(el => el.textContent?.includes('Cannot safely load saved data'));
+        return hydrated || error;
+      }, { timeout: 18000 });
+    } catch (error) {
+      const snapshot = await page.evaluate(() => ({
+        taskStore: Boolean(window.useTaskStore),
+        profileStore: Boolean(window.useProfileStore),
+        taskHydrated: window.useTaskStore?.persist?.hasHydrated?.() ?? null,
+        profileHydrated: window.useProfileStore?.persist?.hasHydrated?.() ?? null,
+        taskFlag: window.useTaskStore?.getState?.()._hasHydrated ?? null,
+        storageConflict: window.__momentumStorageConflict ?? null,
+        visible: document.body?.innerText?.slice(0, 450) || '',
+      }));
+      throw new Error(label + ' startup diagnostic: ' +
+        JSON.stringify({ snapshot, runtimeErrors: runtimeErrors.slice(0, 8) }), { cause: error });
+    }
     const state = await page.evaluate(() => ({
       tasksReady: window.useTaskStore?.persist?.hasHydrated?.() === true,
       profileReady: window.useProfileStore?.persist?.hasHydrated?.() === true,
-      safeError: Boolean(document.querySelector('[role="alert"]')?.textContent?.includes('Cannot safely load saved data')),
+      safeError: [...document.querySelectorAll('[role="alert"]')].some(
+        el => el.textContent?.includes('Cannot safely load saved data')
+      ),
     }));
     if (state.tasksReady && state.profileReady) return;
     assert.equal(state.safeError, true, label + ' must fail closed');
