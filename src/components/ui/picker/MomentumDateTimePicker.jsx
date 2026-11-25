@@ -381,21 +381,26 @@ export default function MomentumDateTimePicker({
                   <button
                     type="button"
                     data-testid="time-hour-increment"
-                    onClick={() => setDraftHour((h) => (h === 12 ? 1 : h + 1))}
+                    onClick={() => setDraftHour((h) => (Number(h) >= 12 ? 1 : (Number(h) || 1) + 1))}
                     aria-label="Increment Hour"
                     className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300"
                   >
                     <ChevronUp className="w-5 h-5" />
                   </button>
-                  <div className={`w-16 h-14 rounded-2xl flex items-center justify-center border text-2xl font-extrabold ${
+                  <input  className={`w-16 h-14 rounded-2xl text-center border text-2xl font-extrabold ${
                     isDark ? 'bg-black/30 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}>
-                    {String(draftHour).padStart(2, '0')}
-                  </div>
+                  }`}
+                    type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
+                    aria-label={t('pickers.hours')} data-testid="time-hours-input"
+                    value={draftHour}
+                    onFocus={event => event.currentTarget.select()}
+                    onChange={event => setDraftHour(event.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={() => setDraftHour(value => Math.max(1, Math.min(12, Number(value) || 1)))}
+                  />
                   <button
                     type="button"
                     data-testid="time-hour-decrement"
-                    onClick={() => setDraftHour((h) => (h === 1 ? 12 : h - 1))}
+                    onClick={() => setDraftHour((h) => (Number(h) <= 1 ? 12 : Number(h) - 1))}
                     aria-label="Decrement Hour"
                     className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300"
                   >
@@ -411,21 +416,26 @@ export default function MomentumDateTimePicker({
                   <button
                     type="button"
                     data-testid="time-minute-increment"
-                    onClick={() => setDraftMinute((m) => (m + 5) % 60)}
+                    onClick={() => setDraftMinute((m) => ((Number(m) || 0) + 1) % 60)}
                     aria-label="Increment Minute"
                     className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300"
                   >
                     <ChevronUp className="w-5 h-5" />
                   </button>
-                  <div className={`w-16 h-14 rounded-2xl flex items-center justify-center border text-2xl font-extrabold ${
+                  <input  className={`w-16 h-14 rounded-2xl text-center border text-2xl font-extrabold ${
                     isDark ? 'bg-black/30 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                  }`}>
-                    {String(draftMinute).padStart(2, '0')}
-                  </div>
+                  }`}
+                    type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
+                    aria-label={t('pickers.minutes')} data-testid="time-minutes-input"
+                    value={draftMinute}
+                    onFocus={event => event.currentTarget.select()}
+                    onChange={event => setDraftMinute(event.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+                    onBlur={() => setDraftMinute(value => Math.max(0, Math.min(59, Number(value) || 0)))}
+                  />
                   <button
                     type="button"
                     data-testid="time-minute-decrement"
-                    onClick={() => setDraftMinute((m) => (m - 5 + 60) % 60)}
+                    onClick={() => setDraftMinute((m) => ((Number(m) || 0) - 1 + 60) % 60)}
                     aria-label="Decrement Minute"
                     className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300"
                   >
