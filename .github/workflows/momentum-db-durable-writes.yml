@@ -17,6 +17,7 @@ on:
       - fix/db-phase213-notes-finance-cas-20261125
       - fix/db-phase214-calendar-tasbeeh-cas-20261125
       - fix/db-phase215-routine-prayer-cas-20261125
+      - fix/db-phase216-profile-security-integrity-20261125
   workflow_dispatch:
 
 permissions:
@@ -95,6 +96,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_routine_prayer_conflicts_chromium.cjs
+      - name: Profile and Security CAS, PIN verifier revocation and safe reload Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_profile_security_integrity_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
