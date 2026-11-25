@@ -575,3 +575,25 @@ test('QuotaExceededError on recovery journal put leaves no pending journal and f
     assert.equal(await getPendingRestoreJournal(), null);
   }, () => fixture.db.onclose?.());
 });
+
+test('full backup service refuses an oversized media snapshot before any Blob read or encryption', async () => {
+  const fixture = fakeDatabase();
+  const oversizedBlob = Object.create(Blob.prototype);
+  Object.defineProperty(oversizedBlob, 'size', { value: 26 * 1024 * 1024 });
+  let readAttempted = false;
+  oversizedBlob.arrayBuffer = () => {
+    readAttempted = true;
+    throw new Error('Blob must not be read before budget preflight');
+  };
+  fixture.attachments.set('large-file', {
+    id: 'large-file', blob: oversizedBlob, mimeType: 'application/octet-stream',
+  });
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      error => error?.code === 'BACKUP_TOO_LARGE'
+    );
+    assert.equal(readAttempted, false);
+    assert.equal(fixture.attachments.has('large-file'), true);
+  }, () => fixture.db.onclose?.());
+});
