@@ -35,6 +35,9 @@ jobs:
         run: npm ci --no-fund
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - name: Install Android SDK platform
         run: |
           sdkmanager --version
