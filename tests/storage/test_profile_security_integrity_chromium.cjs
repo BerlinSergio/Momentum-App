@@ -622,6 +622,51 @@ async function sharedAttemptLimits(browser) {
   } finally { await context.close(); }
 }
 
+async function freshUnlockReceipts(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage();
+    await boot(a,'security');
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000,polling:200});
+    const created = await a.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      return svc.createCredential('2468');
+    });
+    assert.equal(created.success,true);
+    const prepared = await a.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      window.__qaOldUnlock = await svc.authenticatePin('2468');
+      return window.__qaOldUnlock.success;
+    });
+    assert.equal(prepared,true);
+    const b = await context.newPage();
+    await boot(b,'security');
+    assert.equal((await b.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      return svc.changeCredential('2468','1357');
+    })).success,true);
+    const result = await a.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      let unlocks = 0;
+      const unlock = () => { unlocks++; return true; };
+      const stale = await svc.completePinUnlock(window.__qaOldUnlock,unlock);
+      delete window.__qaOldUnlock;
+      const raw = await svc.verifyCredential('1357');
+      const rawDenied = await svc.completePinUnlock(raw,unlock);
+      const fresh = await svc.authenticatePin('1357');
+      const accepted = await svc.completePinUnlock(fresh,unlock);
+      const replay = await svc.completePinUnlock(fresh,unlock);
+      return {staleDenied:!stale.success,rawDenied:!rawDenied.success,
+        accepted:accepted.success,replayDenied:!replay.success,unlocks};
+    });
+    assert.deepEqual(result,{staleDenied:true,rawDenied:true,accepted:true,replayDenied:true,unlocks:1});
+    console.log('PASS: PIN session unlock rejects obsolete, raw and replayed authorizations across tabs.');
+  } finally { await context.close(); }
+}
+
 async function lockScreenSingleFlight(browser) {
   const context = await browser.createBrowserContext();
   try {
@@ -793,6 +838,7 @@ async function main() {
     await credentialAttemptLimits(browser);
     await durableAttemptReservation(browser);
     await sharedAttemptLimits(browser);
+    await freshUnlockReceipts(browser);
     await lockScreenSingleFlight(browser);
     await biometricAssertionIntegrity(browser);
   } finally { await browser.close(); }
