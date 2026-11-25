@@ -149,41 +149,14 @@ export const DEMO_TASKS = [
 
 export const initialTasks = DEMO_TASKS;
 
-const syncTaskToLocalStorage = (slice) => {
-  try {
-    const raw = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('momentum-task-storage') : null;
-    const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-    parsed.state = { ...(parsed.state || {}), ...slice };
-    taskStorage.setItem('momentum-task-storage', JSON.stringify(parsed)).catch(() => {});
-  } catch (e) {
-    console.warn('[Momentum Tasks] Persistence sync error:', e);
-  }
-};
-
-const getInitialTaskState = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem('momentum-task-storage');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state && Array.isArray(parsed.state.tasks)) {
-          return {
-            tasks: parsed.state.tasks,
-            editingTaskId: null,
-            _hasHydrated: true,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse momentum-task-storage:', e);
-    }
-  }
-  return {
-    tasks: [],
-    editingTaskId: null,
-    _hasHydrated: true,
-  };
-};
+// IndexedDB is authoritative after the one-time runStorageMigration().
+ // Do not prehydrate from a stale localStorage mirror or enqueue a second
+ // task write inside Immer producers: Zustand persist saves the final state.
+ const getInitialTaskState = () => ({
+   tasks: [],
+   editingTaskId: null,
+   _hasHydrated: false,
+ });
 
 export const useTaskStore = create(
   persist(
@@ -214,7 +187,6 @@ export const useTaskStore = create(
             };
             state.tasks.unshift(newTask);
             state.editingTaskId = null;
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -228,7 +200,6 @@ export const useTaskStore = create(
               state.tasks[index] = { ...state.tasks[index], ...changes };
             }
             state.editingTaskId = null;
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -240,7 +211,6 @@ export const useTaskStore = create(
             if (state.editingTaskId === id) {
               state.editingTaskId = null;
             }
-            syncTaskToLocalStorage({ tasks: state.tasks });
             if (typeof window !== 'undefined' && window.nativeNotifications?.cancelNotificationForSource) {
               window.nativeNotifications.cancelNotificationForSource('task', id);
             }
@@ -257,7 +227,6 @@ export const useTaskStore = create(
                 window.nativeNotifications.cancelNotificationForSource('task', taskId);
               }
             }
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -271,7 +240,6 @@ export const useTaskStore = create(
                 sub.completed = !sub.completed;
               }
             }
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -279,13 +247,14 @@ export const useTaskStore = create(
         set(
           produce((state) => {
             state.tasks = state.tasks.filter((t) => t.status !== 'done');
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
     }),
     {
       name: 'momentum-task-storage',
       storage: createJSONStorage(getSafeStorage),
+      // Migration and crash-journal recovery MUST finish before rehydration.
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           if (!Array.isArray(state.tasks)) {
@@ -298,27 +267,9 @@ export const useTaskStore = create(
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-task-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state && Array.isArray(parsed.state.tasks)) {
-        useTaskStore.setState({
-          ...parsed.state,
-          _hasHydrated: true,
-        });
-      } else {
-        useTaskStore.setState({ tasks: [], _hasHydrated: true });
-      }
-    } else {
-      useTaskStore.setState({ tasks: [], _hasHydrated: true });
-    }
-  } catch {
-    useTaskStore.setState({ tasks: [], _hasHydrated: true });
-  }
-}
+// Task state is only marked hydrated by the coordinated IndexedDB rehydrate.
+// The localStorage mirror is never authoritative; legacy import happens once
+// during runStorageMigration() before any user-facing store hydration.
 
 export const getConsistencyScore = (tasks = [], isDark = false) => {
   const windowDates = [];
