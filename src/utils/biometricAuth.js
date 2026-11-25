@@ -10,9 +10,19 @@
  * - Unsupported / Native limitations: Truthfully reported if hardware/browser does not support WebAuthn.
  */
 
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { getCommittedStoreRecord } from '../storage/db.js';
 import { authenticatePin, withPinAttemptLock } from './credentialService.js';
 
+const NativeBiometric = registerPlugin('MomentumBiometric');
+const nativeAndroid = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+const nativeAlias = id => typeof id === 'string' && /^momentum-bio-[a-f0-9-]{36}$/.test(id);
+const enrollmentReceipts = new WeakMap();
+function enrollmentResult(record, method) {
+  const result = {success:true,credentialId:record.id,method};
+  enrollmentReceipts.set(result,{record,issuedAt:performance.now()});
+  return result;
+}
 // Bind device enrollment to a specific durable PIN generation, never its secret.
 async function currentPinRevision() {
   const row = await getCommittedStoreRecord('momentum-credential-verifier');
@@ -61,6 +71,7 @@ function base64ToBuffer(base64) {
  */
 export async function isBiometricSupported() {
   if (typeof window === 'undefined') return false;
+  if (nativeAndroid()) return Capacitor.isPluginAvailable('MomentumBiometric');
   return !!(window.PublicKeyCredential && navigator.credentials);
 }
 
@@ -68,8 +79,10 @@ export async function isBiometricSupported() {
  * Returns true if the device has a platform authenticator (Touch ID, Face ID, Windows Hello, Android Biometrics)
  */
 export async function isPlatformAuthenticatorAvailable() {
-  if (typeof window === 'undefined' || !window.PublicKeyCredential) return false;
+  if (typeof window === 'undefined') return false;
   try {
+    if (nativeAndroid()) return (await NativeBiometric.capability()).available === true;
+    if (!window.PublicKeyCredential) return false;
     if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
       return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     }
@@ -84,11 +97,14 @@ export async function isPlatformAuthenticatorAvailable() {
 function readEnrollment() {
   try {
     const record = JSON.parse(localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY));
-    if (record?.version !== 3 || typeof record.pinRevision !== 'string' || !record.pinRevision || ![-7, -257].includes(record.alg) ||
+    if (!record || typeof record.pinRevision !== 'string' || !record.pinRevision ||
         typeof record.id !== 'string' || !record.id ||
         typeof record.publicKey !== 'string' || !record.publicKey ||
         record.origin !== window.location.origin ||
         record.rpId !== window.location.hostname) return null;
+    if (nativeAndroid()) {
+      if (record.version !== 4 || record.provider !== 'android-keystore' || record.alg !== -7 || !nativeAlias(record.id)) return null;
+    } else if (record.version !== 3 || ![-7,-257].includes(record.alg)) return null;
     return record;
   } catch { return null; }
 }
@@ -147,7 +163,9 @@ async function importVerificationKey(record) {
 export function clearBiometricCredential() {
   if (typeof localStorage === 'undefined') return;
   try {
+    const old = readEnrollment();
     localStorage.removeItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY);
+    if (nativeAndroid() && old?.version === 4) NativeBiometric.deleteKey({alias:old.id}).catch(()=>{});
   } catch (err) {
     console.warn('[BiometricAuth] Failed to remove biometric credential:', err);
   }
@@ -163,7 +181,7 @@ export async function registerBiometrics({
   currentPin,
   signal,
 } = {}) {
-  if (typeof window === 'undefined' || !navigator.credentials) {
+  if (typeof window === 'undefined' || (!nativeAndroid() && !navigator.credentials)) {
     return { success: false, hardwareUnavailable: true, error: 'WebAuthn API unavailable in this environment' };
   }
 
@@ -189,6 +207,33 @@ export async function registerBiometrics({
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
+    if (nativeAndroid()) {
+      const alias = 'momentum-bio-' + crypto.randomUUID();
+      const cancel = () => { NativeBiometric.cancel({alias}).catch(()=>{}); };
+      let committed = false;
+      signal?.addEventListener('abort',cancel,{once:true});
+      try {
+        if (signal?.aborted) return {success:false,cancelled:true,error:'Enrollment cancelled.'};
+        const response = await NativeBiometric.createAndSign({alias,challenge:bufferToBase64(challenge)});
+        const record = {version:4,provider:'android-keystore',pinRevision,id:alias,
+          publicKey:response.publicKey,alg:-7,rpId:window.location.hostname,origin:window.location.origin};
+        const key = await importVerificationKey(record);
+        const valid = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,
+          es256Signature(base64ToBuffer(response.signature)),challenge);
+        if (!valid || signal?.aborted || await currentPinRevision() !== pinRevision ||
+            localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY) !== previousEnrollment) {
+          return {success:false,error:'Biometric verification failed or enrollment changed. Use PIN.'};
+        }
+        const old = readEnrollment();
+        localStorage.setItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY,JSON.stringify(record));
+        committed = true;
+        if (old?.version === 4 && old.id !== alias) NativeBiometric.deleteKey({alias:old.id}).catch(()=>{});
+        return enrollmentResult(record,'android_keystore_registered');
+      } finally {
+        signal?.removeEventListener('abort',cancel);
+        if (!committed) NativeBiometric.deleteKey({alias}).catch(()=>{});
+      }
+    }
     const userBytes = new Uint8Array(16);
     window.crypto.getRandomValues(userBytes);
 
@@ -237,18 +282,14 @@ export async function registerBiometrics({
       }
       localStorage.setItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY, JSON.stringify(record));
 
-      return {
-        success: true,
-        credentialId: credIdBase64,
-        method: 'webauthn_registered',
-      };
+      return enrollmentResult(record,'webauthn_registered');
     }
 
     return { success: false, error: 'Biometric registration produced no credential' };
   } catch (err) {
     console.warn('[BiometricAuth] Registration exception:', err.name, err.message);
 
-    if (err.name === 'NotAllowedError') {
+    if (err.name === 'NotAllowedError' || ['BIO_5','BIO_10','BIO_13'].includes(err.code)) {
       return {
         success: false,
         cancelled: true,
@@ -276,7 +317,7 @@ export async function registerBiometrics({
 const biometricReceipts = new WeakMap();
 
 export async function authenticateBiometrics() {
-  if (typeof window === 'undefined' || !navigator.credentials) {
+  if (typeof window === 'undefined' || (!nativeAndroid() && !navigator.credentials)) {
     return { success: false, hardwareUnavailable: true, error: 'WebAuthn API unavailable' };
   }
 
@@ -296,6 +337,20 @@ export async function authenticateBiometrics() {
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
+    if (nativeAndroid()) {
+      const response = await NativeBiometric.sign({alias:enrollment.id,challenge:bufferToBase64(challenge)});
+      if (response.publicKey !== enrollment.publicKey) throw new Error('Biometric key changed');
+      const key = await importVerificationKey(enrollment);
+      const valid = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,
+        es256Signature(base64ToBuffer(response.signature)),challenge);
+      if (!valid || await currentPinRevision() !== enrollment.pinRevision ||
+          JSON.stringify(readEnrollment()) !== JSON.stringify(enrollment)) {
+        return {success:false,error:'Biometric assertion invalid or enrollment changed. Use PIN.'};
+      }
+      const receipt = {success:true,method:'android_keystore_assertion',id:enrollment.id};
+      biometricReceipts.set(receipt,{enrollment,issuedAt:performance.now()});
+      return receipt;
+    }
     const id = base64ToBuffer(enrollment.id);
     if (!id.length || bufferToBase64(id) !== enrollment.id) throw new Error('Invalid enrolled credential ID');
     const assertion = await navigator.credentials.get({
@@ -329,7 +384,7 @@ export async function authenticateBiometrics() {
   } catch (err) {
     console.warn('[BiometricAuth] Authentication status:', err.name, err.message);
 
-    if (err.name === 'NotAllowedError') {
+    if (err.name === 'NotAllowedError' || ['BIO_5','BIO_10','BIO_13'].includes(err.code)) {
       return {
         success: false,
         cancelled: true,
@@ -367,5 +422,21 @@ export async function completeBiometricUnlock(receipt, onUnlock) {
       return {success:false,error:'Biometric authorization expired or security settings changed. Verify again.'};
     }
     return {success:onUnlock({pinRevision:revision,method:'biometric'}) === true};
+  });
+}
+
+// Enabling biometrics must consume a fresh enrollment under the credential lock.
+export async function completeBiometricEnrollment(receipt, commit) {
+  const expected = receipt && enrollmentReceipts.get(receipt);
+  if (!expected || typeof commit !== 'function') return {success:false,error:'Fresh enrollment required.'};
+  enrollmentReceipts.delete(receipt);
+  return withPinAttemptLock(async () => {
+    const row = await getCommittedStoreRecord('momentum-security-storage');
+    if (performance.now()-expected.issuedAt > 10000 || await currentPinRevision() !== expected.record.pinRevision ||
+        JSON.stringify(readEnrollment()) !== JSON.stringify(expected.record) || row?.value?.state?.hasPin !== true ||
+        row?.value?.state?.isAppLockActive !== true) return {success:false,error:'Security settings changed. Enroll again.'};
+    if (await commit() !== true) return {success:false,error:'Enrollment could not be saved.'};
+    const saved = await getCommittedStoreRecord('momentum-security-storage');
+    return {success:saved?.value?.state?.biometricsEnabled === true};
   });
 }
