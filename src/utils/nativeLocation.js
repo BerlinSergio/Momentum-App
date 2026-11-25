@@ -19,7 +19,7 @@ export async function checkLocationPermission() {
   if (isNativePlatform()) {
     try {
       const status = await Geolocation.checkPermissions();
-      return status.location; // 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
+      return status.location === 'granted' || status.coarseLocation === 'granted' ? 'granted' : status.location;
     } catch (err) {
       console.warn('[NativeLocation] Check permission failed:', err.message);
       return 'denied';
@@ -46,7 +46,7 @@ export async function requestLocationPermission() {
   if (isNativePlatform()) {
     try {
       const status = await Geolocation.requestPermissions({ permissions: ['location'] });
-      return status.location;
+      return status.location === 'granted' || status.coarseLocation === 'granted' ? 'granted' : status.location;
     } catch (err) {
       console.warn('[NativeLocation] Request permission failed:', err.message);
       return 'denied';
@@ -71,7 +71,7 @@ export async function requestLocationPermission() {
  */
 export async function detectAndApplyNativeLocation(options = {}) {
   const highAccuracy = options.highAccuracy !== false;
-  const timeoutMs = options.timeout || 10000;
+  const timeoutMs = Math.max(10000, Number(options.timeout) || 20000);
 
   try {
     let position = null;
@@ -83,7 +83,7 @@ export async function detectAndApplyNativeLocation(options = {}) {
         perm = await requestLocationPermission();
       }
 
-      if (perm === 'denied') {
+      if (perm !== 'granted') {
         return {
           success: false,
           code: 'PERMISSION_DENIED',
@@ -92,11 +92,24 @@ export async function detectAndApplyNativeLocation(options = {}) {
       }
 
       // 2. Fetch native GPS fix
-      position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: highAccuracy,
-        timeout: timeoutMs,
-        maximumAge: 30000,
-      });
+      const permissions = await Geolocation.checkPermissions();
+      const precise = permissions.location === 'granted';
+      try {
+        position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: highAccuracy && precise,
+          timeout: Math.max(timeoutMs, 20000),
+          maximumAge: 30000,
+        });
+      } catch (error) {
+        // Honor Android approximate permission and fall back to the network
+        // provider when a high-accuracy fix times out. Never invent coordinates.
+        if (!highAccuracy || !precise) throw error;
+        const latest = await Geolocation.checkPermissions();
+        if (latest.location !== 'granted' && latest.coarseLocation !== 'granted') throw error;
+        position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy:false, timeout:15000, maximumAge:60000,
+        });
+      }
     } else {
       // Web Browser standard Geolocation
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -141,10 +154,11 @@ export async function detectAndApplyNativeLocation(options = {}) {
       : 'UTC';
 
     // 5. Commit genuine GPS location to location store
-    const applied = useLocationStore.getState().setGpsLocation({
+    const applied = await useLocationStore.getState().setGpsLocation({
       latitude,
       longitude,
-      altitude: altitude || 0,
+      altitude: Number.isFinite(altitude) ? altitude : null,
+      accuracy: Number.isFinite(accuracy) ? accuracy : null,
       city: 'Current Location',
       country: 'GPS Detected',
       timezone: resolvedTz,
@@ -173,13 +187,13 @@ export async function detectAndApplyNativeLocation(options = {}) {
     let code = 'DETECTION_FAILED';
     let message = err.message || 'GPS detection failed';
 
-    if (err.code === 1 || err.message?.includes('denied')) {
+    if (err.code === 1 || /denied|permission/i.test(err.message || '') || err.code === 'OS-PLUG-GLOC-0003') {
       code = 'PERMISSION_DENIED';
       message = 'Location permission was denied by device settings.';
-    } else if (err.code === 2 || err.message?.includes('unavailable')) {
+    } else if (err.code === 2 || /unavailable|disabled|location services/i.test(err.message || '')) {
       code = 'POSITION_UNAVAILABLE';
       message = 'GPS location is currently unavailable. Ensure device location is turned on.';
-    } else if (err.code === 3 || err.message?.includes('timeout')) {
+    } else if (err.code === 3 || /timeout|timed out/i.test(err.message || '')) {
       code = 'TIMEOUT';
       message = 'GPS signal acquisition timed out. Please try again or choose a city manually.';
     }

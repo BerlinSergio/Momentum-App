@@ -374,10 +374,11 @@ export const useLocationStore = create(
       /**
        * Set genuine GPS-detected location coordinates.
        */
-      setGpsLocation: ({
+      setGpsLocation: async ({
         latitude,
         longitude,
         altitude = null,
+        accuracy = null,
         city = 'Current Location',
         country = 'GPS Geocoded',
         timezone = null,
@@ -408,17 +409,18 @@ export const useLocationStore = create(
           latitude: lat,
           longitude: lng,
           elevation: elevFormatted,
-          elevationMeters: elev,
+          elevationMeters: altitude != null ? elev : null,
+          accuracyMeters: accuracy,
           timezone: resolvedTz,
           mode: 'auto',
           status: 'configured',
           source: 'gps',
-          badge: 'GPS Active',
+          badge: Number.isFinite(accuracy) && accuracy > 1000 ? 'Approximate Location' : 'GPS Active',
           icon: 'my_location',
           lastUpdated: new Date().toISOString(),
         };
 
-        set({
+        await set({
           selectedCity: gpsLoc,
           locationMode: 'auto',
           locationStatus: 'configured',
@@ -518,32 +520,9 @@ export const useLocationStore = create(
     {
       name: 'momentum-location-storage',
       storage: createJSONStorage(() => locationStorage),
-      onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          state.setHasHydrated(true);
-        }
-      },
+      skipHydration: true,
     }
   )
 );
 
-// Eager synchronous rehydration
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-location-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state?.selectedCity) {
-        useLocationStore.setState({
-          selectedCity: parsed.state.selectedCity,
-          locationMode: parsed.state.locationMode || parsed.state.selectedCity.mode || 'manual',
-          locationStatus: parsed.state.locationStatus || parsed.state.selectedCity.status || 'configured',
-          lastUpdated: parsed.state.lastUpdated || new Date().toISOString(),
-          _hasHydrated: true,
-        });
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to rehydrate location store:', e);
-  }
-}
+// Location is loaded only by the coordinated IndexedDB startup.

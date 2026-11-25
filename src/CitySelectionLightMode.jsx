@@ -44,13 +44,13 @@ export default function CitySelectionLightMode({ setActiveTab, goBack }) {
       icon: 'my_location',
     }));
 
-    const result = await detectAndApplyNativeLocation({ highAccuracy: true, timeout: 10000 });
+    const result = await detectAndApplyNativeLocation({ highAccuracy: true, timeout: 20000 });
     setIsLocating(false);
 
     if (result.success) {
       const activeLoc = useLocationStore.getState().selectedCity;
       setLocalSelectedCity(activeLoc);
-      toast.success(t('toasts.gpsLocationDetected', 'Current location detected via GPS'));
+      toast.success(result.coords?.accuracy > 1000 ? t('location.approximateLocationDetected','Approximate location detected') : t('toasts.gpsLocationDetected', 'Current location detected via GPS'));
     } else {
       setLocalSelectedCity(globalSelectedCity || CITIES_DATA[0]);
       toast.error(result.error || 'Could not obtain current GPS position');
