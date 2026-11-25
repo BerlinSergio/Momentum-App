@@ -139,3 +139,46 @@ test('failed IndexedDB read rejects rather than restoring stale localStorage', a
     await assert.rejects(adapter.getItem('synthetic-unknown-key'), /Injected read error/);
   });
 });
+
+
+test('startup waits for an asynchronous readiness write before reporting success', async () => {
+  const pending = deferred();
+  const entered = deferred();
+  let complete = false;
+  const store = makeStore().store;
+  store.getState = () => ({ setHasHydrated: () => { entered.resolve(); return pending.promise; } });
+  const result = coordinateHydration({ stores: [{ name: 'security', store }], timeoutMs: 500 });
+  result.then(() => { complete = true; });
+  await entered.promise;
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(complete, false);
+  pending.resolve();
+  assert.deepEqual(await result, { success: true });
+});
+
+test('startup rejects when the readiness write fails', async () => {
+  const store = makeStore().store;
+  store.getState = () => ({ setHasHydrated: async () => { throw new Error('Injected readiness write failure'); } });
+  await assert.rejects(coordinateHydration({ stores: [{ name: 'security', store }], timeoutMs: 500 }),
+    /Injected readiness write failure/);
+});
+
+test('late hydration after timeout never invokes the readiness setter', async () => {
+  const pending = deferred();
+  const blocked = makeStore(pending.promise);
+  await assert.rejects(coordinateHydration({ stores: [{ name: 'security', store: blocked.store }], timeoutMs: 15 }), /timed out/);
+  pending.resolve();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(blocked.isReady(), false);
+});
+
+test('late preparation after timeout does not start store hydration', async () => {
+  const pending = deferred();
+  let started = false;
+  const store = makeStore().store;
+  store.persist.rehydrate = async () => { started = true; };
+  await assert.rejects(coordinateHydration({ stores: [{ name: 'security', store }], prepare: () => pending.promise, timeoutMs: 15 }), /timed out/);
+  pending.resolve();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(started, false);
+});
