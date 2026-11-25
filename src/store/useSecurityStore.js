@@ -134,7 +134,9 @@ async function removePinSafely(currentPin) {
   return finishCredentialTransition(await removeCredential(currentPin));
 }
 
-export const useSecurityStore = create(
+// Capture the vanilla Zustand setter outside persist. A session-only lock
+// transition must never enqueue a whole-domain durable snapshot.
+export const useSecurityStore = create((setTransient, get, api) =>
   persist(
     (set) => ({
       ...getInitialSecurityState(),
@@ -143,7 +145,7 @@ export const useSecurityStore = create(
         set({ _hasHydrated: !!hasHydrated }),
 
       setLocked: (locked) =>
-        set((state) => {
+        setTransient((state) => {
           const next = typeof locked === 'function' ? locked(state.isLocked) : !!locked;
           return { isLocked: next };
         }),
@@ -292,7 +294,7 @@ export const useSecurityStore = create(
       // The central StartupController owns the post-migration readiness flag.
       // Never trigger a second whole-state write during rehydration.
     }
-  )
+  )(setTransient, get, api)
 );
 
 export default useSecurityStore;
