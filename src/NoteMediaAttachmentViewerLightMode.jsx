@@ -1,7 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { exportFileBlob, fetchExportBlob } from './utils/nativeFileExport.js';
 import { createPortal } from 'react-dom';
 import { useSwipeable } from 'react-swipeable';
 import UserAvatar from './components/UserAvatar';
@@ -236,78 +237,44 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
     showToast(nextZoom ? 'Preview magnified to 150%' : 'Preview restored to 100%');
   };
 
-  const handleDownload = async () => {
-    const targetUrl = currentAttachment?.url || FALLBACK_IMAGE;
-    const fileName = currentAttachment?.name || 'attachment.jpg';
-    showToast(t('toasts.downloadingFile', 'Downloading {{file}}...', { file: fileName }));
+  const exportInFlight = useRef(false);
+  const saveInFlight = useRef(false);
+  const exportAttachment = async (share = false) => {
+    if (exportInFlight.current) return;
+    exportInFlight.current = true;
     try {
-      if (targetUrl.startsWith('data:') || targetUrl.startsWith('blob:')) {
-        const anchor = document.createElement('a');
-        anchor.href = targetUrl;
-        anchor.download = fileName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        return;
-      }
-      const response = await fetch(targetUrl, { mode: 'cors' });
-      if (!response.ok) throw new Error('Fetch failed');
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      const anchor = document.createElement('a');
-      anchor.href = targetUrl;
-      anchor.download = fileName;
-      anchor.target = '_blank';
-      anchor.rel = 'noopener noreferrer';
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
+      if (!currentAttachment || currentAttachment.id?.startsWith('att-fallback-')) throw new Error('No actual attachment selected');
+      const url = await resolveAttachmentUrl(currentAttachment);
+      const blob = await fetchExportBlob(url);
+      const result = await exportFileBlob(blob, currentAttachment.name || 'attachment', {share});
+      if (result.saved) globalToast.success(t('notes.fileSaved', 'File saved to selected location'));
+      else if (result.downloadStarted) globalToast.info?.(t('notes.downloadStarted', 'Download started'));
+    } catch (error) {
+      if (error?.name !== 'AbortError') globalToast.error(t('notes.exportFailed', 'Could not export this attachment'));
+    } finally {
+      exportInFlight.current = false;
     }
   };
+  const handleDownload = () => exportAttachment(false);
+  const handleShare = () => exportAttachment(true);
 
-  const handleShare = async () => {
-    const shareTitle = currentAttachment?.name || 'Attachment Details';
-    const shareText = 'Check out ' + (currentAttachment?.name || 'this media') + ' from ' + (activeNote?.title || 'Momentum Notes');
-    if (navigator?.share) {
-      try {
-        await navigator.share({ title: shareTitle, text: shareText, url: window.location.href });
-      } catch (err) {
-        /* user dismiss */
-      }
-    } else if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(shareTitle + ': ' + window.location.href);
-      showToast(t('toasts.linkCopied', 'Attachment link copied to clipboard!'));
-    } else {
-      showToast(t('toasts.shareNotSupported', 'Sharing is not supported on this platform'));
-    }
-  };
-
-  const handleSave = () => {
-    if (!activeNote || isSaving) return;
+  const handleSave = async () => {
+    if (!activeNote || saveInFlight.current) return;
+    saveInFlight.current = true;
     setIsSaving(true);
-    setTimeout(() => {
-      const updated = attachments.map((att, idx) => {
-        if (idx === currentIndex) {
-          return { ...att, subtitle: caption, caption };
-        }
-        return att;
-      });
-      updateNote(activeNote.id, { attachments: updated });
-      setIsSaving(false);
+    try {
+      const stored = useNotesStore.getState().notes.find(note => note.id === activeNote.id);
+      if (!stored?.attachments?.some(att => att.id === currentAttachment?.id)) throw new Error('Attachment is not saved');
+      const updated = stored.attachments.map(att => att.id === currentAttachment.id ? {...att,subtitle:caption,caption} : att);
+      await updateNote(activeNote.id, {attachments:updated});
       setIsSaved(true);
-      showToast(t('toasts.mediaSaved', 'Media changes saved successfully!'));
-      setTimeout(() => {
-        setIsSaved(false);
-      }, 2500);
-    }, 600);
+      globalToast.success(t('toasts.mediaSaved', 'Media changes saved successfully!'));
+    } catch (error) {
+      globalToast.error(t('notes.saveFailed', 'Media changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleConfirmDelete = () => {
