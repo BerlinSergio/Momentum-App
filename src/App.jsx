@@ -722,7 +722,11 @@ function AppContent({ startupStatus = 'ready' }) {
                 ? t('storage.calendarConflictTitle', 'Calendar changes could not be saved safely')
                 : domainStorageFailure.domain === 'momentum-tasbeeh-storage'
                   ? t('storage.tasbeehConflictTitle', 'Tasbeeh changes could not be saved safely')
-                  : t('storage.notesConflictTitle', 'Notes changes could not be saved safely')}
+                  : domainStorageFailure.domain === 'momentum-routine-storage'
+                    ? t('storage.routineConflictTitle', 'Routine changes could not be saved safely')
+                    : domainStorageFailure.domain === 'momentum-prayer-storage'
+                      ? t('storage.prayerConflictTitle', 'Prayer changes could not be saved safely')
+                      : t('storage.notesConflictTitle', 'Notes changes could not be saved safely')}
           </p>
           <p className="text-sm text-slate-200">
             {domainStorageFailure.code === 'DOMAIN_WRITE_CONFLICT'
