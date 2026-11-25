@@ -234,7 +234,7 @@ export default function NotificationsSettingsLightMode({
   const activeAlertsCount = enabledPrayerAlerts.length;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-40 relative font-sans">
+    <div className="min-h-0 bg-slate-50 pb-2 relative font-sans">
       {/* TOP HEADER BAR */}
       <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect, useMemo } from 'react';
@@ -281,7 +282,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
     : 'MANUAL';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col pb-28 font-sans font-inter antialiased select-none">
+    <div className="min-h-0 bg-slate-50 text-slate-800 flex flex-col pb-2 font-sans font-inter antialiased select-none">
       {/* Top Header */}
       <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
@@ -682,9 +683,9 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
       </section>
 
       {/* Prayer Calculation Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      {isSettingsOpen && createPortal(
+        <div className="momentum-picker-overlay flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="momentum-picker-panel w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -797,6 +798,7 @@ export default function PrayerTimesLightMode({ setActiveTab }) {
             </div>
           </div>
         </div>
+        , document.body
       )}
     </div>
   );

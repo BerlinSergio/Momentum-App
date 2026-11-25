@@ -200,7 +200,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-transparent font-sans flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="relative w-full min-h-0 bg-transparent font-sans flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Top Header Bar */}
       <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
@@ -230,7 +230,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
       </MomentumGlassHeader>
 
       {/* Main Scroll Container with Scroll Trap Fix */}
-      <main className="flex-1 overflow-y-auto w-full px-margin pb-32 space-y-4">
+      <main className="flex-1 overflow-y-auto w-full px-margin pb-2 space-y-4">
         {/* Subtle Ambient Glow Orbs */}
         <div className="relative w-full">
           <div className="absolute -top-10 -left-6 w-52 h-52 bg-secondary-fixed/40 rounded-full blur-3xl pointer-events-none"></div>
@@ -471,7 +471,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
 
         {/* Dynamic View Content Section: Live Agenda Powered by Global Store */}
         {viewMode === 'Agenda' && (
-          <div className="flex-1 overflow-y-auto pb-32 space-y-3" id="agendaViewSection">
+          <div className="flex-1 overflow-y-auto pb-2 space-y-3" id="agendaViewSection">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-headline-sm text-headline-sm text-white" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>{t('calendar.harmonizedFlow', 'Harmonized Flow')}</h2>
@@ -572,7 +572,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
         )}
 
         {viewMode === 'Week' && (
-          <div className="flex-1 overflow-y-auto pb-32 space-y-3" id="weekViewSection">
+          <div className="flex-1 overflow-y-auto pb-2 space-y-3" id="weekViewSection">
             <div className="p-4 rounded-2xl bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg">
               <h3 className="font-headline-sm text-headline-sm text-white font-bold mb-1">{t('calendar.weekRhythmHarmony', 'Week Rhythm & Harmony')}</h3>
               <p className="font-body-sm text-body-sm text-slate-300">{t('calendar.confluence7Days', 'Confluence of 7 days across Civil, Spiritual, and Solar timecycles.')}</p>
@@ -589,7 +589,7 @@ export default function CalendarsMainDarkMode({ setActiveTab }) {
         )}
 
         {viewMode === 'Month' && (
-          <div className="flex-1 overflow-y-auto pb-32 space-y-3" id="monthViewSection">
+          <div className="flex-1 overflow-y-auto pb-2 space-y-3" id="monthViewSection">
             <div className="p-4 rounded-2xl bg-surface-container-high/60 backdrop-blur-xl border border-white/10 shadow-lg">
               <h3 className="font-headline-sm text-headline-sm text-white font-bold mb-1">{t('calendar.monthlyAlignment', 'Monthly Alignment')}</h3>
               <p className="font-body-sm text-body-sm text-slate-300">{t('calendar.monthlyAlignmentDesc', 'Full monthly confluence matching civil solar calendar with seasonal transitions.')}</p>

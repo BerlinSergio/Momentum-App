@@ -80,7 +80,7 @@ export default function NotesMainDarkMode({ setActiveTab }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans pb-36">
+    <div className="min-h-0 bg-slate-950 font-sans pb-16">
       {/* 1. TOP HEADER (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
       <MomentumGlassHeader isDarkMode={true} className="lg:hidden">
         <div className="flex items-center gap-3">

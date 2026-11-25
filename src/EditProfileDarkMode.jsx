@@ -188,7 +188,7 @@ export default function EditProfileDarkMode({ setActiveTab, goBack }) {
         </div>
       </MomentumGlassHeader>
 
-      <main className="flex-1 flex flex-col w-full max-w-md lg:max-w-5xl mx-auto pb-28 px-5 lg:px-8 bg-transparent relative z-10">
+      <main className="flex-1 flex flex-col w-full max-w-md lg:max-w-5xl mx-auto pb-4 px-5 lg:px-8 bg-transparent relative z-10">
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[120vw] h-[55vh] rounded-full bg-primary/15 blur-3xl"></div>
         </div>
