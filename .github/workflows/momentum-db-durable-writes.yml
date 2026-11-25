@@ -110,3 +110,8 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/notes/test_note_delete_confirmation.cjs
+
+      - name: Mobile repair picker, calendar and worship regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/mobile/test_mobile_repair_regression.cjs
