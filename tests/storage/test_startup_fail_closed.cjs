@@ -21,6 +21,26 @@ async function main() {
     );
     assert.equal(await normal.evaluate(() => window.useProfileStore.persist.hasHydrated()), true);
     console.log('PASS: Real Chromium startup routes to onboarding only after persisted store hydration.');
+    // The migration marker is already committed. An obsolete mirror must
+    // not turn an empty installation into a returning legacy user.
+    await normal.evaluate(() => {
+      localStorage.setItem('momentum-tasks-storage', JSON.stringify({
+        state:{tasks:[{id:'qa-stale-mirror',title:'QA stale mirror'}]},version:0
+      }));
+    });
+    await normal.reload({waitUntil:'domcontentloaded',timeout:60000});
+    await normal.waitForSelector('[data-app-startup-ready="true"]',{timeout:30000});
+    const stale = await normal.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const row = await db.getCommittedStoreRecord('momentum-profile-storage');
+      return {completed:row?.value?.state?.setupCompleted,
+        legacy:row?.value?.state?.isLegacyMigrated,
+        route:window.useNavigationStore.getState().activeTab};
+    });
+    assert.equal(stale.completed,false);
+    assert.equal(stale.legacy,false);
+    assert.match(stale.route,/personal_setup/);
+    console.log('PASS: obsolete legacy mirror cannot complete onboarding after migration.');
     await normal.close();
 
     // Incognito context avoids inheriting the prior page's localStorage/IndexedDB.
