@@ -599,8 +599,24 @@ export async function commitRestoreBatch({ stores = [], attachments = [], restor
  * A read failure is an error, not proof that no incomplete restore exists.
  */
 export async function getPendingRestoreJournal() {
-  if (!(await openAppDB())) throw new Error('[Momentum Restore] IndexedDB unavailable');
-  return getMigrationMeta(RESTORE_JOURNAL_KEY);
+  const db = await openAppDB();
+  if (!db) throw new Error('[Momentum Restore] IndexedDB unavailable');
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORES.MIGRATION, 'readonly');
+      const req = tx.objectStore(STORES.MIGRATION).get(RESTORE_JOURNAL_KEY);
+      let record = null;
+      req.onsuccess = () => { record = req.result || null; };
+      req.onerror = () => reject(req.error || new Error('[Momentum Restore] Journal read failed'));
+      // A get request may succeed before its containing transaction aborts.
+      // Never interpret a pre-commit read as absence of a recovery journal.
+      tx.onabort = () => reject(tx.error || new Error('[Momentum Restore] Journal read transaction aborted'));
+      tx.onerror = () => reject(tx.error || new Error('[Momentum Restore] Journal read transaction failed'));
+      tx.oncomplete = () => resolve(record);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 /**
