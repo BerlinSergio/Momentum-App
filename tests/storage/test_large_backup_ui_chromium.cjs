@@ -16,11 +16,25 @@ async function main() {
     const context = await browser.createBrowserContext();
     const page = await context.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForFunction(() => window.useProfileStore?.persist?.hasHydrated?.(), { timeout: 30000 });
+    // A development global can exist while startup migration and guarded
+    // Profile/Security hydration are still running. This UI test must not
+    // write profile state until the authoritative startup pass completes.
+    await page.waitForFunction(() =>
+      window.useProfileStore?.persist?.hasHydrated?.() === true &&
+      window.useProfileStore?.getState?.()._hasHydrated === true &&
+      window.useSecurityStore?.getState?.()._hasHydrated === true &&
+      window.useNavigationStore?.getState?.()._hasHydrated === true &&
+      window.useThemeStore?.getState?.()._hasHydrated === true,
+      { timeout: 45000, polling: 200 });
+    await page.evaluate(() => window.useProfileStore.getState().completeSetup());
+    await page.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      const profile = await db.getStoreItem('momentum-profile-storage');
+      return profile?.state?.setupCompleted === true;
+    }, { timeout: 25000, polling: 200 });
 
     for (const theme of ['dark', 'light']) {
       await page.evaluate(theme => {
-        window.useProfileStore.setState({ setupCompleted: true, onboardingStep: 'completed' });
         // Navigation is theme-independent; global appearance chooses renderer.
         window.useThemeStore.getState().setTheme(theme);
         window.useNavigationStore.getState().setActiveTab('backup_restore');
@@ -30,12 +44,12 @@ async function main() {
         return window.useNavigationStore?.getState?.().activeTab === 'backup_restore' &&
           document.documentElement.classList.contains('dark') === (theme === 'dark') &&
           [...document.querySelectorAll('button')].some(el => el.textContent?.includes('Restore Data'));
-      }, { timeout: 15000 }, theme);
+      }, { timeout: 25000, polling: 200 }, theme);
       await page.evaluate(() => {
         const button = [...document.querySelectorAll('button')].find(el => el.textContent?.includes('Restore Data'));
         button.click();
       });
-      await page.waitForSelector('input[type="file"]', { timeout: 15000 });
+      await page.waitForSelector('input[type="file"]', { timeout: 25000 });
       const result = await page.evaluate(tooLarge => {
         const input = document.querySelector('input[type="file"]');
         if (!input) throw new Error('Restore file input absent');
@@ -64,7 +78,7 @@ async function main() {
 
       await page.waitForFunction(() =>
         [...document.querySelectorAll('[role="alert"]')]
-          .some(el => el.textContent?.includes('48 MiB')), { timeout: 15000 });
+          .some(el => el.textContent?.includes('48 MiB')), { timeout: 25000, polling: 200 });
       const message = await page.evaluate(() =>
         [...document.querySelectorAll('[role="alert"]')]
           .find(el => el.textContent?.includes('48 MiB'))?.textContent);
