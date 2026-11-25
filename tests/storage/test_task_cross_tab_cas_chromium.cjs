@@ -123,9 +123,16 @@ async function main() {
     console.log('PASS: Stale tab rejects task overwrite and exposes a persistent safe-reload warning.');
 
     // Additional stale writes must remain blocked until that tab is reloaded.
-    await b.evaluate(() => window.useTaskStore.getState().addTask({
-      id: 'qa-task-tab-B-second', title: 'Another stale attempt',
-    }));
+    // Zustand may surface the rejected persistence synchronously to callers.
+    let staleAttemptError = null;
+    try {
+      await b.evaluate(() => window.useTaskStore.getState().addTask({
+        id: 'qa-task-tab-B-second', title: 'Another stale attempt',
+      }));
+    } catch (error) {
+      staleAttemptError = String(error);
+    }
+    if (staleAttemptError) assert.match(staleAttemptError, /stale data from another tab/);
     const afterSecondAttempt = await readTasks(a);
     assert.equal(afterSecondAttempt.some(task => task.id === 'qa-task-tab-B-second'), false);
 
