@@ -10,6 +10,7 @@ on:
       - fix/db-phase26-cross-db-recovery-20261125
       - fix/db-phase27-snapshot-concurrency-20261125
       - fix/db-phase28-optimistic-conflicts-20261125
+      - fix/db-phase29-attachment-revision-quota-20261125
   workflow_dispatch:
 
 permissions:
@@ -60,6 +61,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_restore_conflicts_chromium.cjs
+      - name: Attachment revision and storage quota Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_attachment_revision_quota_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
