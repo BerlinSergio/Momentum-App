@@ -618,7 +618,12 @@ async function biometricAssertionIntegrity(browser) {
   try {
     const page = await context.newPage();
     await page.bringToFront();
-    await boot(page,'security');
+    // WebAuthn RP IDs are domain names, not IP literals. The CI server
+    // listens on IPv4 loopback; localhost resolves to the same server.
+    const biometricUrl = new globalThis.URL(URL);
+    if (biometricUrl.hostname === '127.0.0.1') biometricUrl.hostname = 'localhost';
+    await page.goto(biometricUrl.href, {waitUntil:'domcontentloaded',timeout:60000});
+    await boot(page,'security',false);
     await page.waitForFunction(async () => {
       const db = await import('/src/storage/db.js');
       return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
