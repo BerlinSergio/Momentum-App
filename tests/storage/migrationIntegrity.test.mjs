@@ -127,3 +127,50 @@ test('malformed legacy JSON does not produce a completed migration marker', asyn
     assert.equal(local.get(FINANCE), '{broken-json');
   });
 });
+
+test('credential migration failure leaves completion marker absent and can be retried', async () => {
+  await withFixture({ legacy: { [FINANCE]: source } }, async ({ meta, records, local }) => {
+    let attempts = 0;
+    const migrateCredential = async () => {
+      assert.equal(meta.has(MIGRATION_KEY), false);
+      attempts++;
+      return attempts === 1 ? { error: 'INJECTED_FAILURE' } : { migrated: true };
+    };
+    const first = await runStorageMigration({ migrateCredential });
+    assert.equal(first.success, false);
+    assert.equal(meta.has(MIGRATION_KEY), false);
+    assert.ok(first.details.errors.some(e => e.key === 'momentum-credential-verifier'));
+    assert.equal(local.get(FINANCE), source);
+    assert.deepEqual(records.get(FINANCE)?.value, JSON.parse(source));
+    const retry = await runStorageMigration({ migrateCredential });
+    assert.equal(retry.success, true);
+    assert.equal(meta.get(MIGRATION_KEY)?.status, 'completed');
+    assert.equal(attempts, 2);
+    const third = await runStorageMigration({ migrateCredential });
+    assert.equal(third.details.alreadyCompleted, true);
+    assert.equal(attempts, 2);
+  });
+});
+
+test('credential callback rejection fails closed before completion marker', async () => {
+  await withFixture({ legacy: { [FINANCE]: source } }, async ({ meta, local }) => {
+    const result = await runStorageMigration({
+      migrateCredential: async () => { throw new Error('INJECTED_CREDENTIAL_REJECTION'); },
+    });
+    assert.equal(result.success, false);
+    assert.equal(meta.has(MIGRATION_KEY), false);
+    assert.equal(local.get(FINANCE), source);
+  });
+});
+
+test('credential callback is not invoked after an ordinary migration failure', async () => {
+  await withFixture({ legacy: { [FINANCE]: source }, abortKey: FINANCE }, async ({ meta }) => {
+    let called = false;
+    const result = await runStorageMigration({
+      migrateCredential: async () => { called = true; return { migrated: true }; },
+    });
+    assert.equal(result.success, false);
+    assert.equal(called, false);
+    assert.equal(meta.has(MIGRATION_KEY), false);
+  });
+});
