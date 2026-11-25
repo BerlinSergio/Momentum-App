@@ -17,7 +17,7 @@ async function waitReady(page) {
     window.useTaskStore?.persist?.hasHydrated?.() === true &&
     window.useTaskStore?.getState?.()._hasHydrated === true &&
     window.useProfileStore?.persist?.hasHydrated?.() === true,
-    { timeout: 35000 });
+    { timeout: 35000, polling: 200 });
 }
 
 async function main() {
@@ -59,7 +59,7 @@ async function main() {
       const db = await import('/src/storage/db.js');
       const persisted = await db.getStoreItem(key);
       return persisted?.state?.tasks?.some(item => item.id === id) === true;
-    }, { timeout: 30000 }, { key: KEY, id });
+    }, { timeout: 30000, polling: 200 }, { key: KEY, id });
     // Allow all asynchronous persistence calls from this action to finish
     // before asserting. Count only writes that contain this synthetic task.
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -117,7 +117,7 @@ async function main() {
       const db = await import('/src/storage/db.js');
       const stored = await db.getStoreItem(key);
       return stored?.state?.tasks?.every(task => task.id !== id) === true;
-    }, { timeout: 30000 }, { key: KEY, id });
+    }, { timeout: 30000, polling: 200 }, { key: KEY, id });
     await b.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitReady(b);
     const deletedAfterReload = await b.evaluate(id =>
