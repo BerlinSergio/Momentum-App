@@ -126,7 +126,7 @@ import * as nativeLocation from './utils/nativeLocation';
 import * as nativeNotifications from './utils/nativeNotifications';
 import * as nativeBackup from './utils/nativeBackup';
 import { initializeNativeLifecycle } from './utils/nativeLifecycle';
-import { scheduleAllActiveNotifications } from './utils/nativeNotifications';
+import { scheduleAllActiveNotifications, startNativeReminderSynchronization } from './utils/nativeNotifications';
 import { hydrateAllStores, getStartupDecision, isOnboardingRoute } from './utils/startupController';
 import { BACKGROUND_LIBRARY, getWallpaperPair } from './data/defaultWallpapers';
 import { isRtl } from './i18n/localeUtils.js';
@@ -806,6 +806,7 @@ export default function App() {
         if (!active) return;
         setStartupStatus('ready');
         // Only schedule notifications when persisted data is confirmed loaded.
+        startNativeReminderSynchronization();
         scheduleAllActiveNotifications().catch((error) => {
           console.warn('[Momentum Startup] Notification scheduling warning:', error);
         });
