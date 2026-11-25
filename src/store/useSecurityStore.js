@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createIndexedDbStorage } from '../storage/index.js';
 import {
-  createCredential, changeCredential, hasCredential,
-  verifyCredential, removeCredential,
+  createCredential, changeCredential, removeCredential,
 } from '../utils/credentialService.js';
 
 const sanitizeSecurityPayload = (payload) => {
@@ -111,46 +110,25 @@ const INITIAL_STATE = {
 // This store holds metadata/preferences and never eagerly trusts a mirror.
 const getInitialSecurityState = () => ({ ...INITIAL_STATE });
 
-async function setFirstPinSafely(newPin, set) {
-  // Creating a replacement PIN must not bypass current-PIN verification.
-  if (await hasCredential()) {
-    return { success: false, error: 'A PIN is already configured; supply the current PIN to change it.' };
-  }
-  const result = await createCredential(newPin);
+// Refresh the committed metadata and CAS baseline after an atomic transition.
+async function finishCredentialTransition(result) {
   if (!result.success) return result;
-  set({
-    pin: '', hasPin: true, passcodeType: 'pin',
-    lastModified: getFormattedTimestamp(),
-  });
-  return { success: true };
+  try {
+    await useSecurityStore.persist.rehydrate();
+    useSecurityStore.getState().setHasHydrated(true);
+    return result;
+  } catch {
+    return {success:false, committed:true, error:'PIN committed; reload to refresh security settings.'};
+  }
 }
-
-async function changePinSafely(currentPin, newPin, set) {
-  if (typeof newPin !== 'string') {
-    return { success: false, error: 'Current PIN and new PIN are required.' };
-  }
-  const result = await changeCredential(currentPin, newPin);
-  if (!result.success) return result;
-  set({
-    pin: '', hasPin: true, passcodeType: 'pin',
-    lastModified: getFormattedTimestamp(),
-  });
-  return { success: true };
+async function setFirstPinSafely(newPin) {
+  return finishCredentialTransition(await createCredential(newPin));
 }
-
-async function removePinSafely(currentPin, set) {
-  if (typeof currentPin !== 'string') {
-    return { success: false, error: 'Current PIN is required to remove this credential.' };
-  }
-  const verified = await verifyCredential(currentPin);
-  if (!verified.success) return verified;
-  const result = await removeCredential();
-  if (!result.success) return result;
-  set({
-    pin: '', hasPin: false, isLocked: false, isAppLockActive: false,
-    lastModified: getFormattedTimestamp(),
-  });
-  return { success: true };
+async function changePinSafely(currentPin, newPin) {
+  return finishCredentialTransition(await changeCredential(currentPin, newPin));
+}
+async function removePinSafely(currentPin) {
+  return finishCredentialTransition(await removeCredential(currentPin));
 }
 
 export const useSecurityStore = create(
@@ -167,12 +145,7 @@ export const useSecurityStore = create(
           return { isLocked: next };
         }),
 
-      setHasPin: (hasPin) =>
-        set((state) => {
-          const next = typeof hasPin === 'function' ? hasPin(state.hasPin) : !!hasPin;
-          
-          return { hasPin: next };
-        }),
+      setHasPin: () => ({success:false, error:'Use an authenticated PIN operation.'}),
 
       setAppLockActive: (isActive) =>
         set((state) => {
@@ -234,10 +207,10 @@ export const useSecurityStore = create(
       // Legacy PIN API is asynchronous and fail-closed: verifier first,
       // metadata only after successful cryptographic storage.
       // Callers MUST await the returned result.
-      setPin: (newPin) => setFirstPinSafely(newPin, set),
-      changePin: (currentPin, newPin) => changePinSafely(currentPin, newPin, set),
-      updatePin: (currentPin, newPin) => changePinSafely(currentPin, newPin, set),
-      removePin: (currentPin) => removePinSafely(currentPin, set),
+      setPin: (newPin) => setFirstPinSafely(newPin),
+      changePin: (currentPin, newPin) => changePinSafely(currentPin, newPin),
+      updatePin: (currentPin, newPin) => changePinSafely(currentPin, newPin),
+      removePin: (currentPin) => removePinSafely(currentPin),
 
       setAlphanumeric: () =>
         set({
@@ -258,11 +231,15 @@ export const useSecurityStore = create(
         }),
 
       resetToDefaults: () =>
-        set({
+        set((state) => ({
           ...INITIAL_STATE,
+          hasPin: state.hasPin,
+          isAppLockActive: state.isAppLockActive,
+          isLocked: state.isLocked,
           _hasHydrated: true,
           lastModified: getFormattedTimestamp(),
-        }),
+        })),
+    }),
     }),
     {
       name: 'momentum-security-storage',
