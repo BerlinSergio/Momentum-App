@@ -16,7 +16,7 @@
  * while progressive rate-limiting / lockout prevents online brute-force attacks.
  */
 
-import { getStoreItem, getCommittedStoreRecord, commitCredentialTransition } from '../storage/db.js';
+import { getCommittedStoreRecord, commitCredentialTransition } from '../storage/db.js';
 
 export const CREDENTIAL_STORE_KEY = 'momentum-credential-verifier';
 export const LOCKOUT_STORAGE_KEY = 'momentum_auth_lockout';
@@ -324,35 +324,21 @@ export async function migrateLegacyPin({ allowLegacyImport = true } = {}) {
       return { migrated: false, legacyImportClosed: true };
     }
 
-    // 2. Look for legacy plaintext PIN in localStorage
-    let legacyPin = '';
-    if (typeof localStorage !== 'undefined') {
+    // Prefer the authoritative IndexedDB source over an older mirror.
+    // Never purge either source before the credential transition commits.
+    const stored = await getCommittedStoreRecord('momentum-security-storage');
+    const parseState = value => {
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      return parsed?.state || null;
+    };
+    const durableState = parseState(stored?.value);
+    let legacyPin = String(durableState?.pin || '').trim();
+    if (!legacyPin && typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed?.state?.pin && String(parsed.state.pin).trim().length === 4) {
-            legacyPin = String(parsed.state.pin).trim();
-          }
-        } catch {
-          // ignore parse errors
-        }
-      }
+      if (raw) legacyPin = String(parseState(raw)?.pin || '').trim();
     }
-
-    // 3. If no PIN in localStorage, check IndexedDB 'momentum-security-storage'
-    if (!legacyPin) {
-      try {
-        const idbRecord = await getStoreItem('momentum-security-storage');
-        if (idbRecord) {
-          const parsed = typeof idbRecord === 'string' ? JSON.parse(idbRecord) : idbRecord;
-          if (parsed?.state?.pin && String(parsed.state.pin).trim().length === 4) {
-            legacyPin = String(parsed.state.pin).trim();
-          }
-        }
-      } catch {
-        // ignore
-      }
+    if (legacyPin && !/^\d{4}$/.test(legacyPin)) {
+      return { migrated: false, error: 'INVALID_LEGACY_PIN' };
     }
 
     if (!legacyPin) {
@@ -362,6 +348,13 @@ export async function migrateLegacyPin({ allowLegacyImport = true } = {}) {
     // 4. Derive PBKDF2 verifier from legacy PIN
     const created = await createCredential(legacyPin);
     if (!created.success) {
+      // Another startup may have won the atomic import. Only accept the
+      // same legacy PIN after independent verification, not any verifier.
+      const concurrent = await verifyCredential(legacyPin);
+      if (concurrent.success) {
+        await sanitizeOrdinaryStorage();
+        return { migrated: false, alreadyMigrated: true };
+      }
       console.warn('[CredentialService] Migration derivation failed:', created.error);
       return { migrated: false, error: created.error };
     }
