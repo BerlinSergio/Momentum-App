@@ -91,11 +91,11 @@ export async function createBackupPackage(passphrase, options = {}) {
 
   onProgress({ stage: 'COLLECTING_RECORDS', percent: 15, message: 'Collecting application records...' });
 
+  // Never export a plausible but incomplete backup from volatile memory.
+  if (!(await openAppDB())) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
   // A pending cross-DB journal means wallpaper changes may be uncommitted.
   // Reconcile first rather than encrypting a mixture of old and new records.
   await recoverInterruptedRestore();
-  // Never export a plausible but incomplete backup from volatile memory.
-  if (!(await openAppDB())) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
   // 1. Read all authoritative records from IndexedDB 'stores' table
   const allDbStores = await getAllStoreItems();
 
@@ -683,7 +683,7 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
           stores: stagedStores, attachments: stagedAttachments,
         });
     if (committed !== true) {
-      throw new Error('Restore aborted: storage transaction did not commit');
+      throw new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
     }
     // Update disposable mirrors only after a successful transaction commit.
     if (typeof localStorage !== 'undefined') {
