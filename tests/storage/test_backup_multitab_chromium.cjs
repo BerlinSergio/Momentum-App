@@ -16,12 +16,32 @@ const DOMAIN = 'momentum-tasbeeh-storage';
  */
 async function waitForHydratedOrSafeRetry(page, label) {
   for (let attempt = 0; attempt < 2; attempt++) {
-    await page.waitForFunction(() => {
-      const hydrated = window.useProfileStore?.persist?.hasHydrated?.() === true;
-      const safeError = document.querySelector('[role="alert"]')
-        ?.textContent?.includes('Cannot safely load saved data') === true;
-      return hydrated || safeError;
-    }, { timeout: 45000 });
+    try {
+      await page.waitForFunction(() => {
+        const hydrated = window.useProfileStore?.persist?.hasHydrated?.() === true;
+        const safeError = document.querySelector('[role="alert"]')
+          ?.textContent?.includes('Cannot safely load saved data') === true;
+        return hydrated || safeError;
+      }, { timeout: 45000, polling: 200 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(async () => {
+        const stores = {
+          profile: window.useProfileStore,
+          security: window.useSecurityStore,
+          notes: window.useNotesStore,
+          task: window.useTaskStore,
+        };
+        return {
+          stores: Object.fromEntries(Object.entries(stores).map(([key, store]) =>
+            [key, { loaded: !!store, persistHydrated: store?.persist?.hasHydrated?.(),
+              flag: store?.getState?.()._hasHydrated }])),
+          alert: [...document.querySelectorAll('[role="alert"]')].map(node =>
+            node.textContent?.slice(0, 140)),
+          body: document.body?.innerText?.slice(0, 380),
+        };
+      }).catch(cause => ({ diagnosticError: String(cause) }));
+      throw new Error(label + ' hydration timeout: ' + JSON.stringify(diagnostic), { cause: error });
+    }
 
     const state = await page.evaluate(() => ({
       hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,

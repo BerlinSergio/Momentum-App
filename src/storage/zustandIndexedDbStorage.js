@@ -16,6 +16,8 @@ const CALENDAR_STORE = 'momentum-calendar-storage-v1';
 const TASBEEH_STORE = 'momentum-tasbeeh-storage';
 const ROUTINE_STORE = 'momentum-routine-storage';
 const PRAYER_STORE = 'momentum-prayer-storage';
+const PROFILE_STORE = 'momentum-profile-storage';
+const SECURITY_STORE = 'momentum-security-storage';
 const guardedFailures = new Map();
 
 /** Retained in this tab until reload, never stored in localStorage. */
@@ -125,6 +127,19 @@ export function createIndexedDbStorage(options = {}) {
           return persisted;
         }),
       };
+    }
+    if (name === PROFILE_STORE) {
+      // Account/onboarding fields are durable, only hydration status is not.
+      return state;
+    }
+    if (name === SECURITY_STORE) {
+      // The current lock UI state is ephemeral and must never affect the
+      // persisted security revision. PINs are separate cryptographic verifier
+      // records: these fields are explicitly forbidden in security snapshots.
+      delete state.isLocked;
+      delete state.pin;
+      delete state.alphanumeric;
+      return state;
     }
     if (name === PRAYER_STORE) {
       // Scheduling cursor, countdown status and punctuality percentage are

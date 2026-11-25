@@ -24,7 +24,8 @@ export const PBKDF2_ITERATIONS = 600000;
 export const SALT_BYTE_LENGTH = 16;
 export const VERIFIER_BIT_LENGTH = 256;
 
-let cachedVerifierRecord = null;
+// Do not cache credential verifiers across tabs. Another tab may rotate or
+// remove a PIN; verification must always read the latest committed record.
 
 /**
  * Universal Crypto Resolver (Browser + Node.js)
@@ -154,7 +155,6 @@ export async function createCredential(pin) {
       return { success: false, error: 'Failed to write credential to database' };
     }
 
-    cachedVerifierRecord = record;
     return { success: true, credential: { version: 1, algorithm: record.algorithm, iterations: record.iterations } };
   } catch (err) {
     console.error('[CredentialService] createCredential error:', err);
@@ -166,19 +166,15 @@ export async function createCredential(pin) {
  * Retrieve the active credential verifier record from cache or IndexedDB
  */
 export async function getCredentialRecord() {
-  if (cachedVerifierRecord) {
-    return cachedVerifierRecord;
-  }
   try {
+    // IndexedDB is authoritative. Returning a stale per-tab verifier after
+    // a different tab rotates/deletes the PIN would authenticate a revoked PIN.
     const record = await getStoreItem(CREDENTIAL_STORE_KEY);
-    if (record && record.verifier && record.salt) {
-      cachedVerifierRecord = record;
-      return record;
-    }
+    return record && record.verifier && record.salt ? record : null;
   } catch (err) {
     console.warn('[CredentialService] getCredentialRecord error:', err);
+    return null; // Fail closed; never fall back to an old verifier.
   }
-  return null;
 }
 
 /**
@@ -245,8 +241,10 @@ export async function changeCredential(currentPin, newPin) {
  */
 export async function removeCredential() {
   try {
-    await removeStoreItem(CREDENTIAL_STORE_KEY);
-    cachedVerifierRecord = null;
+    const removed = await removeStoreItem(CREDENTIAL_STORE_KEY);
+    if (removed !== true) {
+      return { success: false, error: 'Credential deletion was not committed' };
+    }
     return { success: true };
   } catch (err) {
     console.error('[CredentialService] removeCredential error:', err);
@@ -336,14 +334,21 @@ export function clearLockoutState() {
 /**
  * Safe, idempotent migration of legacy plaintext PINs to PBKDF2 verifiers
  */
-export async function migrateLegacyPin() {
+export async function migrateLegacyPin({ allowLegacyImport = true } = {}) {
   try {
-    // 1. Check if a PBKDF2 credential verifier already exists
+    // 1. Check if a PBKDF2 credential verifier already exists.
     const existing = await getCredentialRecord();
     if (existing && existing.verifier) {
-      // Already has a verifier. Clean up any leftover plaintext PIN in localStorage or IDB
-      sanitizeOrdinaryStorage();
+      await sanitizeOrdinaryStorage();
       return { migrated: false, alreadyMigrated: true };
+    }
+    // A completed schema migration is a durable trust boundary. After that
+    // point a stale localStorage mirror must NEVER be promoted to a new
+    // authentication credential. Only the audited first migration may read a
+    // plaintext legacy PIN.
+    if (!allowLegacyImport) {
+      await sanitizeOrdinaryStorage();
+      return { migrated: false, legacyImportClosed: true };
     }
 
     // 2. Look for legacy plaintext PIN in localStorage

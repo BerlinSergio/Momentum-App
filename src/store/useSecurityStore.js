@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createIndexedDbStorage } from '../storage/index.js';
-import { createCredential, removeCredential } from '../utils/credentialService.js';
+import {
+  createCredential, changeCredential, hasCredential,
+  verifyCredential, removeCredential,
+} from '../utils/credentialService.js';
 
 const sanitizeSecurityPayload = (payload) => {
   if (!payload) return payload;
@@ -31,11 +34,15 @@ const sanitizeSecurityPayload = (payload) => {
 const rawSecurityStorage = createIndexedDbStorage({
   legacyLocalStorageKey: 'momentum-security-storage',
   mirrorToLocalStorage: false,
+  optimisticDomains: ['momentum-security-storage'],
 });
 
 const securityStorage = {
   getItem: async (name) => {
-    return rawSecurityStorage.getItem(name);
+    // Migration runs before rehydration; sanitize any malformed/legacy
+    // ordinary security state again before it is exposed to Zustand.
+    const value = await rawSecurityStorage.getItem(name);
+    return value == null ? value : sanitizeSecurityPayload(value);
   },
   setItem: async (name, value) => {
     const sanitized = sanitizeSecurityPayload(value);
@@ -100,70 +107,51 @@ const INITIAL_STATE = {
   _hasHydrated: false,
 };
 
-const getInitialSecurityState = () => {
-  if (typeof localStorage !== 'undefined') {
-    try {
-      const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          const effectivePin = parsed.state.pin !== undefined && parsed.state.pin !== null ? String(parsed.state.pin) : '';
-          const hasPin = parsed.state.hasPin !== undefined ? !!parsed.state.hasPin : !!(effectivePin && String(effectivePin).trim().length === 4);
-          const isAppLockActive = !!parsed.state.isAppLockActive;
-          const isLocked = isAppLockActive && hasPin;
-          return {
-            ...INITIAL_STATE,
-            ...parsed.state,
-            pin: '', // Purged from memory representation
-            alphanumeric: '',
-            hasPin,
-            isLocked,
-            _hasHydrated: false,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse momentum-security-storage:', e);
-    }
-  }
-  return INITIAL_STATE;
-};
+// Credentials are stored only as an independently verified PBKDF2 record.
+// This store holds metadata/preferences and never eagerly trusts a mirror.
+const getInitialSecurityState = () => ({ ...INITIAL_STATE });
 
-const syncSecurityStorage = (patch) => {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      let parsed = { state: {}, version: 0 };
-      const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        try {
-          parsed = JSON.parse(raw);
-          if (!parsed || typeof parsed !== 'object') {
-            parsed = { state: {}, version: 0 };
-          }
-        } catch {
-          parsed = { state: {}, version: 0 };
-        }
-      }
-      const safePatch = { ...patch };
-      delete safePatch.pin;
-      delete safePatch.alphanumeric;
-
-      parsed.state = {
-        ...(parsed.state || {}),
-        ...safePatch,
-        pin: '',
-        alphanumeric: '',
-      };
-      const serialized = JSON.stringify(parsed);
-      localStorage.setItem('momentum-security-storage', serialized);
-      securityStorage.setItem('momentum-security-storage', serialized).catch((err) => {
-        console.warn('[Momentum Security] IndexedDB sync error:', err);
-      });
-    }
-  } catch (e) {
-    console.warn('[Momentum Security] Direct localStorage sync error:', e);
+async function setFirstPinSafely(newPin, set) {
+  // Creating a replacement PIN must not bypass current-PIN verification.
+  if (await hasCredential()) {
+    return { success: false, error: 'A PIN is already configured; supply the current PIN to change it.' };
   }
-};
+  const result = await createCredential(newPin);
+  if (!result.success) return result;
+  set({
+    pin: '', hasPin: true, passcodeType: 'pin',
+    lastModified: getFormattedTimestamp(),
+  });
+  return { success: true };
+}
+
+async function changePinSafely(currentPin, newPin, set) {
+  if (typeof newPin !== 'string') {
+    return { success: false, error: 'Current PIN and new PIN are required.' };
+  }
+  const result = await changeCredential(currentPin, newPin);
+  if (!result.success) return result;
+  set({
+    pin: '', hasPin: true, passcodeType: 'pin',
+    lastModified: getFormattedTimestamp(),
+  });
+  return { success: true };
+}
+
+async function removePinSafely(currentPin, set) {
+  if (typeof currentPin !== 'string') {
+    return { success: false, error: 'Current PIN is required to remove this credential.' };
+  }
+  const verified = await verifyCredential(currentPin);
+  if (!verified.success) return verified;
+  const result = await removeCredential();
+  if (!result.success) return result;
+  set({
+    pin: '', hasPin: false, isLocked: false, isAppLockActive: false,
+    lastModified: getFormattedTimestamp(),
+  });
+  return { success: true };
+}
 
 export const useSecurityStore = create(
   persist(
@@ -182,14 +170,14 @@ export const useSecurityStore = create(
       setHasPin: (hasPin) =>
         set((state) => {
           const next = typeof hasPin === 'function' ? hasPin(state.hasPin) : !!hasPin;
-          syncSecurityStorage({ hasPin: next });
+          
           return { hasPin: next };
         }),
 
       setAppLockActive: (isActive) =>
         set((state) => {
           const next = typeof isActive === 'function' ? isActive(state.isAppLockActive) : !!isActive;
-          syncSecurityStorage({ isAppLockActive: next });
+          
           return {
             isAppLockActive: next,
             isLocked: next && state.hasPin ? state.isLocked : false,
@@ -199,123 +187,57 @@ export const useSecurityStore = create(
       setBiometricsEnabled: (enabled) =>
         set((state) => {
           const next = typeof enabled === 'function' ? enabled(state.biometricsEnabled) : !!enabled;
-          syncSecurityStorage({ biometricsEnabled: next });
+          
           return { biometricsEnabled: next };
         }),
 
       setLockTiming: (timing) => {
-        syncSecurityStorage({ lockTiming: timing });
+        
         return set({ lockTiming: timing });
       },
 
       setHideInMultitasking: (hide) =>
         set((state) => {
           const next = typeof hide === 'function' ? hide(state.hideInMultitasking) : !!hide;
-          syncSecurityStorage({ hideInMultitasking: next });
+          
           return { hideInMultitasking: next };
         }),
 
       setGuardrail: (key, value) =>
         set((state) => {
           const next = typeof value === 'function' ? value(state[key]) : !!value;
-          syncSecurityStorage({ [key]: next });
+          
           return { [key]: next };
         }),
 
       setLockFinance: (lock) =>
         set((state) => {
           const next = typeof lock === 'function' ? lock(state.lockFinance) : !!lock;
-          syncSecurityStorage({ lockFinance: next });
+          
           return { lockFinance: next };
         }),
 
       setLockReflections: (lock) =>
         set((state) => {
           const next = typeof lock === 'function' ? lock(state.lockReflections) : !!lock;
-          syncSecurityStorage({ lockReflections: next });
+          
           return { lockReflections: next };
         }),
 
       setAllowQuickDhikr: (allow) =>
         set((state) => {
           const next = typeof allow === 'function' ? allow(state.allowQuickDhikr) : !!allow;
-          syncSecurityStorage({ allowQuickDhikr: next });
+          
           return { allowQuickDhikr: next };
         }),
 
-      // Safe PIN mutators: stores cryptographic verifier in credentialService, NEVER plaintext in store/storage
-      setPin: (newPin) => {
-        const pinStr = String(newPin || '');
-        const hasPin = pinStr.trim().length === 4;
-        if (hasPin) {
-          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
-        }
-        set({
-          pin: '',
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-      },
-
-      changePin: (newPin) => {
-        const pinStr = String(newPin || '');
-        const hasPin = pinStr.trim().length === 4;
-        if (hasPin) {
-          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
-        }
-        set({
-          pin: '',
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-      },
-
-      updatePin: (newPin) => {
-        const pinStr = String(newPin || '');
-        const hasPin = pinStr.trim().length === 4;
-        if (hasPin) {
-          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
-        }
-        set({
-          pin: '',
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-      },
-
-      removePin: () => {
-        removeCredential().catch((err) => console.warn('[useSecurityStore] removeCredential err:', err));
-        set({
-          pin: '',
-          hasPin: false,
-          isLocked: false,
-          isAppLockActive: false,
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin: false,
-          isAppLockActive: false,
-          lastModified: getFormattedTimestamp(),
-        });
-      },
+      // Legacy PIN API is asynchronous and fail-closed: verifier first,
+      // metadata only after successful cryptographic storage.
+      // Callers MUST await the returned result.
+      setPin: (newPin) => setFirstPinSafely(newPin, set),
+      changePin: (currentPin, newPin) => changePinSafely(currentPin, newPin, set),
+      updatePin: (currentPin, newPin) => changePinSafely(currentPin, newPin, set),
+      removePin: (currentPin) => removePinSafely(currentPin, set),
 
       setAlphanumeric: () =>
         set({
@@ -331,7 +253,7 @@ export const useSecurityStore = create(
             ...patch,
             lastModified: getFormattedTimestamp(),
           };
-          syncSecurityStorage(next);
+          
           return next;
         }),
 
@@ -353,7 +275,9 @@ export const useSecurityStore = create(
         const isAppLockActive = persistedState?.isAppLockActive !== undefined
           ? !!persistedState.isAppLockActive
           : currentState.isAppLockActive;
-        const isLocked = isAppLockActive && hasPin ? (currentState.isLocked ?? true) : false;
+        // A returning tab with an enabled PIN lock starts LOCKED, regardless
+        // of a stale local unlocked flag or previous in-memory session.
+        const isLocked = Boolean(isAppLockActive && hasPin);
         return {
           ...currentState,
           ...(persistedState || {}),
@@ -362,14 +286,11 @@ export const useSecurityStore = create(
           hasPin,
           isAppLockActive,
           isLocked,
-          _hasHydrated: true,
+          _hasHydrated: false,
         };
       },
-      onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          state.setHasHydrated(true);
-        }
-      },
+      // The central StartupController owns the post-migration readiness flag.
+      // Never trigger a second whole-state write during rehydration.
     }
   )
 );

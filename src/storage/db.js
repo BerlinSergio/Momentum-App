@@ -207,6 +207,9 @@ export const GUARDED_DOMAINS = Object.freeze([
   // Phase 2.15: user-owned routine completion and prayer worship records.
   'momentum-routine-storage',
   'momentum-prayer-storage',
+  // Phase 2.16: profile/onboarding and credential-free security preferences.
+  'momentum-profile-storage',
+  'momentum-security-storage',
 ]);
 
 function noteAttachmentIds(snapshot) {
