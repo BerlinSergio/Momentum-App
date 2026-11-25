@@ -12,6 +12,8 @@ import {
 const TASK_STORE = 'momentum-task-storage';
 const NOTES_STORE = 'momentum-notes-storage';
 const FINANCE_STORE = 'momentum-finance-storage';
+const CALENDAR_STORE = 'momentum-calendar-storage-v1';
+const TASBEEH_STORE = 'momentum-tasbeeh-storage';
 const guardedFailures = new Map();
 
 /** Retained in this tab until reload, never stored in localStorage. */
@@ -107,6 +109,12 @@ export function createIndexedDbStorage(options = {}) {
       if (!Array.isArray(state.notes)) state.notes = [];
       if (state.reflectionStreak === undefined) state.reflectionStreak = 0;
     }
+    if (name === CALENDAR_STORE && !Array.isArray(state.events)) {
+      state.events = [];
+    }
+    if (name === TASBEEH_STORE && !Array.isArray(state.historyLogs)) {
+      state.historyLogs = [];
+    }
     if (name === FINANCE_STORE) {
       delete state.editingIncome;
       delete state.editingTransaction;
@@ -182,6 +190,19 @@ export function createIndexedDbStorage(options = {}) {
             const committed = await compareAndSwapDomainStore(name, parsed, previous);
             baselines.set(name, committed);
           } catch (error) {
+            // Idempotent same-content concurrent bootstrap: two fresh tabs
+            // may both initialize a previously missing domain. Treat the
+            // second as a safe no-op only if the complete durable projection
+            // equals what that tab attempted. Never overwrite or auto-merge.
+            if (error?.code === 'DOMAIN_WRITE_CONFLICT' && previous === null) {
+              try {
+                const latest = await getCommittedStoreRecord(name);
+                if (latest && sameDomainContent(name, parsed, latest.value)) {
+                  baselines.set(name, latest);
+                  return true;
+                }
+              } catch { /* fail closed below */ }
+            }
             notifyDomainStorageFailure(name, error);
             throw error;
           }
