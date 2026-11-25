@@ -44,6 +44,7 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
       const tables = { stores: records, attachments, wallpapers, migration_meta: migration };
       const pending = [];
       let scheduled = false;
+      let completedBulkReads = 0;
       const tx = {
         oncomplete: null, onabort: null, onerror: null,
         abort() { this.onabort?.({ target: this }); },
@@ -84,7 +85,8 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
               queueMicrotask(() => {
                 req.result = [...table.values()];
                 req.onsuccess?.({ target: req });
-                tx.oncomplete?.({ target: tx });
+                completedBulkReads += 1;
+                if (completedBulkReads === targets.length) tx.oncomplete?.({ target: tx });
               });
               return req;
             },
@@ -107,6 +109,11 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
     },
   };
   const fakeWindow = {
+    navigator: {
+      locks: {
+        async request(_name, _options, callback) { return callback(); },
+      },
+    },
     localStorage: {
       getItem: key => localWrites.get(key) ?? JSON.stringify({ state: { tasks: [{ id: 'stale-mirror' }] }, version: 0 }),
       setItem: (key, value) => localWrites.set(key, value),
@@ -252,6 +259,7 @@ test('attachment transaction abort preserves prior domain and attachment data', 
 
 test('cross-database restore without Web Locks fails before writing anything', async () => {
   const fixture = fakeDatabase();
+  delete fixture.fakeWindow.navigator; // This case deliberately simulates missing Web Locks.
   const envelope = await encryptBackupPayload(JSON.stringify({
     manifest: { version: 1 },
     domains: { [STORE]: { state: { tasks: [{ id: 'must-not-write' }] }, version: 0 } },
@@ -318,6 +326,75 @@ test('backup refuses a wallpaper transaction aborted after request success', asy
     await assert.rejects(
       createBackupPackage(passphrase),
       /wallpaper read transaction aborted/
+    );
+  }, () => fixture.db.onclose?.());
+});
+
+test('backup without Web Locks fails rather than exporting a potentially mixed database snapshot', async () => {
+  const fixture = fakeDatabase();
+  delete fixture.fakeWindow.navigator;
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      error => error?.code === 'BACKUP_LOCKS_UNAVAILABLE'
+    );
+  }, () => fixture.db.onclose?.());
+});
+
+test('backup rejects an aborted combined main-database readonly transaction', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(stores, mode) {
+    if (Array.isArray(stores) && stores.includes('stores') && stores.includes('attachments') && mode === 'readonly') {
+      const tx = { oncomplete: null, onabort: null, onerror: null };
+      let reads = 0;
+      tx.objectStore = () => ({
+        getAll() {
+          const req = { result: [], onsuccess: null, onerror: null };
+          queueMicrotask(() => {
+            req.onsuccess?.({ target: req });
+            reads += 1;
+            if (reads === 2) tx.onabort?.({ target: tx });
+          });
+          return req;
+        },
+      });
+      return tx;
+    }
+    return original.call(this, stores, mode);
+  };
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      /main database snapshot transaction aborted/
+    );
+  }, () => fixture.db.onclose?.());
+});
+
+test('backup fails closed when recovery journal read aborts after the request succeeds', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(storeNames, mode) {
+    if (storeNames === 'migration_meta' && mode === 'readonly') {
+      const tx = { oncomplete: null, onabort: null, onerror: null };
+      tx.objectStore = () => ({
+        get() {
+          const req = { result: null, onsuccess: null, onerror: null };
+          queueMicrotask(() => {
+            req.onsuccess?.({ target: req });
+            tx.onabort?.({ target: tx });
+          });
+          return req;
+        },
+      });
+      return tx;
+    }
+    return original.call(this, storeNames, mode);
+  };
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      /Journal read transaction aborted/
     );
   }, () => fixture.db.onclose?.());
 });

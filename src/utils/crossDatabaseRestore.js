@@ -19,6 +19,7 @@ import {
   clearRestoreJournal,
   commitRestoreBatch,
   getPendingRestoreJournal,
+  getCommittedBackupSnapshot,
 } from '../storage/db.js';
 import {
   commitWallpaperRestoreBatch,
@@ -83,6 +84,30 @@ export async function recoverInterruptedRestore() {
     return { recovered: false };
   }
   return manager.request(LOCK_NAME, { mode: 'exclusive' }, recoverUnlocked);
+}
+
+/**
+ * Take a backup snapshot under one origin-wide exclusive lock. Recovery,
+ * domain/attachment readonly transaction and strict wallpaper read all happen
+ * before releasing the lock; expensive Blob conversion/encryption happens later.
+ *
+ * Without Web Locks we cannot stop a cross-database restore in another tab
+ * while collecting the two database snapshots. Refuse an apparently complete
+ * encrypted backup rather than silently combining two different versions.
+ */
+export async function captureCoordinatedBackupSnapshot() {
+  const manager = lockManager();
+  if (!manager?.request) {
+    const error = new Error('Backup requires browser Web Locks to capture consistent data across databases');
+    error.code = 'BACKUP_LOCKS_UNAVAILABLE';
+    throw error;
+  }
+  return manager.request(LOCK_NAME, { mode: 'exclusive' }, async () => {
+    await recoverUnlocked();
+    const main = await getCommittedBackupSnapshot();
+    const wallpapers = await getAllCustomWallpapersForBackup();
+    return { ...main, wallpapers };
+  });
 }
 
 /** Commit ordinary main-DB restore under the same lock when available. */

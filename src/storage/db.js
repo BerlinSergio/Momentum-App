@@ -429,6 +429,54 @@ export async function getAllAttachmentRecords() {
 }
 
 /**
+ * Consistent, fail-closed backup snapshot across the two stores within the
+ * central IndexedDB database. A single readonly transaction guarantees that
+ * domain records and attachment records represent one committed DB version.
+ * Wallpaper storage is a different DB and needs an application Web Lock.
+ *
+ * Never substitute the volatile memory fallback for an encrypted backup.
+ */
+export async function getCommittedBackupSnapshot() {
+  const db = await openAppDB();
+  if (!db) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
+
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction([STORES.DATA, STORES.ATTACHMENTS], 'readonly');
+      let stored = null;
+      let attachments = null;
+      const storeReq = tx.objectStore(STORES.DATA).getAll();
+      const attachmentReq = tx.objectStore(STORES.ATTACHMENTS).getAll();
+      storeReq.onsuccess = () => {
+        stored = {};
+        for (const record of storeReq.result || []) {
+          if (!record || typeof record.name !== 'string' || !record.name) {
+            reject(new Error('Backup aborted: malformed store record'));
+            tx.abort();
+            return;
+          }
+          stored[record.name] = record.value;
+        }
+      };
+      attachmentReq.onsuccess = () => { attachments = attachmentReq.result || []; };
+      storeReq.onerror = () => reject(storeReq.error || new Error('Backup aborted: domain snapshot read failed'));
+      attachmentReq.onerror = () => reject(attachmentReq.error || new Error('Backup aborted: attachment snapshot read failed'));
+      tx.onabort = () => reject(tx.error || new Error('Backup aborted: main database snapshot transaction aborted'));
+      tx.onerror = () => reject(tx.error || new Error('Backup aborted: main database snapshot transaction failed'));
+      tx.oncomplete = () => {
+        if (stored === null || attachments === null) {
+          reject(new Error('Backup aborted: database snapshot was not fully read'));
+        } else {
+          resolve({ stores: stored, attachments });
+        }
+      };
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
  * Clear multiple store records by name.
  */
 export async function removeStoreItems(names) {
@@ -551,8 +599,24 @@ export async function commitRestoreBatch({ stores = [], attachments = [], restor
  * A read failure is an error, not proof that no incomplete restore exists.
  */
 export async function getPendingRestoreJournal() {
-  if (!(await openAppDB())) throw new Error('[Momentum Restore] IndexedDB unavailable');
-  return getMigrationMeta(RESTORE_JOURNAL_KEY);
+  const db = await openAppDB();
+  if (!db) throw new Error('[Momentum Restore] IndexedDB unavailable');
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORES.MIGRATION, 'readonly');
+      const req = tx.objectStore(STORES.MIGRATION).get(RESTORE_JOURNAL_KEY);
+      let record = null;
+      req.onsuccess = () => { record = req.result || null; };
+      req.onerror = () => reject(req.error || new Error('[Momentum Restore] Journal read failed'));
+      // A get request may succeed before its containing transaction aborts.
+      // Never interpret a pre-commit read as absence of a recovery journal.
+      tx.onabort = () => reject(tx.error || new Error('[Momentum Restore] Journal read transaction aborted'));
+      tx.onerror = () => reject(tx.error || new Error('[Momentum Restore] Journal read transaction failed'));
+      tx.oncomplete = () => resolve(record);
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
 /**

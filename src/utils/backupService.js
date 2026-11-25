@@ -17,13 +17,9 @@ import {
 import {
   openAppDB,
   getAllStoreItems,
-  getAllAttachmentRecords,
-  commitRestoreBatch,
 } from '../storage/db.js';
-
-import { getAllCustomWallpapersForBackup } from './wallpaperStorage.js';
 import {
-  recoverInterruptedRestore,
+  captureCoordinatedBackupSnapshot,
   commitCoordinatedMainRestore,
   commitCoordinatedCrossDbRestore,
 } from './crossDatabaseRestore.js';
@@ -91,13 +87,12 @@ export async function createBackupPackage(passphrase, options = {}) {
 
   onProgress({ stage: 'COLLECTING_RECORDS', percent: 15, message: 'Collecting application records...' });
 
-  // Never export a plausible but incomplete backup from volatile memory.
+  // Refuse incomplete or mixed-version backups: both main DB object stores
+  // share one committed read transaction, and custom wallpapers are captured
+  // while holding the same origin lock as cross-DB restore/UI wallpaper writes.
   if (!(await openAppDB())) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
-  // A pending cross-DB journal means wallpaper changes may be uncommitted.
-  // Reconcile first rather than encrypting a mixture of old and new records.
-  await recoverInterruptedRestore();
-  // 1. Read all authoritative records from IndexedDB 'stores' table
-  const allDbStores = await getAllStoreItems();
+  const snapshot = await captureCoordinatedBackupSnapshot();
+  const allDbStores = snapshot.stores;
 
   const domains = {};
   const recordCounts = {
@@ -167,7 +162,7 @@ export async function createBackupPackage(passphrase, options = {}) {
   onProgress({ stage: 'COLLECTING_ATTACHMENTS', percent: 40, message: 'Bundling binary attachments...' });
 
   // 2. Collect all durable binary attachments
-  const rawAttachments = await getAllAttachmentRecords();
+  const rawAttachments = snapshot.attachments;
   const bundledAttachments = [];
   const attachmentChecksums = {};
 
@@ -222,7 +217,7 @@ export async function createBackupPackage(passphrase, options = {}) {
   onProgress({ stage: 'COLLECTING_WALLPAPERS', percent: 65, message: 'Packaging custom media...' });
 
   // 3. Collect custom wallpapers
-  const rawWallpapers = await getAllCustomWallpapersForBackup();
+  const rawWallpapers = snapshot.wallpapers;
   const customWallpapers = (rawWallpapers || []).map((w) => ({
     id: w.id,
     dataUrl: w.dataUrl,
