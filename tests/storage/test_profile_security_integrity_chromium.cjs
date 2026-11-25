@@ -726,6 +726,45 @@ async function lockScreenSingleFlight(browser) {
   } finally { await context.close(); }
 }
 
+async function externalLockActivation(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage();
+    const b = await context.newPage();
+    await boot(a,'security');
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    },{timeout:30000,polling:200});
+    await boot(b,'security');
+    await a.bringToFront();
+    assert.equal(await a.$('[data-testid="app-lock-screen"]'),null);
+    assert.equal(await a.$('[data-testid="security-session-revoked"]'),null);
+    assert.equal((await b.evaluate(()=>window.useSecurityStore.getState().setPin('2468'))).success,true);
+    await a.waitForSelector('[data-testid="security-session-revoked"]',{timeout:15000});
+    assert.equal(await a.evaluate(()=>window.useSecurityStore.getState().isLocked),true);
+    await b.waitForSelector('[data-testid="app-lock-screen"]',{timeout:15000});
+    assert.equal(await b.$('[data-testid="security-session-revoked"]'),null);
+    await a.reload({waitUntil:'domcontentloaded',timeout:60000});
+    await boot(a,'security',false);
+    await a.waitForSelector('[data-testid="app-lock-screen"]',{timeout:15000});
+    assert.equal(await a.$('[data-testid="security-session-revoked"]'),null);
+    assert.equal((await b.evaluate(()=>window.useSecurityStore.getState().pauseAppLock('2468'))).success,true);
+    assert.equal(await b.evaluate(()=>window.useSecurityStore.getState().isLocked),false);
+    await b.reload({waitUntil:'domcontentloaded',timeout:60000});
+    await boot(b,'security',false);
+    await b.bringToFront();
+    assert.equal(await b.$('[data-testid="app-lock-screen"]'),null);
+    assert.equal(await b.$('[data-testid="security-session-revoked"]'),null);
+    await a.reload({waitUntil:'domcontentloaded',timeout:60000});
+    await boot(a,'security',false);
+    await a.evaluate(async()=>{ await window.useSecurityStore.getState().setAppLockActive(true); });
+    assert.equal(await a.evaluate(()=>window.useSecurityStore.getState().isLocked),true);
+    await b.waitForSelector('[data-testid="security-session-revoked"]',{timeout:15000});
+    console.log('PASS: newly configured or reactivated PIN protection revokes previously unprotected tabs.');
+  } finally { await context.close(); }
+}
+
 async function unlockedSessionRevocation(browser) {
   const context = await browser.createBrowserContext();
   try {
@@ -916,6 +955,7 @@ async function main() {
     await freshUnlockReceipts(browser);
     await lockScreenSingleFlight(browser);
     await unlockedSessionRevocation(browser);
+    await externalLockActivation(browser);
     await biometricAssertionIntegrity(browser);
   } finally { await browser.close(); }
 }
