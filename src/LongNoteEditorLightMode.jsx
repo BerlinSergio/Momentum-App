@@ -711,7 +711,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
             {!isEditing ? (
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                data-testid="long-note-edit" onClick={() => setIsEditing(true)}
                 aria-label={t('notes.editNote', 'Edit Note')}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80 border border-indigo-200/60 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-2xs"
                 title={t('notes.editNote', 'Edit Note')}
@@ -722,7 +722,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
             ) : (
               <button
                 type="button"
-                onClick={handleSaveNote} disabled={savingNote}
+                data-testid="long-note-save" onClick={handleSaveNote} disabled={savingNote}
                 aria-label={t('notes.doneEditing', 'Done Editing')}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/60 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-2xs"
                 title={t('notes.doneEditing', 'Done Editing')}
@@ -891,6 +891,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
                 )}
                 <div
                   ref={editorRef}
+                  data-testid="long-note-body-editor"
                   contentEditable
                   onInput={handleEditorInput}
                   className="w-full min-h-[160px] text-sm sm:text-base leading-relaxed p-4 rounded-2xl bg-white/40 focus:bg-white/70 border border-slate-200/70 focus:border-indigo-400 text-slate-800 outline-none transition-all font-normal [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-700 [&_h2]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-500 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_blockquote]:bg-indigo-50/50 [&_blockquote]:rounded-r-lg [&_blockquote]:py-1 [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2" 
@@ -1066,7 +1067,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
           {/* ACTION BUTTONS IN EDIT MODE */}
           {isEditing && (
             <div className="pt-2 space-y-3">
-              <button type="button" onClick={handleSaveNote} disabled={savingNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
+              <button type="button" data-testid="long-note-save" onClick={handleSaveNote} disabled={savingNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
                 <Check className="w-4 h-4 stroke-[2.5]" />
                 <span>{t('common.save', 'Save Note')}</span>
               </button>

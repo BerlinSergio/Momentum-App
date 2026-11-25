@@ -88,6 +88,58 @@ const q = id => '[data-testid="' + id + '"]';
     await page.waitForFunction(()=>window.useNotesStore?.getState()._hasHydrated,{timeout:45000});
     assert.equal(await page.evaluate(()=>window.useNotesStore.getState().notes.find(n=>n.id==='qa-mobile-checklist')?.body),'- [x] First task\n- [x] Second task');
     console.log('PASS: real checklist checkbox persists on reload');
+    // Exercise both editors through the UI with synthetic browser speech events.
+    // No microphone, speech service or private data is used by this test.
+    for(const theme of ['dark','light']){
+      const id='qa-long-dictation-'+theme;
+      await page.evaluate(async({theme,id})=>{
+        await window.useThemeStore.getState().setTheme(theme);
+        const notes=window.useNotesStore.getState();
+        await notes.addNote({id,type:'long',title:'QA dictation '+theme,body:'<p>Original body</p>'});
+        notes.setActiveNoteId(id);
+        window.useNavigationStore.getState().setActiveTab('long_note_editor',{noteId:id,isNew:false});
+      },{theme,id});
+      await page.waitForFunction(title=>[...document.querySelectorAll('h1,h2,textarea')].some(el=>(el.value||el.textContent||'').trim()===title),{timeout:15000},'QA dictation '+theme);
+      await page.waitForSelector(q('long-note-edit'),{visible:true,timeout:10000});
+      await page.click(q('long-note-edit'));
+      await page.waitForSelector(q('long-note-body-editor'),{visible:true,timeout:15000});
+      const original=await page.$eval(q('long-note-body-editor'),el=>el.textContent);
+      await page.evaluate(()=>{
+        Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
+        Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});
+      });
+      await page.click('[aria-label="Voice dictation"]');
+      await new Promise(resolve=>setTimeout(resolve,1900));
+      assert.equal(await page.$eval(q('long-note-body-editor'),el=>el.textContent),original);
+      assert.equal(await page.$eval('[aria-label="Voice dictation"]',el=>el.getAttribute('aria-pressed')),'false');
+      await page.evaluate(()=>{
+        window.SpeechRecognition=undefined;
+        Object.defineProperty(window,'SpeechRecognition',{configurable:true,value:class {
+          start(){window.__qaSpeech=this;this.onstart?.();}
+          stop(){this.onend?.();}
+          abort(){this.onend?.();}
+        }});
+      });
+      await page.click('[aria-label="Voice dictation"]');
+      await page.evaluate(()=>{
+        const rec=window.__qaSpeech;
+        const result=text=>Object.assign([{transcript:text}],{isFinal:true});
+        rec.onresult({results:[result('QA first')]});
+        rec.onresult({results:[result('QA first'),result('QA second')]});
+        rec.onend();
+      });
+      const body=await page.$eval(q('long-note-body-editor'),el=>el.textContent);
+      assert.equal((body.match(/QA first/g)||[]).length,1);
+      assert.equal((body.match(/QA second/g)||[]).length,1);
+      await page.click(q('long-note-save'));
+      await page.waitForFunction(async(id)=>{
+        const {getCommittedStoreRecord}=await import('/src/storage/db.js');
+        const row=await getCommittedStoreRecord('momentum-notes-storage');
+        return row?.value?.state?.notes?.some(n=>n.id===id && n.body.includes('QA first')&&n.body.includes('QA second'));
+      },{timeout:15000},id);
+      await page.waitForSelector(q('long-note-body-editor'),{hidden:true,timeout:15000});
+    }
+    console.log('PASS: both long note themes reject unavailable speech without fake text, append final segments once and save durably');
     const reminders=await page.evaluate(async()=>{
       const {buildNativeReminderPlan,hashStringToInt,calculateRoutineTriggerDate}=await import('/src/utils/nativeNotifications.js');
       const {useSettingsStore}=await import('/src/store/useSettingsStore.js');
