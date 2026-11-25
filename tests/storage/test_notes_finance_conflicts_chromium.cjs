@@ -185,7 +185,7 @@ async function stress(browser, domain, rounds = 25) {
         const baseline = window.__qa213Baseline;
         const previous = baseline?.value || { version: 0, state: {} };
         const existing = previous?.state?.[field] || [];
-        const entry = domain === 'notes'
+        const entry = field === 'notes'
           ? { id, title: id, body: 'stress', attachments: [] }
           : { id, title: id, type: 'expense', amount: 1, currency: 'AFN' };
         const next = { ...previous, state: {
@@ -200,7 +200,7 @@ async function stress(browser, domain, rounds = 25) {
         const baseline = window.__qa213Baseline;
         const previous = baseline?.value || { version: 0, state: {} };
         const existing = previous?.state?.[field] || [];
-        const entry = domain === 'notes'
+        const entry = field === 'notes'
           ? { id, title: id, body: 'stress', attachments: [] }
           : { id, title: id, type: 'expense', amount: 1, currency: 'AFN' };
         const next = { ...previous, state: {
