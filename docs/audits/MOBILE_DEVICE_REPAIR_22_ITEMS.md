@@ -48,3 +48,45 @@ Implemented in the draft branch, pending new CI and handset verification:
 Added targeted Chromium regression at `tests/mobile/test_mobile_repair_regression.cjs` and wired it into durable-writes CI. It covers picker placement/keyboard, canonical month mapping, and persisted saved inspiration/next-preset behavior. This is not a physical device test.
 
 Still open: M04, M06–M08, M10, M12–M16, M20, M22, plus remaining scope of M09/M21 and device verification of every item. Native biometrics must use authenticated cryptographic proof; a password must have a real versioned verifier and migration, not bypass the PIN. Wallpaper's current simulated download and native media export must be replaced with verified file operations. No user data deletion or merge into Main.
+
+
+## Second repair batch — implementation and verification ledger
+
+Updated through commit `edc553e`. All changes remain in draft PR #30; no merge or backup replacement.
+
+| ID | Work now implemented | Remaining acceptance |
+|---|---|---|
+| M01 | Native system-bar insets, safe shell | Handset status/navigation bars, cutouts, rotation |
+| M02 | Bounded portals and keyboard time input | Device IME and smallest screen |
+| M03 | Saved prayer inspiration collection | On-device reload |
+| M04 | More opaque dark translucent cards | Contrast review of all reported cards |
+| M05 | Canonical Hijri names | Locale/convention review |
+| M06 | AndroidX BiometricPrompt + per-operation Android Keystore P-256 signing, JS signature verification and current-credential-bound enrollment | Android build of complete integration, actual strong enrolled biometric and invalidated key tests; PIN/passcode fallback |
+| M07 | Versioned salted PBKDF2 passcode verifier; authenticated atomic conversion both directions; masked input, confirmation, shared durable attempt limits | New passcode reload UI regression and device verification; no release before these pass |
+| M08 | Real fetch, image decode, size limits, cached data URLs in IndexedDB, truthful partial result | Offline application and reload; catalog uses existing photo sources, not a new server catalog |
+| M09 | Await expense/income/profile/quick-note/media caption writes | Audit other controls and verify actual on-device persistence |
+| M10 | Native SAF file creation with chunked staging and verified byte count; native share; cancellation not counted as success | Actual Documents/Downloads provider, permission and cancellation tests |
+| M11 | Fixed profile action footer | Device small display |
+| M12 | Android approximate/precise permission handling, real coordinates and retry | Actual GPS and any additional sensors; not all sensors addressed |
+| M13 | Android lighter glass/blur and fade, reduced motion and no persistent GPU will-change | FPS/frame timing on device; no promised FPS |
+| M14 | Native permission checks, channels, seven-day reminder plan for tasks/routines/prayers/calendar, reconciliation and test notification | Actual delivery/background/reboot, OS exact-alarm policy; 60 nearest pending reminders and rolling horizon |
+| M15 | Removed repeated bottom spacing on affected pages | Device keyboard/dock overlap review |
+| M16 | Native hardware volume event interception limited to active unlocked Tasbeeh, normal behavior elsewhere | Actual hardware keys, focus, pause/resume |
+| M17 | Auto-next with wrap and exact-once completed round | Device repetition |
+| M18 | Plain-text safe preview | Device media/empty preview |
+| M19 | Portal-based viewport FAB | Scroll on device |
+| M20 | Quick-note checklist input, toggle saved state, preserve other attachments | New Chromium checkbox reload regression; device test |
+| M21 | Picker/archive/prayer/biometric/credential dialogs anchored | Remaining popup inventory |
+| M22 | Shared responsive About layout, real installed native version | Device and theme visual review |
+
+### Observed CI evidence
+
+- First repair batch: full durable writes run 45699178203 passed, including picker/calendar/bookmark/Tasbeeh regression.
+- Second batch through About commit 54b2558: Android APK build 45702511768 and full DB regression 45702511709 passed.
+- Native biometric Java plugin alone: Android build 45702735830 passed.
+- Later DB runs 45702735925 and 45703238174 had selector/timeouts in multi-tab conflict / backup tests; 45702987587 reached the mobile regression, which timed out opening the task screen. These are unresolved until a clean rerun. Startup routing wait and test diagnostics added without dropping assertions.
+- Run 45703352164 had a duplicate JS identifier in biometric integration; fixed at ebd4558. Production build at ebd4558 subsequently advanced to browser tests. New final CI pending. No assertion that current HEAD is release-ready or that a phone has been physically tested.
+
+### Release decision
+
+The complete repair branch is still under test. Do not publish/install the latest security-changing build as a final replacement until all CI is green and physical Android acceptance is complete. Keep existing PIN/passcode known and back up personal records before handset testing. Strong biometrics must be enrolled by the owner in Android settings; unsupported hardware is not simulated.

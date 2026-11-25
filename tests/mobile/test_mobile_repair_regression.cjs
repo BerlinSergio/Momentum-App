@@ -5,15 +5,14 @@ const q = id => '[data-testid="' + id + '"]';
 
 (async () => {
   const browser = await puppeteer.launch({headless:true,args:['--no-sandbox','--disable-setuid-sandbox']});
+  const page = await browser.newPage();
   try {
-    const page = await browser.newPage();
     await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true});
     await page.goto(url,{waitUntil:'domcontentloaded'});
     await page.waitForFunction(() => ['Profile','Security','Prayer','Tasbeeh','Notes'].every(
       name => window['use'+name+'Store']?.persist?.hasHydrated() &&
         window['use'+name+'Store']?.getState()._hasHydrated),{timeout:45000});
-    const pageErrors=[];
-    page.on('pageerror',error=>pageErrors.push(String(error)));
+    page.on('pageerror',error=>console.error('Mobile page error:',String(error)));
     await page.evaluate(async () => {
       await window.useProfileStore.getState().completeSetup();
       await window.useProfileStore.getState().updateProfile({fullName:'Mobile QA',setupCompleted:true});
