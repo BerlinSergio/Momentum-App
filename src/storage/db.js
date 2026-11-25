@@ -645,7 +645,7 @@ export async function commitRestoreBatch({
         pending -= 1;
         if (pending === 0 && !conflict) enqueueWrites();
       };
-      if (expectedStoreValues) {
+      if (expectedStoreValues && stores.length) {
         const store = tx.objectStore(STORES.DATA);
         for (const item of stores) {
           const req = store.get(item.name);
@@ -660,7 +660,7 @@ export async function commitRestoreBatch({
           req.onerror = () => { try { tx.abort(); } catch { finish(false); } };
         }
       }
-      if (expectedAttachmentRecords) {
+      if (expectedAttachmentRecords && attachments.length) {
         const store = tx.objectStore(STORES.ATTACHMENTS);
         for (const item of attachments) {
           const req = store.get(item.id);
