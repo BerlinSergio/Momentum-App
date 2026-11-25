@@ -124,15 +124,18 @@ async function finishCredentialTransition(result) {
     return {success:false, committed:true, error:'Security change committed; reload to refresh security settings.'};
   }
 }
-async function setFirstPinSafely(newPin) {
-  return finishCredentialTransition(await createCredential(newPin));
+// A local credential operation includes its post-commit metadata refresh.
+// The guard must not mistake that short interval for an external activation.
+let pendingCredentialTransitions = 0;
+export const isCredentialTransitionPending = () => pendingCredentialTransitions > 0;
+async function runCredentialTransition(operation) {
+  pendingCredentialTransitions++;
+  try { return await finishCredentialTransition(await operation()); }
+  finally { pendingCredentialTransitions--; }
 }
-async function changePinSafely(currentPin, newPin) {
-  return finishCredentialTransition(await changeCredential(currentPin, newPin));
-}
-async function removePinSafely(currentPin) {
-  return finishCredentialTransition(await removeCredential(currentPin));
-}
+const setFirstPinSafely = newPin => runCredentialTransition(() => createCredential(newPin));
+const changePinSafely = (currentPin,newPin) => runCredentialTransition(() => changeCredential(currentPin,newPin));
+const removePinSafely = currentPin => runCredentialTransition(() => removeCredential(currentPin));
 
 // Capture the vanilla Zustand setter outside persist. A session-only lock
 // transition must never enqueue a whole-domain durable snapshot.
@@ -158,10 +161,10 @@ export const useSecurityStore = create((setTransient, get, api) =>
         if (!next && state.hasPin && state.isAppLockActive) {
           return { success:false, error:'Confirm your current PIN to pause App Lock.' };
         }
-        return set({ isAppLockActive: next, isLocked: next && state.hasPin ? state.isLocked : false });
+        return set({ isAppLockActive: next, isLocked: next && state.hasPin ? (!state.isAppLockActive || state.isLocked) : false });
       },
 
-      pauseAppLock: async (currentPin) => finishCredentialTransition(await pauseAppLock(currentPin)),
+      pauseAppLock: (currentPin) => runCredentialTransition(() => pauseAppLock(currentPin)),
 
       setBiometricsEnabled: (enabled) =>
         set((state) => {
@@ -242,7 +245,8 @@ export const useSecurityStore = create((setTransient, get, api) =>
              (state.hasPin && state.isAppLockActive && !patch.isAppLockActive))) {
           return { success:false, error:'Confirm your current PIN to pause App Lock.' };
         }
-        return set({ ...patch, lastModified: getFormattedTimestamp() });
+        const activating = patch.isAppLockActive === true && !state.isAppLockActive && state.hasPin;
+        return set({ ...patch, ...(activating ? { isLocked: true } : {}), lastModified: getFormattedTimestamp() });
       },
 
       // Reset preferences only; never manufacture startup readiness or
