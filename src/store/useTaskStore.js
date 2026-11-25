@@ -256,12 +256,12 @@ export const useTaskStore = create(
       // Migration and crash-journal recovery MUST finish before rehydration.
       skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          if (!Array.isArray(state.tasks)) {
-            state.tasks = [];
-          }
-          state.setHasHydrated(true);
+        if (!error && state && !Array.isArray(state.tasks)) {
+          state.tasks = [];
         }
+        // No extra persistence write here. StartupController's single
+        // coordinated hydration pass marks this domain ready afterward.
+        // Calling setHasHydrated twice enqueued redundant full task saves.
       },
     }
   )
