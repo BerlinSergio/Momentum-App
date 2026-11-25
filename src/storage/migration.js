@@ -33,7 +33,7 @@ export const LEGACY_STORAGE_KEYS = [
  *
  * @returns {Promise<{ success: boolean, migratedCount: number, skippedCount: number, details: Object }>}
  */
-export async function runStorageMigration() {
+export async function runStorageMigration({ beforeComplete } = {}) {
   if (typeof window === 'undefined' || !window.localStorage) {
     return { success: true, migratedCount: 0, skippedCount: 0, details: { reason: 'No localStorage available' } };
   }
@@ -63,33 +63,7 @@ export async function runStorageMigration() {
       // Check if already present in destination IndexedDB
       const existingInIdb = await getStoreItem(key);
       if (existingInIdb && existingInIdb.state) {
-        // Sanitize any existing plaintext security credentials in IndexedDB
-        if (domain === 'security' && (existingInIdb.state.pin || existingInIdb.state.alphanumeric)) {
-          const hasPin = Boolean(
-            existingInIdb.state.hasPin ||
-            (existingInIdb.state.pin && String(existingInIdb.state.pin).trim().length === 4)
-          );
-          const sanitizedRecord = {
-            ...existingInIdb,
-            state: {
-              ...existingInIdb.state,
-              pin: '',
-              alphanumeric: '',
-              hasPin,
-            },
-          };
-          const sanitizationSaved = await setStoreItem(key, sanitizedRecord);
-          if (sanitizationSaved !== true) {
-            migrationSummary.errors.push({ key, error: 'Security sanitization was not committed' });
-          } else {
-            // A commit acknowledgement is necessary but not a substitute for
-            // validating the authoritative IndexedDB record after migration.
-            const persisted = await getStoreItem(key);
-            if (JSON.stringify(persisted) !== JSON.stringify(sanitizedRecord)) {
-              migrationSummary.errors.push({ key, error: 'Security sanitization read-back mismatch' });
-            }
-          }
-        }
+        // Preserve legacy PIN until the atomic credential commit.
         migrationSummary.skipped.push({ key, reason: 'Already in IndexedDB' });
         continue;
       }
@@ -172,6 +146,13 @@ export async function runStorageMigration() {
 
     // 3. Verify destination integrity
     let hasCriticalErrors = migrationSummary.errors.length > 0;
+    if (!hasCriticalErrors && beforeComplete) {
+      const credential = await beforeComplete();
+      if (credential?.error) {
+        migrationSummary.errors.push({key:'credential-migration',error:'Credential migration not committed'});
+        hasCriticalErrors = true;
+      }
+    }
     if (!hasCriticalErrors) {
       const markerCommitted = await setMigrationMeta(MIGRATION_KEY, {
         version: CURRENT_SCHEMA_VERSION,
