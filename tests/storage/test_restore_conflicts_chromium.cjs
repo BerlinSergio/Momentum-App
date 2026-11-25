@@ -9,11 +9,44 @@ const URL = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
 const STORE = 'qa-restore-conflict-domain';
 const WALL = 'qa-restore-conflict-wallpaper';
 
+async function testSimultaneousColdStart(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    // Two *fresh* tabs open at the same instant against a fresh origin.
+    const pages = await Promise.all([context.newPage(), context.newPage()]);
+    await Promise.all(pages.map(page =>
+      page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })
+    ));
+    await Promise.all(pages.map(page => page.waitForFunction(() => {
+      const ready = window.useProfileStore?.persist?.hasHydrated?.() === true;
+      const failedSafely = document.querySelector('[role="alert"]')
+        ?.textContent?.includes('Cannot safely load saved data') === true;
+      return ready || failedSafely;
+    }, { timeout: 35000 })));
+    const results = await Promise.all(pages.map(page => page.evaluate(() => ({
+      hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
+      safeError: document.querySelector('[role="alert"]')
+        ?.textContent?.includes('Cannot safely load saved data') === true,
+      canRetry: Array.from(document.querySelectorAll('button')).some(
+        button => button.textContent?.includes('Retry loading')
+      ),
+    }))));
+    for (const result of results) {
+      assert.ok(result.hydrated || (result.safeError && result.canRetry),
+        'Cold-start must either finish hydration or fail closed with a retry');
+    }
+    console.log('PASS: Concurrent cold-start tabs each hydrate or show safe retry; no silent partial startup.');
+  } finally {
+    await context.close();
+  }
+}
+
 async function main() {
   const browser = await puppeteer.launch({
     headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
   try {
+    await testSimultaneousColdStart(browser);
     const context = await browser.createBrowserContext();
     const a = await context.newPage();
     const b = await context.newPage();
