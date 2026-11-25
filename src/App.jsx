@@ -628,7 +628,7 @@ function AppContent({ startupStatus = 'ready' }) {
         </div>
       ) : (
         /* ── RESPONSIVE APPLICATION SHELL (DEFAULT FOR DESKTOP, TABLET & MOBILE) ── */
-        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`w-full h-[100dvh] overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
+        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`momentum-safe-shell w-full h-[100dvh] overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
           {!isAppLoading && !isVaultLocked && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
 
           {/* Desktop Navigation Sidebar (Only rendered on desktop viewports: >= 1024px) */}
