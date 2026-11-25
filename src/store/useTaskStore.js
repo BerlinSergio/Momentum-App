@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getLocalDateKey, addCalendarDays } from '../utils/timeService';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const taskStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-task-storage' });
+const taskStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-task-storage',
+  preventConcurrentWrites: true,
+});
 const getSafeStorage = () => taskStorage;
 
 export const getTodayIsoDate = (tz) => {
@@ -149,46 +152,20 @@ export const DEMO_TASKS = [
 
 export const initialTasks = DEMO_TASKS;
 
-const syncTaskToLocalStorage = (slice) => {
-  try {
-    const raw = typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('momentum-task-storage') : null;
-    const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-    parsed.state = { ...(parsed.state || {}), ...slice };
-    taskStorage.setItem('momentum-task-storage', JSON.stringify(parsed)).catch(() => {});
-  } catch (e) {
-    console.warn('[Momentum Tasks] Persistence sync error:', e);
-  }
-};
-
-const getInitialTaskState = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem('momentum-task-storage');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state && Array.isArray(parsed.state.tasks)) {
-          return {
-            tasks: parsed.state.tasks,
-            editingTaskId: null,
-            _hasHydrated: true,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse momentum-task-storage:', e);
-    }
-  }
-  return {
-    tasks: [],
-    editingTaskId: null,
-    _hasHydrated: true,
-  };
+// The central startup controller hydrates the authoritative IndexedDB state.
+// Do not eagerly read a possibly stale localStorage mirror, and never issue a
+// second persistence write from inside an Immer update. Zustand persist is
+// the only task writer, with an optimistic cross-tab conflict precondition.
+const initialTaskState = {
+  tasks: [],
+  editingTaskId: null,
+  _hasHydrated: false,
 };
 
 export const useTaskStore = create(
   persist(
     (set) => ({
-      ...getInitialTaskState(),
+      ...initialTaskState,
 
       setHasHydrated: (val) => set({ _hasHydrated: val }),
 
@@ -214,7 +191,6 @@ export const useTaskStore = create(
             };
             state.tasks.unshift(newTask);
             state.editingTaskId = null;
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -228,7 +204,6 @@ export const useTaskStore = create(
               state.tasks[index] = { ...state.tasks[index], ...changes };
             }
             state.editingTaskId = null;
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -240,7 +215,6 @@ export const useTaskStore = create(
             if (state.editingTaskId === id) {
               state.editingTaskId = null;
             }
-            syncTaskToLocalStorage({ tasks: state.tasks });
             if (typeof window !== 'undefined' && window.nativeNotifications?.cancelNotificationForSource) {
               window.nativeNotifications.cancelNotificationForSource('task', id);
             }
@@ -257,7 +231,6 @@ export const useTaskStore = create(
                 window.nativeNotifications.cancelNotificationForSource('task', taskId);
               }
             }
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -271,7 +244,6 @@ export const useTaskStore = create(
                 sub.completed = !sub.completed;
               }
             }
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
 
@@ -279,13 +251,16 @@ export const useTaskStore = create(
         set(
           produce((state) => {
             state.tasks = state.tasks.filter((t) => t.status !== 'done');
-            syncTaskToLocalStorage({ tasks: state.tasks });
           })
         ),
     }),
     {
       name: 'momentum-task-storage',
       storage: createJSONStorage(getSafeStorage),
+      // Ephemeral editing and hydration flags must not persist or cause
+      // cross-tab writes just because a view was opened.
+      partialize: (state) => ({ tasks: state.tasks }),
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           if (!Array.isArray(state.tasks)) {
@@ -298,27 +273,7 @@ export const useTaskStore = create(
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-task-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state && Array.isArray(parsed.state.tasks)) {
-        useTaskStore.setState({
-          ...parsed.state,
-          _hasHydrated: true,
-        });
-      } else {
-        useTaskStore.setState({ tasks: [], _hasHydrated: true });
-      }
-    } else {
-      useTaskStore.setState({ tasks: [], _hasHydrated: true });
-    }
-  } catch {
-    useTaskStore.setState({ tasks: [], _hasHydrated: true });
-  }
-}
+// A safe startup renders splash until the authoritative async hydration completes.
 
 export const getConsistencyScore = (tasks = [], isDark = false) => {
   const windowDates = [];
