@@ -176,12 +176,15 @@ export const useSecurityStore = create(
           return { hideInMultitasking: next };
         }),
 
-      setGuardrail: (key, value) =>
-        set((state) => {
-          const next = typeof value === 'function' ? value(state[key]) : !!value;
-          
+      setGuardrail: (key, value) => {
+        if (!['lockFinance', 'lockReflections', 'allowQuickDhikr'].includes(key)) {
+          return { success: false, error: 'Unknown security guardrail.' };
+        }
+        return set((state) => {
+          const next = typeof value === 'function' ? !!value(state[key]) : !!value;
           return { [key]: next };
-        }),
+        });
+      },
 
       setLockFinance: (lock) =>
         set((state) => {
@@ -219,16 +222,20 @@ export const useSecurityStore = create(
           lastModified: getFormattedTimestamp(),
         }),
 
-      updatePreferences: (draft) =>
-        set((state) => {
-          const patch = typeof draft === 'function' ? draft(state) : draft;
-          const next = {
-            ...patch,
-            lastModified: getFormattedTimestamp(),
-          };
-          
-          return next;
-        }),
+      updatePreferences: (draft) => {
+        // Generic settings edits must never change credential identity or
+        // hydration/lock session metadata outside the dedicated operations.
+        const patch = typeof draft === 'function' ? draft({ ...useSecurityStore.getState() }) : draft;
+        const allowed = new Set([
+          'isAppLockActive', 'biometricsEnabled', 'lockTiming', 'hideInMultitasking',
+          'lockFinance', 'lockReflections', 'allowQuickDhikr',
+        ]);
+        if (!patch || typeof patch !== 'object' || Array.isArray(patch) ||
+            Object.keys(patch).some(key => !allowed.has(key))) {
+          return { success: false, error: 'Invalid security preferences.' };
+        }
+        return set({ ...patch, lastModified: getFormattedTimestamp() });
+      },
 
       resetToDefaults: () =>
         set((state) => ({
