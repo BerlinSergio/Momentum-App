@@ -18,6 +18,7 @@ import {
   openAppDB,
   getCommittedBackupSnapshot,
 } from '../storage/db.js';
+import { assertBackupFileSize, preflightBackupSnapshot } from './backupLimits.js';
 import {
   captureCoordinatedBackupSnapshot,
   commitCoordinatedMainRestore,
@@ -159,6 +160,11 @@ export async function createBackupPackage(passphrase, options = {}) {
     }
   }
 
+  // Fail before expensive Blob -> base64 -> JSON -> encryption copies.
+  // Refuse an oversized archive; never skip a large attachment silently.
+  preflightBackupSnapshot({
+    domains, attachments: snapshot.attachments, wallpapers: snapshot.wallpapers,
+  });
   onProgress({ stage: 'COLLECTING_ATTACHMENTS', percent: 40, message: 'Bundling binary attachments...' });
 
   // 2. Collect all durable binary attachments
@@ -175,8 +181,10 @@ export async function createBackupPackage(passphrase, options = {}) {
       let sha256 = '';
 
       if (att.blob instanceof Blob) {
-        base64Bytes = await blobToBase64(att.blob);
-        sha256 = await computeSha256(att.blob);
+        // Read each Blob once; use the same bytes for Base64 and checksum.
+        const bytes = await att.blob.arrayBuffer();
+        base64Bytes = bufferToBase64(bytes);
+        sha256 = await computeSha256(bytes);
       } else if (typeof att.blob === 'string' && att.blob.startsWith('data:')) {
         const rawBlob = base64ToBlob(att.blob.split(',')[1], att.mimeType);
         base64Bytes = att.blob.split(',')[1];
@@ -298,9 +306,15 @@ export async function exportBackupToFile(envelope, customFilename = null) {
 export function inspectBackupFile(fileContent) {
   let envelope;
   try {
+    if (typeof fileContent === 'string') assertBackupFileSize(fileContent.length);
     envelope = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
-  } catch {
-    return { valid: false, error: 'File is not valid JSON' };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error?.code === 'BACKUP_FILE_TOO_LARGE'
+        ? error.message
+        : 'File is not valid JSON',
+    };
   }
 
   if (!envelope || typeof envelope !== 'object') {
