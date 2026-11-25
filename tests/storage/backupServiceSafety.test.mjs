@@ -125,3 +125,50 @@ test('restore aborts on a failed durable transaction and leaves no new record be
     assert.equal(fixture.records.has(STORE), false);
   }, () => fixture.db.onclose?.());
 });
+
+test('invalid attachment checksum is rejected before any restore mutation', async () => {
+  const fixture = fakeDatabase();
+  const envelope = await encryptBackupPayload(JSON.stringify({
+    manifest: { version: 1 },
+    domains: {
+      [STORE]: { state: { tasks: [{ id: 'never-write' }] }, version: 0 },
+    },
+    attachments: [{
+      id: 'synthetic-attachment',
+      mimeType: 'text/plain',
+      base64Bytes: 'aGVsbG8=',
+      sha256: '0'.repeat(64),
+    }],
+    customWallpapers: [],
+  }), passphrase);
+
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      restoreBackup(envelope, passphrase),
+      error => error?.code === 'ATTACHMENT_CHECKSUM_MISMATCH'
+    );
+    assert.equal(fixture.records.has(STORE), false);
+    assert.equal(fixture.attachments.size, 0);
+  }, () => fixture.db.onclose?.());
+});
+
+test('repeated synthetic merge restore does not duplicate tasks', async () => {
+  const fixture = fakeDatabase();
+  const envelope = await encryptBackupPayload(JSON.stringify({
+    manifest: { version: 1 },
+    domains: {
+      [STORE]: { state: { tasks: [{ id: 'qa-task-1', title: 'One' }] }, version: 0 },
+    },
+    attachments: [],
+    customWallpapers: [],
+  }), passphrase);
+
+  await withWindow(fixture.fakeWindow, async () => {
+    const first = await restoreBackup(envelope, passphrase);
+    assert.equal(first.success, true);
+    const second = await restoreBackup(envelope, passphrase);
+    assert.equal(second.success, true);
+    const stored = fixture.records.get(STORE)?.value;
+    assert.deepEqual(stored?.state?.tasks?.map(task => task.id), ['qa-task-1']);
+  }, () => fixture.db.onclose?.());
+});
