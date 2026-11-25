@@ -197,12 +197,18 @@ export async function getCommittedStoreRecord(name) {
  * surfaced to the user, not silently retried from the stale whole-domain
  * Zustand state. Legacy records without revisionId are value-compared.
  */
-export async function compareAndSwapTaskStore(name, value, expectedRecord) {
-  if (name !== 'momentum-task-storage') {
-    throw new TypeError('Optimistic task write supports only the task domain');
+export const GUARDED_DOMAINS = Object.freeze([
+  'momentum-task-storage',
+  'momentum-notes-storage',
+  'momentum-finance-storage',
+]);
+
+export async function compareAndSwapDomainStore(name, value, expectedRecord) {
+  if (!GUARDED_DOMAINS.includes(name)) {
+    throw new TypeError('Optimistic store write is restricted to reviewed durable domains');
   }
   if (expectedRecord !== null && (!expectedRecord || expectedRecord.name !== name)) {
-    throw new TypeError('Task write requires a committed baseline snapshot');
+    throw new TypeError('Guarded store write requires a committed baseline snapshot');
   }
   const db = await openAppDB();
   if (!db) {
@@ -237,8 +243,9 @@ export async function compareAndSwapTaskStore(name, value, expectedRecord) {
             sameStoreValue(current.value, expectedRecord.value)
           ));
         if (!matches) {
-          failure = new Error('Tasks changed in another tab. Your change was not saved; reload durable tasks before editing again.');
-          failure.code = 'TASK_WRITE_CONFLICT';
+          failure = new Error(name + ' changed in another tab. Your edit was not saved; reload committed data before editing again.');
+          failure.code = name === 'momentum-task-storage' ? 'TASK_WRITE_CONFLICT' : 'DOMAIN_WRITE_CONFLICT';
+          failure.domain = name;
           try { tx.abort(); } catch { finish(failure); }
           return;
         }
@@ -263,6 +270,14 @@ export async function compareAndSwapTaskStore(name, value, expectedRecord) {
     }
   });
 }
+
+// Backwards-compatible public entry for Phase 2.12 callers.
+export const compareAndSwapTaskStore = (name, value, expectedRecord) => {
+  if (name !== 'momentum-task-storage') {
+    throw new TypeError('Task CAS accepts only the task domain');
+  }
+  return compareAndSwapDomainStore(name, value, expectedRecord);
+};
 
 /**
  * Write a record into the 'stores' object store.
