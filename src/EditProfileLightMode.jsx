@@ -130,7 +130,7 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
       // The profile is committed first. Prayer calculation synchronization
       // reports its own error; never write an unverified localStorage mirror.
       if (usePrayerStore.getState().calculationMethod !== calculationConvention) {
-        await usePrayerStore.getState().setCalculationMethod?.(calculationConvention);
+        await usePrayerStore.getState().setCalculationMethod?.(calculationConvention, {syncProfile:false});
       }
       setSaveStatus('saved');
       toast.success(t('toasts.profileUpdated', 'Profile updated successfully'));
