@@ -301,4 +301,11 @@ export const useSecurityStore = create((setTransient, get, api) =>
   )(setTransient, get, api)
 );
 
+// Tab-local fail-closed latch, deliberately outside persistent preferences.
+// Only a new document (explicit reload) clears the restart requirement.
+export const useSecuritySessionGate = create(set => ({
+  restartRequired: false,
+  requireRestart: () => set({restartRequired:true}),
+}));
+
 export default useSecurityStore;
