@@ -9,6 +9,7 @@ on:
       - fix/db-phase25-backup-completeness-20261125
       - fix/db-phase26-cross-db-recovery-20261125
       - fix/db-phase27-snapshot-concurrency-20261125
+      - fix/db-phase28-optimistic-conflicts-20261125
   workflow_dispatch:
 
 permissions:
@@ -55,6 +56,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_backup_multitab_chromium.cjs
+      - name: Cross-tab optimistic restore conflict Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_restore_conflicts_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
