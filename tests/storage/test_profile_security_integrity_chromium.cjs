@@ -479,19 +479,19 @@ async function credentialAttemptLimits(browser) {
       const setup = await svc.createCredential('2468');
       if (!setup.success) return {setup:false};
       const before = await snapshot();
-      svc.clearLockoutState();
-      for (let i = 0; i < 4; i++) svc.recordFailedAttempt();
+      await svc.clearLockoutState();
+      for (let i = 0; i < 4; i++) await svc.recordFailedAttempt();
       const wrong = await svc.changeCredential('0000','1357');
-      const locked = svc.getLockoutState().isLockedOut;
+      const locked = (await svc.readCommittedLockoutState()).isLockedOut;
       const change = await svc.changeCredential('2468','1357');
       const remove = await svc.removeCredential('2468');
       const pause = await svc.pauseAppLock('2468');
       const unchanged = JSON.stringify(before) === JSON.stringify(await snapshot());
       // Simulate expiry in the isolated test session only.
-      const state = JSON.parse(localStorage.getItem(svc.LOCKOUT_STORAGE_KEY));
-      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY, JSON.stringify({...state,lockedUntil:Date.now()-1}));
+      const state = (await db.getCommittedStoreRecord(svc.LOCKOUT_RECORD_KEY)).value;
+      if (!await db.setStoreItem(svc.LOCKOUT_RECORD_KEY,{...state,lockedUntil:Date.now()-1})) throw Error('Test expiry write failed');
       const recovered = await svc.changeCredential('2468','1357');
-      const cleared = svc.getLockoutState().failedAttempts === 0;
+      const cleared = (await svc.readCommittedLockoutState()).failedAttempts === 0;
       const finalRemove = await svc.removeCredential('1357');
       return {setup:true,wrong:!wrong.success,locked,blocked:[change,remove,pause].every(r=>!r.success),
         unchanged,recovered:recovered.success,cleared,removed:finalRemove.success};
@@ -525,7 +525,7 @@ async function sharedAttemptLimits(browser) {
     assert.equal(attempts.every(r=>!r.success),true);
     const read = page => page.evaluate(async () => {
       const svc = await import('/src/utils/credentialService.js');
-      return svc.getLockoutState();
+      return svc.readCommittedLockoutState();
     });
     for (const page of [a,b]) {
       const state = await read(page);
@@ -536,6 +536,11 @@ async function sharedAttemptLimits(browser) {
     const reopened = await context.newPage();
     await boot(reopened,'security');
     assert.equal((await read(reopened)).isLockedOut,true);
+    // Simulate an outdated permissive localStorage mirror; authority remains locked.
+    await reopened.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY, JSON.stringify({failedAttempts:0,lockedUntil:0}));
+    });
     const blocked = await reopened.evaluate(async () => {
       const svc = await import('/src/utils/credentialService.js');
       return Promise.all([svc.authenticatePin('2468'),svc.changeCredential('2468','1357'),
@@ -544,12 +549,18 @@ async function sharedAttemptLimits(browser) {
     assert.equal(blocked.every(r=>!r.success),true);
     const recovered = await a.evaluate(async () => {
       const svc = await import('/src/utils/credentialService.js');
-      const state = JSON.parse(localStorage.getItem(svc.LOCKOUT_STORAGE_KEY));
-      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY,JSON.stringify({...state,lockedUntil:Date.now()-1}));
+      const db = await import('/src/storage/db.js');
+      const state = (await db.getCommittedStoreRecord(svc.LOCKOUT_RECORD_KEY)).value;
+      if (!await db.setStoreItem(svc.LOCKOUT_RECORD_KEY,{...state,lockedUntil:Date.now()-1})) throw Error('Test expiry write failed');
       return svc.authenticatePin('2468');
     });
     assert.equal(recovered.success,true);
+    await reopened.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY, JSON.stringify({failedAttempts:5,lockedUntil:Date.now()+30000}));
+    });
     assert.equal((await read(reopened)).failedAttempts,0);
+    assert.equal((await read(reopened)).isLockedOut,false);
     console.log('PASS: shared PIN attempt limit serializes tabs, survives tab closure, and clears on successful authentication.');
   } finally { await context.close(); }
 }
