@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBackupPackage, restoreBackup } from '../../src/utils/backupService.js';
 import { encryptBackupPayload, decryptBackupPayload } from '../../src/utils/backupCrypto.js';
-import { commitRestoreBatch } from '../../src/storage/db.js';
+import { commitRestoreBatch, setAttachmentRecord, beginRestoreJournal, getPendingRestoreJournal } from '../../src/storage/db.js';
 
 const STORE = 'momentum-task-storage';
 const passphrase = 'synthetic-qa-restore-only';
@@ -467,5 +467,111 @@ test('unchanged optimistic snapshot commits domain and attachment together', asy
     assert.equal(committed, true);
     assert.equal(fixture.records.get(STORE).value.state.tasks[0].id, 'committed');
     assert.equal(await fixture.attachments.get('new-attachment').blob.text(), 'safe');
+  }, () => fixture.db.onclose?.());
+});
+
+test('each attachment write mints a new revision even with identical metadata, clock and Blob length', async () => {
+  const fixture = fakeDatabase();
+  const originalClock = Date.now;
+  await withWindow(fixture.fakeWindow, async () => {
+    try {
+      Date.now = () => 1700000000000;
+      assert.equal(await setAttachmentRecord({
+        id: 'qa-revision-file', blob: new Blob(['AAAA']),
+        revisionId: 'forged-caller-revision',
+        mimeType: 'text/plain', sizeBytes: 4,
+      }), true);
+      const before = fixture.attachments.get('qa-revision-file');
+      assert.match(before.revisionId, /^[0-9a-f]{40}$/);
+      assert.notEqual(before.revisionId, 'forged-caller-revision');
+
+      assert.equal(await setAttachmentRecord({
+        id: 'qa-revision-file', blob: new Blob(['BBBB']),
+        revisionId: before.revisionId, mimeType: 'text/plain', sizeBytes: 4,
+      }), true);
+      const after = fixture.attachments.get('qa-revision-file');
+      assert.notEqual(after.revisionId, before.revisionId);
+      assert.equal(after.updatedAt, before.updatedAt);
+      assert.equal(after.blob.size, before.blob.size);
+
+      // A restore based on the first snapshot must fail, even though metadata
+      // and the millisecond timestamp are identical.
+      await assert.rejects(
+        commitRestoreBatch({
+          attachments: [{ id: 'qa-revision-file', blob: new Blob(['CCCC']) }],
+          expectedAttachmentRecords: { 'qa-revision-file': before },
+        }),
+        error => error?.code === 'RESTORE_CONFLICT'
+      );
+      assert.equal(await fixture.attachments.get('qa-revision-file').blob.text(), 'BBBB');
+    } finally {
+      Date.now = originalClock;
+    }
+  }, () => fixture.db.onclose?.());
+});
+
+test('atomic restore overwrites caller-supplied revision with a fresh durable attachment token', async () => {
+  const fixture = fakeDatabase();
+  await withWindow(fixture.fakeWindow, async () => {
+    const value = { id: 'qa-restore-file', blob: new Blob(['first']) };
+    assert.equal(await commitRestoreBatch({ attachments: [value] }), true);
+    const before = fixture.attachments.get(value.id);
+    assert.match(before.revisionId, /^[0-9a-f]{40}$/);
+
+    assert.equal(await commitRestoreBatch({ attachments: [{
+      ...value, blob: new Blob(['other']), revisionId: before.revisionId,
+    }] }), true);
+    const after = fixture.attachments.get(value.id);
+    assert.notEqual(after.revisionId, before.revisionId);
+    assert.equal(await after.blob.text(), 'other');
+  }, () => fixture.db.onclose?.());
+});
+
+test('QuotaExceededError during attachment put aborts earlier queued domain writes', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(stores, mode) {
+    const tx = original.call(this, stores, mode);
+    if (mode !== 'readwrite' || !Array.isArray(stores) || !stores.includes('attachments')) return tx;
+    const objectStore = tx.objectStore;
+    tx.objectStore = function(name) {
+      const store = objectStore.call(this, name);
+      if (name === 'attachments') {
+        store.put = () => { throw new DOMException('Synthetic disk quota', 'QuotaExceededError'); };
+      }
+      return store;
+    };
+    return tx;
+  };
+  fixture.records.set(STORE, { name: STORE, value: { state: { tasks: [{ id: 'before-quota' }] } } });
+  await withWindow(fixture.fakeWindow, async () => {
+    assert.equal(await commitRestoreBatch({
+      stores: [{ name: STORE, value: { state: { tasks: [{ id: 'should-abort' }] } } }],
+      attachments: [{ id: 'quota-attachment', blob: new Blob(['synthetic']) }],
+    }), false);
+    assert.equal(fixture.records.get(STORE).value.state.tasks[0].id, 'before-quota');
+    assert.equal(fixture.attachments.has('quota-attachment'), false);
+  }, () => fixture.db.onclose?.());
+});
+
+test('QuotaExceededError on recovery journal put leaves no pending journal and fails closed', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(stores, mode) {
+    const tx = original.call(this, stores, mode);
+    if (stores !== 'migration_meta' || mode !== 'readwrite') return tx;
+    const objectStore = tx.objectStore;
+    tx.objectStore = function(name) {
+      const store = objectStore.call(this, name);
+      store.put = () => { throw new DOMException('Synthetic journal quota', 'QuotaExceededError'); };
+      return store;
+    };
+    return tx;
+  };
+  await withWindow(fixture.fakeWindow, async () => {
+    assert.equal(await beginRestoreJournal({
+      token: 'qa-journal-quota', wallpaperBefore: [{ id: 'qa-wall', previous: null }],
+    }), false);
+    assert.equal(await getPendingRestoreJournal(), null);
   }, () => fixture.db.onclose?.());
 });
