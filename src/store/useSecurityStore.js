@@ -115,7 +115,10 @@ async function finishCredentialTransition(result) {
   if (!result.success) return result;
   try {
     await useSecurityStore.persist.rehydrate();
-    useSecurityStore.getState().setHasHydrated(true);
+    if (!useSecurityStore.persist.hasHydrated()) {
+      throw new Error('Committed security metadata could not be rehydrated');
+    }
+    await useSecurityStore.getState().setHasHydrated(true);
     return result;
   } catch {
     return {success:false, committed:true, error:'PIN committed; reload to refresh security settings.'};
