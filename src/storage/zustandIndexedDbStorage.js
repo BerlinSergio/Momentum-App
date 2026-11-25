@@ -47,7 +47,8 @@ export function createIndexedDbStorage(options = {}) {
         return typeof idbValue === 'string' ? idbValue : JSON.stringify(idbValue);
       } catch (err) {
         console.warn(`[Momentum Storage] IndexedDB read failed for "${name}":`, err);
-        return null;
+        // Propagate failures: a missing record is not the same as a failed read.
+        throw err;
       }
     },
 
