@@ -455,3 +455,73 @@ export async function removeStoreItems(names) {
   });
 }
 
+
+/**
+ * Commit staged backup domain records and binary attachments atomically within
+ * momentum_app_db. Never await between IDB requests: a transaction can become
+ * inactive across event-loop turns. Callers must fully validate/prepare first.
+ *
+ * This does NOT cover the separate momentum_wallpaper_db. Never advertise
+ * atomicity across those two databases.
+ *
+ * @param {{stores?: Array<{name: string, value: any}>, attachments?: Array<Object>}} batch
+ * @returns {Promise<boolean>} true only after the *entire* transaction commits.
+ */
+export async function commitRestoreBatch({ stores = [], attachments = [] } = {}) {
+  if (!Array.isArray(stores) || !Array.isArray(attachments)) {
+    throw new TypeError('Restore batch must contain arrays of stores and attachments');
+  }
+  if (stores.some(item => !item || typeof item.name !== 'string' || !item.name)) {
+    throw new TypeError('Restore batch contains an invalid store record');
+  }
+  if (attachments.some(item => !item || typeof item.id !== 'string' || !item.id)) {
+    throw new TypeError('Restore batch contains an invalid attachment record');
+  }
+  if (new Set(stores.map(item => item.name)).size !== stores.length ||
+      new Set(attachments.map(item => item.id)).size !== attachments.length) {
+    throw new TypeError('Restore batch contains duplicate record keys');
+  }
+
+  const db = await openAppDB();
+  if (!db) return false;
+  if (!stores.length && !attachments.length) return true;
+
+  return new Promise((resolve) => {
+    let tx;
+    let finished = false;
+    const finish = (ok) => {
+      if (finished) return;
+      finished = true;
+      resolve(ok);
+    };
+    try {
+      const targets = [];
+      if (stores.length) targets.push(STORES.DATA);
+      if (attachments.length) targets.push(STORES.ATTACHMENTS);
+      tx = db.transaction(targets, 'readwrite');
+      tx.oncomplete = () => finish(true);
+      tx.onabort = () => finish(false);
+      tx.onerror = () => finish(false);
+
+      // Both object stores participate in exactly one IndexedDB transaction.
+      // Synchronous DataCloneError, quota error, or subsequent abort must
+      // roll back all the writes, including earlier request successes.
+      if (stores.length) {
+        const destination = tx.objectStore(STORES.DATA);
+        for (const item of stores) {
+          destination.put({ name: item.name, value: item.value, updatedAt: Date.now() });
+        }
+      }
+      if (attachments.length) {
+        const destination = tx.objectStore(STORES.ATTACHMENTS);
+        for (const item of attachments) {
+          destination.put({ ...item, updatedAt: Date.now() });
+        }
+      }
+    } catch (err) {
+      console.warn('[Momentum DB] Atomic restore transaction failed:', err);
+      try { tx?.abort(); } catch { /* transaction may already be inactive */ }
+      finish(false);
+    }
+  });
+}
