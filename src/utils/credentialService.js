@@ -206,7 +206,8 @@ export async function verifyCredential(pin) {
 // Serialize user-facing PIN checks and mutations across same-origin tabs.
 // Raw verifyCredential is retained for migration round-trip checks only.
 const ATTEMPT_LOCK = 'momentum-pin-attempt-v1';
-async function withPinAttemptLock(operation) {
+// Shared by final biometric authorization to coordinate with PIN rotations.
+export async function withPinAttemptLock(operation) {
   if (!globalThis.navigator?.locks?.request) {
     return { success: false, error: 'Secure PIN coordination is unavailable in this browser.' };
   }
