@@ -681,6 +681,12 @@ async function lockScreenSingleFlight(browser) {
     await page.reload({waitUntil:'domcontentloaded', timeout:60000});
     await boot(page, 'security', false);
     await page.waitForSelector('[data-testid="app-lock-screen"]', {timeout:45000});
+    // The screen mounts before the durable attempt state is read. Typing
+    // while the keypad is disabled would exercise no authentication at all.
+    await page.waitForFunction(() => !document.hidden &&
+      [...document.querySelectorAll('[data-testid="app-lock-screen"] button')]
+        .some(button => button.textContent.trim() === '1' && !button.disabled),
+      {timeout:15000});
     await page.evaluate(() => {
       const original = SubtleCrypto.prototype.deriveBits;
       window.__qaDerivations = 0;
@@ -698,7 +704,21 @@ async function lockScreenSingleFlight(browser) {
       }
     };
     await enter();
-    await page.waitForFunction(() => window.__qaDerivations === 1, {timeout:10000});
+    try {
+      await page.waitForFunction(() => window.__qaDerivations === 1, {timeout:10000});
+    } catch (error) {
+      const diagnostics = await page.evaluate(async () => {
+        const svc = await import('/src/utils/credentialService.js');
+        const state = window.useSecurityStore.getState();
+        const screen = document.querySelector('[data-testid="app-lock-screen"]');
+        return {hidden:document.hidden,derivations:window.__qaDerivations,
+          locked:state.isLocked,active:state.isAppLockActive,hasPin:state.hasPin,
+          attempts:await svc.readCommittedLockoutState(),
+          buttons:[...screen?.querySelectorAll('button') || []].map(b=>({disabled:b.disabled})),
+          revoked:!!document.querySelector('[data-testid="security-session-revoked"]')};
+      });
+      throw new Error('PIN verification did not start: '+JSON.stringify(diagnostics),{cause:error});
+    }
     assert.equal(await page.evaluate(() =>
       [...document.querySelectorAll('[data-testid="app-lock-screen"] button')].every(b => b.disabled)), true);
     await page.keyboard.press('Backspace');
