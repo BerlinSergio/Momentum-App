@@ -370,3 +370,31 @@ test('backup rejects an aborted combined main-database readonly transaction', as
     );
   }, () => fixture.db.onclose?.());
 });
+
+test('backup fails closed when recovery journal read aborts after the request succeeds', async () => {
+  const fixture = fakeDatabase();
+  const original = fixture.db.transaction;
+  fixture.db.transaction = function(storeNames, mode) {
+    if (storeNames === 'migration_meta' && mode === 'readonly') {
+      const tx = { oncomplete: null, onabort: null, onerror: null };
+      tx.objectStore = () => ({
+        get() {
+          const req = { result: null, onsuccess: null, onerror: null };
+          queueMicrotask(() => {
+            req.onsuccess?.({ target: req });
+            tx.onabort?.({ target: tx });
+          });
+          return req;
+        },
+      });
+      return tx;
+    }
+    return original.call(this, storeNames, mode);
+  };
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      createBackupPackage(passphrase),
+      /Journal read transaction aborted/
+    );
+  }, () => fixture.db.onclose?.());
+});
