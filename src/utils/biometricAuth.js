@@ -11,7 +11,7 @@
  */
 
 import { getCommittedStoreRecord } from '../storage/db.js';
-import { authenticatePin } from './credentialService.js';
+import { authenticatePin, withPinAttemptLock } from './credentialService.js';
 
 // Bind device enrollment to a specific durable PIN generation, never its secret.
 async function currentPinRevision() {
@@ -273,6 +273,8 @@ export async function registerBiometrics({
 /**
  * Authenticate (Verify) an existing enrolled credential using navigator.credentials.get()
  */
+const biometricReceipts = new WeakMap();
+
 export async function authenticateBiometrics() {
   if (typeof window === 'undefined' || !navigator.credentials) {
     return { success: false, hardwareUnavailable: true, error: 'WebAuthn API unavailable' };
@@ -318,7 +320,9 @@ export async function authenticateBiometrics() {
       if (!valid || await currentPinRevision() !== enrollment.pinRevision || JSON.stringify(readEnrollment()) !== JSON.stringify(enrollment)) {
         return {success:false,error:'Biometric assertion invalid or enrollment changed. Use PIN.'};
       }
-      return {success:true,method:'webauthn_assertion',id:assertion.id};
+      const receipt = {success:true,method:'webauthn_assertion',id:assertion.id};
+      biometricReceipts.set(receipt,{enrollment,issuedAt:performance.now()});
+      return receipt;
     }
 
     return { success: false, error: 'No assertion returned' };
@@ -345,4 +349,23 @@ export async function authenticateBiometrics() {
       error: err.message || 'Biometric authentication prompt failed.',
     };
   }
+}
+
+// A signed assertion alone is not a session authorization. Consume its
+// receipt exactly once under the same lock as PIN changes and throttling.
+export async function completeBiometricUnlock(receipt, onUnlock) {
+  const expected = receipt && biometricReceipts.get(receipt);
+  if (!expected || typeof onUnlock !== 'function') return {success:false,error:'Fresh biometric verification is required.'};
+  biometricReceipts.delete(receipt);
+  return withPinAttemptLock(async () => {
+    const revision = await currentPinRevision();
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    const value = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
+    if (performance.now() - expected.issuedAt > 10000 || revision !== expected.enrollment.pinRevision ||
+        JSON.stringify(readEnrollment()) !== JSON.stringify(expected.enrollment) ||
+        value?.state?.hasPin !== true || value?.state?.isAppLockActive !== true || value?.state?.biometricsEnabled !== true) {
+      return {success:false,error:'Biometric authorization expired or security settings changed. Verify again.'};
+    }
+    return {success:onUnlock() === true};
+  });
 }
