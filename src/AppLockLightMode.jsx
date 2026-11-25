@@ -135,12 +135,9 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
       setModalFeedback('Passcode must be at least 6 characters');
       return;
     }
-    security.setAlphanumeric(alphaInput);
-    setModalFeedback('Alphanumeric passcode active!');
-    setTimeout(() => {
-      setModalFeedback('');
-      setShowAlphaModal(false);
-    }, 1000);
+    const result = security.setAlphanumeric(alphaInput);
+    setAlphaInput('');
+    setModalFeedback(result?.error || t('security.alphaUnsupported', 'Alphanumeric passcodes are not supported yet. Keep using your PIN.'));
   };
 
   return (
