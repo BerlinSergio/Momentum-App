@@ -15,6 +15,7 @@ const KEY = 'momentum-task-storage';
 async function waitReady(page) {
   await page.waitForFunction(() =>
     window.useTaskStore?.persist?.hasHydrated?.() === true &&
+    window.useTaskStore?.getState?.()._hasHydrated === true &&
     window.useProfileStore?.persist?.hasHydrated?.() === true,
     { timeout: 35000 });
 }
@@ -30,17 +31,24 @@ async function main() {
     await waitReady(a);
 
     const id = 'qa-task-phase211';
-    await a.evaluate(key => {
+    // Startup marks multiple stores hydrated and can persist metadata after
+    // the rehydrate promise reports done; isolate the test action from that
+    // unrelated startup settling work.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await a.evaluate(({ key, id }) => {
       const original = IDBObjectStore.prototype.put;
       window.__qaTaskPuts = 0;
+      window.__qaTaskPutDetails = [];
       window.__qaOriginalPut = original;
       IDBObjectStore.prototype.put = function(record, ...args) {
         if (this.name === 'stores' && record?.name === key) {
-          window.__qaTaskPuts++;
+          const includesTarget = record?.value?.state?.tasks?.some(t => t.id === id) === true;
+          window.__qaTaskPutDetails.push({ includesTarget, taskCount: record?.value?.state?.tasks?.length });
+          if (includesTarget) window.__qaTaskPuts++;
         }
         return original.call(this, record, ...args);
       };
-    }, KEY);
+    }, { key: KEY, id });
 
     await a.evaluate(id => {
       window.useTaskStore.getState().addTask({
@@ -52,8 +60,14 @@ async function main() {
       const persisted = await db.getStoreItem(key);
       return persisted?.state?.tasks?.some(item => item.id === id) === true;
     }, { timeout: 30000 }, { key: KEY, id });
-    const count = await a.evaluate(() => window.__qaTaskPuts);
-    assert.equal(count, 1, 'Each task action must enqueue exactly one task DB put');
+    // Allow all asynchronous persistence calls from this action to finish
+    // before asserting. Count only writes that contain this synthetic task.
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const captured = await a.evaluate(() => ({
+      count: window.__qaTaskPuts, writes: window.__qaTaskPutDetails,
+    }));
+    assert.equal(captured.count, 1,
+      'Each task add must persist its target task once: ' + JSON.stringify(captured.writes));
     console.log('PASS: Single task add persisted with exactly one authoritative IDB task write.');
 
     await a.evaluate(() => {
