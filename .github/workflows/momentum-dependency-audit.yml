@@ -47,6 +47,35 @@ jobs:
           # Fail the release gate if high/critical production findings remain.
           # Preserve the full report, including dev-only findings, for review.
           exit "$production_status"
+      - name: Generate review-only production dependency repair
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dependency-audit/candidate
+          # This changes only the disposable runner checkout. Never force
+          # upgrades, execute install scripts, commit or push from this job.
+          repair_status=0
+          npm audit fix --package-lock-only --ignore-scripts --omit=dev --no-force --json > dependency-audit/candidate/repair.json || repair_status=$?
+          printf '%s\n' "$repair_status" > dependency-audit/candidate/repair-status.txt
+          cp package.json package-lock.json dependency-audit/candidate/
+          git diff -- package.json package-lock.json > dependency-audit/candidate/changes.patch
+          git diff --stat -- package.json package-lock.json
+          # Log small exact diffs for human review, never truncate silently.
+          if [ "$(wc -l < dependency-audit/candidate/changes.patch)" -le 300 ]; then
+            cat dependency-audit/candidate/changes.patch
+          else
+            echo "Candidate patch exceeds 300 lines; review the artifact before applying."
+          fi
+          candidate_status=0
+          npm audit --package-lock-only --omit=dev --audit-level=high --json > dependency-audit/candidate/production.json || candidate_status=$?
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('dependency-audit/candidate/production.json', 'utf8'));
+          if (report.error || !report.metadata?.vulnerabilities) throw Error('Candidate audit unavailable');
+          console.log('candidate production', JSON.stringify(report.metadata.vulnerabilities));
+          NODE
+          exit "$candidate_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
