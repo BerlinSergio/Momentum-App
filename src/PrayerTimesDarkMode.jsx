@@ -124,7 +124,8 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
     : (offsetValue === 0 || Number(offsetValue) === 0 ? 'Notifications Active' : 'Notifications Active (15m before)');
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const savedInspirations = usePrayerStore(s => s.savedInspirations);
+  const [showSavedInspirations, setShowSavedInspirations] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Calculate next prayer data using centralized engine with explicit parameters
@@ -237,6 +238,16 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
 
   const sunTwilight = nextPrayerData.sunTwilight;
   const dailyQuote = useMemo(() => getDailyInspiration(displayedDate), [displayedDate]);
+  const savedQuotes = Array.isArray(savedInspirations) ? savedInspirations : [];
+  const isBookmarked = savedQuotes.some(quote => quote.id === dailyQuote.surah);
+  const toggleInspiration = async quote => {
+    try {
+      await usePrayerStore.getState().toggleSavedInspiration(quote);
+    } catch (error) {
+      console.error('[Prayer] Bookmark save failed:', error);
+      toast.error(t('storage.prayerConflictTitle', 'Prayer changes could not be saved safely'));
+    }
+  };
 
   // Dynamic Hijri and Gregorian date strings in the target prayer location's timezone
   const dynamicHijriDate = useMemo(() => {
@@ -635,7 +646,8 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
           </div>
           <button
             type="button"
-            onClick={() => setIsBookmarked((prev) => !prev)}
+            onClick={() => toggleInspiration(dailyQuote)}
+            aria-pressed={isBookmarked} data-testid="save-daily-inspiration"
             className="p-1 -mr-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-transform cursor-pointer pointer-events-auto"
             title={isBookmarked ? "Remove Bookmark" : "Bookmark Inspiration"}
             aria-label={isBookmarked ? "Remove Bookmark" : "Bookmark Inspiration"}
@@ -651,6 +663,23 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
           <span className="text-[10px] font-medium text-teal-500 dark:text-teal-400 font-sans">{t('prayer.ayahOfTheDay', 'Ayah of the Day')}</span>
         </div>
       </div>
+
+      <section className="mx-5 mb-4 rounded-2xl border border-primary/20 bg-slate-900/80 text-white p-4" data-testid="saved-inspirations">
+        <button type="button" onClick={() => setShowSavedInspirations(open => !open)} aria-expanded={showSavedInspirations} className="w-full flex items-center justify-between gap-2 text-sm font-bold">
+          <span className="flex items-center gap-2"><Bookmark className="w-4 h-4 text-primary"/>{t('prayer.savedInspirations', 'Saved verses & inspirations')}</span>
+          <span className="text-primary">{savedQuotes.length} {showSavedInspirations ? '−' : '+'}</span>
+        </button>
+        {showSavedInspirations && <div className="mt-3 space-y-3">
+          {!savedQuotes.length && <p className="text-xs opacity-75">{t('prayer.noSavedInspirations', 'No saved verses yet. Tap the bookmark to save a verse.')}</p>}
+          {savedQuotes.map(quote => <article key={quote.id} className="rounded-xl border border-primary/10 p-3 space-y-2">
+            <p className="text-sm leading-relaxed" dir="auto">{quote.ayah}</p>
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span dir="auto">{quote.surah}</span>
+              <button type="button" onClick={() => toggleInspiration(quote)} aria-label={t('prayer.removeSavedInspiration', 'Remove saved verse')} className="p-2 rounded-lg text-primary"><Bookmark className="w-4 h-4 fill-current"/></button>
+            </div>
+          </article>)}
+        </div>}
+      </section>
 
       {/* Prayer Calculation Settings Modal */}
       {isSettingsOpen && (
