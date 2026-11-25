@@ -77,10 +77,14 @@ export async function hydrateAllStores(timeoutMs = 12000) {
         throw new Error('[Momentum Startup] Legacy data migration was not confirmed successful');
       }
 
-      try {
-        await migrateLegacyPin();
-      } catch (credentialError) {
-        console.warn('[StartupController] Legacy credential migration warning:', credentialError);
+      // The durable schema marker is a one-time trust boundary: never
+      // re-import a plaintext PIN from a stale localStorage mirror on a
+      // subsequent startup. Keep existing verifiers and sanitize old mirrors.
+      const credentialMigration = await migrateLegacyPin({
+        allowLegacyImport: migration.details?.alreadyCompleted !== true,
+      });
+      if (credentialMigration?.error) {
+        throw new Error('[Momentum Startup] Legacy credential migration was not safely committed');
       }
     },
   });
