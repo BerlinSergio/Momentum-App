@@ -198,6 +198,9 @@ export async function verifyCredential(pin) {
 }
 
 async function transition(mode, currentPin, newPin) {
+  if (mode !== 'create' && getLockoutState().isLockedOut) {
+    return { success: false, error: 'Too many attempts. Try again later.' };
+  }
   try {
     const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
     const security = await getCommittedStoreRecord('momentum-security-storage');
@@ -205,7 +208,10 @@ async function transition(mode, currentPin, newPin) {
       if (credential) return { success: false, error: 'A PIN already exists' };
     } else {
       const verified = await verifySnapshot(currentPin, credential?.value);
-      if (!verified.success) return verified;
+      if (!verified.success) {
+        recordFailedAttempt();
+        return verified;
+      }
     }
     let next = null;
     if (mode !== 'remove') {
@@ -214,6 +220,7 @@ async function transition(mode, currentPin, newPin) {
       next = prepared.record;
     }
     await commitCredentialTransition(credential, security, next, new Date().toISOString());
+    if (mode !== 'create') clearLockoutState();
     return { success: true };
   } catch (error) {
     return { success: false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
