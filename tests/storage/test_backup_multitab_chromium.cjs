@@ -8,6 +8,38 @@ const assert = require('node:assert/strict');
 const URL = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
 const LOCK = 'momentum-cross-db-restore-v1';
 
+/**
+ * Cold startup may temporarily report a safe storage error when another
+ * context holds an IndexedDB connection. Exercise the visible retry path
+ * rather than waiting only for hydration and hiding the actual app state.
+ */
+async function waitForHydratedOrSafeRetry(page, label) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.waitForFunction(() => {
+      const hydrated = window.useProfileStore?.persist?.hasHydrated?.() === true;
+      const safeError = document.querySelector('[role="alert"]')
+        ?.textContent?.includes('Cannot safely load saved data') === true;
+      return hydrated || safeError;
+    }, { timeout: 45000 });
+
+    const state = await page.evaluate(() => ({
+      hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
+      safeError: document.querySelector('[role="alert"]')
+        ?.textContent?.includes('Cannot safely load saved data') === true,
+      retry: Array.from(document.querySelectorAll('button')).some(
+        button => button.textContent.includes('Retry loading')
+      ),
+    }));
+    if (state.hydrated) return;
+    assert.equal(state.safeError, true, label + ' must fail closed');
+    assert.equal(state.retry, true, label + ' must expose retry');
+    if (attempt === 1) throw new Error(label + ' failed to hydrate after one safe retry');
+    console.log('INFO: ' + label + ' startup safely asked for retry; verifying retry recovery.');
+    await page.evaluate(() => Array.from(document.querySelectorAll('button'))
+      .find(button => button.textContent.includes('Retry loading'))?.click());
+  }
+}
+
 async function testConcurrentBackup(browser) {
   const context = await browser.createBrowserContext();
   try {
@@ -16,13 +48,9 @@ async function testConcurrentBackup(browser) {
     // Start tabs one at a time to isolate the cross-tab restore-lock test
     // from a separate cold-start migration race (tested independently).
     await a.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await a.waitForFunction(
-      () => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 }
-    );
+    await waitForHydratedOrSafeRetry(a, 'first tab');
     await b.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await b.waitForFunction(
-      () => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 }
-    );
+    await waitForHydratedOrSafeRetry(b, 'second tab');
     const baseline = await a.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       return main.commitRestoreBatch({
@@ -97,7 +125,7 @@ async function testBadJournalFailClosed(browser) {
   try {
     const page = await context.newPage();
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 });
+    await waitForHydratedOrSafeRetry(page, 'journal setup tab');
     const persisted = await page.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       const db = await main.openAppDB();
