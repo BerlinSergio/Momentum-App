@@ -55,6 +55,18 @@ export const usePrayerStore = create(
         isha: 0,
       },
 
+      savedInspirations: [],
+      toggleSavedInspiration: (quote) => {
+        if (!quote?.surah || !quote?.ayah) return Promise.reject(new Error('Invalid inspiration'));
+        return set(state => {
+          const saved = Array.isArray(state.savedInspirations) ? state.savedInspirations : [];
+          const id = String(quote.surah);
+          return {savedInspirations: saved.some(item => item.id === id)
+            ? saved.filter(item => item.id !== id)
+            : [{id, ayah:String(quote.ayah), surah:id, savedAt:new Date().toISOString()}, ...saved]};
+        });
+      },
+
       // User worship activity (SEPARATED FROM ASTRONOMICAL PROGRESSION)
       prayerLogs: INITIAL_PRAYER_LOGS,
       prayers: INITIAL_CANONICAL_PRAYERS,
@@ -83,9 +95,10 @@ export const usePrayerStore = create(
       /**
        * Update the Islamic calculation method and sync with profile store.
        */
-      setCalculationMethod: (method) => {
+      setCalculationMethod: (method, {syncProfile = true} = {}) => {
         const canonical = normalizeCalculationMethod(method);
-        set({ calculationMethod: canonical });
+        const committed = set({ calculationMethod: canonical });
+        if (!syncProfile) return committed;
         try {
           const match = CALCULATION_METHODS.find((m) => m.id === canonical);
           const label = match ? match.name : canonical;
