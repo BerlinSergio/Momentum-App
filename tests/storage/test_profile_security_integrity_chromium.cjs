@@ -644,7 +644,14 @@ async function biometricAssertionIntegrity(browser) {
       const db = await import('/src/storage/db.js');
       const setup = await creds.createCredential('2468');
       if (!setup.success) return {setupError:setup.error};
-      const registered = await svc.registerBiometrics();
+      const originalCreate = navigator.credentials.create.bind(navigator.credentials);
+      let registrationPrompts = 0;
+      navigator.credentials.create = (...args) => { registrationPrompts++; return originalCreate(...args); };
+      const missing = await svc.registerBiometrics();
+      const wrong = await svc.registerBiometrics({currentPin:'0000'});
+      const deniedBeforePrompt = !missing.success && !wrong.success && registrationPrompts === 0;
+      const registered = await svc.registerBiometrics({currentPin:'2468'});
+      navigator.credentials.create = originalCreate;
       if (!registered.success) return {registrationError:registered.error};
       const enrollment = JSON.parse(localStorage.getItem(key));
       const good = await svc.authenticateBiometrics();
@@ -688,17 +695,17 @@ async function biometricAssertionIntegrity(browser) {
       const rotation = await creds.changeCredential('2468','1357');
       const oldRejected = !(await svc.authenticateBiometrics()).success;
       const disabled = (await db.getStoreItem(metaKey)).state.biometricsEnabled === false;
-      const renewed = await svc.registerBiometrics();
+      const renewed = await svc.registerBiometrics({currentPin:'1357'});
       const renewedValid = (await svc.authenticateBiometrics()).success;
       const removed = await creds.removeCredential('1357');
       const removedRejected = !(await svc.authenticateBiometrics()).success;
       const recreated = await creds.createCredential('9753');
       const recreatedRejected = !(await svc.authenticateBiometrics()).success;
-      return {legacyRejected:!legacy.success,noPinRejected:!noPin.success,registered:registered.success,version:enrollment.version,
+      return {legacyRejected:!legacy.success,noPinRejected:!noPin.success,deniedBeforePrompt,registered:registered.success,version:enrollment.version,
         good:good.success,signature,credential,challenge,uv,revoked,rotation:rotation.success,oldRejected,disabled,
         renewed:renewed.success,renewedValid,removed:removed.success,removedRejected,recreated:recreated.success,recreatedRejected};
     });
-    assert.deepEqual(results,{legacyRejected:true,noPinRejected:true,registered:true,version:3,good:true,
+    assert.deepEqual(results,{legacyRejected:true,noPinRejected:true,deniedBeforePrompt:true,registered:true,version:3,good:true,
       signature:true,credential:true,challenge:true,uv:true,revoked:true,rotation:true,oldRejected:true,disabled:true,
       renewed:true,renewedValid:true,removed:true,removedRejected:true,recreated:true,recreatedRejected:true});
     console.log('PASS: virtual WebAuthn enrollment and signed assertions reject tampering and revocation.');
