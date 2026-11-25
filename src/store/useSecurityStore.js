@@ -243,15 +243,26 @@ export const useSecurityStore = create(
         return set({ ...patch, lastModified: getFormattedTimestamp() });
       },
 
-      resetToDefaults: () =>
-        set((state) => ({
+      // Reset preferences only; never manufacture startup readiness or
+      // alter the credential/session state while the application is locked.
+      resetToDefaults: () => {
+        const state = useSecurityStore.getState();
+        if (!state._hasHydrated || !useSecurityStore.persist.hasHydrated()) {
+          return { success: false, error: 'Security settings are not loaded. Restart Momentum before resetting.' };
+        }
+        if (state.isAppLockActive && state.hasPin && state.isLocked) {
+          return { success: false, error: 'Unlock Momentum before resetting security preferences.' };
+        }
+        return set({
           ...INITIAL_STATE,
           hasPin: state.hasPin,
+          passcodeType: state.passcodeType,
           isAppLockActive: state.isAppLockActive,
           isLocked: state.isLocked,
-          _hasHydrated: true,
+          _hasHydrated: state._hasHydrated,
           lastModified: getFormattedTimestamp(),
-        })),
+        });
+      },
     }),
     {
       name: 'momentum-security-storage',
