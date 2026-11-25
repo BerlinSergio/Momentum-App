@@ -9,7 +9,7 @@ import {
   ArrowLeft, ShieldCheck, Lock, KeyRound, Shield, CheckCircle2, 
   AlertCircle, Info, HelpCircle, ArrowRight, AlertTriangle 
 } from 'lucide-react';
-import { verifyCredential } from './utils/credentialService';
+import { authenticatePin } from './utils/credentialService';
 import { toast } from './components/ui/toast/index.js';
 
 export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
@@ -83,11 +83,11 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
     setCurrentPin(cleaned);
     if (cleaned.length === 4) {
       try {
-        const verifyRes = await verifyCredential(cleaned);
+        const verifyRes = await authenticatePin(cleaned);
         if (!verifyRes.success) {
           setCurrentError(true);
           setIsCurrentVerified(false);
-          showToast(t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
+          showToast(verifyRes.error || t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
           if (currentTimeoutRef.current) clearTimeout(currentTimeoutRef.current);
           currentTimeoutRef.current = setTimeout(() => {
             setCurrentPin('');
@@ -149,11 +149,11 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
 
   const handleSavePin = async () => {
     if (hasExistingPin) {
-      const checkCurrent = await verifyCredential(currentPin);
+      const checkCurrent = await authenticatePin(currentPin);
       if (!checkCurrent.success) {
         setCurrentError(true);
         setIsCurrentVerified(false);
-        showToast(t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
+        showToast(checkCurrent.error || t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
         if (currentTimeoutRef.current) clearTimeout(currentTimeoutRef.current);
         currentTimeoutRef.current = setTimeout(() => {
           setCurrentPin('');
