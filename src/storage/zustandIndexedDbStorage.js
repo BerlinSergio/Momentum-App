@@ -112,15 +112,19 @@ export function createIndexedDbStorage(options = {}) {
      * Remove persisted state.
      */
     removeItem: async (name) => {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          window.localStorage.removeItem(name);
-        } catch (e) {
-          console.warn('[Momentum Storage] Error removing localStorage item:', e);
-        }
-      }
       return enqueueWrite(name, async () => {
-        await removeStoreItem(name);
+        // Do not erase the durable mirror until IndexedDB deletion commits.
+        const ok = await removeStoreItem(name);
+        if (ok !== true) {
+          throw new Error(`[Momentum Storage] Durable delete failed for store "${name}"`);
+        }
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.removeItem(name);
+          } catch (e) {
+            console.warn('[Momentum Storage] Error removing localStorage item:', e);
+          }
+        }
       });
     },
   };
