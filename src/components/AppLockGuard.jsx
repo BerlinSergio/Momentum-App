@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import useSecurityStore from '../store/useSecurityStore';
 import { useTranslation } from 'react-i18next';
-import { authenticateBiometrics } from '../utils/biometricAuth';
+import { authenticateBiometrics, completeBiometricUnlock } from '../utils/biometricAuth';
 import {
   authenticatePin,
   completePinUnlock,
@@ -80,19 +80,6 @@ export default function AppLockGuard({ children }) {
     return true;
   };
 
-  const unlockAuthenticatedSession = async (epoch) => {
-    if (!isCurrentAuthentication(epoch)) return;
-    const current = useSecurityStore.getState();
-    if (!current._hasHydrated || !current.isAppLockActive ||
-        !current.hasPin || !current.isLocked) return;
-    // Do not defer the security-sensitive unlock behind an animation timer.
-    const currentLockout = await readCommittedLockoutState();
-    if (!isCurrentAuthentication(epoch)) return;
-    if (currentLockout.isLockedOut) { setLockoutState(currentLockout); return; }
-    setLockoutState(currentLockout);
-    commitSessionUnlock(epoch);
-  };
-
   useEffect(() => {
     if (!isShaking) return;
     const timer = setTimeout(() => setIsShaking(false), 450);
@@ -152,8 +139,12 @@ export default function AppLockGuard({ children }) {
       const result = await authenticateBiometrics();
       if (!isCurrentAuthentication(epoch)) return;
       if (result.success) {
-        if (useSecurityStore.getState().biometricsEnabled) {
-          await unlockAuthenticatedSession(epoch);
+        const authorization = await completeBiometricUnlock(result, () => {
+          if (!useSecurityStore.getState().biometricsEnabled) return false;
+          return commitSessionUnlock(epoch);
+        });
+        if (!authorization.success && isCurrentAuthentication(epoch)) {
+          setAuthError(authorization.error || t('lockGuard.authError', 'Authentication error. Enter PIN to unlock.'));
         }
       } else {
         setAuthError(result.cancelled
