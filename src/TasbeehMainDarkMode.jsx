@@ -11,6 +11,7 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
   const { t } = useTranslation();
   const {
     currentCount,
+    roundComplete,
     lapCount,
     dailyGoal,
     hapticsEnabled,
@@ -33,7 +34,8 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
   } = useTasbeehStore();
 
   const target = Number(activePreset?.target) || 33;
-  const progressRatio = target > 0 ? Math.min(1, Math.max(0, currentCount / target)) : 0;
+  const displayCount = roundComplete ? target : currentCount;
+  const progressRatio = target > 0 ? Math.min(1, Math.max(0, displayCount / target)) : 0;
   const strokeDashoffset = Math.round(264 - (progressRatio * 264));
   const goal = dailyGoal || 1000;
   const todayTotal = computeTodayTotal(historyLogs, currentCount);
@@ -248,7 +250,7 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
                 COUNTER
               </span>
               <span className="text-5xl font-extrabold text-white tracking-tight my-0.5 font-display">
-                {currentCount}
+                {displayCount}
               </span>
               <span className="text-xs font-medium text-slate-400">
                 of <strong className="text-primary font-bold">{target}</strong> Target
@@ -286,7 +288,7 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
 
           <button 
             type="button"
-            onClick={increment}
+            onClick={increment} disabled={roundComplete}
             className="w-full py-5 px-6 rounded-3xl bg-gradient-to-r from-primary via-primary to-teal-600 hover:from-primary hover:to-teal-700 text-white shadow-xl shadow-black/60 flex items-center justify-center gap-3 transition-all active:scale-[0.98] select-none mt-4 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-xl flex items-center justify-center">
