@@ -21,20 +21,22 @@ async function main() {
     for (const theme of ['dark', 'light']) {
       await page.evaluate(theme => {
         window.useProfileStore.setState({ setupCompleted: true, onboardingStep: 'completed' });
-        window.useNavigationStore.getState().setActiveTab('backup_restore_' + theme + '_mode');
+        // Navigation is theme-independent; global appearance chooses renderer.
+        window.useThemeStore.getState().setTheme(theme);
+        window.useNavigationStore.getState().setActiveTab('backup_restore');
       }, theme);
 
       await page.waitForFunction(theme => {
-        return window.useNavigationStore?.getState?.().activeTab === 'backup_restore_' + theme + '_mode' &&
-          Boolean(document.querySelector('input[type="file"]'));
+        return window.useNavigationStore?.getState?.().activeTab === 'backup_restore' &&
+          document.documentElement.classList.contains('dark') === (theme === 'dark') &&
+          [...document.querySelectorAll('button')].some(el => el.textContent?.includes('Restore Data'));
       }, { timeout: 15000 }, theme);
-      const result = await page.evaluate(tooLarge => {
-        const button = [...document.querySelectorAll('button')].find(
-          element => element.textContent?.includes('Restore Data')
-        );
-        if (!button) throw new Error('Restore tab button absent');
+      await page.evaluate(() => {
+        const button = [...document.querySelectorAll('button')].find(el => el.textContent?.includes('Restore Data'));
         button.click();
-
+      });
+      await page.waitForSelector('input[type="file"]', { timeout: 15000 });
+      const result = await page.evaluate(tooLarge => {
         const input = document.querySelector('input[type="file"]');
         if (!input) throw new Error('Restore file input absent');
 
