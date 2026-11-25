@@ -72,7 +72,9 @@ export async function hydrateAllStores(timeoutMs = 12000) {
       await recoverInterruptedRestore();
 
       // Migration is the single authoritative legacy import path.
-      const migration = await runStorageMigration();
+      const migration = await runStorageMigration({
+        migrateCredential: () => migrateLegacyPin({ allowLegacyImport: true }),
+      });
       if (!migration?.success) {
         throw new Error('[Momentum Startup] Legacy data migration was not confirmed successful');
       }
@@ -81,7 +83,7 @@ export async function hydrateAllStores(timeoutMs = 12000) {
       // re-import a plaintext PIN from a stale localStorage mirror on a
       // subsequent startup. Keep existing verifiers and sanitize old mirrors.
       const credentialMigration = await migrateLegacyPin({
-        allowLegacyImport: migration.details?.alreadyCompleted !== true,
+        allowLegacyImport: false,
       });
       if (credentialMigration?.error) {
         throw new Error('[Momentum Startup] Legacy credential migration was not safely committed');
