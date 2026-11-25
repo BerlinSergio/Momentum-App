@@ -17,12 +17,27 @@ async function testSimultaneousColdStart(browser) {
     await Promise.all(pages.map(page =>
       page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })
     ));
-    await Promise.all(pages.map(page => page.waitForFunction(() => {
+    const result = await Promise.allSettled(pages.map(page => page.waitForFunction(() => {
       const ready = window.useProfileStore?.persist?.hasHydrated?.() === true;
       const failedSafely = document.querySelector('[role="alert"]')
         ?.textContent?.includes('Cannot safely load saved data') === true;
       return ready || failedSafely;
     }, { timeout: 35000 })));
+    if (result.some(item => item.status === 'rejected')) {
+      const diagnostic = await Promise.all(pages.map(async (page, i) => {
+        try {
+          return await page.evaluate(() => ({
+            profile: window.useProfileStore?.persist?.hasHydrated?.(),
+            task: window.useTaskStore?.persist?.hasHydrated?.(),
+            notes: window.useNotesStore?.persist?.hasHydrated?.(),
+            taskFlag: window.useTaskStore?.getState?.()._hasHydrated,
+            conflict: window.__momentumStorageConflict || null,
+            visible: document.body?.innerText?.slice(0, 500),
+          }));
+        } catch (e) { return { page: i, error: String(e) }; }
+      }));
+      throw new Error('Simultaneous cold-start did not finish safely: ' + JSON.stringify(diagnostic));
+    }
     const results = await Promise.all(pages.map(page => page.evaluate(() => ({
       hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
       safeError: document.querySelector('[role="alert"]')
