@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, X, Check } from 'lucide-react';
 import useNavigationStore from '../../../store/useNavigationStore';
@@ -194,10 +195,10 @@ export default function MomentumDatePicker({
     }
   }, [draftDate]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end sm:justify-center items-center pointer-events-auto select-none p-0 sm:p-4 font-sans">
+        <div className="momentum-picker-overlay flex flex-col justify-end sm:justify-center items-center pointer-events-auto select-none p-0 sm:p-4 font-sans">
           {/* Backdrop */}
           <motion.div
             key="datepicker-backdrop"
@@ -220,13 +221,13 @@ export default function MomentumDatePicker({
             animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 30, scale: 0.98 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className={`relative z-10 w-full max-w-sm rounded-t-[2.5rem] sm:rounded-3xl p-5 shadow-2xl border transition-colors ${
+            className={`momentum-picker-panel relative z-10 w-full max-w-sm rounded-t-[2.5rem] sm:rounded-3xl p-5 shadow-2xl border transition-colors ${
               isDark
                 ? 'bg-slate-900/95 backdrop-blur-2xl border-white/10 text-white shadow-black/60'
                 : 'bg-white/95 backdrop-blur-2xl border-slate-200/90 text-slate-900 shadow-slate-900/20'
             }`}
             style={{
-              paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(1.25rem + var(--momentum-inset-bottom, 0px))',
             }}
           >
             {/* Grab Handle for Mobile */}
@@ -387,6 +388,6 @@ export default function MomentumDatePicker({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>, document.body
   );
 }
