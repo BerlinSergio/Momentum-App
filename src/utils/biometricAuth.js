@@ -10,6 +10,14 @@
  * - Unsupported / Native limitations: Truthfully reported if hardware/browser does not support WebAuthn.
  */
 
+import { getCommittedStoreRecord } from '../storage/db.js';
+
+// Bind device enrollment to a specific durable PIN generation, never its secret.
+async function currentPinRevision() {
+  const row = await getCommittedStoreRecord('momentum-credential-verifier');
+  return row?.value?.salt && row?.value?.verifier && typeof row.revisionId === 'string' && row.revisionId ? row.revisionId : null;
+}
+
 export const BIOMETRIC_CREDENTIAL_STORAGE_KEY = 'momentum_biometric_credential';
 
 /**
@@ -75,7 +83,7 @@ export async function isPlatformAuthenticatorAvailable() {
 function readEnrollment() {
   try {
     const record = JSON.parse(localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY));
-    if (record?.version !== 2 || ![-7, -257].includes(record.alg) ||
+    if (record?.version !== 3 || typeof record.pinRevision !== 'string' || !record.pinRevision || ![-7, -257].includes(record.alg) ||
         typeof record.id !== 'string' || !record.id ||
         typeof record.publicKey !== 'string' || !record.publicKey ||
         record.origin !== window.location.origin ||
@@ -166,6 +174,9 @@ export async function registerBiometrics({
   }
 
   try {
+    const pinRevision = await currentPinRevision();
+    if (!pinRevision) return {success:false,error:'Set up your PIN before enabling biometric unlock.'};
+    const previousEnrollment = localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY);
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
@@ -208,9 +219,12 @@ export async function registerBiometrics({
       const rpId = window.location.hostname;
       await checkCeremony(response, challenge, 'webauthn.create', rpId, authData);
       const credIdBase64 = bufferToBase64(credential.rawId);
-      const record = {version:2,id:credIdBase64,publicKey:bufferToBase64(publicKey),
+      const record = {version:3,pinRevision,id:credIdBase64,publicKey:bufferToBase64(publicKey),
         alg,rpId,origin:window.location.origin};
       await importVerificationKey(record);
+      if (await currentPinRevision() !== pinRevision || localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY) !== previousEnrollment) {
+        return {success:false,error:'PIN or biometric enrollment changed. Retry from security settings.'};
+      }
       localStorage.setItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY, JSON.stringify(record));
 
       return {
@@ -264,6 +278,9 @@ export async function authenticateBiometrics() {
   }
 
   try {
+    if (await currentPinRevision() !== enrollment.pinRevision) {
+      return {success:false,error:'PIN changed. Unlock with PIN and re-enroll biometrics.'};
+    }
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
@@ -288,7 +305,7 @@ export async function authenticateBiometrics() {
       const signature = enrollment.alg === -7 ? es256Signature(response.signature) : response.signature;
       const valid = await crypto.subtle.verify(enrollment.alg === -7 ?
         {name:'ECDSA',hash:'SHA-256'} : {name:'RSASSA-PKCS1-v1_5'},key,signature,signed);
-      if (!valid || JSON.stringify(readEnrollment()) !== JSON.stringify(enrollment)) {
+      if (!valid || await currentPinRevision() !== enrollment.pinRevision || JSON.stringify(readEnrollment()) !== JSON.stringify(enrollment)) {
         return {success:false,error:'Biometric assertion invalid or enrollment changed. Use PIN.'};
       }
       return {success:true,method:'webauthn_assertion',id:assertion.id};
