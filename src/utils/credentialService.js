@@ -16,7 +16,7 @@
  * while progressive rate-limiting / lockout prevents online brute-force attacks.
  */
 
-import { getStoreItem, setStoreItem, removeStoreItem } from '../storage/db.js';
+import { getStoreItem, getCommittedStoreRecord, commitCredentialTransition } from '../storage/db.js';
 
 export const CREDENTIAL_STORE_KEY = 'momentum-credential-verifier';
 export const LOCKOUT_STORAGE_KEY = 'momentum_auth_lockout';
@@ -122,7 +122,7 @@ async function deriveVerifier(pin, saltBytes, iterations = PBKDF2_ITERATIONS) {
 /**
  * Create and persist a new PBKDF2 credential verifier
  */
-export async function createCredential(pin) {
+async function prepareCredential(pin) {
   const pinStr = String(pin || '').trim();
   if (!pinStr || pinStr.length !== 4 || !/^\d{4}$/.test(pinStr)) {
     return { success: false, error: 'PIN must be exactly 4 numeric digits' };
@@ -150,12 +150,7 @@ export async function createCredential(pin) {
       updatedAt: new Date().toISOString(),
     };
 
-    const saved = await setStoreItem(CREDENTIAL_STORE_KEY, record);
-    if (!saved) {
-      return { success: false, error: 'Failed to write credential to database' };
-    }
-
-    return { success: true, credential: { version: 1, algorithm: record.algorithm, iterations: record.iterations } };
+    return { success: true, record };
   } catch (err) {
     console.error('[CredentialService] createCredential error:', err);
     return { success: false, error: err.message || 'Credential generation failed' };
@@ -166,91 +161,69 @@ export async function createCredential(pin) {
  * Retrieve the active credential verifier record from cache or IndexedDB
  */
 export async function getCredentialRecord() {
-  try {
-    // IndexedDB is authoritative. Returning a stale per-tab verifier after
-    // a different tab rotates/deletes the PIN would authenticate a revoked PIN.
-    const record = await getStoreItem(CREDENTIAL_STORE_KEY);
-    return record && record.verifier && record.salt ? record : null;
-  } catch (err) {
-    console.warn('[CredentialService] getCredentialRecord error:', err);
-    return null; // Fail closed; never fall back to an old verifier.
-  }
+  const snapshot = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+  const record = snapshot?.value;
+  if (record && (!record.salt || !record.verifier)) throw new Error('Invalid credential record');
+  return record || null;
 }
 
-/**
- * Check if a credential verifier is configured
- */
 export async function hasCredential() {
-  const record = await getCredentialRecord();
-  return !!(record && record.verifier && record.salt);
+  return !!(await getCredentialRecord());
 }
 
-/**
- * Verify an entered PIN against the stored cryptographic verifier
- */
-export async function verifyCredential(enteredPin) {
-  const pinStr = String(enteredPin || '').trim();
-  if (!pinStr) {
-    return { success: false, error: 'No PIN entered' };
+async function verifySnapshot(pin, record) {
+  if (!record || !record.salt || !record.verifier || !String(pin || '').trim()) {
+    return { success: false, error: 'No valid credential or PIN' };
   }
+  const derived = await deriveVerifier(String(pin).trim(), base64ToBuffer(record.salt), record.iterations || PBKDF2_ITERATIONS);
+  return constantTimeEqual(derived, record.verifier)
+    ? { success: true } : { success: false, error: 'Incorrect PIN' };
+}
 
-  const record = await getCredentialRecord();
-  if (!record || !record.salt || !record.verifier) {
-    // FAIL CLOSED: No fallback to '1234' or any hardcoded value!
-    return {
-      success: false,
-      noCredential: true,
-      error: 'No credential configured on this device',
-    };
-  }
-
+export async function verifyCredential(pin) {
   try {
-    const saltBytes = base64ToBuffer(record.salt);
-    const derivedVerifier = await deriveVerifier(pinStr, saltBytes, record.iterations || PBKDF2_ITERATIONS);
-
-    const matches = constantTimeEqual(derivedVerifier, record.verifier);
-    if (matches) {
-      return { success: true };
+    const snapshot = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    if (!snapshot) return { success: false, noCredential: true, error: 'No credential configured' };
+    const result = await verifySnapshot(pin, snapshot.value);
+    if (!result.success) return result;
+    const latest = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    if (!latest || latest.revisionId !== snapshot.revisionId ||
+        JSON.stringify(latest.value) !== JSON.stringify(snapshot.value)) {
+      return { success: false, error: 'Credential changed during verification' };
     }
-    return { success: false, error: 'Incorrect PIN' };
-  } catch (err) {
-    console.error('[CredentialService] verifyCredential error:', err);
-    return { success: false, error: err.message || 'Verification calculation failed' };
+    return result;
+  } catch {
+    return { success: false, error: 'Credential verification unavailable' };
   }
 }
 
-/**
- * Safely change the PIN by requiring the current PIN first
- */
-export async function changeCredential(currentPin, newPin) {
-  const currentVerification = await verifyCredential(currentPin);
-  if (!currentVerification.success) {
-    return { success: false, error: 'Current PIN is incorrect' };
-  }
-
-  const creation = await createCredential(newPin);
-  if (!creation.success) {
-    return creation;
-  }
-
-  return { success: true };
-}
-
-/**
- * Permanently remove the credential verifier
- */
-export async function removeCredential() {
+async function transition(mode, currentPin, newPin) {
   try {
-    const removed = await removeStoreItem(CREDENTIAL_STORE_KEY);
-    if (removed !== true) {
-      return { success: false, error: 'Credential deletion was not committed' };
+    const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    if (mode === 'create') {
+      if (credential) return { success: false, error: 'A PIN already exists' };
+    } else {
+      const verified = await verifySnapshot(currentPin, credential?.value);
+      if (!verified.success) return verified;
     }
+    let next = null;
+    if (mode !== 'remove') {
+      const prepared = await prepareCredential(newPin);
+      if (!prepared.success) return prepared;
+      next = prepared.record;
+    }
+    await commitCredentialTransition(credential, security, next, new Date().toISOString());
     return { success: true };
-  } catch (err) {
-    console.error('[CredentialService] removeCredential error:', err);
-    return { success: false, error: err.message || 'Failed to remove credential' };
+  } catch (error) {
+    return { success: false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
+      ? 'Credential or preferences changed; reload and retry.' : 'Credential transition was not committed' };
   }
 }
+
+export const createCredential = pin => transition('create', null, pin);
+export const changeCredential = (currentPin, newPin) => transition('change', currentPin, newPin);
+export const removeCredential = currentPin => transition('remove', currentPin, null);
 
 /**
  * Progressive Lockout & Failed Attempt Policy
