@@ -18,6 +18,7 @@ on:
       - fix/db-phase214-calendar-tasbeeh-cas-20261125
       - fix/db-phase215-routine-prayer-cas-20261125
       - fix/db-phase216-profile-security-integrity-20261125
+      - fix/db-phase217-atomic-credential-20261125
   workflow_dispatch:
 
 permissions:
