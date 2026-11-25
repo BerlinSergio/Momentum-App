@@ -13,6 +13,8 @@ export const STORES = {
   MIGRATION: 'migration_meta',
 };
 
+export const RESTORE_JOURNAL_KEY = 'cross_db_restore_journal_v1';
+
 let dbInstance = null;
 let dbOpenPromise = null;
 const memoryFallback = new Map();
@@ -467,7 +469,7 @@ export async function removeStoreItems(names) {
  * @param {{stores?: Array<{name: string, value: any}>, attachments?: Array<Object>}} batch
  * @returns {Promise<boolean>} true only after the *entire* transaction commits.
  */
-export async function commitRestoreBatch({ stores = [], attachments = [] } = {}) {
+export async function commitRestoreBatch({ stores = [], attachments = [], restoreJournalToken = null } = {}) {
   if (!Array.isArray(stores) || !Array.isArray(attachments)) {
     throw new TypeError('Restore batch must contain arrays of stores and attachments');
   }
@@ -484,7 +486,7 @@ export async function commitRestoreBatch({ stores = [], attachments = [] } = {})
 
   const db = await openAppDB();
   if (!db) return false;
-  if (!stores.length && !attachments.length) return true;
+  if (!stores.length && !attachments.length && !restoreJournalToken) return true;
 
   return new Promise((resolve) => {
     let tx;
@@ -498,6 +500,7 @@ export async function commitRestoreBatch({ stores = [], attachments = [] } = {})
       const targets = [];
       if (stores.length) targets.push(STORES.DATA);
       if (attachments.length) targets.push(STORES.ATTACHMENTS);
+      if (restoreJournalToken) targets.push(STORES.MIGRATION);
       tx = db.transaction(targets, 'readwrite');
       tx.oncomplete = () => finish(true);
       tx.onabort = () => finish(false);
@@ -518,10 +521,114 @@ export async function commitRestoreBatch({ stores = [], attachments = [] } = {})
           destination.put({ ...item, updatedAt: Date.now() });
         }
       }
+      // Commit restored application records and remove the pending cross-DB
+      // journal in the SAME transaction. If this aborts the journal remains,
+      // so startup can roll the wallpaper database back to its preimage.
+      if (restoreJournalToken) {
+        const meta = tx.objectStore(STORES.MIGRATION);
+        const check = meta.get(RESTORE_JOURNAL_KEY);
+        check.onsuccess = () => {
+          if (check.result?.token !== restoreJournalToken) {
+            try { tx.abort(); } catch { finish(false); }
+            return;
+          }
+          meta.delete(RESTORE_JOURNAL_KEY);
+        };
+        check.onerror = () => {
+          try { tx.abort(); } catch { finish(false); }
+        };
+      }
     } catch (err) {
       console.warn('[Momentum DB] Atomic restore transaction failed:', err);
       try { tx?.abort(); } catch { /* transaction may already be inactive */ }
       finish(false);
+    }
+  });
+}
+
+/**
+ * Read the crash-recovery journal from the authoritative main database.
+ * A read failure is an error, not proof that no incomplete restore exists.
+ */
+export async function getPendingRestoreJournal() {
+  if (!(await openAppDB())) throw new Error('[Momentum Restore] IndexedDB unavailable');
+  return getMigrationMeta(RESTORE_JOURNAL_KEY);
+}
+
+/**
+ * Create a pending journal only if no other journal already exists.
+ * The complete wallpaper preimage is stored durably before changing any
+ * wallpaper. Access should be coordinated via navigator.locks across tabs.
+ */
+export async function beginRestoreJournal({ token, wallpaperBefore }) {
+  if (typeof token !== 'string' || !token ||
+      !Array.isArray(wallpaperBefore) ||
+      wallpaperBefore.some(item => !item || typeof item.id !== 'string' || !item.id ||
+        (item.previous !== null && (!item.previous || item.previous.id !== item.id)))) {
+    throw new TypeError('Invalid cross-database recovery journal');
+  }
+  const db = await openAppDB();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    let tx;
+    try {
+      tx = db.transaction(STORES.MIGRATION, 'readwrite');
+      tx.oncomplete = () => resolve(true);
+      tx.onabort = () => resolve(false);
+      tx.onerror = () => resolve(false);
+      const meta = tx.objectStore(STORES.MIGRATION);
+      const req = meta.get(RESTORE_JOURNAL_KEY);
+      req.onsuccess = () => {
+        if (req.result) {
+          tx.abort();
+          return;
+        }
+        meta.put({
+          key: RESTORE_JOURNAL_KEY, token,
+          status: 'pending',
+          wallpaperBefore,
+          createdAt: new Date().toISOString(),
+        });
+      };
+      req.onerror = () => tx.abort();
+    } catch (err) {
+      console.warn('[Momentum Restore] Journal creation failed:', err);
+      try { tx?.abort(); } catch { /* already inactive */ }
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Clear a journal only after its wallpaper preimage has been restored.
+ * Compare tokens within the transaction, so a stale recovery cannot clear a
+ * different restore's journal. Main-db finalize clears it atomically instead.
+ */
+export async function clearRestoreJournal(token) {
+  if (typeof token !== 'string' || !token) throw new TypeError('Invalid journal token');
+  const db = await openAppDB();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    let tx;
+    try {
+      tx = db.transaction(STORES.MIGRATION, 'readwrite');
+      tx.oncomplete = () => resolve(true);
+      tx.onabort = () => resolve(false);
+      tx.onerror = () => resolve(false);
+      const meta = tx.objectStore(STORES.MIGRATION);
+      const req = meta.get(RESTORE_JOURNAL_KEY);
+      req.onsuccess = () => {
+        if (req.result?.token !== token) {
+          tx.abort();
+          return;
+        }
+        meta.delete(RESTORE_JOURNAL_KEY);
+      };
+      req.onerror = () => tx.abort();
+    } catch (err) {
+      console.warn('[Momentum Restore] Failed to clear journal:', err);
+      try { tx?.abort(); } catch { /* already inactive */ }
+      resolve(false);
     }
   });
 }
