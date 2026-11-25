@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getLocalDateKey, addCalendarDays } from '../utils/timeService';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const taskStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-task-storage' });
+const taskStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-task-storage',
+  optimisticTaskWrites: true,
+});
 const getSafeStorage = () => taskStorage;
 
 export const getTodayIsoDate = (tz) => {
