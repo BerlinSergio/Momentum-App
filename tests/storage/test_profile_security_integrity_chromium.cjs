@@ -501,6 +501,63 @@ async function credentialAttemptLimits(browser) {
   } finally { await context.close(); }
 }
 
+async function durableAttemptReservation(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const page = await context.newPage();
+    await boot(page,'security');
+    await page.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000,polling:200});
+    const outcome = await page.evaluate(async () => {
+      const svc = await import('/src/utils/credentialService.js');
+      const db = await import('/src/storage/db.js');
+      const created = await svc.createCredential('2468');
+      if (!created.success) return {setupError:created.error};
+      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY,JSON.stringify({failedAttempts:1,lockedUntil:0}));
+      sessionStorage.setItem(svc.LOCKOUT_STORAGE_KEY,JSON.stringify({failedAttempts:3,lockedUntil:0}));
+      const migrated = await svc.authenticatePin('0000');
+      const initial = await svc.readCommittedLockoutState();
+      sessionStorage.removeItem(svc.LOCKOUT_STORAGE_KEY);
+      const put = IDBObjectStore.prototype.put;
+      const derive = SubtleCrypto.prototype.deriveBits;
+      let injected = false;
+      let verifications = 0;
+      IDBObjectStore.prototype.put = function(value,...args) {
+        if (value?.name === svc.LOCKOUT_RECORD_KEY) {
+          injected = true;
+          throw new Error('QA reservation write failure');
+        }
+        return put.call(this,value,...args);
+      };
+      SubtleCrypto.prototype.deriveBits = function(...args) {
+        verifications++;
+        return derive.apply(this,args);
+      };
+      let denied;
+      try { denied = await svc.authenticatePin('2468'); }
+      finally { IDBObjectStore.prototype.put = put; SubtleCrypto.prototype.deriveBits = derive; }
+      const afterFailure = await svc.readCommittedLockoutState();
+      // The valid fifth attempt must be allowed to finish and clear its own reservation.
+      const recovered = await svc.authenticatePin('2468');
+      const cleared = await svc.readCommittedLockoutState();
+      // A malformed committed record must never fall back to a permissive mirror.
+      localStorage.setItem(svc.LOCKOUT_STORAGE_KEY,JSON.stringify({failedAttempts:0,lockedUntil:0}));
+      if (!await db.setStoreItem(svc.LOCKOUT_RECORD_KEY,{failedAttempts:-1,lockedUntil:0})) throw Error('QA corrupt record write failed');
+      const invalid = await svc.readCommittedLockoutState();
+      const rejected = await svc.authenticatePin('2468');
+      return {migration:!migrated.success && initial.failedAttempts===4,
+        injected,denied:!denied.success,verifications,unchanged:afterFailure.failedAttempts===4,
+        recovered:recovered.success,cleared:cleared.failedAttempts===0&&!cleared.isLockedOut,
+        corruptDenied:invalid.unavailable&&invalid.isLockedOut&&!rejected.success};
+    });
+    assert.deepEqual(outcome,{migration:true,injected:true,denied:true,verifications:0,unchanged:true,
+      recovered:true,cleared:true,corruptDenied:true});
+    console.log('PASS: PIN attempts reserve durably before crypto, migrate legacy counters, and fail closed on write errors or corruption.');
+  } finally { await context.close(); }
+}
+
 async function sharedAttemptLimits(browser) {
   const context = await browser.createBrowserContext();
   try {
@@ -734,6 +791,7 @@ async function main() {
     await casStress(browser, 'security');
     await credentialIntegrity(browser);
     await credentialAttemptLimits(browser);
+    await durableAttemptReservation(browser);
     await sharedAttemptLimits(browser);
     await lockScreenSingleFlight(browser);
     await biometricAssertionIntegrity(browser);
