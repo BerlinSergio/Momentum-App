@@ -93,7 +93,7 @@ import DesktopSidebar from './components/DesktopSidebar';
 import DevScreenNavigatorModal from './components/dev/DevScreenNavigatorModal';
 import { PageTransition } from './motion/index.js';
 import { ToastViewport, toast, useToastStore } from './components/ui/toast/index.js';
-import { ConfirmationViewport } from './components/ui/confirmation/index.js';
+import { ConfirmationViewport, useConfirmStore } from './components/ui/confirmation/index.js';
 
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -101,6 +101,7 @@ import { themedScreenId } from './utils/themeNavigation.js';
 
 import { useThemeStore } from './store/useThemeStore';
 import { useNotesStore } from './store/useNotesStore';
+import { useSecuritySessionGate } from './store/useSecurityStore';
 import useSecurityStore from './store/useSecurityStore';
 import { useProfileStore } from './store/useProfileStore';
 import { useLocaleStore } from './store/useLocaleStore';
@@ -242,7 +243,8 @@ function AppContent({ startupStatus = 'ready' }) {
   const isLocked = useSecurityStore((s) => s.isLocked);
   const isAppLockActive = useSecurityStore((s) => s.isAppLockActive);
   const hasPin = useSecurityStore((s) => s.hasPin);
-  const isVaultLocked = isLocked && isAppLockActive && hasPin;
+  const sessionRestartRequired = useSecuritySessionGate(s => s.restartRequired);
+  const isVaultLocked = sessionRestartRequired || (isLocked && isAppLockActive && hasPin);
 
   // App-level Initialization Splash Screen State (runs every time the app launches/reloads)
   const [isAppLoading, setIsAppLoading] = useState(true);
@@ -332,6 +334,19 @@ function AppContent({ startupStatus = 'ready' }) {
 
   // Developer Screen Navigator & Layout Mode States (DEV ONLY)
   const [isDevNavigatorOpen, setIsDevNavigatorOpen] = useState(false);
+  // Cancel sensitive pending prompts instead of letting a hidden dialog
+  // execute or reappear after a later unlock. Close private shell modals.
+  useEffect(() => {
+    if (!isVaultLocked) return;
+    setIsDevNavigatorOpen(false);
+    setIsWallpaperSelectorOpen(false);
+    const cancel = () => {
+      if (useConfirmStore.getState().isOpen) useConfirmStore.getState().handleCancel();
+    };
+    cancel();
+    toast.clear();
+    return useConfirmStore.subscribe(cancel);
+  }, [isVaultLocked]);
   const [devLayoutMode, setDevLayoutMode] = useState(() => {
     if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
       return localStorage.getItem('momentum_dev_layout_mode') || 'responsive';
@@ -575,7 +590,7 @@ function AppContent({ startupStatus = 'ready' }) {
 
           {/* Centered Realistic Mobile Phone Frame Container */}
           <div className="w-full h-full sm:h-[892px] sm:max-w-[412px] sm:rounded-[40px] sm:border-[8px] sm:border-outline-variant/40 sm:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] mx-auto relative overflow-hidden bg-transparent flex flex-col font-sans">
-            {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
+            {!isAppLoading && !isVaultLocked && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
             <div className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
               <AnimatePresence mode="wait">
                 {isAppLoading ? (
@@ -614,7 +629,7 @@ function AppContent({ startupStatus = 'ready' }) {
       ) : (
         /* ── RESPONSIVE APPLICATION SHELL (DEFAULT FOR DESKTOP, TABLET & MOBILE) ── */
         <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`w-full h-[100dvh] overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
-          {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
+          {!isAppLoading && !isVaultLocked && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
 
           {/* Desktop Navigation Sidebar (Only rendered on desktop viewports: >= 1024px) */}
           {!hideBottomNav && (
@@ -748,10 +763,10 @@ function AppContent({ startupStatus = 'ready' }) {
       )}
 
       {/* Universal Top-Center In-App Toast Viewport */}
-      <ToastViewport />
+      {!isVaultLocked && <ToastViewport />}
 
       {/* Universal Momentum Confirmation & Prompt Dialog Viewport */}
-      <ConfirmationViewport />
+      {!isVaultLocked && <ConfirmationViewport />}
 
       {/* On-Demand Developer Screen Navigator Modal (Strictly isolated to dev mode) */}
       {Boolean(import.meta.env.DEV) && (
@@ -769,7 +784,7 @@ function AppContent({ startupStatus = 'ready' }) {
       )}
 
       {/* Wallpaper Engine Modal */}
-      {isWallpaperSelectorOpen && (
+      {isWallpaperSelectorOpen && !isVaultLocked && (
         <WallpaperSelector 
           isDarkMode={isDarkMode} 
           onClose={() => setIsWallpaperSelectorOpen(false)} 
