@@ -613,6 +613,67 @@ async function lockScreenSingleFlight(browser) {
   } finally { await context.close(); }
 }
 
+async function biometricAssertionIntegrity(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const page = await context.newPage();
+    await page.bringToFront();
+    await boot(page,'security');
+    const session = await page.createCDPSession();
+    await session.send('WebAuthn.enable');
+    await session.send('WebAuthn.addVirtualAuthenticator', {options:{
+      protocol:'ctap2', transport:'internal', hasResidentKey:true,
+      hasUserVerification:true, isUserVerified:true, automaticPresenceSimulation:true
+    }});
+    const results = await page.evaluate(async () => {
+      const svc = await import('/src/utils/biometricAuth.js');
+      const key = svc.BIOMETRIC_CREDENTIAL_STORAGE_KEY;
+      localStorage.setItem(key,'bGVnYWN5');
+      const legacy = await svc.authenticateBiometrics();
+      const registered = await svc.registerBiometrics();
+      if (!registered.success) return {registrationError:registered.error};
+      const enrollment = JSON.parse(localStorage.getItem(key));
+      const good = await svc.authenticateBiometrics();
+      const original = navigator.credentials.get.bind(navigator.credentials);
+      const tamper = async kind => {
+        navigator.credentials.get = async options => {
+          const assertion = await original(options);
+          const response = assertion.response;
+          const copy = {type:assertion.type,id:assertion.id,rawId:assertion.rawId,response:{
+            clientDataJSON:response.clientDataJSON,authenticatorData:response.authenticatorData,
+            signature:response.signature
+          }};
+          if (kind === 'signature') {
+            const sig = new Uint8Array(response.signature.slice(0));sig[sig.length-1]^=1;
+            copy.response.signature=sig.buffer;
+          } else if (kind === 'credential') {
+            const id = new Uint8Array(assertion.rawId.slice(0));id[0]^=1;copy.rawId=id.buffer;
+          } else if (kind === 'challenge') {
+            const client = JSON.parse(new TextDecoder().decode(response.clientDataJSON));
+            client.challenge='invalid';copy.response.clientDataJSON=new TextEncoder().encode(JSON.stringify(client)).buffer;
+          } else if (kind === 'uv') {
+            const data=new Uint8Array(response.authenticatorData.slice(0));data[32]&=~4;
+            copy.response.authenticatorData=data.buffer;
+          } else if (kind === 'revoked') svc.clearBiometricCredential();
+          return copy;
+        };
+        try {return !(await svc.authenticateBiometrics()).success;}
+        finally {navigator.credentials.get=original;}
+      };
+      const signature = await tamper('signature');
+      const credential = await tamper('credential');
+      const challenge = await tamper('challenge');
+      const uv = await tamper('uv');
+      const revoked = await tamper('revoked');
+      return {legacyRejected:!legacy.success,registered:registered.success,version:enrollment.version,
+        good:good.success,signature,credential,challenge,uv,revoked};
+    });
+    assert.deepEqual(results,{legacyRejected:true,registered:true,version:2,good:true,
+      signature:true,credential:true,challenge:true,uv:true,revoked:true});
+    console.log('PASS: virtual WebAuthn enrollment and signed assertions reject tampering and revocation.');
+  } finally { await context.close(); }
+}
+
 async function main() {
   const browser = await puppeteer.launch({
     headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -626,6 +687,7 @@ async function main() {
     await credentialAttemptLimits(browser);
     await sharedAttemptLimits(browser);
     await lockScreenSingleFlight(browser);
+    await biometricAssertionIntegrity(browser);
   } finally { await browser.close(); }
 }
 main().catch(err => {
