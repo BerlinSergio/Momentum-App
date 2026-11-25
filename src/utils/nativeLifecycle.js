@@ -5,7 +5,7 @@
  */
 
 import { App } from '@capacitor/app';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import { useNavigationStore } from '../store/useNavigationStore';
 import useSecurityStore from '../store/useSecurityStore';
@@ -201,9 +201,9 @@ export function handleAppStateChange({ isActive }) {
 
       if (timing === 'immediate') {
         shouldRelock = true;
-      } else if (timing === 'after_1_minute' && elapsedSeconds >= 60) {
+      } else if ((timing === '1min' || timing === 'after_1_minute') && elapsedSeconds >= 60) {
         shouldRelock = true;
-      } else if (timing === 'after_5_minutes' && elapsedSeconds >= 300) {
+      } else if ((timing === '5min' || timing === 'after_5_minutes') && elapsedSeconds >= 300) {
         shouldRelock = true;
       } else if (timing === 'after_15_minutes' && elapsedSeconds >= 900) {
         shouldRelock = true;
@@ -226,11 +226,11 @@ export async function syncNativeStatusBar(isDark) {
   const isNative = isNativePlatform();
   if (isNative) {
     try {
-      await StatusBar.setStyle({
-        style: isDark ? Style.Dark : Style.Light,
+      await SystemBars.setStyle({
+        style: isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light,
       });
     } catch {
-      // Non-blocking in dev or browser
+      console.warn('[NativeLifecycle] System bar style unavailable');
     }
   }
   return { success: true, isDark, isNative };
