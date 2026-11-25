@@ -103,7 +103,7 @@ export default function MomentumTimePicker({
 
   const handleHourStep = (delta) => {
     setHour((h) => {
-      let next = h + delta;
+      let next = (Number(h) || 1) + delta;
       if (next > 12) next = 1;
       if (next < 1) next = 12;
       return next;
@@ -112,7 +112,7 @@ export default function MomentumTimePicker({
 
   const handleMinuteStep = (delta) => {
     setMinute((m) => {
-      let next = (m + delta + 60) % 60;
+      let next = ((Number(m) || 0) + delta + 60) % 60;
       return next;
     });
   };
@@ -253,12 +253,11 @@ export default function MomentumTimePicker({
                 }`}
                   type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
                   aria-label={t('pickers.hours')} data-testid="time-hours-input"
-                  value={hour === '' ? '' : String(hour).padStart(2, '0')}
+                  value={hour}
                   onFocus={event => event.currentTarget.select()}
                   onChange={event => {
                     const raw = event.target.value.replace(/[^0-9]/g, '').slice(0, 2);
-                    if (!raw) setHour('');
-                    else setHour(Math.min(12, Number(raw)));
+                    setHour(raw);
                   }}
                   onBlur={() => setHour(value => Math.max(1, Math.min(12, Number(value) || 1)))}
                 />
@@ -296,12 +295,11 @@ export default function MomentumTimePicker({
                 }`}
                   type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
                   aria-label={t('pickers.minutes')} data-testid="time-minutes-input"
-                  value={minute === '' ? '' : String(minute).padStart(2, '0')}
+                  value={minute}
                   onFocus={event => event.currentTarget.select()}
                   onChange={event => {
                     const raw = event.target.value.replace(/[^0-9]/g, '').slice(0, 2);
-                    if (!raw) setMinute('');
-                    else setMinute(Math.min(59, Number(raw)));
+                    setMinute(raw);
                   }}
                   onBlur={() => setMinute(value => Math.max(0, Math.min(59, Number(value) || 0)))}
                 />
