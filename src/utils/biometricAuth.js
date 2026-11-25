@@ -11,6 +11,7 @@
  */
 
 import { getCommittedStoreRecord } from '../storage/db.js';
+import { authenticatePin } from './credentialService.js';
 
 // Bind device enrollment to a specific durable PIN generation, never its secret.
 async function currentPinRevision() {
@@ -159,6 +160,8 @@ export async function registerBiometrics({
   title = 'Momentum Security',
   userId = 'momentum_user',
   userName = 'Momentum User',
+  currentPin,
+  signal,
 } = {}) {
   if (typeof window === 'undefined' || !navigator.credentials) {
     return { success: false, hardwareUnavailable: true, error: 'WebAuthn API unavailable in this environment' };
@@ -176,6 +179,12 @@ export async function registerBiometrics({
   try {
     const pinRevision = await currentPinRevision();
     if (!pinRevision) return {success:false,error:'Set up your PIN before enabling biometric unlock.'};
+    if (!/^\d{4}$/.test(String(currentPin ?? ''))) return {success:false,error:'Confirm your current 4-digit PIN before enabling biometrics.'};
+    const authorization = await authenticatePin(currentPin);
+    if (!authorization.success) return authorization;
+    if (signal?.aborted || await currentPinRevision() !== pinRevision) {
+      return {success:false,error:'PIN changed or enrollment cancelled. Retry from settings.'};
+    }
     const previousEnrollment = localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY);
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
@@ -184,6 +193,7 @@ export async function registerBiometrics({
     window.crypto.getRandomValues(userBytes);
 
     const credential = await navigator.credentials.create({
+      signal,
       publicKey: {
         challenge,
         rp: {
@@ -222,7 +232,7 @@ export async function registerBiometrics({
       const record = {version:3,pinRevision,id:credIdBase64,publicKey:bufferToBase64(publicKey),
         alg,rpId,origin:window.location.origin};
       await importVerificationKey(record);
-      if (await currentPinRevision() !== pinRevision || localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY) !== previousEnrollment) {
+      if (await currentPinRevision() !== pinRevision || signal?.aborted || localStorage.getItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY) !== previousEnrollment) {
         return {success:false,error:'PIN or biometric enrollment changed. Retry from security settings.'};
       }
       localStorage.setItem(BIOMETRIC_CREDENTIAL_STORAGE_KEY, JSON.stringify(record));
