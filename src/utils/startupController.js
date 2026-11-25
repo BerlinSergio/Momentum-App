@@ -85,7 +85,14 @@ export async function hydrateAllStores(timeoutMs = 12000) {
     },
   });
 
+  // After every store (including TimeStore) is durably hydrated, refresh
+  // today's date and recompute Routine's local derived streak/completion
+  // display. The guarded Routine projection ignores these derived fields:
+  // startup/day rollover must not clobber another tab's completion records.
   useTimeStore.getState().refreshTime?.();
+  useRoutineStore.getState().performDayRollover?.(
+    useTimeStore.getState().currentDateKey
+  );
   return result;
 }
 

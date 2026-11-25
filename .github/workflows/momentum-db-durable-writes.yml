@@ -16,6 +16,7 @@ on:
       - fix/db-phase212-task-cross-tab-cas-20261125
       - fix/db-phase213-notes-finance-cas-20261125
       - fix/db-phase214-calendar-tasbeeh-cas-20261125
+      - fix/db-phase215-routine-prayer-cas-20261125
   workflow_dispatch:
 
 permissions:
@@ -90,6 +91,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_calendar_tasbeeh_conflicts_chromium.cjs
+      - name: Routine and Prayer cross-tab user logs versus time-derived state
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_routine_prayer_conflicts_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/

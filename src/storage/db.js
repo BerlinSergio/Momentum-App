@@ -204,6 +204,9 @@ export const GUARDED_DOMAINS = Object.freeze([
   // Phase 2.14: user-owned calendar events and dhikr counters/history.
   'momentum-calendar-storage-v1',
   'momentum-tasbeeh-storage',
+  // Phase 2.15: user-owned routine completion and prayer worship records.
+  'momentum-routine-storage',
+  'momentum-prayer-storage',
 ]);
 
 function noteAttachmentIds(snapshot) {
