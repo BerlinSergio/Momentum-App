@@ -788,7 +788,7 @@ async function externalLockActivation(browser) {
     const foregroundReady = async page => {
       await page.bringToFront();
       await page.waitForFunction(() => !document.hidden &&
-        window.useNavigationStore?.getState()?.activeTab?.includes('personal_setup'),
+        !!document.querySelector('[data-app-startup-ready="true"]'),
         {timeout:30000,polling:200});
     };
     await foregroundReady(b);
