@@ -8,6 +8,7 @@ import { useCalendarStore } from '../store/useCalendarStore';
 import { useTasbeehStore } from '../store/useTasbeehStore';
 import { usePrayerStore } from '../store/usePrayerStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { sanitizeAndHydrateWallpaperStorage } from './wallpaperStorage.js';
 import { useLocationStore } from '../store/useLocationStore';
 import { useNavigationStore } from '../store/useNavigationStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -90,6 +91,8 @@ export async function hydrateAllStores(timeoutMs = 12000) {
       }
     },
   });
+
+  await sanitizeAndHydrateWallpaperStorage(useThemeStore);
 
   // Complete legacy onboarding only after the profile write is durable,
   // before the splash is permitted to expose the selected route.

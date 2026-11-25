@@ -5,7 +5,7 @@
  */
 
 import { App } from '@capacitor/app';
-import { SystemBars, SystemBarsStyle } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import { useNavigationStore } from '../store/useNavigationStore';
 import useSecurityStore from '../store/useSecurityStore';
@@ -243,6 +243,7 @@ export async function syncNativeStatusBar(isDark) {
 export function initializeNativeLifecycle() {
   if (isLifecycleInitialized || typeof window === 'undefined') return;
   isLifecycleInitialized = true;
+  if (Capacitor.getPlatform() === 'android') document.documentElement.classList.add('momentum-native-android');
 
   // 1. Hardware Back Button
   try {

@@ -14,7 +14,7 @@ export default function PageTransition({
   className = 'w-full h-full flex flex-col',
   style,
 }) {
-  const { getPageVariants, shouldReduceMotion } = useAppMotion();
+  const { getPageVariants } = useAppMotion();
   const variants = getPageVariants(direction);
 
   return (
@@ -27,7 +27,9 @@ export default function PageTransition({
       className={className}
       style={{
         ...style,
-        willChange: shouldReduceMotion ? 'auto' : 'opacity, transform',
+        // A persistent transform layer turns descendant fixed controls into
+        // scroll-relative elements and wastes GPU memory on mobile.
+        willChange: 'auto',
       }}
     >
       {children}

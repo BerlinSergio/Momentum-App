@@ -363,8 +363,7 @@ html:not(.dark).disable-glass [class*="bg-white/"] {
   --blur-intensity: 18px;
 }
 
-html:not(.disable-glass) [class*="backdrop-blur"],
-:not(.disable-glass) [class*="backdrop-blur"] {
+html:not(.disable-glass) [class*="backdrop-blur"] {
   backdrop-filter: blur(var(--blur-intensity, 18px)) !important;
   -webkit-backdrop-filter: blur(var(--blur-intensity, 18px)) !important;
 }
@@ -654,3 +653,25 @@ html.enable-transitions [class*="transition-"] {
 @media (max-width: 639px) {
   .momentum-picker-panel { max-width: 100%; }
 }
+
+
+/* Mobile readability and one shared dock clearance. */
+@media (max-width: 1023px) {
+  .momentum-dock-clearance { padding-bottom: 6rem !important; }
+}
+@media (min-width: 1024px) {
+  .momentum-dock-clearance { padding-bottom: 2rem; }
+}
+.dark .momentum-canvas-viewport.wallpaper-active :is(div,section,article)[class*="rounded-"][class*="bg-black/40"] {
+  background-color: rgba(9,13,22,0.78);
+}
+html.momentum-native-android:not(.disable-glass) [class*="backdrop-blur"] {
+  backdrop-filter: blur(min(var(--blur-intensity, 18px), 6px)) !important;
+  -webkit-backdrop-filter: blur(min(var(--blur-intensity, 18px), 6px)) !important;
+}
+html.momentum-native-android:not(.disable-glass) .momentum-glass-header-capsule,
+html.momentum-native-android:not(.disable-glass) .momentum-transparent-header-glass {
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+html.momentum-native-android .momentum-native-wallpaper { filter: blur(min(var(--momentum-wallpaper-blur, 0px), 8px)) !important; }

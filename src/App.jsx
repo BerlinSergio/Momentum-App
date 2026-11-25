@@ -197,11 +197,12 @@ function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
 
   return (
     <div 
-      className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none bg-cover bg-center transition-all duration-300 scale-105"
+      className="momentum-native-wallpaper absolute inset-0 z-0 pointer-events-none overflow-hidden select-none bg-cover bg-center scale-105"
       style={{
         backgroundImage: currentBgImage ? `url("${currentBgImage}"), ${activeGradient}` : activeGradient,
         backgroundColor: isDarkMode ? '#090D16' : '#FFFFFF',
         filter: `blur(${blurIntensity}px)`,
+        '--momentum-wallpaper-blur': `${blurIntensity}px`,
       }}
     >
       {/* Dark Mode Wallpaper Dimming Overlay: strictly for Dark Mode screens, directly on top of wallpaper, behind UI */}
@@ -655,7 +656,7 @@ function AppContent({ startupStatus = 'ready' }) {
                   : 'overflow-y-auto'
               } relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${
                 isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'
-              } ${hideBottomNav ? 'pb-0' : sidebarPosition === 'bottom' ? 'pb-4' : 'pb-36 lg:pb-8'}`}
+              } ${hideBottomNav ? 'pb-0' : 'momentum-dock-clearance'}`}
             >
               <AnimatePresence mode="wait">
                 {isAppLoading ? (

@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { useThemeStore } from '../store/useThemeStore';
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Glass } from '@samasante/liquid-glass';
@@ -33,6 +35,10 @@ const ACTIVE_TAB_GLASS_OPTICS = {
 };
 
 function ActiveTabGlass({ isDark }) {
+  const glassEffects = useThemeStore(s=>s.glassEffects);
+  if (Capacitor.getPlatform()==='android' || glassEffects===false) {
+    return <span aria-hidden="true" data-testid="active-bottom-tab-liquid-glass" className={`absolute inset-[2px] z-0 pointer-events-none rounded-[1.1rem] border ${isDark?'bg-indigo-500/20 border-indigo-400/40':'bg-indigo-100 border-indigo-200'} shadow-sm`}/>;
+  }
   return (
     <motion.div
       layoutId="activeBottomTabPill"
