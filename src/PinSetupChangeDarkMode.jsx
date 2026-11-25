@@ -9,7 +9,7 @@ import {
   ArrowLeft, ShieldCheck, Lock, KeyRound, Shield, CheckCircle2, 
   AlertCircle, Info, HelpCircle, ArrowRight, AlertTriangle 
 } from 'lucide-react';
-import { verifyCredential, createCredential, changeCredential } from './utils/credentialService';
+import { verifyCredential } from './utils/credentialService';
 import { toast } from './components/ui/toast/index.js';
 
 export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
@@ -197,9 +197,9 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
 
     let saveResult;
     if (hasExistingPin) {
-      saveResult = await changeCredential(currentPin, newPin);
+      saveResult = await useSecurityStore.getState().changePin(currentPin, newPin);
     } else {
-      saveResult = await createCredential(newPin);
+      saveResult = await useSecurityStore.getState().setPin(newPin);
     }
 
     if (!saveResult.success) {
@@ -207,8 +207,6 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
       return;
     }
 
-    useSecurityStore.getState().setHasPin(true);
-    setAppLockActive(true);
     showToast(t('security.pinConfiguredAppLock', 'PIN configured! App Lock active.'), 'success');
     if (isOnboarding) {
       completeSetup();
