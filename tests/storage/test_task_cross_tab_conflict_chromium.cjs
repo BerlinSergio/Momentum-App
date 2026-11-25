@@ -9,13 +9,34 @@ const URL = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
 const TASKS = 'momentum-task-storage';
 
 async function ready(tab) {
+  tab.on('pageerror', error => console.warn('QA startup pageerror:', error.message));
+  tab.on('console', message => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      console.warn('QA startup console:', message.text().slice(0, 280));
+    }
+  });
   await tab.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await tab.waitForFunction(() =>
-    window.useTaskStore?.persist?.hasHydrated?.() === true &&
-    window.useTaskStore?.getState?.()._hasHydrated === true &&
-    window.useProfileStore?.persist?.hasHydrated?.() === true,
-    { timeout: 35000 }
-  );
+  try {
+    await tab.waitForFunction(() =>
+      window.useTaskStore?.persist?.hasHydrated?.() === true &&
+      window.useTaskStore?.getState?.()._hasHydrated === true &&
+      window.useProfileStore?.persist?.hasHydrated?.() === true,
+      { timeout: 16000 }
+    );
+  } catch (error) {
+    const diagnostic = await tab.evaluate(async () => {
+      const storage = await import('/src/storage/zustandIndexedDbStorage.js');
+      return {
+        taskHydrated: window.useTaskStore?.persist?.hasHydrated?.(),
+        taskFlag: window.useTaskStore?.getState?.()._hasHydrated,
+        profileHydrated: window.useProfileStore?.persist?.hasHydrated?.(),
+        alert: [...document.querySelectorAll('[role="alert"]')].map(x => x.textContent?.slice(0, 180)),
+        text: document.body?.innerText?.slice(0, 320),
+        storageError: storage.getTaskStorageFailure(),
+      };
+    }).catch(e => ({ diagnosticError: String(e) }));
+    throw new Error('Task hydration did not settle: ' + JSON.stringify(diagnostic), { cause: error });
+  }
 }
 
 async function durable(tab) {
