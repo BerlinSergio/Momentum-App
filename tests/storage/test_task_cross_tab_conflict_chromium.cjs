@@ -91,9 +91,11 @@ async function testStaleTab(browser) {
     await new Promise(resolve => setTimeout(resolve, 300));
     assert.deepEqual(await durable(a), afterA);
 
-    await b.evaluate(() => [...document.querySelectorAll('[data-testid="task-storage-conflict"] button')]
-      .find(button => button.textContent.includes('Reload saved tasks'))?.click());
-    await b.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await Promise.all([
+      b.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }),
+      b.evaluate(() => [...document.querySelectorAll('[data-testid="task-storage-conflict"] button')]
+        .find(button => button.textContent.includes('Reload saved tasks'))?.click()),
+    ]);
     await b.waitForFunction(() =>
       window.useTaskStore?.persist?.hasHydrated?.() === true &&
       window.useTaskStore?.getState?.()._hasHydrated === true,
@@ -114,7 +116,6 @@ async function testStaleTab(browser) {
     assert.ok(afterReload.tasks.includes('qa212-after-safe-reload'));
     console.log('PASS: Reload discards unsaved stale edits, rehydrates current records, and permits new durable edits.');
 
-    await context.close();
   } finally {
     // Incognito context disposal protects user profiles and test isolation.
     await context.close().catch(() => {});
@@ -145,7 +146,6 @@ async function testSimultaneousTabs(browser) {
     assert.deepEqual(conflicts.sort(), [false, true]);
     console.log('PASS: Two simultaneous tabs cannot silently overwrite each other; exactly one is rejected.');
 
-    await context.close();
   } finally {
     await context.close().catch(() => {});
   }
