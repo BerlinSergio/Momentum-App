@@ -215,12 +215,8 @@ export const useSecurityStore = create(
       updatePin: (currentPin, newPin) => changePinSafely(currentPin, newPin),
       removePin: (currentPin) => removePinSafely(currentPin),
 
-      setAlphanumeric: () =>
-        set({
-          alphanumeric: '',
-          passcodeType: 'alphanumeric',
-          lastModified: getFormattedTimestamp(),
-        }),
+      // The verifier currently supports numeric PINs only. Do not advertise a credential that cannot be verified.
+      setAlphanumeric: () => ({ success: false, error: 'Alphanumeric passcodes are not supported yet. Keep using your PIN.' }),
 
       updatePreferences: (draft) => {
         // Generic settings edits must never change credential identity or
