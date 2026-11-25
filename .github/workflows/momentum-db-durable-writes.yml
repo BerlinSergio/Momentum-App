@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies from lockfile
         run: npm ci --no-fund
       - name: Durable database and navigation regression
-        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/navigation/themeNavigation.test.mjs
+        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/navigation/themeNavigation.test.mjs
       - name: Production build
         run: npm run build
       - name: Start isolated Vite server
