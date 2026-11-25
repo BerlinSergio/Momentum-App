@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react';
-import useSecurityStore from '../store/useSecurityStore';
+import useSecurityStore, { isCredentialTransitionPending } from '../store/useSecurityStore';
 import { useTranslation } from 'react-i18next';
 import { authenticateBiometrics, completeBiometricUnlock } from '../utils/biometricAuth';
 import {
@@ -24,6 +24,7 @@ import { flushPendingNotificationRoute } from '../utils/nativeNotifications';
 
 // Kept only in this tab's memory, including shell layout remounts.
 let liveSession = null;
+let restartRequired = false;
 
 export default function AppLockGuard({ children }) {
   const { t } = useTranslation();
@@ -43,7 +44,7 @@ export default function AppLockGuard({ children }) {
   const [isShaking, setIsShaking] = useState(false);
   const isSuccess = false;
   const [isTabHidden, setIsTabHidden] = useState(false);
-  const [sessionRevoked, setSessionRevoked] = useState(false);
+  const [sessionRevoked, setSessionRevoked] = useState(() => restartRequired);
 
   const lastHiddenTimeRef = useRef(0);
   const hasTriggeredInitialBioRef = useRef(false);
@@ -119,6 +120,7 @@ export default function AppLockGuard({ children }) {
       const current = useSecurityStore.getState();
       if (current.isLocked || !current.hasPin || !current.isAppLockActive) return;
       liveSession = null;
+      restartRequired = true;
       authEpoch.current += 1;
       setSessionRevoked(true);
       setStoreLocked(true);
@@ -136,6 +138,47 @@ export default function AppLockGuard({ children }) {
       document.removeEventListener('visibilitychange', check);
     };
   }, [_hasHydrated, hasPin, isAppLockActive, isLocked, setStoreLocked]);
+
+  // Even a tab opened before App Lock was configured (or while it was
+  // paused) must stop displaying private content after external activation.
+  useEffect(() => {
+    if (!_hasHydrated || (hasPin && isAppLockActive) || sessionRevoked) return;
+    let active = true;
+    let pending = false;
+    const check = async () => {
+      if (!active || pending || isCredentialTransitionPending()) return;
+      pending = true;
+      let externalActivation = false;
+      try {
+        const security = await getCommittedStoreRecord('momentum-security-storage');
+        const value = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
+        externalActivation = value?.state?.hasPin === true && value?.state?.isAppLockActive === true;
+      } catch {
+        // The authority is unavailable; do not infer that access is safe.
+        externalActivation = true;
+      } finally { pending = false; }
+      if (!active || !externalActivation || isCredentialTransitionPending()) return;
+      const current = useSecurityStore.getState();
+      if (!current._hasHydrated || (current.hasPin && current.isAppLockActive)) return;
+      liveSession = null;
+      restartRequired = true;
+      authEpoch.current += 1;
+      setSessionRevoked(true);
+      setStoreLocked(true);
+    };
+    void check();
+    const interval = setInterval(check, 1000);
+    window.addEventListener('storage', check);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      window.removeEventListener('storage', check);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [_hasHydrated, hasPin, isAppLockActive, sessionRevoked, setStoreLocked]);
 
   // Refresh the durable attempt state even when localStorage events lag.
   // Prevent overlapping reads and ignore results from an obsolete effect.
