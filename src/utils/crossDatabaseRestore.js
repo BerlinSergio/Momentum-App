@@ -111,11 +111,13 @@ export async function captureCoordinatedBackupSnapshot() {
 }
 
 /** Commit ordinary main-DB restore under the same lock when available. */
-export async function commitCoordinatedMainRestore({ stores, attachments }) {
+export async function commitCoordinatedMainRestore({
+  stores, attachments, expectedStoreValues = null, expectedAttachmentRecords = null,
+}) {
   const manager = lockManager();
   const commit = async () => {
     await recoverUnlocked();
-    return commitRestoreBatch({ stores, attachments });
+    return commitRestoreBatch({ stores, attachments, expectedStoreValues, expectedAttachmentRecords });
   };
   if (manager?.request) {
     return manager.request(LOCK_NAME, { mode: 'exclusive' }, commit);
@@ -125,7 +127,7 @@ export async function commitCoordinatedMainRestore({ stores, attachments }) {
   if (await getPendingRestoreJournal()) {
     throw recoveryError('Pending restore journal requires browser Web Locks to recover');
   }
-  return commitRestoreBatch({ stores, attachments });
+  return commitRestoreBatch({ stores, attachments, expectedStoreValues, expectedAttachmentRecords });
 }
 
 /**
@@ -133,7 +135,9 @@ export async function commitCoordinatedMainRestore({ stores, attachments }) {
  * journal atomically. If interrupted at any earlier step, the journal remains
  * on disk and the next startup will restore the wallpaper preimage.
  */
-export async function commitCoordinatedCrossDbRestore({ stores, attachments, wallpapers }) {
+export async function commitCoordinatedCrossDbRestore({
+  stores, attachments, wallpapers, expectedStoreValues = null, expectedAttachmentRecords = null,
+}) {
   if (!Array.isArray(wallpapers) || !wallpapers.length ||
       wallpapers.some(wp => !wp || typeof wp.id !== 'string' || !wp.id ||
         typeof wp.dataUrl !== 'string' || !wp.dataUrl) ||
@@ -169,6 +173,7 @@ export async function commitCoordinatedCrossDbRestore({ stores, attachments, wal
       // The journal deletion and all main-db modifications are one transaction.
       const committed = await commitRestoreBatch({
         stores, attachments, restoreJournalToken: token,
+        expectedStoreValues, expectedAttachmentRecords,
       });
       if (committed !== true) {
         throw new Error('Main database restore transaction aborted');
