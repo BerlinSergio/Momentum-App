@@ -2,7 +2,7 @@
  * Momentum Central Backup & Restore Service
  *
  * Implements genuine encrypted backup creation, file export, inspection,
- * preview, staged atomic restoration, and attachment recovery.
+ * preview, atomic main-database restoration, and attachment recovery.
  */
 
 import {
@@ -17,16 +17,11 @@ import {
 import {
   openAppDB,
   getAllStoreItems,
-  setStoreItem,
-  removeStoreItem,
   getAllAttachmentRecords,
-  setAttachmentRecord,
+  commitRestoreBatch,
 } from '../storage/db.js';
 
-import {
-  getAllCustomWallpapersFromIndexedDB,
-  saveWallpaperToIndexedDB,
-} from './wallpaperStorage.js';
+import { getAllCustomWallpapersFromIndexedDB } from './wallpaperStorage.js';
 
 // Specific store keys containing durable user data
 export const SUPPORTED_BACKUP_STORES = [
@@ -419,8 +414,12 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
   if (!(await openAppDB())) throw new Error('Restore unavailable: IndexedDB cannot be opened safely');
   // 3. Staging Snapshot: Read all existing stores to enable safe rollback if restoration fails
   const existingStores = await getAllStoreItems();
+  // Prepare ALL mutations before opening a write transaction. No partial
+  // domain is visible to another reader while a restore batch is staged.
+  const stagedStores = [];
+  const stagedAttachments = [];
 
-  onProgress({ stage: 'MERGING_RECORDS', percent: 60, message: 'Applying data records...' });
+  onProgress({ stage: 'MERGING_RECORDS', percent: 60, message: 'Staging data records...' });
 
   try {
     // 4. Process and stage each supported domain
@@ -626,22 +625,10 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
         throw new Error('SIMULATED_TRANSACTION_FAILURE_MID_RESTORE');
       }
 
-      // A failed/aborted transaction must never be acknowledged as restored.
-      if ((await setStoreItem(storeKey, updatedPayload)) !== true) {
-        throw new Error(`Restore aborted: durable save failed for ${storeKey}`);
-      }
-
-      // Fast-boot mirror write
-      if (typeof localStorage !== 'undefined') {
-        try {
-          localStorage.setItem(storeKey, JSON.stringify(updatedPayload));
-        } catch {
-          // Non-blocking quota error
-        }
-      }
+      stagedStores.push({ name: storeKey, value: updatedPayload });
     }
 
-    onProgress({ stage: 'WRITING_ATTACHMENTS', percent: 80, message: 'Restoring binary attachments...' });
+    onProgress({ stage: 'STAGING_ATTACHMENTS', percent: 80, message: 'Staging verified binary attachments...' });
 
     // 5. Restore binary attachments into IndexedDB 'attachments' store
     for (const att of attachments) {
@@ -658,19 +645,29 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
           blob,
           createdAt: att.createdAt || new Date().toISOString(),
         };
-        if ((await setAttachmentRecord(record)) !== true) {
-          throw new Error(`Restore aborted: durable attachment save failed for ${att.id}`);
-        }
+        stagedAttachments.push(record);
       }
     }
 
-    // 6. Restore custom wallpapers
+    // The main DB and wallpaper DB cannot join one IndexedDB transaction.
+    // Reject cross-database packages before making ANY writes until a durable
+    // cross-DB recovery journal is implemented and independently tested.
     const customWallpapers = Array.isArray(decrypted.customWallpapers) ? decrypted.customWallpapers : [];
-    for (const wp of customWallpapers) {
-      if (wp.id && wp.dataUrl) {
-        if ((await saveWallpaperToIndexedDB(wp.id, wp.dataUrl, wp.meta || {})) !== true) {
-          throw new Error(`Restore aborted: wallpaper save failed for ${wp.id}`);
-        }
+    if (customWallpapers.some(wp => wp?.id && wp.dataUrl)) {
+      const error = new Error('Restore blocked: custom wallpapers use a separate database; cross-database atomicity is not yet verified');
+      error.code = 'CROSS_DATABASE_RESTORE_UNSAFE';
+      throw error;
+    }
+
+    onProgress({ stage: 'COMMITTING', percent: 90, message: 'Atomically committing domains and attachments...' });
+    if (!(await commitRestoreBatch({ stores: stagedStores, attachments: stagedAttachments }))) {
+      throw new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
+    }
+    // Update disposable mirrors only after a successful transaction commit.
+    if (typeof localStorage !== 'undefined') {
+      for (const { name, value } of stagedStores) {
+        try { localStorage.setItem(name, JSON.stringify(value)); }
+        catch { /* IndexedDB remains the single source of truth */ }
       }
     }
 
@@ -695,34 +692,10 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
       manifest: decrypted.manifest,
     };
   } catch (restoreError) {
-    console.error('[BackupService] Restoration error, rolling back:', restoreError);
-
-    // Rollback protocol: Revert all modified stores from staging snapshot
-    try {
-      for (const key of Object.keys(decrypted.domains)) {
-        if (!SUPPORTED_BACKUP_STORES.includes(key)) continue;
-        if (Object.prototype.hasOwnProperty.call(existingStores, key)) continue;
-        if ((await removeStoreItem(key)) !== true) {
-          throw new Error(`Rollback failed to remove newly restored record ${key}`);
-        }
-        if (typeof localStorage !== 'undefined') {
-          try { localStorage.removeItem(key); } catch { /* mirror is non-authoritative */ }
-        }
-      }
-      for (const [key, val] of Object.entries(existingStores)) {
-        if ((await setStoreItem(key, val)) !== true) {
-          throw new Error(`Rollback failed to restore original record ${key}`);
-        }
-        if (typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
-          } catch { /* ignore */ }
-        }
-      }
-    } catch (rollbackErr) {
-      console.error('[BackupService] Critical rollback exception:', rollbackErr);
-    }
-
+    // All domain/attachment staging is pure, and a failed IndexedDB
+    // transaction automatically rolls back its writes. Do not run an
+    // asynchronous per-key rollback that could overwrite concurrent edits.
+    console.error('[BackupService] Restore not completed:', restoreError);
     throw restoreError;
   }
 }
