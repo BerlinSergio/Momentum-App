@@ -287,6 +287,47 @@ async function credentialIntegrity(browser) {
     assert.deepEqual(reloaded, { active: true, hasPin: true, locked: true, pin: '' });
     console.log('PASS: Reloaded active PIN app-lock is locked; no plaintext PIN in store.');
 
+    const unauthorizedPause = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const before = await db.getCommittedStoreRecord('momentum-security-storage');
+      const store = window.useSecurityStore.getState();
+      const direct = await store.setAppLockActive(false);
+      const generic = await store.updatePreferences({ isAppLockActive: false });
+      const wrongPin = await store.pauseAppLock('0000');
+      const after = await db.getCommittedStoreRecord('momentum-security-storage');
+      return { rejected: [direct, generic, wrongPin].every(r => r?.success === false),
+        unchanged: JSON.stringify(before) === JSON.stringify(after),
+        active: window.useSecurityStore.getState().isAppLockActive };
+    });
+    assert.deepEqual(unauthorizedPause, { rejected: true, unchanged: true, active: true });
+
+    const authorizedPause = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const svc = await import('/src/utils/credentialService.js');
+      const key = 'momentum-credential-verifier';
+      const before = await db.getCommittedStoreRecord(key);
+      const result = await window.useSecurityStore.getState().pauseAppLock('2468');
+      const after = await db.getCommittedStoreRecord(key);
+      const metadata = await db.getStoreItem('momentum-security-storage');
+      return { success: result.success, retained: JSON.stringify(before) === JSON.stringify(after),
+        pinValid: (await svc.verifyCredential('2468')).success, active: metadata.state.isAppLockActive,
+        hasPin: metadata.state.hasPin };
+    });
+    assert.deepEqual(authorizedPause, { success: true, retained: true, pinValid: true, active: false, hasPin: true });
+    await a.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await boot(a, 'security', false);
+    assert.deepEqual(await a.evaluate(() => {
+      const s = window.useSecurityStore.getState();
+      return { active: s.isAppLockActive, hasPin: s.hasPin, locked: s.isLocked };
+    }), { active: false, hasPin: true, locked: false });
+    await a.evaluate(() => window.useSecurityStore.getState().setAppLockActive(true));
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return (await db.getStoreItem('momentum-security-storage'))?.state?.isAppLockActive === true;
+    }, { timeout: 30000, polling: 200 });
+    console.log('PASS: App Lock pause requires current PIN and retains the verifier across reload.');
+
+
     const disallowed = await b.evaluate(() => window.useSecurityStore.getState().changePin('1357'));
     assert.equal(disallowed.success, false);
     const rotated = await b.evaluate(async () => {
