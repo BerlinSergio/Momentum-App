@@ -484,7 +484,19 @@ export default function PinSetupChangeLightMode({ setActiveTab, goBack }) {
             </div>
             <button 
               type="button"
-              onClick={() => setAppLockActive(!isAppLockActive)} 
+              role="switch"
+              aria-checked={isAppLockActive}
+              aria-label={t('security.appLock', 'App Lock')}
+              onClick={async () => {
+                try {
+                  const result = await setAppLockActive(!isAppLockActive);
+                  if (result?.success === false) {
+                    showToast(t('security.pauseInSettings', 'To pause App Lock, confirm your PIN in App Lock settings.'), 'error');
+                  }
+                } catch {
+                  showToast(t('security.saveFailed', 'Security preferences could not be saved.'), 'error');
+                }
+              }} 
               className={`w-12 h-7 rounded-full p-0.5 flex items-center transition-colors shadow-sm focus:outline-none cursor-pointer ${isAppLockActive ? 'bg-primary justify-end' : 'bg-slate-300 justify-start'}`}
             >
               <span className="w-6 h-6 rounded-full bg-white shadow-md"></span>
