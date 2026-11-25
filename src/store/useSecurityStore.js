@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createIndexedDbStorage } from '../storage/index.js';
 import {
-  createCredential, changeCredential, removeCredential,
+  createCredential, changeCredential, removeCredential, pauseAppLock,
 } from '../utils/credentialService.js';
 
 const sanitizeSecurityPayload = (payload) => {
@@ -121,7 +121,7 @@ async function finishCredentialTransition(result) {
     await useSecurityStore.getState().setHasHydrated(true);
     return result;
   } catch {
-    return {success:false, committed:true, error:'PIN committed; reload to refresh security settings.'};
+    return {success:false, committed:true, error:'Security change committed; reload to refresh security settings.'};
   }
 }
 async function setFirstPinSafely(newPin) {
@@ -150,15 +150,16 @@ export const useSecurityStore = create(
 
       setHasPin: () => ({success:false, error:'Use an authenticated PIN operation.'}),
 
-      setAppLockActive: (isActive) =>
-        set((state) => {
-          const next = typeof isActive === 'function' ? isActive(state.isAppLockActive) : !!isActive;
-          
-          return {
-            isAppLockActive: next,
-            isLocked: next && state.hasPin ? state.isLocked : false,
-          };
-        }),
+      setAppLockActive: (isActive) => {
+        const state = useSecurityStore.getState();
+        const next = typeof isActive === 'function' ? !!isActive(state.isAppLockActive) : !!isActive;
+        if (!next && state.hasPin && state.isAppLockActive) {
+          return { success:false, error:'Confirm your current PIN to pause App Lock.' };
+        }
+        return set({ isAppLockActive: next, isLocked: next && state.hasPin ? state.isLocked : false });
+      },
+
+      pauseAppLock: async (currentPin) => finishCredentialTransition(await pauseAppLock(currentPin)),
 
       setBiometricsEnabled: (enabled) =>
         set((state) => {
@@ -232,6 +233,12 @@ export const useSecurityStore = create(
         if (!patch || typeof patch !== 'object' || Array.isArray(patch) ||
             Object.keys(patch).some(key => !allowed.has(key))) {
           return { success: false, error: 'Invalid security preferences.' };
+        }
+        const state = useSecurityStore.getState();
+        if (Object.hasOwn(patch, 'isAppLockActive') &&
+            (typeof patch.isAppLockActive !== 'boolean' ||
+             (state.hasPin && state.isAppLockActive && !patch.isAppLockActive))) {
+          return { success:false, error:'Confirm your current PIN to pause App Lock.' };
         }
         return set({ ...patch, lastModified: getFormattedTimestamp() });
       },
