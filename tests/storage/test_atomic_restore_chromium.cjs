@@ -84,6 +84,51 @@ async function main() {
     assert.equal(result.committedValue, 'committed');
     assert.equal(result.committedFile, 'updated');
     console.log('PASS: Real Chromium IndexedDB rolls back both stores after attachment DataCloneError and commits them together on success.');
+
+    // Isolate the application-level restore from the low-level transaction smoke.
+    // Force only post-commit hydration to fail, not the actual restore.
+    const restorePage = await context.newPage();
+    await restorePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await restorePage.waitForFunction(() => window.useTaskStore?.getState?.()._hasHydrated === true, { timeout: 45000 });
+    const recovery = await restorePage.evaluate(async () => {
+      const { restoreBackup } = await import('/src/utils/backupService.js');
+      const { encryptBackupPayload } = await import('/src/utils/backupCrypto.js');
+      const { getCommittedStoreRecord } = await import('/src/storage/db.js');
+      const passphrase = 'synthetic-qa-only-reload';
+      const key = 'momentum-task-storage';
+      const envelope = await encryptBackupPayload(JSON.stringify({
+        manifest: { version: 1 },
+        domains: { [key]: { state: { tasks: [{ id: 'qa-reload-required' }] }, version: 0 } },
+        attachments: [], customWallpapers: [],
+      }), passphrase);
+      const stages = [];
+      const store = window.useTaskStore;
+      const original = store.persist.rehydrate;
+      let injected = false;
+      try {
+        const result = await restoreBackup(envelope, passphrase, {
+          mode: 'merge',
+          onProgress: ({ stage }) => {
+            stages.push(stage);
+            if (stage === 'REHYDRATING') {
+              store.persist.rehydrate = async () => {
+                injected = true;
+                throw new Error('Synthetic session hydration failure');
+              };
+            }
+          },
+        });
+        const row = await getCommittedStoreRecord(key);
+        return { success: result.success, requiresReload: result.requiresReload, injected,
+          durable: row?.value?.state?.tasks?.some(t => t.id === 'qa-reload-required'),
+          lastStage: stages.at(-1) };
+      } finally { store.persist.rehydrate = original; }
+    });
+    assert.deepEqual(recovery, { success: true, requiresReload: true, injected: true,
+      durable: true, lastStage: 'RELOAD_REQUIRED' });
+    console.log('PASS: Committed restore with injected hydration failure requires restart, not a repeat restore.');
+    await restorePage.close();
+
     await page.close();
     await context.close();
   } finally {
