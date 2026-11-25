@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigationStore } from './store/useNavigationStore';
 import { useState, useEffect, useMemo } from 'react';
+import { getTaskStorageFailure } from './storage/zustandIndexedDbStorage';
 import { AnimatePresence } from 'framer-motion';
 import { WallpaperProvider } from './context/WallpaperContext';
 import GlobalBackground from './components/GlobalBackground';
@@ -243,6 +244,15 @@ function AppContent({ startupStatus = 'ready' }) {
 
   // App-level Initialization Splash Screen State (runs every time the app launches/reloads)
   const [isAppLoading, setIsAppLoading] = useState(true);
+  // A failed optimistic task save must remain visible until reload; this is
+  // not a transient toast because a stale in-memory tab must stop editing.
+  const [taskStorageFailure, setTaskStorageFailure] = useState(() => getTaskStorageFailure());
+  useEffect(() => {
+    const onFailure = (event) => setTaskStorageFailure(event.detail || getTaskStorageFailure());
+    window.addEventListener('momentum:task-storage-failure', onFailure);
+    return () => window.removeEventListener('momentum:task-storage-failure', onFailure);
+  }, []);
+
 
   if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
     window.setIsAppLoading = setIsAppLoading;
@@ -658,6 +668,31 @@ function AppContent({ startupStatus = 'ready' }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {taskStorageFailure && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="task-storage-conflict"
+          className="fixed z-[10000] top-3 left-3 right-3 mx-auto max-w-xl rounded-2xl border border-amber-500 bg-slate-950 text-white shadow-2xl p-4 flex flex-col gap-3"
+        >
+          <p className="font-semibold text-sm">
+            {t('storage.taskConflictTitle', 'Task changes could not be saved safely')}
+          </p>
+          <p className="text-sm text-slate-200">
+            {taskStorageFailure.code === 'TASK_WRITE_CONFLICT'
+              ? t('storage.taskConflictBody', 'Another Momentum tab saved newer tasks. Your latest task edit in this tab was not saved. Copy any unsaved work before reloading to view the durable tasks.')
+              : t('storage.taskStorageFailureBody', 'Task storage is unavailable or requires a safe reload. Your latest task edit may not have been saved. Do not clear app storage.')}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-amber-400 text-slate-950 font-semibold px-4 py-2 text-sm self-start"
+          >
+            {t('storage.reloadSavedTasks', 'Reload saved tasks')}
+          </button>
         </div>
       )}
 
