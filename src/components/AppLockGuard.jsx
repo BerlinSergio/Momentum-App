@@ -31,6 +31,7 @@ export default function AppLockGuard({ children }) {
   const biometricsEnabled = useSecurityStore((s) => s.biometricsEnabled);
   const hideInMultitasking = useSecurityStore((s) => s.hideInMultitasking);
   const hasPin = useSecurityStore((s) => s.hasPin);
+  const isAlpha = useSecurityStore(s=>s.passcodeType === 'alphanumeric');
   const _hasHydrated = useSecurityStore((s) => s._hasHydrated);
   const storeIsLocked = useSecurityStore((s) => s.isLocked);
   const setStoreLocked = useSecurityStore((s) => s.setLocked);
@@ -302,15 +303,10 @@ export default function AppLockGuard({ children }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [setStoreLocked]);
 
-  // Handle PIN input digit addition
-  const handleDigitPress = useCallback(async (digit) => {
-    if (authInFlight.current || document.hidden || enteredPin.length >= 4) return;
-    if (lockoutState.isLockedOut) return;
-    const nextPin = enteredPin + digit;
-    setEnteredPin(nextPin);
+  // Both credential types consume the same attempt reservation and unlock receipt.
+  const submitSecret = useCallback(async (nextPin) => {
+    if (authInFlight.current || document.hidden || lockoutState.isLockedOut || !nextPin) return;
     setAuthError('');
-    if (nextPin.length !== 4) return;
-
     const epoch = beginAuthentication();
     if (epoch === null) {
       setEnteredPin('');
@@ -349,7 +345,14 @@ export default function AppLockGuard({ children }) {
       }
       finishAuthentication();
     }
-  }, [enteredPin, lockoutState.isLockedOut, setStoreLocked]);
+  }, [lockoutState.isLockedOut, setStoreLocked,t]);
+  const handleDigitPress = useCallback((digit) => {
+    if (isAlpha || authInFlight.current || document.hidden || enteredPin.length >= 4 || lockoutState.isLockedOut) return;
+    const nextPin = enteredPin + digit;
+    setEnteredPin(nextPin);
+    setAuthError('');
+    if (nextPin.length === 4) void submitSecret(nextPin);
+  },[isAlpha,enteredPin,lockoutState.isLockedOut,submitSecret]);
 
   const handleBackspace = useCallback(() => {
     if (!authInFlight.current && !lockoutState.isLockedOut) {
@@ -360,7 +363,7 @@ export default function AppLockGuard({ children }) {
 
   // Keyboard support for desktop users
   useEffect(() => {
-    if (!isLocked) return;
+    if (!isLocked || isAlpha) return;
 
     const handleKeyDown = (e) => {
       if (/^[0-9]$/.test(e.key)) {
@@ -372,7 +375,7 @@ export default function AppLockGuard({ children }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLocked, handleDigitPress, handleBackspace]);
+  }, [isLocked,isAlpha, handleDigitPress, handleBackspace]);
 
   // Multitasking Privacy Blur Overlay
   const isInputDisabled = isAuthenticating || isSuccess || lockoutState.isLockedOut;
@@ -449,13 +452,13 @@ export default function AppLockGuard({ children }) {
                 ? t('lockGuard.pinVerified', 'PIN verified. Unlocking...')
                 : lockoutState.isLockedOut
                 ? t('lockGuard.temporaryLockout', 'Temporarily locked for security. Please wait.')
-                : t('lockGuard.enterPin', 'Enter your 4-digit PIN to access your account')}
+                : isAlpha ? t('lockGuard.enterPasscode','Enter your passcode to unlock') : t('lockGuard.enterPin', 'Enter your 4-digit PIN to access your account')}
             </p>
           </div>
 
           {/* 4 PIN Dots Indicator */}
           <div className="flex flex-col items-center my-3 w-full">
-            <div className={`flex items-center justify-center gap-4 py-2 transition-transform duration-200 ${isShaking ? 'momentum-shake' : ''}`}>
+            {!isAlpha && <div className={`flex items-center justify-center gap-4 py-2 transition-transform duration-200 ${isShaking ? 'momentum-shake' : ''}`}>
               {[0, 1, 2, 3].map((index) => {
                 const filled = enteredPin.length > index;
                 return (
@@ -473,7 +476,7 @@ export default function AppLockGuard({ children }) {
                   />
                 );
               })}
-            </div>
+            </div>}
 
             {/* Error or validation message banner */}
             <div className="h-6 flex items-center justify-center mt-1">
@@ -491,7 +494,14 @@ export default function AppLockGuard({ children }) {
           </div>
 
           {/* Numeric Keypad Grid */}
-          <div className="grid grid-cols-3 gap-3 w-full max-w-[280px] mx-auto pt-1">
+          {isAlpha ? <form className="w-full space-y-3" onSubmit={e=>{e.preventDefault();void submitSecret(enteredPin);}}>
+            <label className="text-sm text-slate-200" htmlFor="unlock-passcode">{t('lockGuard.passcode','Passcode')}</label>
+            <input id="unlock-passcode" aria-label="Passcode" type="password" autoComplete="current-password" maxLength={128}
+              disabled={isInputDisabled} value={enteredPin} onChange={e=>{setEnteredPin(e.target.value);setAuthError('');}}
+              className="w-full p-3 rounded-xl bg-slate-900 border border-slate-600 text-white"/>
+            <button type="submit" disabled={isInputDisabled || !enteredPin} className="w-full p-3 rounded-xl bg-primary text-white font-semibold disabled:opacity-50">{t('lockGuard.unlock','Unlock')}</button>
+            {biometricsEnabled && <button type="button" disabled={isInputDisabled} onClick={triggerBiometrics} className="w-full p-3 rounded-xl border border-slate-700 text-white">{t('lockGuard.useBiometrics','Unlock with Biometrics')}</button>}
+          </form> : <div className="grid grid-cols-3 gap-3 w-full max-w-[280px] mx-auto pt-1">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
               <motion.button
                 key={num}
@@ -559,7 +569,7 @@ export default function AppLockGuard({ children }) {
             >
               <Delete className="w-5 h-5" />
             </motion.button>
-          </div>
+          </div>}
         </div>
 
         {/* Bottom Security Footer */}

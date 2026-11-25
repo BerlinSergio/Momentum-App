@@ -123,9 +123,16 @@ async function deriveVerifier(pin, saltBytes, iterations = PBKDF2_ITERATIONS) {
 /**
  * Create and persist a new PBKDF2 credential verifier
  */
-async function prepareCredential(pin) {
-  const pinStr = String(pin || '').trim();
-  if (!pinStr || pinStr.length !== 4 || !/^\d{4}$/.test(pinStr)) {
+export function validPasscode(secret) {
+  return typeof secret === 'string' && secret.length >= 6 && secret.length <= 128 && /\p{L}/u.test(secret) && /\p{N}/u.test(secret);
+}
+export function validCurrentSecret(secret, type) {
+  return type === 'alphanumeric' ? validPasscode(secret) : /^\d{4}$/.test(String(secret ?? ''));
+}
+async function prepareCredential(pin, type = 'pin') {
+  const pinStr = type === 'alphanumeric' ? pin : String(pin || '').trim();
+  if (type === 'alphanumeric' && !validPasscode(pinStr)) return {success:false,error:'Passcode must contain letters and numbers, 6–128 characters.'};
+  if (type === 'pin' && !/^\d{4}$/.test(pinStr)) {
     return { success: false, error: 'PIN must be exactly 4 numeric digits' };
   }
 
@@ -142,7 +149,8 @@ async function prepareCredential(pin) {
     const verifierBase64 = await deriveVerifier(pinStr, saltBytes, PBKDF2_ITERATIONS);
 
     const record = {
-      version: 1,
+      version: type === 'alphanumeric' ? 2 : 1,
+      ...(type === 'alphanumeric' ? {credentialKind:'alphanumeric'} : {}),
       algorithm: 'PBKDF2-SHA256',
       iterations: PBKDF2_ITERATIONS,
       salt: saltBase64,
@@ -173,12 +181,14 @@ export async function hasCredential() {
 }
 
 async function verifySnapshot(pin, record) {
-  if (!record || !record.salt || !record.verifier || !String(pin || '').trim()) {
+  const alpha = record?.version === 2 && record.credentialKind === 'alphanumeric';
+  const secret = alpha ? pin : String(pin || '').trim();
+  if (!record || !record.salt || !record.verifier || (!alpha && record.version !== 1) || !validCurrentSecret(secret,alpha?'alphanumeric':'pin')) {
     return { success: false, error: 'No valid credential or PIN' };
   }
-  const derived = await deriveVerifier(String(pin).trim(), base64ToBuffer(record.salt), record.iterations || PBKDF2_ITERATIONS);
+  const derived = await deriveVerifier(secret, base64ToBuffer(record.salt), record.iterations || PBKDF2_ITERATIONS);
   return constantTimeEqual(derived, record.verifier)
-    ? { success: true } : { success: false, error: 'Incorrect PIN' };
+    ? { success: true } : { success: false, error: alpha ? 'Incorrect passcode' : 'Incorrect PIN' };
 }
 
 // Verification receipts remain in memory, bound to the exact durable snapshot.
@@ -262,7 +272,7 @@ export async function completePinUnlock(receipt, onUnlock) {
   });
 }
 
-async function transition(mode, currentPin, newPin) {
+async function transition(mode, currentPin, newPin, type = 'pin') {
   try {
     const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
     const security = await getCommittedStoreRecord('momentum-security-storage');
@@ -275,7 +285,7 @@ async function transition(mode, currentPin, newPin) {
     }
     let next = null;
     if (mode !== 'remove') {
-      const prepared = await prepareCredential(newPin);
+      const prepared = await prepareCredential(newPin,type);
       if (!prepared.success) return prepared;
       next = prepared.record;
     }
@@ -289,6 +299,8 @@ async function transition(mode, currentPin, newPin) {
 
 export const createCredential = pin => transition('create', null, pin);
 export const changeCredential = (currentPin, newPin) => withPinAttemptLock(() => transition('change', currentPin, newPin));
+export const createPasscode = secret => withPinAttemptLock(() => transition('create',null,secret,'alphanumeric'));
+export const changeToPasscode = (currentSecret, secret) => withPinAttemptLock(() => transition('change',currentSecret,secret,'alphanumeric'));
 export const removeCredential = currentPin => withPinAttemptLock(() => transition('remove', currentPin, null));
 
 // Pause App Lock without deleting or rotating the current verifier.

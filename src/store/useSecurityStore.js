@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createIndexedDbStorage } from '../storage/index.js';
 import {
-  createCredential, changeCredential, removeCredential, pauseAppLock,
+  createCredential, changeCredential, removeCredential, pauseAppLock, createPasscode, changeToPasscode,
 } from '../utils/credentialService.js';
 
 const sanitizeSecurityPayload = (payload) => {
@@ -224,8 +224,11 @@ export const useSecurityStore = create((setTransient, get, api) =>
       updatePin: (currentPin, newPin) => changePinSafely(currentPin, newPin),
       removePin: (currentPin) => removePinSafely(currentPin),
 
-      // The verifier currently supports numeric PINs only. Do not advertise a credential that cannot be verified.
-      setAlphanumeric: () => ({ success: false, error: 'Alphanumeric passcodes are not supported yet. Keep using your PIN.' }),
+      // Credential type and verifier are committed together; changing an existing
+      // credential always requires the current secret, even when lock is paused.
+      createPasscode: secret => runCredentialTransition(() => createPasscode(secret)),
+      changeToPasscode: (currentSecret,secret) => runCredentialTransition(() => changeToPasscode(currentSecret,secret)),
+      setAlphanumeric: () => ({success:false,error:'Use an authenticated passcode change.'}),
 
       updatePreferences: (draft) => {
         // Generic settings edits must never change credential identity or
