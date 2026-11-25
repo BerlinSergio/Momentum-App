@@ -40,6 +40,10 @@ jobs:
           done
           cat /tmp/momentum-vite.log
           exit 1
+      - name: Real Chromium atomic restore regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_atomic_restore_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
