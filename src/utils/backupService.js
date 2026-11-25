@@ -15,8 +15,10 @@ import {
 } from './backupCrypto.js';
 
 import {
+  openAppDB,
   getAllStoreItems,
   setStoreItem,
+  removeStoreItem,
   getAllAttachmentRecords,
   setAttachmentRecord,
 } from '../storage/db.js';
@@ -89,6 +91,8 @@ export async function createBackupPackage(passphrase, options = {}) {
 
   onProgress({ stage: 'COLLECTING_RECORDS', percent: 15, message: 'Collecting application records...' });
 
+  // Never export a plausible but incomplete backup from volatile memory.
+  if (!(await openAppDB())) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
   // 1. Read all authoritative records from IndexedDB 'stores' table
   const allDbStores = await getAllStoreItems();
 
@@ -110,14 +114,8 @@ export async function createBackupPackage(passphrase, options = {}) {
   for (const storeKey of SUPPORTED_BACKUP_STORES) {
     let storeRecord = parseStoreValue(allDbStores[storeKey]);
 
-    // Fallback: If not yet in IndexedDB, check localStorage
-    if (!storeRecord && typeof localStorage !== 'undefined') {
-      const localRaw = localStorage.getItem(storeKey);
-      if (localRaw) {
-        storeRecord = parseStoreValue(localRaw);
-      }
-    }
-
+    // LocalStorage mirrors are not authoritative after migration; never
+    // silently resurrect deleted/stale data into an encrypted backup.
     if (storeRecord && storeRecord.state) {
       // Security Exclusion: Never export credentials or active lock state
       const sanitizedState = { ...storeRecord.state };
@@ -207,7 +205,7 @@ export async function createBackupPackage(passphrase, options = {}) {
         };
       }
     } catch (attErr) {
-      console.warn(`[BackupService] Warning: Failed to bundle attachment ${att.id}:`, attErr);
+      throw new Error(`Backup aborted: attachment ${att.id} could not be bundled`, { cause: attErr });
     }
   }
   recordCounts.attachments = bundledAttachments.length;
@@ -417,6 +415,8 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
 
   onProgress({ stage: 'CREATING_SNAPSHOT', percent: 40, message: 'Taking pre-restore safety snapshot...' });
 
+  // Never accept a volatile-only restoration or an incomplete safety snapshot.
+  if (!(await openAppDB())) throw new Error('Restore unavailable: IndexedDB cannot be opened safely');
   // 3. Staging Snapshot: Read all existing stores to enable safe rollback if restoration fails
   const existingStores = await getAllStoreItems();
 
@@ -626,8 +626,10 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
         throw new Error('SIMULATED_TRANSACTION_FAILURE_MID_RESTORE');
       }
 
-      // Write authoritative committed record to IndexedDB
-      await setStoreItem(storeKey, updatedPayload);
+      // A failed/aborted transaction must never be acknowledged as restored.
+      if ((await setStoreItem(storeKey, updatedPayload)) !== true) {
+        throw new Error(`Restore aborted: durable save failed for ${storeKey}`);
+      }
 
       // Fast-boot mirror write
       if (typeof localStorage !== 'undefined') {
@@ -656,7 +658,9 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
           blob,
           createdAt: att.createdAt || new Date().toISOString(),
         };
-        await setAttachmentRecord(record);
+        if ((await setAttachmentRecord(record)) !== true) {
+          throw new Error(`Restore aborted: durable attachment save failed for ${att.id}`);
+        }
       }
     }
 
@@ -664,7 +668,9 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
     const customWallpapers = Array.isArray(decrypted.customWallpapers) ? decrypted.customWallpapers : [];
     for (const wp of customWallpapers) {
       if (wp.id && wp.dataUrl) {
-        await saveWallpaperToIndexedDB(wp.id, wp.dataUrl, wp.meta || {});
+        if ((await saveWallpaperToIndexedDB(wp.id, wp.dataUrl, wp.meta || {})) !== true) {
+          throw new Error(`Restore aborted: wallpaper save failed for ${wp.id}`);
+        }
       }
     }
 
@@ -693,8 +699,20 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
 
     // Rollback protocol: Revert all modified stores from staging snapshot
     try {
+      for (const key of Object.keys(decrypted.domains)) {
+        if (!SUPPORTED_BACKUP_STORES.includes(key)) continue;
+        if (Object.prototype.hasOwnProperty.call(existingStores, key)) continue;
+        if ((await removeStoreItem(key)) !== true) {
+          throw new Error(`Rollback failed to remove newly restored record ${key}`);
+        }
+        if (typeof localStorage !== 'undefined') {
+          try { localStorage.removeItem(key); } catch { /* mirror is non-authoritative */ }
+        }
+      }
       for (const [key, val] of Object.entries(existingStores)) {
-        await setStoreItem(key, val);
+        if ((await setStoreItem(key, val)) !== true) {
+          throw new Error(`Rollback failed to restore original record ${key}`);
+        }
         if (typeof localStorage !== 'undefined') {
           try {
             localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
