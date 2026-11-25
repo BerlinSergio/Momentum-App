@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigationStore } from './store/useNavigationStore';
 import { useState, useEffect, useMemo } from 'react';
-import { getTaskStorageFailure } from './storage/zustandIndexedDbStorage';
+import {
+  getTaskStorageFailure, getDomainStorageFailure,
+} from './storage/zustandIndexedDbStorage';
 import { AnimatePresence } from 'framer-motion';
 import { WallpaperProvider } from './context/WallpaperContext';
 import GlobalBackground from './components/GlobalBackground';
@@ -251,6 +253,16 @@ function AppContent({ startupStatus = 'ready' }) {
     const onFailure = (event) => setTaskStorageFailure(event.detail || getTaskStorageFailure());
     window.addEventListener('momentum:task-storage-failure', onFailure);
     return () => window.removeEventListener('momentum:task-storage-failure', onFailure);
+  }, []);
+  const [domainStorageFailure, setDomainStorageFailure] = useState(() => getDomainStorageFailure());
+  useEffect(() => {
+    const onFailure = event => {
+      if (event.detail?.domain !== 'momentum-task-storage') {
+        setDomainStorageFailure(event.detail || getDomainStorageFailure());
+      }
+    };
+    window.addEventListener('momentum:domain-storage-failure', onFailure);
+    return () => window.removeEventListener('momentum:domain-storage-failure', onFailure);
   }, []);
 
 
@@ -692,6 +704,33 @@ function AppContent({ startupStatus = 'ready' }) {
             className="rounded-xl bg-amber-400 text-slate-950 font-semibold px-4 py-2 text-sm self-start"
           >
             {t('storage.reloadSavedTasks', 'Reload saved tasks')}
+          </button>
+        </div>
+      )}
+
+      {domainStorageFailure && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="domain-storage-conflict"
+          className="fixed z-[10001] top-3 left-3 right-3 mx-auto max-w-xl rounded-2xl border border-amber-500 bg-slate-950 text-white shadow-2xl p-4 flex flex-col gap-3"
+        >
+          <p className="font-semibold text-sm">
+            {domainStorageFailure.domain === 'momentum-finance-storage'
+              ? t('storage.financeConflictTitle', 'Finance changes could not be saved safely')
+              : t('storage.notesConflictTitle', 'Notes changes could not be saved safely')}
+          </p>
+          <p className="text-sm text-slate-200">
+            {domainStorageFailure.code === 'DOMAIN_WRITE_CONFLICT'
+              ? t('storage.domainConflictBody', 'Another Momentum tab saved newer data. Your latest edit in this tab was not saved. Copy unsaved work before reloading to see committed data.')
+              : t('storage.domainFailureBody', 'Storage is unavailable or the save failed. Your latest edit may not be saved. Do not clear the app\'s site data.')}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-amber-400 text-slate-950 font-semibold px-4 py-2 text-sm self-start"
+          >
+            {t('storage.reloadCommittedData', 'Reload saved data')}
           </button>
         </div>
       )}

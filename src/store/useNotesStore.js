@@ -2,9 +2,12 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { produce } from 'immer';
 import { v4 as uuidv4 } from 'uuid';
-import { createIndexedDbStorage, deleteAttachmentFile } from '../storage/index.js';
+import { createIndexedDbStorage } from '../storage/index.js';
 
-const notesStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-notes-storage' });
+const notesStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-notes-storage',
+  optimisticDomains: ['momentum-notes-storage'],
+});
 
 const getSafeStorage = () => notesStorage;
 
@@ -568,7 +571,9 @@ export const useNotesStore = create(
         ),
 
       deleteAttachment: (noteId, attachmentId) => {
-        deleteAttachmentFile(attachmentId).catch(() => {});
+        // Do not delete durable binary bytes before the note metadata passes
+        // its cross-tab CAS check. The guarded main-IDB transaction removes
+        // unreferenced attachment records atomically with note metadata.
         set(
           produce((state) => {
             const note = state.notes.find((n) => String(n.id) === String(noteId));
@@ -614,6 +619,7 @@ export const useNotesStore = create(
     {
       name: 'momentum-notes-storage',
       storage: createJSONStorage(() => getSafeStorage()),
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           if (Array.isArray(state.notes)) {
@@ -631,44 +637,15 @@ export const useNotesStore = create(
           if (typeof state.reflectionStreak !== 'number') {
             state.reflectionStreak = 0;
           }
-          state.setHasHydrated(true);
+          // StartupController owns the hydrated flag after committed reads;
+          // do not trigger an extra Notes write from this callback.
         }
       },
     }
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-notes-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.state?.notes)) {
-        const notes = parsed.state.notes.map((n) => ({
-          ...n,
-          milestones: n.milestones || [],
-          attachments: n.attachments || [],
-          tags: n.tags || [],
-          savedAt: n.savedAt || n.date || 'Today',
-          isArchived: Boolean(n.isArchived),
-        }));
-        useNotesStore.setState({
-          ...parsed.state,
-          notes,
-          activeNoteId: parsed.state.activeNoteId || null,
-          reflectionStreak: calculateReflectionStreak(notes),
-          _hasHydrated: true,
-        });
-      } else {
-        useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
-      }
-    } else {
-      useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
-    }
-  } catch {
-    useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
-  }
-}
+// StartupController coordinates crash recovery, legacy migration, and
+// authoritative Notes hydration before unlocking application screens.
 
 export default useNotesStore;

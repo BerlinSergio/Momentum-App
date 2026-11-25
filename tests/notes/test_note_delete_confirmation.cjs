@@ -85,13 +85,28 @@ async function main() {
     }
     console.log('PASS: 1. Shared confirmation sheet buttons resolve promises correctly');
 
+    async function waitForQuickEditorTitle(id, expectedTitle) {
+      // Navigation uses AnimatePresence(mode=wait). Do not click a menu
+      // belonging to the outgoing editor while the new title is mounting.
+      await page.waitForFunction(({ id, expectedTitle }) => {
+        const selected = window.useNotesStore?.getState?.().activeNoteId;
+        const hasNewTitle = [...document.querySelectorAll('h2, input[type="text"]')]
+          .some(el => (el.value || el.textContent || '').trim() === expectedTitle);
+        return selected === id && hasNewTitle &&
+          window.useNavigationStore?.getState?.().activeTab === 'quick_note_editor';
+      }, { timeout: 15000, polling: 200 }, { id, expectedTitle });
+    }
+
     async function openDeleteMenu() {
       await page.waitForSelector('[aria-label="Note options"]', { visible: true, timeout: 12000 });
       await page.click('[aria-label="Note options"]');
       const deleteSelector = '[aria-label="Note options"] + div.absolute > button:last-of-type';
       await page.waitForSelector(deleteSelector, { visible: true, timeout: 6000 });
+      // The menu uses a 150ms zoom animation. Wait for the interactive
+      // button's actual position before a physical pointer click.
+      await delay(180);
       await page.click(deleteSelector);
-      await page.waitForSelector('[data-testid="momentum-dialog-confirm-btn"]', { visible: true, timeout: 6000 });
+      await page.waitForSelector('[data-testid="momentum-dialog-confirm-btn"]', { visible: true, timeout: 10000 });
     }
 
     // 2. Long Note Editor tests (Light and Dark)
@@ -161,6 +176,8 @@ async function main() {
       }, { id, theme });
       await delay(650);
 
+      await waitForQuickEditorTitle(id, 'QA Quick Note ' + theme);
+
       // Cancel check
       step = 'quick-note:' + theme + ':cancel';
       await openDeleteMenu();
@@ -207,6 +224,8 @@ async function main() {
         nav.setActiveTab('quick_note_editor', { isNew: false, noteId: id });
       }, { id, theme });
       await delay(650);
+
+      await waitForQuickEditorTitle(id, 'QA Quick Note Bottom Bar ' + theme);
 
       // Enter edit mode
       await page.evaluate(() => {

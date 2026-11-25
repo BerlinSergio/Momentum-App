@@ -14,6 +14,7 @@ on:
       - fix/db-phase210-large-backup-ui-20261125
       - fix/db-phase211-task-persistence-20261125
       - fix/db-phase212-task-cross-tab-cas-20261125
+      - fix/db-phase213-notes-finance-cas-20261125
   workflow_dispatch:
 
 permissions:
@@ -80,6 +81,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_task_cross_tab_conflict_chromium.cjs
+      - name: Notes and Finance cross-tab CAS with attachment safety and stress
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_notes_finance_conflicts_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
