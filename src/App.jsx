@@ -591,7 +591,7 @@ function AppContent({ startupStatus = 'ready' }) {
           {/* Centered Realistic Mobile Phone Frame Container */}
           <div className="w-full h-full sm:h-[892px] sm:max-w-[412px] sm:rounded-[40px] sm:border-[8px] sm:border-outline-variant/40 sm:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] mx-auto relative overflow-hidden bg-transparent flex flex-col font-sans">
             {!isAppLoading && !isVaultLocked && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
-            <div data-app-startup-ready={!isAppLoading && startupStatus === 'ready'} className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
+            <div data-app-startup-status={startupStatus} data-app-startup-ready={!isAppLoading && startupStatus === 'ready'} className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
               <AnimatePresence mode="wait">
                 {isAppLoading ? (
                   startupStatus === 'failed' ? startupFailureView : (
@@ -648,7 +648,7 @@ function AppContent({ startupStatus = 'ready' }) {
           <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className="flex-1 h-full overflow-hidden relative flex flex-col items-center min-w-0 transition-all duration-300 z-10">
 
             <div
-              data-app-startup-ready={!isAppLoading && startupStatus === 'ready'}
+              data-app-startup-status={startupStatus} data-app-startup-ready={!isAppLoading && startupStatus === 'ready'}
               className={`flex-1 ${
                 isAppLoading || activeTab.includes('splash_screen')
                   ? 'overflow-hidden overscroll-none'
