@@ -13,6 +13,7 @@ on:
       - fix/db-phase29-attachment-revision-quota-20261125
       - fix/db-phase210-large-backup-ui-20261125
       - fix/db-phase211-task-persistence-20261125
+      - fix/db-phase212-task-cross-tab-cas-20261125
   workflow_dispatch:
 
 permissions:
@@ -75,6 +76,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_task_single_writer_chromium.cjs
+      - name: Cross-tab task CAS with conflict warning and safe reload Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_task_cross_tab_conflict_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/

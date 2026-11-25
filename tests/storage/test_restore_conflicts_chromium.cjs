@@ -22,7 +22,7 @@ async function testSimultaneousColdStart(browser) {
       const failedSafely = document.querySelector('[role="alert"]')
         ?.textContent?.includes('Cannot safely load saved data') === true;
       return ready || failedSafely;
-    }, { timeout: 35000 })));
+    }, { timeout: 35000, polling: 200 })));
     const results = await Promise.all(pages.map(page => page.evaluate(() => ({
       hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
       safeError: document.querySelector('[role="alert"]')
@@ -53,9 +53,9 @@ async function main() {
     // These tests measure concurrent edits AFTER safe hydration, not first-run
     // onboarding (which has a separate cold-start test).
     await a.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await a.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 });
+    await a.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000, polling: 200 });
     await b.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await b.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 });
+    await b.waitForFunction(() => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000, polling: 200 });
 
     const old = await a.evaluate(async key => {
       const db = await import('/src/storage/db.js');
