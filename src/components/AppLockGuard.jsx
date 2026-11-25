@@ -17,8 +17,13 @@ import {
   completePinUnlock,
   readCommittedLockoutState,
   LOCKOUT_STORAGE_KEY,
+  CREDENTIAL_STORE_KEY,
 } from '../utils/credentialService';
+import { getCommittedStoreRecord } from '../storage/db.js';
 import { flushPendingNotificationRoute } from '../utils/nativeNotifications';
+
+// Kept only in this tab's memory, including shell layout remounts.
+let liveSession = null;
 
 export default function AppLockGuard({ children }) {
   const { t } = useTranslation();
@@ -38,6 +43,7 @@ export default function AppLockGuard({ children }) {
   const [isShaking, setIsShaking] = useState(false);
   const isSuccess = false;
   const [isTabHidden, setIsTabHidden] = useState(false);
+  const [sessionRevoked, setSessionRevoked] = useState(false);
 
   const lastHiddenTimeRef = useRef(0);
   const hasTriggeredInitialBioRef = useRef(false);
@@ -69,10 +75,11 @@ export default function AppLockGuard({ children }) {
     if (mounted.current) setIsAuthenticating(false);
   };
 
-  const commitSessionUnlock = (epoch) => {
-    if (!isCurrentAuthentication(epoch)) return false;
+  const commitSessionUnlock = (epoch, grant) => {
+    if (!isCurrentAuthentication(epoch) || !grant?.pinRevision) return false;
     const latest = useSecurityStore.getState();
     if (!latest._hasHydrated || !latest.isAppLockActive || !latest.hasPin || !latest.isLocked) return false;
+    liveSession = grant;
     setEnteredPin('');
     setAuthError('');
     setStoreLocked(false);
@@ -85,6 +92,50 @@ export default function AppLockGuard({ children }) {
     const timer = setTimeout(() => setIsShaking(false), 450);
     return () => clearTimeout(timer);
   }, [isShaking]);
+
+  // Detect revocation of an authenticated, already-unlocked session. Never
+  // silently rehydrate stale in-memory settings over the committed record.
+  useEffect(() => {
+    if (!_hasHydrated || !hasPin || !isAppLockActive || isLocked || !liveSession) return;
+    const session = liveSession;
+    let active = true;
+    let pending = false;
+    const check = async () => {
+      if (!active || pending || liveSession !== session) return;
+      pending = true;
+      let valid = false;
+      try {
+        const [credential, security] = await Promise.all([
+          getCommittedStoreRecord(CREDENTIAL_STORE_KEY),
+          getCommittedStoreRecord('momentum-security-storage'),
+        ]);
+        const value = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
+        valid = credential?.revisionId === session.pinRevision &&
+          value?.state?.hasPin === true && value?.state?.isAppLockActive === true &&
+          (session.method !== 'biometric' || value?.state?.biometricsEnabled === true);
+      } catch { /* fail closed */ }
+      finally { pending = false; }
+      if (!active || liveSession !== session || valid) return;
+      const current = useSecurityStore.getState();
+      if (current.isLocked || !current.hasPin || !current.isAppLockActive) return;
+      liveSession = null;
+      authEpoch.current += 1;
+      setSessionRevoked(true);
+      setStoreLocked(true);
+    };
+    void check();
+    const interval = setInterval(check, 1000);
+    window.addEventListener('storage', check);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      window.removeEventListener('storage', check);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [_hasHydrated, hasPin, isAppLockActive, isLocked, setStoreLocked]);
 
   // Refresh the durable attempt state even when localStorage events lag.
   // Prevent overlapping reads and ignore results from an obsolete effect.
@@ -139,9 +190,9 @@ export default function AppLockGuard({ children }) {
       const result = await authenticateBiometrics();
       if (!isCurrentAuthentication(epoch)) return;
       if (result.success) {
-        const authorization = await completeBiometricUnlock(result, () => {
+        const authorization = await completeBiometricUnlock(result, (grant) => {
           if (!useSecurityStore.getState().biometricsEnabled) return false;
-          return commitSessionUnlock(epoch);
+          return commitSessionUnlock(epoch, grant);
         });
         if (!authorization.success && isCurrentAuthentication(epoch)) {
           setAuthError(authorization.error || t('lockGuard.authError', 'Authentication error. Enter PIN to unlock.'));
@@ -242,7 +293,7 @@ export default function AppLockGuard({ children }) {
           setAuthError(result.error || `Incorrect PIN (${nextLockout.failedAttempts}/5)`);
         }
       } else {
-        const completion = await completePinUnlock(result, () => commitSessionUnlock(epoch));
+        const completion = await completePinUnlock(result, (grant) => commitSessionUnlock(epoch, grant));
         if (!completion.success && isCurrentAuthentication(epoch)) {
           setAuthError(completion.error || t('lockGuard.authError', 'Authentication error. Enter PIN to unlock.'));
         }
@@ -293,6 +344,17 @@ export default function AppLockGuard({ children }) {
       </div>
     </div>
   ) : null;
+
+  if (sessionRevoked) {
+    return (
+      <div role="alert" data-testid="security-session-revoked" className="fixed inset-0 z-[999999] bg-slate-950 text-white flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <ShieldCheck className="w-10 h-10 text-primary" />
+        <h1 className="text-lg font-bold">{t('security.sessionRevoked', 'Security session ended')}</h1>
+        <p className="max-w-sm text-sm text-slate-300">{t('security.sessionRevokedDesc', 'Security settings changed or could not be verified. Restart Momentum before continuing. Unsaved edits may be lost.')}</p>
+        <button type="button" onClick={() => window.location.reload()} className="rounded-xl bg-primary px-5 py-3 font-semibold text-white">{t('common.restart', 'Restart Momentum')}</button>
+      </div>
+    );
+  }
 
   // If app lock is not active, PIN is not set, or app is currently unlocked, render normal children
   if (!isAppLockActive || !hasPin || !isLocked) {
