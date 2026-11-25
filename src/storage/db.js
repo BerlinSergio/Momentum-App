@@ -124,7 +124,8 @@ export async function setStoreItem(name, value, meta = {}) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.set(`store:${name}`, value);
-    return true;
+    // Volatile fallback is usable in-session, but is NOT a durable save.
+    return false;
   }
 
   return new Promise((resolve) => {
@@ -138,7 +139,13 @@ export async function setStoreItem(name, value, meta = {}) {
         ...meta,
       };
       const req = store.put(record);
-      req.onsuccess = () => resolve(true);
+      // A request can succeed even if its containing transaction later aborts.
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = (e) => {
+        console.warn('[Momentum DB] setStoreItem transaction error:', e);
+        resolve(false);
+      };
+      tx.onabort = () => resolve(false);
       req.onerror = (e) => {
         console.warn('[Momentum DB] setStoreItem error:', e);
         resolve(false);
@@ -157,7 +164,8 @@ export async function removeStoreItem(name) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.delete(`store:${name}`);
-    return true;
+    return false; // In-memory deletion is not a durable database transaction.
+
   }
 
   return new Promise((resolve) => {
@@ -165,7 +173,9 @@ export async function removeStoreItem(name) {
       const tx = db.transaction(STORES.DATA, 'readwrite');
       const store = tx.objectStore(STORES.DATA);
       const req = store.delete(name);
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
       req.onerror = () => resolve(false);
     } catch {
       resolve(false);
@@ -203,7 +213,8 @@ export async function setAttachmentRecord(record) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.set(`att:${record.id}`, record);
-    return true;
+    return false; // In-memory attachment can disappear on reload.
+
   }
 
   return new Promise((resolve) => {
@@ -214,7 +225,12 @@ export async function setAttachmentRecord(record) {
         ...record,
         updatedAt: Date.now(),
       });
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = (e) => {
+        console.warn('[Momentum DB] setAttachmentRecord transaction error:', e);
+        resolve(false);
+      };
+      tx.onabort = () => resolve(false);
       req.onerror = (e) => {
         console.warn('[Momentum DB] setAttachmentRecord error:', e);
         resolve(false);
@@ -233,7 +249,8 @@ export async function removeAttachmentRecord(id) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.delete(`att:${id}`);
-    return true;
+    return false;
+
   }
 
   return new Promise((resolve) => {
@@ -241,7 +258,9 @@ export async function removeAttachmentRecord(id) {
       const tx = db.transaction(STORES.ATTACHMENTS, 'readwrite');
       const store = tx.objectStore(STORES.ATTACHMENTS);
       const req = store.delete(id);
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
       req.onerror = () => resolve(false);
     } catch {
       resolve(false);
@@ -308,7 +327,8 @@ export async function setMigrationMeta(key, data) {
   const record = { key, ...data, timestamp: Date.now() };
   if (!db) {
     memoryFallback.set(`mig:${key}`, record);
-    return true;
+    return false; // Never mark volatile migration metadata as committed.
+
   }
 
   return new Promise((resolve) => {
@@ -316,7 +336,9 @@ export async function setMigrationMeta(key, data) {
       const tx = db.transaction(STORES.MIGRATION, 'readwrite');
       const store = tx.objectStore(STORES.MIGRATION);
       const req = store.put(record);
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
       req.onerror = () => resolve(false);
     } catch {
       resolve(false);
@@ -399,7 +421,7 @@ export async function removeStoreItems(names) {
     for (const name of names) {
       memoryFallback.delete(`store:${name}`);
     }
-    return true;
+    return false;
   }
 
   return new Promise((resolve) => {
