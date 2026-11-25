@@ -474,6 +474,65 @@ async function credentialAttemptLimits(browser) {
   } finally { await context.close(); }
 }
 
+async function lockScreenSingleFlight(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const page = await context.newPage();
+    await page.bringToFront();
+    await boot(page, 'security');
+    await page.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000, polling:200});
+    assert.equal((await page.evaluate(() => window.useSecurityStore.getState().setPin('2468'))).success, true);
+    await page.reload({waitUntil:'domcontentloaded', timeout:60000});
+    await boot(page, 'security', false);
+    await page.waitForSelector('[data-testid="app-lock-screen"]', {timeout:45000});
+    await page.evaluate(() => {
+      const original = SubtleCrypto.prototype.deriveBits;
+      window.__qaDerivations = 0;
+      SubtleCrypto.prototype.deriveBits = async function(...args) {
+        window.__qaDerivations++;
+        await new Promise(resolve => { window.__qaReleaseDerivation = resolve; });
+        return original.apply(this,args);
+      };
+      window.__qaRestoreDeriveBits = () => { SubtleCrypto.prototype.deriveBits = original; };
+    });
+    const enter = async () => {
+      for (const digit of '2468') {
+        await page.keyboard.press(digit);
+        await new Promise(resolve => setTimeout(resolve, 75));
+      }
+    };
+    await enter();
+    await page.waitForFunction(() => window.__qaDerivations === 1, {timeout:10000});
+    assert.equal(await page.evaluate(() =>
+      [...document.querySelectorAll('[data-testid="app-lock-screen"] button')].every(b => b.disabled)), true);
+    await page.keyboard.press('Backspace');
+    await enter();
+    assert.equal(await page.evaluate(() => window.__qaDerivations), 1);
+
+    // Simulate background/foreground while the real verifier is pending.
+    await page.evaluate(() => {
+      Object.defineProperty(document,'hidden',{configurable:true,value:true});
+      document.dispatchEvent(new Event('visibilitychange'));
+      delete document.hidden;
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.__qaRestoreDeriveBits();
+      window.__qaReleaseDerivation();
+    });
+    await page.waitForFunction(() => {
+      const screen = document.querySelector('[data-testid="app-lock-screen"]');
+      return screen && [...screen.querySelectorAll('button')].some(b => !b.disabled);
+    }, {timeout:15000});
+    assert.equal(await page.evaluate(() => window.useSecurityStore.getState().isLocked), true);
+    await enter();
+    await page.waitForFunction(() => !window.useSecurityStore.getState().isLocked &&
+      !document.querySelector('[data-testid="app-lock-screen"]'), {timeout:15000});
+    console.log('PASS: lock screen permits one authentication at a time and rejects backgrounded results.');
+  } finally { await context.close(); }
+}
+
 async function main() {
   const browser = await puppeteer.launch({
     headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -485,6 +544,7 @@ async function main() {
     await casStress(browser, 'security');
     await credentialIntegrity(browser);
     await credentialAttemptLimits(browser);
+    await lockScreenSingleFlight(browser);
   } finally { await browser.close(); }
 }
 main().catch(err => {
