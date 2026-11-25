@@ -6,27 +6,40 @@
 
 import {
   getStoreItem, setStoreItem, removeStoreItem,
-  getCommittedStoreRecord, compareAndSwapTaskStore,
+  getCommittedStoreRecord, compareAndSwapDomainStore, GUARDED_DOMAINS,
 } from './db.js';
 
 const TASK_STORE = 'momentum-task-storage';
-let taskStorageFailure = null;
+const NOTES_STORE = 'momentum-notes-storage';
+const FINANCE_STORE = 'momentum-finance-storage';
+const guardedFailures = new Map();
 
-/** A retained, non-sensitive warning until the user reloads authoritative data. */
+/** Retained in this tab until reload, never stored in localStorage. */
 export function getTaskStorageFailure() {
-  return taskStorageFailure;
+  return guardedFailures.get(TASK_STORE) || null;
 }
 
-function notifyTaskStorageFailure(error) {
-  if (!taskStorageFailure) {
-    taskStorageFailure = {
-      code: error?.code || 'TASK_STORAGE_UNAVAILABLE',
-      message: error?.message || 'Task data could not be safely saved',
-    };
+export function getDomainStorageFailure() {
+  return [...guardedFailures.entries()].reverse()
+    .find(([domain]) => domain !== TASK_STORE)?.[1] || null;
+}
+
+function notifyDomainStorageFailure(domain, error) {
+  if (!guardedFailures.has(domain)) {
+    guardedFailures.set(domain, {
+      domain,
+      code: error?.code || 'DOMAIN_STORAGE_UNAVAILABLE',
+      message: error?.message || 'Stored data could not be safely saved',
+    });
   }
+  const detail = guardedFailures.get(domain);
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' &&
       typeof CustomEvent !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('momentum:task-storage-failure', { detail: taskStorageFailure }));
+    window.dispatchEvent(new CustomEvent('momentum:domain-storage-failure', { detail }));
+    // Preserve the Phase 2.12 task-specific event for consumers.
+    if (domain === TASK_STORE) {
+      window.dispatchEvent(new CustomEvent('momentum:task-storage-failure', { detail }));
+    }
   }
 }
 
@@ -57,19 +70,59 @@ function enqueueWrite(key, task) {
  * @param {boolean} [options.mirrorToLocalStorage=true] - Mirror committed small payloads only
  */
 export function createIndexedDbStorage(options = {}) {
-  const { mirrorToLocalStorage = true, optimisticTaskWrites = false } = options;
-  // This baseline belongs to one tab/adapter instance and is obtained from
-  // the committed IndexedDB record at coordinated hydration, never a mirror.
-  let taskBaseline = undefined;
-  const isGuarded = name => optimisticTaskWrites && name === TASK_STORE;
-  const parsedState = value => {
-    if (typeof value !== 'string') return value;
-    try { return JSON.parse(value); } catch { return null; }
-  };
-  const sameTaskItems = (a, b) => {
+  const { mirrorToLocalStorage = true, optimisticTaskWrites = false, optimisticDomains = [] } = options;
+  if (!Array.isArray(optimisticDomains) ||
+      optimisticDomains.some(name => !GUARDED_DOMAINS.includes(name))) {
+    throw new TypeError('Guarded storage domains must be an allowlisted array');
+  }
+  const guardedNames = new Set([
+    ...optimisticDomains,
+    ...(optimisticTaskWrites ? [TASK_STORE] : []),
+  ]);
+  // Each adapter instance owns its baseline, captured from a completed IDB
+  // readonly transaction at coordinated hydration or after a successful CAS.
+  const baselines = new Map();
+  const isGuarded = name => guardedNames.has(name);
+
+  const persistedState = value => {
     try {
-      return JSON.stringify(parsedState(a)?.state?.tasks || []) ===
-             JSON.stringify(parsedState(b)?.state?.tasks || []);
+      const decoded = typeof value === 'string' ? JSON.parse(value) : value;
+      return decoded && typeof decoded.state === 'object' && decoded.state
+        ? decoded.state : {};
+    } catch { return {}; }
+  };
+
+  // Transient editor/hydration fields must not bump durable revision IDs.
+  // Preserve unknown fields (including new finance fields), so future domain
+  // changes are not silently dropped as 'no-op' writes.
+  const durableProjection = (name, value) => {
+    const state = { ...persistedState(value) };
+    delete state._hasHydrated;
+    if (name === TASK_STORE) {
+      return { tasks: Array.isArray(state.tasks) ? state.tasks : [] };
+    }
+    if (name === NOTES_STORE) {
+      delete state.activeNoteId;
+      delete state.activeAttachmentId;
+      if (!Array.isArray(state.notes)) state.notes = [];
+      if (state.reflectionStreak === undefined) state.reflectionStreak = 0;
+    }
+    if (name === FINANCE_STORE) {
+      delete state.editingIncome;
+      delete state.editingTransaction;
+      delete state.pendingTransactionType;
+      for (const field of ['accounts', 'transactions', 'incomes', 'budgets']) {
+        if (!Array.isArray(state[field])) state[field] = [];
+      }
+      if (state.monthlyBudgetCap === undefined) state.monthlyBudgetCap = { AFN: 0, USD: 0 };
+      if (state.savingsTarget === undefined) state.savingsTarget = null;
+    }
+    return state;
+  };
+  const sameDomainContent = (name, a, b) => {
+    try {
+      return JSON.stringify(durableProjection(name, a)) ===
+             JSON.stringify(durableProjection(name, b));
     } catch { return false; }
   };
 
@@ -83,7 +136,7 @@ export function createIndexedDbStorage(options = {}) {
         // legacy localStorage: otherwise stale mirrors can revive deleted data.
         if (isGuarded(name)) {
           const record = await getCommittedStoreRecord(name);
-          taskBaseline = record;
+          baselines.set(name, record);
           if (!record) return null;
           const value = record.value;
           return typeof value === 'string' ? value : JSON.stringify(value);
@@ -110,26 +163,26 @@ export function createIndexedDbStorage(options = {}) {
           parsed = value;
         }
         if (isGuarded(name)) {
-          if (taskStorageFailure) {
-            const error = new Error(taskStorageFailure.message);
-            error.code = taskStorageFailure.code;
+          const existingFailure = guardedFailures.get(name);
+          if (existingFailure) {
+            const error = new Error(existingFailure.message);
+            error.code = existingFailure.code;
             throw error;
           }
-          if (taskBaseline === undefined) {
-            const error = new Error('Task write rejected before authoritative IndexedDB hydration');
-            error.code = 'TASK_HYDRATION_REQUIRED';
-            notifyTaskStorageFailure(error);
+          if (!baselines.has(name)) {
+            const error = new Error('Guarded write rejected before authoritative IndexedDB hydration for ' + name);
+            error.code = name === TASK_STORE ? 'TASK_HYDRATION_REQUIRED' : 'DOMAIN_HYDRATION_REQUIRED';
+            notifyDomainStorageFailure(name, error);
             throw error;
           }
-          // setHasHydrated/editingTaskId mutate transient in-memory state; they
-          // must not cause a spurious whole-task-domain write or revision bump.
-          if (sameTaskItems(parsed, taskBaseline?.value)) return true;
-
+          const previous = baselines.get(name);
+          // Editor-only state changes do not supersede committed user records.
+          if (sameDomainContent(name, parsed, previous?.value)) return true;
           try {
-            const committed = await compareAndSwapTaskStore(name, parsed, taskBaseline);
-            taskBaseline = committed;
+            const committed = await compareAndSwapDomainStore(name, parsed, previous);
+            baselines.set(name, committed);
           } catch (error) {
-            notifyTaskStorageFailure(error);
+            notifyDomainStorageFailure(name, error);
             throw error;
           }
         } else {
@@ -157,12 +210,11 @@ export function createIndexedDbStorage(options = {}) {
      */
     removeItem: async (name) => {
       return enqueueWrite(name, async () => {
-        // A stale tab must NEVER delete the entire current task record by
-        // bypassing our compare-and-swap protocol.
+        // Never let reset/removeItem bypass guarded domain CAS.
         if (isGuarded(name)) {
-          const error = new Error('Deleting the task domain requires a reviewed conflict-aware reset');
-          error.code = 'TASK_DELETE_UNSUPPORTED';
-          notifyTaskStorageFailure(error);
+          const error = new Error('Deleting a guarded domain requires an audited conflict-aware reset: ' + name);
+          error.code = name === TASK_STORE ? 'TASK_DELETE_UNSUPPORTED' : 'DOMAIN_DELETE_UNSUPPORTED';
+          notifyDomainStorageFailure(name, error);
           throw error;
         }
         // Do not erase the durable mirror until IndexedDB deletion commits.
