@@ -988,13 +988,16 @@ export async function clearRestoreJournal(token) {
  * Both revisions are checked under the same exclusive transaction lock.
  * No crypto awaits inside the transaction; success means oncomplete.
  */
-export async function commitCredentialTransition(expectedCredential, expectedSecurity, nextCredential, lastModified) {
+export async function commitCredentialTransition(expectedCredential, expectedSecurity, nextCredential, lastModified, { pauseLock = false } = {}) {
   const credentialKey = 'momentum-credential-verifier';
   const securityKey = 'momentum-security-storage';
   if ((expectedCredential !== null && expectedCredential?.name !== credentialKey) ||
       (expectedSecurity !== null && expectedSecurity?.name !== securityKey) ||
       (nextCredential !== null && (!nextCredential?.salt || !nextCredential?.verifier))) {
     throw new TypeError('Invalid credential transition snapshots');
+  }
+  if (pauseLock && (!expectedCredential || !nextCredential || !sameStoreValue(expectedCredential.value, nextCredential))) {
+    throw new TypeError('Pausing App Lock must retain the authenticated credential');
   }
   const db = await openAppDB();
   if (!db) throw new Error('Durable credential storage unavailable');
@@ -1024,7 +1027,7 @@ export async function commitCredentialTransition(expectedCredential, expectedSec
           }
           const state = { ...(payload?.state || {}), pin: '', alphanumeric: '',
             hasPin: nextCredential !== null, passcodeType: 'pin', lastModified };
-          if (nextCredential !== null) {
+          if (nextCredential !== null && !pauseLock) {
             state.isAppLockActive = true;
           } else {
             state.isAppLockActive = false;
@@ -1032,7 +1035,7 @@ export async function commitCredentialTransition(expectedCredential, expectedSec
           }
           const now = Date.now();
           if (nextCredential === null) store.delete(credentialKey);
-          else store.put({name: credentialKey, value: nextCredential, updatedAt: now, revisionId: mintDurableRevision()});
+          else if (!pauseLock) store.put({name: credentialKey, value: nextCredential, updatedAt: now, revisionId: mintDurableRevision()});
           committed = {name: securityKey, value: {...(payload || {version:0}), state}, updatedAt: now, revisionId: mintDurableRevision()};
           store.put(committed);
         } catch (error) {
