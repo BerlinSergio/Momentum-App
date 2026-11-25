@@ -260,9 +260,14 @@ async function credentialIntegrity(browser) {
       return { old: old.success, next: next.success };
     });
     assert.deepEqual(verification, { old: false, next: true });
-    const removed = await b.evaluate(async () => {
+    const rejected = await b.evaluate(async () => {
       const creds = await import('/src/utils/credentialService.js');
       return creds.removeCredential();
+    });
+    assert.equal(rejected.success, false);
+    const removed = await b.evaluate(async () => {
+      const creds = await import('/src/utils/credentialService.js');
+      return creds.removeCredential('1357');
     });
     assert.equal(removed.success, true);
     const afterRemove = await a.evaluate(async () => {
@@ -271,6 +276,8 @@ async function credentialIntegrity(browser) {
         stillValid: (await creds.verifyCredential('1357')).success };
     });
     assert.deepEqual(afterRemove, { configured: false, stillValid: false });
+    assert.equal((await record(a, 'security')).value.state.hasPin, false);
+    assert.equal((await record(a, 'security')).value.state.isAppLockActive, false);
     console.log('PASS: Cross-tab PIN rotation and committed deletion revoke old verifier; no cache fallback.');
   } finally { await context.close(); }
 }
