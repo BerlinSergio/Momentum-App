@@ -15,6 +15,24 @@ export const STORES = {
 
 export const RESTORE_JOURNAL_KEY = 'cross_db_restore_journal_v1';
 
+/**
+ * Durable attachment revision token: minted afresh by EVERY app-owned put,
+ * independent of wall-clock resolution or binary length/MIME metadata.
+ * Never accept a caller-supplied revision token for a write.
+ *
+ * getRandomValues is broadly supported even when randomUUID is not available.
+ * Without secure randomness we refuse to claim a conflict-safe write.
+ */
+function mintAttachmentRevision() {
+  const cryptoProvider = globalThis.crypto || globalThis.window?.crypto;
+  if (!cryptoProvider?.getRandomValues) {
+    throw new Error('Attachment write requires crypto.getRandomValues for a durable revision');
+  }
+  const bytes = cryptoProvider.getRandomValues(new Uint8Array(20));
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+
 let dbInstance = null;
 let dbOpenPromise = null;
 const memoryFallback = new Map();
@@ -242,6 +260,7 @@ export async function setAttachmentRecord(record) {
       const store = tx.objectStore(STORES.ATTACHMENTS);
       const req = store.put({
         ...record,
+        revisionId: mintAttachmentRevision(),
         updatedAt: Date.now(),
       });
       tx.oncomplete = () => resolve(true);
@@ -534,7 +553,15 @@ function sameStoreValue(a, b) {
 
 function attachmentRevision(record) {
   if (!record) return null;
-  return JSON.stringify([
+  if (typeof record.revisionId === 'string' && record.revisionId.length > 0) {
+    // New app writes ALWAYS generate an independent new token. Even two Blob
+    // revisions with identical size/type and same millisecond now differ.
+    return 'revision:' + record.revisionId;
+  }
+  // Pre-v2 attachments have no revision token. Retain conservative metadata
+  // comparison for compatibility. Old direct IDB writers that omit revisionId
+  // can still evade same-size/same-timestamp checks; they are out of contract.
+  return 'legacy:' + JSON.stringify([
     record.id, record.updatedAt ?? null, record.createdAt ?? null,
     record.noteId ?? null, record.fileName ?? null, record.name ?? null,
     record.mimeType ?? null, record.sizeBytes ?? null, record.type ?? null,
@@ -613,7 +640,9 @@ export async function commitRestoreBatch({
           if (attachments.length) {
             const destination = tx.objectStore(STORES.ATTACHMENTS);
             for (const item of attachments) {
-              destination.put({ ...item, updatedAt: Date.now() });
+              destination.put({
+                ...item, revisionId: mintAttachmentRevision(), updatedAt: Date.now(),
+              });
             }
           }
           if (restoreJournalToken) {
@@ -737,12 +766,17 @@ export async function beginRestoreJournal({ token, wallpaperBefore }) {
           tx.abort();
           return;
         }
-        meta.put({
-          key: RESTORE_JOURNAL_KEY, token,
-          status: 'pending',
-          wallpaperBefore,
-          createdAt: new Date().toISOString(),
-        });
+        try {
+          meta.put({
+            key: RESTORE_JOURNAL_KEY, token,
+            status: 'pending',
+            wallpaperBefore,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.warn('[Momentum Restore] Recovery journal write failed:', err);
+          try { tx.abort(); } catch { resolve(false); }
+        }
       };
       req.onerror = () => tx.abort();
     } catch (err) {
