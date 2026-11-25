@@ -225,6 +225,28 @@ export const createCredential = pin => transition('create', null, pin);
 export const changeCredential = (currentPin, newPin) => transition('change', currentPin, newPin);
 export const removeCredential = currentPin => transition('remove', currentPin, null);
 
+// Pause App Lock without deleting or rotating the current verifier.
+// The exact credential and security snapshots must still match at commit.
+export async function pauseAppLock(currentPin) {
+  if (getLockoutState().isLockedOut) return { success:false, error:'Too many attempts. Try again later.' };
+  try {
+    const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    const verified = await verifySnapshot(currentPin, credential?.value);
+    if (!verified.success) {
+      recordFailedAttempt();
+      return verified;
+    }
+    await commitCredentialTransition(credential, security, credential.value, new Date().toISOString(), { pauseLock:true });
+    clearLockoutState();
+    return { success:true };
+  } catch (error) {
+    return { success:false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
+      ? 'Credential or preferences changed; reload and retry.' : 'App Lock pause was not committed' };
+  }
+}
+
+
 /**
  * Progressive Lockout & Failed Attempt Policy
  * - 1-4 failures: 0s delay (standard shake feedback)
