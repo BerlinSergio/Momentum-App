@@ -726,6 +726,63 @@ async function lockScreenSingleFlight(browser) {
   } finally { await context.close(); }
 }
 
+async function unlockedSessionRevocation(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage();
+    await boot(a,'security');
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    }, {timeout:30000,polling:200});
+    assert.equal((await a.evaluate(() => window.useSecurityStore.getState().setPin('2468'))).success,true);
+    await a.reload({waitUntil:'domcontentloaded',timeout:60000});
+    await boot(a,'security',false);
+    const b = await context.newPage();
+    await boot(b,'security');
+    await a.bringToFront();
+    await a.waitForSelector('[data-testid="app-lock-screen"]',{timeout:45000});
+    await a.waitForFunction(() => {
+      const screen=document.querySelector('[data-testid="app-lock-screen"]');
+      return screen && [...screen.querySelectorAll('button')].some(button=>!button.disabled);
+    },{timeout:15000});
+    for (const digit of '2468') {
+      await a.keyboard.press(digit);
+      await new Promise(resolve=>setTimeout(resolve,75));
+    }
+    await a.waitForFunction(() => !window.useSecurityStore.getState().isLocked &&
+      !document.querySelector('[data-testid="app-lock-screen"]'),{timeout:15000});
+    // Ordinary preference changes must not invalidate a valid session.
+    const changed = await b.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const key='momentum-security-storage';
+      const before=await db.getCommittedStoreRecord(key);
+      await db.compareAndSwapDomainStore(key,{...before.value,state:{...before.value.state,lockTiming:'5min'}},before);
+      return true;
+    });
+    assert.equal(changed,true);
+    await new Promise(resolve=>setTimeout(resolve,1500));
+    assert.equal(await a.evaluate(()=>window.useSecurityStore.getState().isLocked),false);
+    assert.equal((await b.evaluate(async()=>{
+      const svc=await import('/src/utils/credentialService.js');
+      return svc.changeCredential('2468','1357');
+    })).success,true);
+    await a.waitForSelector('[data-testid="security-session-revoked"]',{timeout:15000});
+    assert.equal(await a.evaluate(()=>window.useSecurityStore.getState().isLocked),true);
+    await a.reload({waitUntil:'domcontentloaded',timeout:60000});
+    await boot(a,'security',false);
+    await a.waitForSelector('[data-testid="app-lock-screen"]',{timeout:45000});
+    await a.waitForFunction(()=>[...document.querySelectorAll('[data-testid="app-lock-screen"] button')].some(b=>!b.disabled),{timeout:15000});
+    for (const digit of '1357') {
+      await a.keyboard.press(digit);
+      await new Promise(resolve=>setTimeout(resolve,75));
+    }
+    await a.waitForFunction(()=>!window.useSecurityStore.getState().isLocked &&
+      !document.querySelector('[data-testid="app-lock-screen"]'),{timeout:15000});
+    console.log('PASS: an unlocked session survives unrelated preferences but is revoked after PIN rotation in another tab.');
+  } finally { await context.close(); }
+}
+
 async function biometricAssertionIntegrity(browser) {
   const context = await browser.createBrowserContext();
   try {
@@ -858,6 +915,7 @@ async function main() {
     await sharedAttemptLimits(browser);
     await freshUnlockReceipts(browser);
     await lockScreenSingleFlight(browser);
+    await unlockedSessionRevocation(browser);
     await biometricAssertionIntegrity(browser);
   } finally { await browser.close(); }
 }
