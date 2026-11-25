@@ -15,7 +15,7 @@ import { useTimeStore } from '../store/useTimeStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { runStorageMigration } from '../storage/index.js';
 import { migrateLegacyPin } from './credentialService.js';
-import { openAppDB } from '../storage/db.js';
+import { openAppDB, getCommittedStoreRecord } from '../storage/db.js';
 import { coordinateHydration } from './hydrationCoordinator.js';
 import { recoverInterruptedRestore } from './crossDatabaseRestore.js';
 
@@ -91,6 +91,21 @@ export async function hydrateAllStores(timeoutMs = 12000) {
     },
   });
 
+  // Complete legacy onboarding only after the profile write is durable,
+  // before the splash is permitted to expose the selected route.
+  if (detectLegacyUser()) {
+    await useProfileStore.getState().updateProfile({
+      setupCompleted: true,
+      onboardingStep: 'completed',
+      isLegacyMigrated: true,
+    });
+    const row = await getCommittedStoreRecord('momentum-profile-storage');
+    const value = typeof row?.value === 'string' ? JSON.parse(row.value) : row?.value;
+    if (value?.state?.setupCompleted !== true || value?.state?.onboardingStep !== 'completed') {
+      throw new Error('[Momentum Startup] Legacy onboarding completion was not durably committed');
+    }
+  }
+
   // After every store (including TimeStore) is durably hydrated, refresh
   // today's date and recompute Routine's local derived streak/completion
   // display. The guarded Routine projection ignores these derived fields:
@@ -131,64 +146,13 @@ export function detectLegacyUser() {
   const hasDhikr = useTasbeehStore.getState().historyLogs?.length > 0;
   const hasCustomName = Boolean(profile.fullName && profile.fullName.trim().length > 0 && profile.fullName.trim() !== 'User');
   const security = useSecurityStore.getState();
-  const hasPin = Boolean(security.hasPin || (security.pin && String(security.pin).trim().length === 4));
+  const hasPin = security.hasPin === true;
   const hasNavHistory = useNavigationStore.getState().historyStack?.length > 0;
 
-  let isLegacy = hasNotes || hasTasks || hasRoutines || hasFinance || hasCalendar || hasDhikr || hasCustomName || hasPin || hasNavHistory;
-
-  // 2. Check localStorage directly as fallback
-  if (!isLegacy && typeof localStorage !== 'undefined') {
-    try {
-      const checkKey = (key) => {
-        const raw = localStorage.getItem(key);
-        if (!raw) return false;
-        try {
-          const parsed = JSON.parse(raw);
-          const state = parsed?.state;
-          if (!state) return false;
-          if (Array.isArray(state.notes) && state.notes.length > 0) return true;
-          if (Array.isArray(state.tasks) && state.tasks.length > 0) return true;
-          if (Array.isArray(state.routines) && state.routines.length > 0) return true;
-          if (Array.isArray(state.transactions) && state.transactions.length > 0) return true;
-          if (Array.isArray(state.incomes) && state.incomes.length > 0) return true;
-          if (Array.isArray(state.accounts) && state.accounts.length > 0) return true;
-          if (Array.isArray(state.events) && state.events.length > 0) return true;
-          if (Array.isArray(state.historyLogs) && state.historyLogs.length > 0) return true;
-          if (state.fullName && state.fullName.trim() !== '' && state.fullName.trim() !== 'User') return true;
-          if (state.hasPin || (state.pin && String(state.pin).trim().length === 4)) return true;
-          if (Array.isArray(state.historyStack) && state.historyStack.length > 0) return true;
-        } catch (_parseErr) {
-          void _parseErr;
-        }
-        return false;
-      };
-
-      isLegacy = checkKey('momentum-notes-storage') ||
-                 checkKey('momentum-task-storage') ||
-                 checkKey('momentum-tasks-storage') ||
-                 checkKey('momentum-routine-storage') ||
-                 checkKey('momentum-finance-storage') ||
-                 checkKey('momentum-calendar-storage') ||
-                 checkKey('momentum-tasbeeh-storage') ||
-                 checkKey('momentum-profile-storage') ||
-                 checkKey('momentum-security-storage') ||
-                 checkKey('momentum-navigation-storage');
-    } catch (_storageErr) {
-      void _storageErr;
-    }
-  }
-
-  if (isLegacy) {
-    // Non-destructively migrate legacy user
-    useProfileStore.getState().updateProfile({
-      setupCompleted: true,
-      onboardingStep: 'completed',
-      isLegacyMigrated: true,
-    });
-    return true;
-  }
-
-  return false;
+  // Migration already imported legitimate legacy records before hydration.
+  // Never promote a stale localStorage mirror into an onboarding decision.
+  return Boolean(hasNotes || hasTasks || hasRoutines || hasFinance || hasCalendar ||
+    hasDhikr || hasCustomName || hasPin || hasNavHistory);
 }
 
 /**
@@ -214,19 +178,7 @@ export function getStartupDecision({ isDark = true, requestedScreen = null } = {
     };
   }
 
-  // 2. Check for legacy user migration
-  if (detectLegacyUser()) {
-    let screen = isDark ? 'home_dashboard_dark_mode' : 'home_dashboard_light_mode';
-    if (requestedScreen && !isOnboardingRoute(requestedScreen)) {
-      screen = requestedScreen;
-    }
-    return {
-      status: 'ready',
-      targetScreen: screen,
-    };
-  }
-
-  // 3. User was interrupted on the optional security step
+  // 2. User was interrupted on the optional security step
   if (profile.onboardingStep === 'security_setup') {
     return {
       status: 'security_setup_optional',
@@ -234,7 +186,7 @@ export function getStartupDecision({ isDark = true, requestedScreen = null } = {
     };
   }
 
-  // 4. Truly brand-new installation or personal setup in-progress
+  // 3. Truly brand-new installation or personal setup in-progress
   return {
     status: 'onboarding_required',
     targetScreen: isDark ? 'personal_setup_dark_mode' : 'personal_setup_light_mode',
