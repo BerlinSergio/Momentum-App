@@ -71,7 +71,7 @@ function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
             },
             put(record) {
               const req = { onsuccess: null, onerror: null };
-              pending.push({ type: 'put', store: name, key: record.name ?? record.id, value: record, request: req });
+              pending.push({ type: 'put', store: name, key: name === 'stores' ? record.name : record.id, value: record, request: req });
               scheduleCompletion();
               return req;
             },
