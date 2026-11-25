@@ -16,14 +16,14 @@ export const STORES = {
 export const RESTORE_JOURNAL_KEY = 'cross_db_restore_journal_v1';
 
 /**
- * Durable attachment revision token: minted afresh by EVERY app-owned put,
+ * Durable revision token: minted afresh by EVERY app-owned store/attachment put,
  * independent of wall-clock resolution or binary length/MIME metadata.
  * Never accept a caller-supplied revision token for a write.
  *
  * getRandomValues is broadly supported even when randomUUID is not available.
  * Without secure randomness we refuse to claim a conflict-safe write.
  */
-function mintAttachmentRevision() {
+function mintDurableRevision() {
   const cryptoProvider = globalThis.crypto || globalThis.window?.crypto;
   if (!cryptoProvider?.getRandomValues) {
     throw new Error('Attachment write requires crypto.getRandomValues for a durable revision');
@@ -155,6 +155,116 @@ export async function getStoreItem(name) {
 }
 
 /**
+ * Read the complete durable task record and its write revision.
+ * A successful get request alone is not enough: only return data after
+ * the containing readonly transaction has completed.
+ */
+export async function getCommittedStoreRecord(name) {
+  const db = await openAppDB();
+  if (!db) {
+    const error = new Error('IndexedDB unavailable for guarded task hydration');
+    error.code = 'TASK_STORAGE_UNAVAILABLE';
+    throw error;
+  }
+  return new Promise((resolve, reject) => {
+    let record = null;
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve(record);
+    };
+    try {
+      const tx = db.transaction(STORES.DATA, 'readonly');
+      const req = tx.objectStore(STORES.DATA).get(name);
+      req.onsuccess = () => { record = req.result || null; };
+      req.onerror = () => { try { tx.abort(); } catch { /* onabort follows */ } };
+      tx.oncomplete = () => finish(null);
+      tx.onabort = () => finish(tx.error || new Error('Task record snapshot aborted'));
+      tx.onerror = () => { /* onabort supplies transaction status */ };
+    } catch (error) { finish(error); }
+  });
+}
+
+/**
+ * Compare a tab's last committed task snapshot against the current record
+ * and write in the SAME IndexedDB readwrite transaction. IDB serializes
+ * conflicting store transactions across tabs. Stale tab state cannot
+ * clobber a newer tab's task edits.
+ *
+ * Never put or update a local mirror on conflict. A failed write must be
+ * surfaced to the user, not silently retried from the stale whole-domain
+ * Zustand state. Legacy records without revisionId are value-compared.
+ */
+export async function compareAndSwapTaskStore(name, value, expectedRecord) {
+  if (name !== 'momentum-task-storage') {
+    throw new TypeError('Optimistic task write supports only the task domain');
+  }
+  if (expectedRecord !== null && (!expectedRecord || expectedRecord.name !== name)) {
+    throw new TypeError('Task write requires a committed baseline snapshot');
+  }
+  const db = await openAppDB();
+  if (!db) {
+    const error = new Error('IndexedDB unavailable for guarded task write');
+    error.code = 'TASK_STORAGE_UNAVAILABLE';
+    throw error;
+  }
+  const revisionId = mintDurableRevision();
+  return new Promise((resolve, reject) => {
+    let tx;
+    let settled = false;
+    let failure = null;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve({ name, value, updatedAt: committedAt, revisionId });
+    };
+    const committedAt = Date.now();
+    try {
+      tx = db.transaction(STORES.DATA, 'readwrite');
+      const store = tx.objectStore(STORES.DATA);
+      tx.oncomplete = () => finish(null);
+      tx.onabort = () => finish(failure || tx.error || new Error('Task write aborted'));
+      tx.onerror = () => { /* onabort is authoritative */ };
+      const request = store.get(name);
+      request.onsuccess = () => {
+        const current = request.result || null;
+        const matches = (current === null) === (expectedRecord === null) &&
+          (current === null || (
+            (current.revisionId ?? null) === (expectedRecord.revisionId ?? null) &&
+            sameStoreValue(current.value, expectedRecord.value)
+          ));
+        if (!matches) {
+          failure = new Error('Tasks changed in another tab. Your change was not saved; reload durable tasks before editing again.');
+          failure.code = 'TASK_WRITE_CONFLICT';
+          try { tx.abort(); } catch { finish(failure); }
+          return;
+        }
+        try {
+          store.put({ name, value, revisionId, updatedAt: committedAt });
+        } catch (error) {
+          failure = error;
+          try { tx.abort(); } catch { finish(failure); }
+        }
+      };
+      request.onerror = () => {
+        failure = request.error || new Error('Task version check failed');
+        try { tx.abort(); } catch { finish(failure); }
+      };
+    } catch (error) {
+      if (tx) {
+        failure = error;
+        try { tx.abort(); } catch { finish(error); }
+      } else {
+        finish(error);
+      }
+    }
+  });
+}
+
+/**
  * Write a record into the 'stores' object store.
  */
 export async function setStoreItem(name, value, meta = {}) {
@@ -174,6 +284,7 @@ export async function setStoreItem(name, value, meta = {}) {
         value,
         updatedAt: Date.now(),
         ...meta,
+        revisionId: mintDurableRevision(), // Never accept caller-provided revisions.
       };
       const req = store.put(record);
       // A request can succeed even if its containing transaction later aborts.
@@ -260,7 +371,7 @@ export async function setAttachmentRecord(record) {
       const store = tx.objectStore(STORES.ATTACHMENTS);
       const req = store.put({
         ...record,
-        revisionId: mintAttachmentRevision(),
+        revisionId: mintDurableRevision(),
         updatedAt: Date.now(),
       });
       tx.oncomplete = () => resolve(true);
@@ -634,14 +745,17 @@ export async function commitRestoreBatch({
           if (stores.length) {
             const destination = tx.objectStore(STORES.DATA);
             for (const item of stores) {
-              destination.put({ name: item.name, value: item.value, updatedAt: Date.now() });
+              destination.put({
+                name: item.name, value: item.value,
+                updatedAt: Date.now(), revisionId: mintDurableRevision(),
+              });
             }
           }
           if (attachments.length) {
             const destination = tx.objectStore(STORES.ATTACHMENTS);
             for (const item of attachments) {
               destination.put({
-                ...item, revisionId: mintAttachmentRevision(), updatedAt: Date.now(),
+                ...item, revisionId: mintDurableRevision(), updatedAt: Date.now(),
               });
             }
           }
