@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { authenticateBiometrics } from '../utils/biometricAuth';
 import {
   authenticatePin,
-  getLockoutState,
+  readCommittedLockoutState,
   LOCKOUT_STORAGE_KEY,
 } from '../utils/credentialService';
 import { flushPendingNotificationRoute } from '../utils/nativeNotifications';
@@ -33,7 +33,7 @@ export default function AppLockGuard({ children }) {
   const [enteredPin, setEnteredPin] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState('');
-  const [lockoutState, setLockoutState] = useState(() => getLockoutState());
+  const [lockoutState, setLockoutState] = useState({ isLockedOut: true, remainingSeconds: 0, failedAttempts: 0, checking: true });
   const [isShaking, setIsShaking] = useState(false);
   const isSuccess = false;
   const [isTabHidden, setIsTabHidden] = useState(false);
@@ -54,11 +54,6 @@ export default function AppLockGuard({ children }) {
 
   const beginAuthentication = () => {
     if (authInFlight.current || document.hidden) return null;
-    const current = getLockoutState();
-    if (current.isLockedOut) {
-      setLockoutState(current);
-      return null;
-    }
     authInFlight.current = true;
     setIsAuthenticating(true);
     setAuthError('');
@@ -73,14 +68,17 @@ export default function AppLockGuard({ children }) {
     if (mounted.current) setIsAuthenticating(false);
   };
 
-  const unlockAuthenticatedSession = (epoch) => {
+  const unlockAuthenticatedSession = async (epoch) => {
     if (!isCurrentAuthentication(epoch)) return;
     const current = useSecurityStore.getState();
     if (!current._hasHydrated || !current.isAppLockActive ||
         !current.hasPin || !current.isLocked) return;
     // Do not defer the security-sensitive unlock behind an animation timer.
-    const currentLockout = getLockoutState();
+    const currentLockout = await readCommittedLockoutState();
+    if (!isCurrentAuthentication(epoch)) return;
     if (currentLockout.isLockedOut) { setLockoutState(currentLockout); return; }
+    const latest = useSecurityStore.getState();
+    if (!latest._hasHydrated || !latest.isAppLockActive || !latest.hasPin || !latest.isLocked) return;
     setLockoutState(currentLockout);
     setEnteredPin('');
     setAuthError('');
@@ -94,46 +92,61 @@ export default function AppLockGuard({ children }) {
     return () => clearTimeout(timer);
   }, [isShaking]);
 
-  // Reflect lockout changes made in another tab before the next interaction.
+  // Refresh the durable attempt state even when localStorage events lag.
+  // Prevent overlapping reads and ignore results from an obsolete effect.
   useEffect(() => {
-    const sync = event => {
-      if (event.key === LOCKOUT_STORAGE_KEY || event.key === null) {
-        setLockoutState(getLockoutState());
-      }
+    if (!isLocked) return;
+    let active = true;
+    let pending = false;
+    const refresh = async () => {
+      if (pending) return;
+      pending = true;
+      try {
+        const current = await readCommittedLockoutState();
+        if (!active) return;
+        setLockoutState(current);
+      } finally { pending = false; }
     };
+    const sync = event => {
+      if (event.key === LOCKOUT_STORAGE_KEY || event.key === null) void refresh();
+    };
+    void refresh();
+    const interval = setInterval(refresh, 1000);
     window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
-  }, []);
+    return () => {
+      active = false;
+      clearInterval(interval);
+      window.removeEventListener('storage', sync);
+    };
+  }, [isLocked]);
 
-  // Monitor and tick active lockout countdown
   useEffect(() => {
-    if (!lockoutState.isLockedOut) return;
-
-    const interval = setInterval(() => {
-      const current = getLockoutState();
-      setLockoutState(current);
-      if (current.unavailable) {
-        setAuthError('PIN attempt storage unavailable. Restart Momentum.');
-      } else if (current.isLockedOut) {
-        setAuthError(t('lockGuard.tooManyAttempts', { seconds: current.remainingSeconds }));
-      } else {
-        setAuthError('');
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [lockoutState.isLockedOut]);
+    if (lockoutState.checking) return;
+    if (lockoutState.unavailable) {
+      setAuthError('PIN attempt storage unavailable. Restart Momentum.');
+    } else if (lockoutState.isLockedOut) {
+      setAuthError(t('lockGuard.tooManyAttempts', { seconds: lockoutState.remainingSeconds }));
+    } else {
+      setAuthError(previous => previous === 'PIN attempt storage unavailable. Restart Momentum.' ||
+        previous === t('lockGuard.tooManyAttempts', { seconds: 0 }) ||
+        /^Too many failed attempts/.test(previous) ? '' : previous);
+    }
+  }, [lockoutState.isLockedOut, lockoutState.remainingSeconds, lockoutState.unavailable, lockoutState.checking, t]);
 
   // PIN and biometric checks share a single in-flight slot.
   const triggerBiometrics = useCallback(async () => {
     const epoch = beginAuthentication();
     if (epoch === null) return;
     try {
+      const attempts = await readCommittedLockoutState();
+      if (!isCurrentAuthentication(epoch)) return;
+      setLockoutState(attempts);
+      if (attempts.isLockedOut) return;
       const result = await authenticateBiometrics();
       if (!isCurrentAuthentication(epoch)) return;
       if (result.success) {
         if (useSecurityStore.getState().biometricsEnabled) {
-          unlockAuthenticatedSession(epoch);
+          await unlockAuthenticatedSession(epoch);
         }
       } else {
         setAuthError(result.cancelled
@@ -203,11 +216,7 @@ export default function AppLockGuard({ children }) {
   // Handle PIN input digit addition
   const handleDigitPress = useCallback(async (digit) => {
     if (authInFlight.current || document.hidden || enteredPin.length >= 4) return;
-    const currentLockout = getLockoutState();
-    if (currentLockout.isLockedOut) {
-      setLockoutState(currentLockout);
-      return;
-    }
+    if (lockoutState.isLockedOut) return;
     const nextPin = enteredPin + digit;
     setEnteredPin(nextPin);
     setAuthError('');
@@ -221,7 +230,7 @@ export default function AppLockGuard({ children }) {
     try {
       const result = await authenticatePin(nextPin);
       if (!result.success) {
-        const nextLockout = result.lockout || getLockoutState();
+        const nextLockout = result.lockout || await readCommittedLockoutState();
         if (!isCurrentAuthentication(epoch)) return;
         setLockoutState(nextLockout);
         setIsShaking(true);
@@ -235,7 +244,7 @@ export default function AppLockGuard({ children }) {
           setAuthError(result.error || `Incorrect PIN (${nextLockout.failedAttempts}/5)`);
         }
       } else {
-        unlockAuthenticatedSession(epoch);
+        await unlockAuthenticatedSession(epoch);
       }
     } catch {
       if (isCurrentAuthentication(epoch)) {
@@ -248,14 +257,14 @@ export default function AppLockGuard({ children }) {
       }
       finishAuthentication();
     }
-  }, [enteredPin, setStoreLocked]);
+  }, [enteredPin, lockoutState.isLockedOut, setStoreLocked]);
 
   const handleBackspace = useCallback(() => {
-    if (!authInFlight.current && !getLockoutState().isLockedOut) {
+    if (!authInFlight.current && !lockoutState.isLockedOut) {
       setEnteredPin((prev) => prev.slice(0, -1));
       setAuthError('');
     }
-  }, []);
+  }, [lockoutState.isLockedOut]);
 
   // Keyboard support for desktop users
   useEffect(() => {
@@ -411,7 +420,7 @@ export default function AppLockGuard({ children }) {
               <motion.button
                 type="button"
                 onClick={() => {
-                  if (!authInFlight.current && !getLockoutState().isLockedOut) {
+                  if (!authInFlight.current && !lockoutState.isLockedOut) {
                     setEnteredPin('');
                     setAuthError('');
                   }
