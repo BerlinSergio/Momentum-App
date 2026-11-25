@@ -12,6 +12,7 @@ on:
       - fix/db-phase28-optimistic-conflicts-20261125
       - fix/db-phase29-attachment-revision-quota-20261125
       - fix/db-phase210-large-backup-ui-20261125
+      - fix/db-phase211-task-persistence-20261125
   workflow_dispatch:
 
 permissions:
@@ -70,6 +71,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_large_backup_ui_chromium.cjs
+      - name: Task single-writer and stale-mirror Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_task_single_writer_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
