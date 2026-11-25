@@ -238,7 +238,16 @@ export default function NotePreviewCard({
   // 3. Extract content preview (guarantee body text is shown, not duplicating title)
   const rawBody = (note.body || note.content || '').trim();
   const noteTitle = (note.title || 'Untitled Note').trim();
-  const previewText = rawBody;
+  // Parse rich-text markup in an inert template. Never insert the HTML into
+  // the document; only render text, with block boundaries kept readable.
+  const previewText = (() => {
+    if (!/<\/?[a-z][^>]*>/i.test(rawBody)) return rawBody;
+    const template = document.createElement('template');
+    template.innerHTML = rawBody;
+    template.content.querySelectorAll('script,style,template,noscript').forEach(node => node.remove());
+    template.content.querySelectorAll('br,p,div,li,h1,h2,h3,h4,h5,h6,blockquote').forEach(node => node.after(document.createTextNode(' ')));
+    return (template.content.textContent || '').replace(/\s+/g, ' ').trim();
+  })();
 
   // 4. Extract real image attachment (if any)
   const imageAttachment = Array.isArray(note.attachments)
