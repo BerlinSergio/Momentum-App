@@ -70,5 +70,32 @@ const q = id => '[data-testid="' + id + '"]';
     assert.equal(await page.evaluate(()=>window.usePrayerStore.getState().savedInspirations.some(x=>x.id==='QA reference')),true);
     assert.equal(await page.evaluate(()=>window.useTasbeehStore.getState().activePreset.id),saved.next);
     console.log('PASS: mobile picker viewport/keyboard, canonical Hijri month, bookmark and next-preset persistence');
+    const credential = await page.evaluate(async()=>{
+      const {getCommittedStoreRecord}=await import('/src/storage/db.js');
+      const service=await import('/src/utils/credentialService.js');
+      const store=window.useSecurityStore.getState();
+      const first=await store.setPin('6829');
+      if(!first.success)throw Error(first.error);
+      const bad=await window.useSecurityStore.getState().changeToPasscode('1111','QAnewPass42');
+      const next=await window.useSecurityStore.getState().changeToPasscode('6829','QAnewPass42');
+      const verifier=await getCommittedStoreRecord('momentum-credential-verifier');
+      const security=await getCommittedStoreRecord('momentum-security-storage');
+      const old=await service.authenticatePin('6829');
+      return {bad:bad.success,next:next.success,old:old.success,kind:verifier.value.credentialKind,
+        version:verifier.value.version,meta:security.value.state.passcodeType,
+        plaintext:JSON.stringify([verifier,security]).includes('QAnewPass42')};
+    });
+    assert.deepEqual(credential,{bad:false,next:true,old:false,kind:'alphanumeric',version:2,meta:'alphanumeric',plaintext:false});
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForSelector('#unlock-passcode',{visible:true,timeout:45000});
+    await page.type('#unlock-passcode','QAnewPass42');
+    await page.$eval('#unlock-passcode',el=>el.form.requestSubmit());
+    await page.waitForFunction(()=>window.useSecurityStore?.getState().isLocked===false,{timeout:15000});
+    const back=await page.evaluate(async()=>{
+      const result=await window.useSecurityStore.getState().changePin('QAnewPass42','3968');
+      return {success:result.success,type:window.useSecurityStore.getState().passcodeType};
+    });
+    assert.deepEqual(back,{success:true,type:'pin'});
+    console.log('PASS: passcode transition requires current credential, no plaintext, reload unlock and switch back to PIN');
   } finally {await browser.close();}
 })().catch(err=>{console.error(err);process.exitCode=1;});

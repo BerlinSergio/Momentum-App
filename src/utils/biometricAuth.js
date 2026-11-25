@@ -197,8 +197,8 @@ export async function registerBiometrics({
   try {
     const pinRevision = await currentPinRevision();
     if (!pinRevision) return {success:false,error:'Set up your PIN before enabling biometric unlock.'};
-    const credential = await getCommittedStoreRecord('momentum-credential-verifier');
-    if (!validCurrentSecret(currentPin,credential?.value?.credentialKind)) return {success:false,error:'Confirm your current credential before enabling biometrics.'};
+    const currentCredential = await getCommittedStoreRecord('momentum-credential-verifier');
+    if (!validCurrentSecret(currentPin,currentCredential?.value?.credentialKind)) return {success:false,error:'Confirm your current credential before enabling biometrics.'};
     const authorization = await authenticatePin(currentPin);
     if (!authorization.success) return authorization;
     if (signal?.aborted || await currentPinRevision() !== pinRevision) {

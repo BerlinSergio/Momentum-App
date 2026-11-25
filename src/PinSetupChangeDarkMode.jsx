@@ -9,6 +9,7 @@ import {
   ArrowLeft, ShieldCheck, Lock, KeyRound, Shield, CheckCircle2, 
   AlertCircle, Info, HelpCircle, ArrowRight, AlertTriangle 
 } from 'lucide-react';
+import PasscodeChangeDialog from './components/PasscodeChangeDialog';
 import { authenticatePin } from './utils/credentialService';
 import { toast } from './components/ui/toast/index.js';
 
@@ -17,6 +18,8 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
   const navigate = useNavigate();
   const { isAppLockActive, setAppLockActive } = useSecurityStore();
   const hasExistingPin = useSecurityStore((state) => !!state.hasPin);
+  const isAlpha = useSecurityStore(state=>state.passcodeType==='alphanumeric');
+  const [wasAlpha] = useState(isAlpha);
 
   const onboardingStep = useProfileStore((s) => s.onboardingStep);
   const completeSetup = useProfileStore((s) => s.completeSetup);
@@ -243,6 +246,7 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
     }
   };
 
+  if (wasAlpha) return <PasscodeChangeDialog isDarkMode={true} toPin onClose={handleCancelReturn}/>;
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between pb-16 relative select-none">
       <style>{`
