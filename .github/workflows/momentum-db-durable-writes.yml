@@ -7,6 +7,7 @@ on:
       - fix/db-phase23-integrity-20261125
       - fix/db-phase24-atomic-restore-20261125
       - fix/db-phase25-backup-completeness-20261125
+      - fix/db-phase26-cross-db-recovery-20261125
   workflow_dispatch:
 
 permissions:
@@ -45,6 +46,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_atomic_restore_chromium.cjs
+      - name: Cross-database restore crash recovery Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_cross_db_restore_recovery_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
