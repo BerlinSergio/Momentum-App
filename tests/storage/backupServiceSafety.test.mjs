@@ -259,6 +259,7 @@ test('attachment transaction abort preserves prior domain and attachment data', 
 
 test('cross-database restore without Web Locks fails before writing anything', async () => {
   const fixture = fakeDatabase();
+  delete fixture.fakeWindow.navigator; // This case deliberately simulates missing Web Locks.
   const envelope = await encryptBackupPayload(JSON.stringify({
     manifest: { version: 1 },
     domains: { [STORE]: { state: { tasks: [{ id: 'must-not-write' }] }, version: 0 } },
