@@ -88,6 +88,22 @@ const q = id => '[data-testid="' + id + '"]';
     await page.waitForFunction(()=>window.useNotesStore?.getState()._hasHydrated,{timeout:45000});
     assert.equal(await page.evaluate(()=>window.useNotesStore.getState().notes.find(n=>n.id==='qa-mobile-checklist')?.body),'- [x] First task\n- [x] Second task');
     console.log('PASS: real checklist checkbox persists on reload');
+    const reminders=await page.evaluate(async()=>{
+      const {buildNativeReminderPlan,hashStringToInt,calculateRoutineTriggerDate}=await import('/src/utils/nativeNotifications.js');
+      const {useSettingsStore}=await import('/src/store/useSettingsStore.js');
+      const settings=useSettingsStore.getState();
+      await settings.updateSettings({masterEnabled:true,prayerAlertsEnabled:false,dueTaskAlerts:false,morningIntention:false,dailyRadianceQuote:false,middayPause:false,dailyHabitCheckin:true,eveningWinddown:false,zenFocusDND:true});
+      const now=new Date(2026,10,26,12);
+      const first=buildNativeReminderPlan(now).filter(n=>n.extra.type==='nudge');
+      const times=first.map(n=>[n.schedule.at.getHours(),n.schedule.at.getMinutes()]);
+      await useSettingsStore.getState().updateSettings({dailyHabitCheckin:false});
+      const disabled=buildNativeReminderPlan(now).filter(n=>n.extra.type==='nudge').length;
+      await useSettingsStore.getState().updateSettings({masterEnabled:false});
+      return {times,disabled,master:buildNativeReminderPlan(now).length,invalidRoutine:calculateRoutineTriggerDate({targetTime:'99:15'})===null,idsValid:first.every(n=>Number.isInteger(n.id)&&n.id>0&&n.id<=2147483647)};
+    });
+    assert.deepEqual(reminders.times,Array.from({length:7},()=>[20,30]));
+    assert.deepEqual({...reminders,times:undefined},{times:undefined,disabled:0,master:0,invalidRoutine:true,idsValid:true});
+    console.log('PASS: native reminder plan follows daily habit toggle, time, and master disable');
     const credential = await page.evaluate(async()=>{
       const {getCommittedStoreRecord}=await import('/src/storage/db.js');
       const service=await import('/src/utils/credentialService.js');

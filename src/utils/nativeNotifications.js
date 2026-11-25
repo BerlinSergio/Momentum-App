@@ -74,7 +74,7 @@ export function hashStringToInt(str) {
     hash = (hash << 5) - hash + char;
     hash |= 0; // Convert to 32bit integer
   }
-  const pos = Math.abs(hash);
+  const pos = hash & 0x7fffffff;
   return pos === 0 ? 1 : pos;
 }
 
@@ -423,7 +423,7 @@ export function calculateTaskTriggerDate(task) {
  * Parses routine scheduled time and reminder offset into a Date object for today
  */
 export function calculateRoutineTriggerDate(routine, baseDate = new Date()) {
-  if (!routine || (!routine.targetTime && !routine.time)) return null;
+  if (!routine || routine.reminderEnabled === false || /^(none|off|no reminder)$/i.test(String(routine.reminder || '').trim()) || (!routine.targetTime && !routine.time)) return null;
   const timeStr = routine.targetTime || routine.time;
   const isPM = /pm/i.test(timeStr);
   const isAM = /am/i.test(timeStr);
@@ -435,8 +435,10 @@ export function calculateRoutineTriggerDate(routine, baseDate = new Date()) {
   if (isPM && hours < 12) hours += 12;
   if (isAM && hours === 12) hours = 0;
 
+  if (!Number.isInteger(hours) || hours<0 || hours>23 || !Number.isInteger(minutes) || minutes<0 || minutes>59) return null;
   const routineDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hours, minutes, 0);
-  const offsetMin = Number(routine.reminderOffset) || 0;
+  const offsetMin = Number(routine.reminderOffset ?? 0);
+  if (!Number.isFinite(offsetMin) || offsetMin<0 || offsetMin>1440) return null;
   return new Date(routineDate.getTime() - offsetMin * 60 * 1000);
 }
 
@@ -673,12 +675,27 @@ let nativeScheduleQueue=Promise.resolve();
 let nativeSchedulingStarted=false;
 let scheduleTimer=null;
 
+// These times come from the existing Notification Settings screen.
+// They are local-time nudges, not calculated prayer times.
+const DAILY_NUDGES = [
+  ['morningIntention',5,0,'Morning intention','Begin your day with a mindful intention.','daily_routine_dark_mode'],
+  ['dailyRadianceQuote',8,0,'Daily radiance','Open Momentum for today’s inspiration.','prayer_times_dark_mode'],
+  ['middayPause',13,0,'Midday pause','Take a moment to breathe and hydrate.','daily_routine_dark_mode'],
+  ['dailyHabitCheckin',20,30,'Daily habit check-in','Review your daily routines.','daily_routine_dark_mode'],
+  ['eveningWinddown',21,30,'Evening wind-down','Take a moment for gratitude and reflection.','notes_main_dark_mode'],
+];
+function civilAlertsQuiet(settings,at) {
+  if(!settings.zenFocusDND)return false;
+  const minute=at.getHours()*60+at.getMinutes();
+  return minute>=22*60+30 || minute<4*60+30;
+}
+
 export function buildNativeReminderPlan(now=new Date()) {
   const settings=useSettingsStore.getState();
   if (settings.masterEnabled === false) return [];
   const notifications=[];
   const add=(key,at,title,body,channelId,type,params,targetScreen)=>{
-    if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at<=now) return;
+    if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at<=now || (type!=='prayer' && civilAlertsQuiet(settings,at))) return;
     notifications.push({
       id:hashStringToInt(key),title,body,channelId,smallIcon:'ic_stat_momentum',
       schedule:{at,allowWhileIdle:true},
@@ -698,6 +715,11 @@ export function buildNativeReminderPlan(now=new Date()) {
   for(let offset=0;offset<7;offset++){
     const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset,12);
     const dateKey=getLocalDateKey(day);
+    for(const [flag,hour,minute,title,body,screen] of DAILY_NUDGES) {
+      if(settings[flag]!==true)continue;
+      const at=new Date(day.getFullYear(),day.getMonth(),day.getDate(),hour,minute);
+      add('nudge-'+flag+'-'+dateKey,at,title,body,CHANNELS.ROUTINES.id,'nudge',{},screen);
+    }
     for(const routine of routines){
       if(routine.reminderEnabled===false||routine.reminder==='None'||!isRoutineScheduledForDate(routine,dateKey)||isRoutineCompletedForDate(routine,dateKey))continue;
       add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'daily_routine_dark_mode');
@@ -730,7 +752,7 @@ async function reconcileNativeReminders(){
   registerNotificationTapListener();
   const plan=buildNativeReminderPlan();
   const pending=(await LocalNotifications.getPending()).notifications||[];
-  const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar'].includes(item.extra?.type));
+  const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar','nudge'].includes(item.extra?.type));
   const wanted=new Set(plan.map(item=>item.id));
   const obsolete=managed.filter(item=>!wanted.has(item.id));
   if(obsolete.length)await LocalNotifications.cancel({notifications:obsolete.map(({id})=>({id}))});
@@ -764,7 +786,7 @@ export function startNativeReminderSynchronization(){
   watch(useRoutineStore,s=>s.routines);
   watch(useCalendarStore,s=>s.events);
   watch(useLocationStore,s=>s.selectedCity);
-  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode]);
+  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND]);
   watch(usePrayerStore,s=>[s.prayerAlertsEnabled,s.adhanOffset,s.calculationMethod,s.madhab,s.highLatitudeRule,s.polarCircleResolution,s.prayerAdjustments]);
   App.addListener('appStateChange',state=>{if(state.isActive)sync();}).catch(error=>console.warn('[Notifications] Resume listener failed',error));
 }
