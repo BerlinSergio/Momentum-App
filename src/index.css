@@ -621,3 +621,36 @@ html.enable-transitions [class*="transition-"] {
     overflow-x: auto;
   }
 }
+
+
+/* Capacitor 8 supplies native inset variables on older Android WebViews.
+   Browser/iOS safe-area env values remain a fallback. */
+:root {
+  --momentum-inset-top: max(var(--safe-area-inset-top, 0px), env(safe-area-inset-top, 0px));
+  --momentum-inset-bottom: max(var(--safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  --momentum-inset-left: max(var(--safe-area-inset-left, 0px), env(safe-area-inset-left, 0px));
+  --momentum-inset-right: max(var(--safe-area-inset-right, 0px), env(safe-area-inset-right, 0px));
+}
+.momentum-safe-shell {
+  box-sizing: border-box;
+  padding: var(--momentum-inset-top) var(--momentum-inset-right) var(--momentum-inset-bottom) var(--momentum-inset-left);
+}
+.pb-safe { padding-bottom: var(--momentum-inset-bottom); }
+.pt-safe { padding-top: var(--momentum-inset-top); }
+.momentum-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  padding-top: var(--momentum-inset-top);
+  padding-left: var(--momentum-inset-left);
+  padding-right: var(--momentum-inset-right);
+}
+.momentum-picker-panel {
+  max-height: calc(100dvh - var(--momentum-inset-top) - 8px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: calc(1.25rem + var(--momentum-inset-bottom));
+}
+@media (max-width: 639px) {
+  .momentum-picker-panel { max-width: 100%; }
+}
