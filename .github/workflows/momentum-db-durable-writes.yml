@@ -47,6 +47,10 @@ jobs:
           done
           cat /tmp/momentum-vite.log
           exit 1
+      - name: Real two-tab task writer conflict and safe-reload Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_task_cross_tab_cas_chromium.cjs
       - name: Real Chromium atomic restore regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
@@ -71,10 +75,6 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_large_backup_ui_chromium.cjs
-      - name: Real two-tab task writer conflict and safe-reload Chromium regression
-        env:
-          MOMENTUM_URL: http://127.0.0.1:5173/
-        run: node tests/storage/test_task_cross_tab_cas_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
