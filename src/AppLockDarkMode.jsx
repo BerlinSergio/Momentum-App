@@ -5,7 +5,6 @@ import UserAvatar from './components/UserAvatar';
 import { Lock, ArrowLeft, X } from 'lucide-react';
 import useSecurityStore, { LOCK_TIMING_OPTIONS } from './store/useSecurityStore';
 import { registerBiometrics, clearBiometricCredential } from './utils/biometricAuth';
-import { verifyCredential, createCredential, changeCredential } from './utils/credentialService';
 import { toast } from './components/ui/toast/index.js';
 
 export default function AppLockDarkMode({ setActiveTab, goBack }) {
@@ -108,25 +107,19 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
         setModalFeedback('Current PIN is required to change PIN');
         return;
       }
-      const verified = await verifyCredential(currentPinInput);
-      if (!verified.success) {
-        setModalFeedback('Current PIN is incorrect');
-        return;
-      }
-      const changed = await changeCredential(currentPinInput, pinInput);
+      const changed = await security.changePin(currentPinInput, pinInput);
       if (!changed.success) {
         setModalFeedback(changed.error || 'Failed to update PIN');
         return;
       }
     } else {
-      const created = await createCredential(pinInput);
+      const created = await security.setPin(pinInput);
       if (!created.success) {
         setModalFeedback(created.error || 'Failed to create PIN');
         return;
       }
     }
 
-    security.setHasPin(true);
     setModalFeedback('PIN updated successfully!');
     setTimeout(() => {
       setModalFeedback('');
