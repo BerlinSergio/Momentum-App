@@ -42,14 +42,17 @@ export function useTasbeehVolumeKeys(enabled) {
       return () => window.removeEventListener('keydown',onKey);
     }
     const id = ++owner;
-    let active = true, foreground = true, listening = false;
+    let active = true, foreground = true, listening = false, lastCapture = null;
     const sync = () => {
       if (id !== owner) return;
-      configureCapture(active && foreground && listening && allowed()).catch(error=>console.warn('[Tasbeeh] Volume capture unavailable',error));
+      const capture = Boolean(active && foreground && listening && allowed());
+      if (capture === lastCapture) return;
+      lastCapture = capture;
+      configureCapture(capture).catch(error=>{lastCapture=null;console.warn('[Tasbeeh] Volume capture unavailable',error);});
     };
     const listener = MomentumDevice.addListener('volumePress', () => {if (active && id===owner) count();});
     listener.then(() => {listening=true;sync();}).catch(error=>console.warn('[Tasbeeh] Native volume listener unavailable',error));
-    const lifecycle = App.addListener('appStateChange', state => {foreground=state.isActive;sync();});
+    const lifecycle = App.addListener('appStateChange', state => {foreground=state.isActive;lastCapture=null;sync();});
     lifecycle.catch(error=>console.warn('[Tasbeeh] App state listener unavailable',error));
     const unsub = [useNavigationStore,useSecurityStore,useSecuritySessionGate,useTasbeehStore].map(store=>store.subscribe(sync));
     document.addEventListener('visibilitychange',sync);

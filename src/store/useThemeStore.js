@@ -318,11 +318,8 @@ export const useThemeStore = create(
       setDownloadedWallpapers: (downloadedWallpapers) =>
         set((state) => {
           const list = Array.isArray(downloadedWallpapers) ? downloadedWallpapers : state.downloadedWallpapers;
-          return {
-            ...state,
-            wallpapers: list,
-            downloadedWallpapers: list,
-          };
+          const curated = [...BACKGROUND_LIBRARY, ...(state.wallpapers || []).filter(wp => !wp.id?.startsWith('dl-') && !BACKGROUND_LIBRARY.some(base=>base.id===wp.id))];
+          return {...state, wallpapers:[...curated,...list], downloadedWallpapers:list};
         }),
 
       loadDownloadedBatch: (batchPrefix) =>

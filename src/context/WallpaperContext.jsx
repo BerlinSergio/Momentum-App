@@ -1,3 +1,4 @@
+import { downloadCloudWallpaperPack } from '../utils/cloudWallpaperDownload.js';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { curatedWallpapers, generateWallpaperBatch } from '../data/defaultWallpapers';
 import { useThemeStore } from '../store/useThemeStore';
@@ -121,23 +122,15 @@ export function WallpaperProvider({ children }) {
   const fetchNewOnlinePack = useCallback(async () => {
     setIsOnlineUpdating(true);
     try {
-      const newBatchId = 'online-' + Date.now();
-      const newWallpapers = generateWallpaperBatch(newBatchId);
-      
-      // Simulate network response latency for realistic feedback
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const now = Date.now();
-      setWallpapers(newWallpapers);
-      try {
-        useThemeStore.getState().setDownloadedWallpapers(newWallpapers);
-      } catch (e) {
-        // theme store sync safe fallback
-      }
+      const result = await downloadCloudWallpaperPack();
+      // Theme IndexedDB is authoritative; context only keeps navigation metadata.
+      setWallpapers(result.wallpapers.map(item => ({...item,url:item.sourceUrl || item.url})));
       setCurrentIndex(0);
-      setBatchFetchedAt(now);
+      if (!result.failed) setBatchFetchedAt(Date.now());
+      return result;
     } catch (error) {
-      console.error('Failed to download new wallpapers', error);
+      console.error('Failed to download wallpapers', error);
+      return {failed:true};
     } finally {
       setIsOnlineUpdating(false);
     }

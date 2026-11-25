@@ -1,3 +1,4 @@
+import { downloadCloudWallpaperPack } from './utils/cloudWallpaperDownload.js';
 import React, { useState, useRef } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
@@ -144,8 +145,9 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
     { id: 'Cloud Sanctuary', label: 'Cloud Sanctuary (30)' },
   ];
 
-  const handleSelectBackground = (bg) => {
-    setActiveBackgroundId(bg.id);
+  const handleSelectBackground = async (bg) => {
+    try { await setActiveBackgroundId(bg.id); }
+    catch (error) { toast.error(t('wallpapers.applyFailed', 'Wallpaper could not be saved')); return; }
     const bgName = bg.id === 'none' ? 'Pure Minimal' : (bg.title || bg.name || 'Selected');
     toast.success(`Wallpaper "${bgName}" applied`);
     if (bg.id === 'none') {
@@ -164,14 +166,15 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
       // Process through HTML5 canvas into persistent WebP/JPEG Data URL (max 1920px)
       const { dataUrl, thumbnailUrl } = await processImageForStorage(file, 1920, 0.82);
       // Save permanently to IndexedDB
-      await saveWallpaperToIndexedDB('custom_active', dataUrl, {
+      const persisted = await saveWallpaperToIndexedDB('custom_active', dataUrl, {
         thumbnailUrl,
         name: file.name ? file.name.replace(/\.[^/.]+$/, '') : 'Custom Upload',
         updatedAt: Date.now(),
       });
-      // Sync to Zustand store
-      setCustomWallpaper(dataUrl);
-      setActiveBackgroundId('custom');
+      if (!persisted) throw new Error('Wallpaper storage failed');
+      // Sync to Zustand store after durable file write.
+      await setCustomWallpaper(dataUrl);
+      await setActiveBackgroundId('custom');
       toast.success(t('toasts.customWallpaperApplied', 'Custom wallpaper applied'));
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
@@ -187,18 +190,25 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
     );
   };
 
-  const handleDownloadCloudBatch = () => {
-    if (isDownloading) return;
+  const downloadInFlight = useRef(false);
+  const handleDownloadCloudBatch = async () => {
+    if (downloadInFlight.current) return;
+    downloadInFlight.current = true;
     setIsDownloading(true);
-    setTimeout(() => {
-      const newCloudBatch = generateWallpaperBatch(`cloud-batch-${Date.now()}`);
-      if (typeof setWallpapers === 'function') setWallpapers(newCloudBatch);
-      setIsDownloading(false);
-      setDownloadSuccess(true);
+    setDownloadSuccess(false);
+    try {
+      const result = await downloadCloudWallpaperPack();
       setShowAll(true);
       setActiveCategory('Cloud Sanctuary');
-      setTimeout(() => setDownloadSuccess(false), 3500);
-    }, 1500);
+      setDownloadSuccess(result.failed === 0 && result.downloadedCount === result.total);
+      if (result.failed) toast.error(t('wallpapers.partialDownload', '{{count}} wallpapers available offline; {{failed}} failed. Retry when connected.', {count:result.downloadedCount,failed:result.failed}));
+      else toast.success(t('wallpapers.downloaded30', '30 Online Wallpapers Downloaded'));
+    } catch (error) {
+      toast.error(t('wallpapers.downloadFailed', 'Wallpaper download failed. Check your connection and storage.'));
+    } finally {
+      downloadInFlight.current = false;
+      setIsDownloading(false);
+    }
   };
 
   const activeCloudList = downloadedWallpapers.length > 0 ? downloadedWallpapers : (wallpapers.length > 0 ? wallpapers : DOWNLOADED_WALLPAPERS_BATCH);
