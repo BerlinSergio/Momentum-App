@@ -13,11 +13,16 @@ async function testConcurrentBackup(browser) {
   try {
     const a = await context.newPage();
     const b = await context.newPage();
-    await Promise.all([a.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 }),
-                       b.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })]);
-    await Promise.all([a, b].map(p => p.waitForFunction(
+    // Start tabs one at a time to isolate the cross-tab restore-lock test
+    // from a separate cold-start migration race (tested independently).
+    await a.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await a.waitForFunction(
       () => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 }
-    )));
+    );
+    await b.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await b.waitForFunction(
+      () => window.useProfileStore?.persist.hasHydrated(), { timeout: 30000 }
+    );
     const baseline = await a.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       return main.commitRestoreBatch({
