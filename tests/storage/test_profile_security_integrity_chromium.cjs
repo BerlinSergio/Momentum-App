@@ -287,6 +287,29 @@ async function credentialIntegrity(browser) {
     assert.deepEqual(reloaded, { active: true, hasPin: true, locked: true, pin: '' });
     console.log('PASS: Reloaded active PIN app-lock is locked; no plaintext PIN in store.');
 
+    // Reset must neither unlock a protected session nor fabricate readiness.
+    const resetBlocked = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const store = window.useSecurityStore;
+      const key = 'momentum-security-storage';
+      const before = await db.getCommittedStoreRecord(key);
+      const lockedReset = await store.getState().resetToDefaults();
+      // Only in this isolated test, simulate a pending hydration flag.
+      await store.getState().setHasHydrated(false);
+      const notReadyReset = await store.getState().resetToDefaults();
+      const stillNotReady = store.getState()._hasHydrated === false;
+      await store.getState().setHasHydrated(true);
+      const after = await db.getCommittedStoreRecord(key);
+      const current = store.getState();
+      return { lockedRejected: lockedReset?.success === false,
+        notReadyRejected: notReadyReset?.success === false, stillNotReady,
+        locked: current.isLocked, hasPin: current.hasPin, active: current.isAppLockActive,
+        unchanged: JSON.stringify(before) === JSON.stringify(after) };
+    });
+    assert.deepEqual(resetBlocked, { lockedRejected: true, notReadyRejected: true,
+      stillNotReady: true, locked: true, hasPin: true, active: true, unchanged: true });
+    console.log('PASS: reset rejects locked and unhydrated sessions without changing durable metadata.');
+
     const unauthorizedPause = await a.evaluate(async () => {
       const db = await import('/src/storage/db.js');
       const before = await db.getCommittedStoreRecord('momentum-security-storage');
@@ -314,6 +337,23 @@ async function credentialIntegrity(browser) {
         hasPin: metadata.state.hasPin };
     });
     assert.deepEqual(authorizedPause, { success: true, retained: true, pinValid: true, active: false, hasPin: true });
+
+    const resetAllowed = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const svc = await import('/src/utils/credentialService.js');
+      const store = window.useSecurityStore;
+      const before = await db.getCommittedStoreRecord(svc.CREDENTIAL_STORE_KEY);
+      await store.getState().setLockTiming('5min');
+      await store.getState().resetToDefaults();
+      const after = await db.getCommittedStoreRecord(svc.CREDENTIAL_STORE_KEY);
+      const meta = (await db.getCommittedStoreRecord('momentum-security-storage')).value.state;
+      return { retained: JSON.stringify(before) === JSON.stringify(after),
+        pinValid: (await svc.verifyCredential('2468')).success,
+        hasPin: meta.hasPin, active: meta.isAppLockActive, timing: meta.lockTiming };
+    });
+    assert.deepEqual(resetAllowed, { retained: true, pinValid: true, hasPin: true, active: false, timing: 'immediate' });
+    console.log('PASS: preference reset retains the committed credential and paused lock state.');
+
     await a.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
     await boot(a, 'security', false);
     assert.deepEqual(await a.evaluate(() => {
