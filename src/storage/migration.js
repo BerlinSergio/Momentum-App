@@ -81,6 +81,13 @@ export async function runStorageMigration() {
           const sanitizationSaved = await setStoreItem(key, sanitizedRecord);
           if (sanitizationSaved !== true) {
             migrationSummary.errors.push({ key, error: 'Security sanitization was not committed' });
+          } else {
+            // A commit acknowledgement is necessary but not a substitute for
+            // validating the authoritative IndexedDB record after migration.
+            const persisted = await getStoreItem(key);
+            if (JSON.stringify(persisted) !== JSON.stringify(sanitizedRecord)) {
+              migrationSummary.errors.push({ key, error: 'Security sanitization read-back mismatch' });
+            }
           }
         }
         migrationSummary.skipped.push({ key, reason: 'Already in IndexedDB' });
@@ -140,7 +147,15 @@ export async function runStorageMigration() {
           migratedAt: Date.now(),
         });
 
-        if (writeSuccess) {
+        if (writeSuccess === true) {
+          // Verify a committed read-back before counting this legacy key as migrated.
+          // A mismatch leaves the legacy source untouched and prevents the
+          // migration-completed marker from being written.
+          const persisted = await getStoreItem(key);
+          if (JSON.stringify(persisted) !== JSON.stringify(transformedState)) {
+            migrationSummary.errors.push({ key, error: 'IndexedDB migration read-back mismatch' });
+            continue;
+          }
           migrationSummary.migrated.push({
             key,
             domain,
