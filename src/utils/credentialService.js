@@ -181,6 +181,10 @@ async function verifySnapshot(pin, record) {
     ? { success: true } : { success: false, error: 'Incorrect PIN' };
 }
 
+// Verification receipts remain in memory, bound to the exact durable snapshot.
+const verifiedSnapshots = new WeakMap();
+const authenticatedReceipts = new WeakMap();
+
 export async function verifyCredential(pin) {
   try {
     const snapshot = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
@@ -192,6 +196,7 @@ export async function verifyCredential(pin) {
         JSON.stringify(latest.value) !== JSON.stringify(snapshot.value)) {
       return { success: false, error: 'Credential changed during verification' };
     }
+    verifiedSnapshots.set(result, snapshot);
     return result;
   } catch {
     return { success: false, error: 'Credential verification unavailable' };
@@ -232,8 +237,29 @@ export const authenticatePin = pin => withPinAttemptLock(async () => {
   const result = await verifyReservedAttempt(() => verifyCredential(pin));
   if (!result.success) return result;
   await clearLockoutState();
+  authenticatedReceipts.set(result, verifiedSnapshots.get(result));
   return result;
 });
+
+// Consume a PIN authorization once, immediately before the synchronous UI
+// unlock, while the same cross-tab coordination lock is held. Raw verifier
+// results and replayed receipts cannot authorize a session.
+export async function completePinUnlock(receipt, onUnlock) {
+  const expected = receipt && authenticatedReceipts.get(receipt);
+  if (!expected || typeof onUnlock !== 'function') return {success:false,error:'A fresh PIN verification is required.'};
+  authenticatedReceipts.delete(receipt);
+  return withPinAttemptLock(async () => {
+    const latest = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    const value = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
+    if (!latest || latest.revisionId !== expected.revisionId ||
+        JSON.stringify(latest.value) !== JSON.stringify(expected.value) ||
+        value?.state?.hasPin !== true || value?.state?.isAppLockActive !== true) {
+      return {success:false,error:'Security settings changed. Verify your current PIN again.'};
+    }
+    return {success: onUnlock() === true};
+  });
+}
 
 async function transition(mode, currentPin, newPin) {
   try {
