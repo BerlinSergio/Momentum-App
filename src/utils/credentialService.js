@@ -197,6 +197,34 @@ export async function verifyCredential(pin) {
   }
 }
 
+// Serialize user-facing PIN checks and mutations across same-origin tabs.
+// Raw verifyCredential is retained for migration round-trip checks only.
+const ATTEMPT_LOCK = 'momentum-pin-attempt-v1';
+async function withPinAttemptLock(operation) {
+  if (!globalThis.navigator?.locks?.request) {
+    return { success: false, error: 'Secure PIN coordination is unavailable in this browser.' };
+  }
+  try {
+    return await navigator.locks.request(ATTEMPT_LOCK, { mode: 'exclusive' }, async () => {
+      const state = getLockoutState();
+      if (state.unavailable) return { success: false, error: 'PIN attempt storage is unavailable.' };
+      if (state.isLockedOut) return { success: false, error: 'Too many attempts. Try again later.' };
+      return operation();
+    });
+  } catch {
+    return { success: false, error: 'Secure PIN coordination failed.' };
+  }
+}
+
+export const authenticatePin = pin => withPinAttemptLock(async () => {
+  const result = await verifyCredential(pin);
+  if (!result.success) {
+    return { ...result, lockout: recordFailedAttempt() };
+  }
+  clearLockoutState();
+  return result;
+});
+
 async function transition(mode, currentPin, newPin) {
   if (mode !== 'create' && getLockoutState().isLockedOut) {
     return { success: false, error: 'Too many attempts. Try again later.' };
@@ -220,7 +248,10 @@ async function transition(mode, currentPin, newPin) {
       next = prepared.record;
     }
     await commitCredentialTransition(credential, security, next, new Date().toISOString());
-    if (mode !== 'create') clearLockoutState();
+    // A cleanup failure cannot undo an already committed credential change.
+    if (mode !== 'create') {
+      try { clearLockoutState(); } catch { return { success: true, lockoutWarning: true }; }
+    }
     return { success: true };
   } catch (error) {
     return { success: false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
@@ -229,12 +260,13 @@ async function transition(mode, currentPin, newPin) {
 }
 
 export const createCredential = pin => transition('create', null, pin);
-export const changeCredential = (currentPin, newPin) => transition('change', currentPin, newPin);
-export const removeCredential = currentPin => transition('remove', currentPin, null);
+export const changeCredential = (currentPin, newPin) => withPinAttemptLock(() => transition('change', currentPin, newPin));
+export const removeCredential = currentPin => withPinAttemptLock(() => transition('remove', currentPin, null));
 
 // Pause App Lock without deleting or rotating the current verifier.
 // The exact credential and security snapshots must still match at commit.
-export async function pauseAppLock(currentPin) {
+export const pauseAppLock = currentPin => withPinAttemptLock(() => pauseAppLockInternal(currentPin));
+async function pauseAppLockInternal(currentPin) {
   if (getLockoutState().isLockedOut) return { success:false, error:'Too many attempts. Try again later.' };
   try {
     const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
@@ -245,7 +277,7 @@ export async function pauseAppLock(currentPin) {
       return verified;
     }
     await commitCredentialTransition(credential, security, credential.value, new Date().toISOString(), { pauseLock:true });
-    clearLockoutState();
+    try { clearLockoutState(); } catch { return { success:true, lockoutWarning:true }; }
     return { success:true };
   } catch (error) {
     return { success:false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
@@ -261,76 +293,38 @@ export async function pauseAppLock(currentPin) {
  * - 10-14 failures: 300s (5min) lockout
  * - 15+ failures: 1800s (30min) lockout
  */
+// Shared origin storage survives tab close/reload. This is application-level
+// throttling, not protection against direct access to browser storage.
 export function getLockoutState() {
   try {
-    if (typeof sessionStorage !== 'undefined') {
-      const raw = sessionStorage.getItem(LOCKOUT_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const now = Date.now();
-        if (parsed.lockedUntil && parsed.lockedUntil > now) {
-          const remainingSeconds = Math.ceil((parsed.lockedUntil - now) / 1000);
-          return {
-            isLockedOut: true,
-            remainingSeconds,
-            failedAttempts: parsed.failedAttempts || 0,
-          };
-        }
-        return {
-          isLockedOut: false,
-          remainingSeconds: 0,
-          failedAttempts: parsed.failedAttempts || 0,
-        };
-      }
+    const raw = globalThis.localStorage.getItem(LOCKOUT_STORAGE_KEY);
+    const data = raw === null ? { failedAttempts: 0, lockedUntil: 0 } : JSON.parse(raw);
+    if (!data || !Number.isSafeInteger(data.failedAttempts) || data.failedAttempts < 0 ||
+        !Number.isFinite(data.lockedUntil) || data.lockedUntil < 0) {
+      throw new Error('Malformed PIN attempt state');
     }
-  } catch (e) {
-    console.warn('[CredentialService] getLockoutState error:', e);
+    const remainingSeconds = Math.max(0, Math.ceil((data.lockedUntil - Date.now()) / 1000));
+    return { isLockedOut: remainingSeconds > 0, remainingSeconds, failedAttempts: data.failedAttempts };
+  } catch {
+    return { isLockedOut: true, remainingSeconds: 0, failedAttempts: 0, unavailable: true };
   }
-  return { isLockedOut: false, remainingSeconds: 0, failedAttempts: 0 };
 }
 
+// Production callers execute these changes while holding ATTEMPT_LOCK.
 export function recordFailedAttempt() {
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      const current = getLockoutState();
-      const nextAttempts = (current.failedAttempts || 0) + 1;
-      let lockoutDurationMs = 0;
-
-      if (nextAttempts >= 15) {
-        lockoutDurationMs = 1800 * 1000; // 30 minutes
-      } else if (nextAttempts >= 10) {
-        lockoutDurationMs = 300 * 1000;  // 5 minutes
-      } else if (nextAttempts >= 5) {
-        lockoutDurationMs = 30 * 1000;   // 30 seconds
-      }
-
-      const payload = {
-        failedAttempts: nextAttempts,
-        lockedUntil: lockoutDurationMs > 0 ? Date.now() + lockoutDurationMs : 0,
-        updatedAt: Date.now(),
-      };
-
-      sessionStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(payload));
-      return {
-        failedAttempts: nextAttempts,
-        isLockedOut: lockoutDurationMs > 0,
-        remainingSeconds: Math.ceil(lockoutDurationMs / 1000),
-      };
-    }
-  } catch (e) {
-    console.warn('[CredentialService] recordFailedAttempt error:', e);
-  }
-  return { failedAttempts: 1, isLockedOut: false, remainingSeconds: 0 };
+  const current = getLockoutState();
+  if (current.unavailable) throw new Error('PIN attempt storage unavailable');
+  if (current.isLockedOut) return current;
+  const failedAttempts = current.failedAttempts + 1;
+  const seconds = failedAttempts >= 15 ? 1800 : failedAttempts >= 10 ? 300 : failedAttempts >= 5 ? 30 : 0;
+  globalThis.localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify({
+    failedAttempts, lockedUntil: seconds ? Date.now() + seconds * 1000 : 0, updatedAt: Date.now(),
+  }));
+  return getLockoutState();
 }
 
 export function clearLockoutState() {
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem(LOCKOUT_STORAGE_KEY);
-    }
-  } catch (e) {
-    console.warn('[CredentialService] clearLockoutState error:', e);
-  }
+  globalThis.localStorage.removeItem(LOCKOUT_STORAGE_KEY);
 }
 
 /**
