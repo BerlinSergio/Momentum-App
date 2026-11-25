@@ -78,7 +78,10 @@ export async function runStorageMigration() {
               hasPin,
             },
           };
-          await setStoreItem(key, sanitizedRecord);
+          const sanitizationSaved = await setStoreItem(key, sanitizedRecord);
+          if (sanitizationSaved !== true) {
+            migrationSummary.errors.push({ key, error: 'Security sanitization was not committed' });
+          }
         }
         migrationSummary.skipped.push({ key, reason: 'Already in IndexedDB' });
         continue;
@@ -153,14 +156,21 @@ export async function runStorageMigration() {
     }
 
     // 3. Verify destination integrity
-    const hasCriticalErrors = migrationSummary.errors.length > 0;
+    let hasCriticalErrors = migrationSummary.errors.length > 0;
     if (!hasCriticalErrors) {
-      await setMigrationMeta(MIGRATION_KEY, {
+      const markerCommitted = await setMigrationMeta(MIGRATION_KEY, {
         version: CURRENT_SCHEMA_VERSION,
         status: 'completed',
         completedAt: new Date().toISOString(),
         summary: migrationSummary,
       });
+      if (markerCommitted !== true) {
+        migrationSummary.errors.push({
+          key: MIGRATION_KEY,
+          error: 'Migration completion marker was not committed',
+        });
+        hasCriticalErrors = true;
+      }
     }
 
     return {
