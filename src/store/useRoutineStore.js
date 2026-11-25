@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { createIndexedDbStorage } from '../storage/index.js';
 import { getLocalDateKey, addCalendarDays } from '../utils/timeService.js';
 
-const routineStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-routine-storage' });
+const routineStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-routine-storage',
+  optimisticDomains: ['momentum-routine-storage'],
+});
 const getSafeStorage = () => routineStorage;
 
 export const WEEKDAY_TOKENS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -468,6 +471,9 @@ export const useRoutineStore = create(
       },
 
       performDayRollover: (newDateKey) => {
+        // Ignore startup clocks until the authoritative IndexedDB snapshot
+        // has loaded; otherwise a time tick could seed an empty stale write.
+        if (!get()._hasHydrated) return;
         const today = String(newDateKey || getActiveDateKey()).slice(0, 10);
         set(
           produce((state) => {
@@ -603,6 +609,7 @@ export const useRoutineStore = create(
     {
       name: 'momentum-routine-storage',
       storage: createJSONStorage(() => getSafeStorage()),
+      skipHydration: true,
       partialize: (state) => ({
         routines: state.routines,
         baseStreak: state.baseStreak,
@@ -620,49 +627,18 @@ export const useRoutineStore = create(
           if (typeof state.baseStreak !== 'number') {
             state.baseStreak = 0;
           }
-          const today = getActiveDateKey().slice(0, 10);
-          state.performDayRollover?.(today);
-          state.setHasHydrated?.(true);
+          // Roll the day only after *all* stores have hydrated, including
+          // TimeStore's date. StartupController calls performDayRollover then.
+          // No extra write from this rehydration callback.
         }
       },
     }
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
+// UI date-change listeners are allowed only after coordinated hydration.
+// No localStorage mirror rehydration outside runStorageMigration.
 if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-routine-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        const rawRoutines = Array.isArray(parsed.state.routines)
-          ? parsed.state.routines
-          : [];
-        const routines = rawRoutines.map(normalizeRoutine);
-        const baseStreak = typeof parsed.state.baseStreak === 'number' ? parsed.state.baseStreak : 0;
-        const today = getActiveDateKey().slice(0, 10);
-        const streakCount = calculateGlobalStreak(routines, today, baseStreak);
-
-        useRoutineStore.setState({
-          ...parsed.state,
-          routines,
-          baseStreak,
-          streakCount,
-          currentStreak: streakCount,
-          lastActiveDateKey: today,
-          _hasHydrated: true,
-        });
-      } else {
-        useRoutineStore.setState({ routines: [], baseStreak: 0, streakCount: 0, currentStreak: 0, lastActiveDateKey: getActiveDateKey().slice(0, 10), _hasHydrated: true });
-      }
-    } else {
-      useRoutineStore.setState({ routines: [], baseStreak: 0, streakCount: 0, currentStreak: 0, lastActiveDateKey: getActiveDateKey().slice(0, 10), _hasHydrated: true });
-    }
-  } catch {
-    useRoutineStore.setState({ routines: [], baseStreak: 0, streakCount: 0, currentStreak: 0, lastActiveDateKey: getActiveDateKey().slice(0, 10), _hasHydrated: true });
-  }
-
   // Automatic Day Rollover Listeners
   window.addEventListener('momentum-day-change', (event) => {
     const newDateKey = event.detail?.currentDateKey || event.detail?.dateKey || getActiveDateKey();
