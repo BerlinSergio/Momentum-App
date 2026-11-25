@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { Lock, ArrowLeft, X } from 'lucide-react';
 import useSecurityStore, { LOCK_TIMING_OPTIONS } from './store/useSecurityStore';
-import { registerBiometrics, clearBiometricCredential } from './utils/biometricAuth';
+import { clearBiometricCredential } from './utils/biometricAuth';
+import BiometricEnrollmentDialog from './components/BiometricEnrollmentDialog';
 import { toast } from './components/ui/toast/index.js';
 
 export default function AppLockLightMode({ setActiveTab, goBack }) {
@@ -56,40 +57,23 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
   ]);
 
   const handleToggleBiometrics = async () => {
-    if (draft.biometricsEnabled) {
-      clearBiometricCredential();
-      setDraft((prev) => ({ ...prev, biometricsEnabled: false }));
-      security.setBiometricsEnabled(false);
-      toast.info(t('toasts.bioDisabled', 'Biometric unlock disabled.'));
+    if (bioPrompting) return;
+    if (security.biometricsEnabled) {
+      try {
+        const result = await security.setBiometricsEnabled(false);
+        if (result?.success === false) { toast.error(result.error); return; }
+        clearBiometricCredential();
+        toast.info(t('toasts.bioDisabled', 'Biometric unlock disabled.'));
+      } catch {
+        toast.error(t('security.saveFailed', 'Security preferences could not be saved.'));
+      }
       return;
     }
-
-    setBioPrompting(true);
-    toast.info(t('toasts.bioRegistering', 'Registering platform biometrics...'));
-
-    try {
-      const res = await registerBiometrics({
-        title: 'Momentum App Lock',
-      });
-
-      setBioPrompting(false);
-
-      if (res.success) {
-        setDraft((prev) => ({ ...prev, biometricsEnabled: true }));
-        security.setBiometricsEnabled(true);
-        toast.success(t('toasts.bioRegistered', 'Biometric authentication registered and enabled!'));
-      } else {
-        setDraft((prev) => ({ ...prev, biometricsEnabled: false }));
-        const msg = res.cancelled
-          ? 'Biometric enrollment cancelled. Biometrics remained off.'
-          : (res.error || 'Biometric enrollment failed.');
-        toast.error(msg);
-      }
-    } catch {
-      setBioPrompting(false);
-      setDraft((prev) => ({ ...prev, biometricsEnabled: false }));
-      toast.error(t('toasts.bioFailed', 'Biometric registration failed.'));
+    if (!security.hasPin) {
+      toast.error(t('security.pinRequiredForBiometrics', 'Set up your PIN before enabling biometric unlock.'));
+      return;
     }
+    setBioPrompting(true);
   };
 
   const handleSave = async () => {
@@ -610,6 +594,7 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
           </div>
         </div>
       )}
+      {bioPrompting && <BiometricEnrollmentDialog isDarkMode={false} onClose={() => setBioPrompting(false)} />}
     </>
   );
 }
