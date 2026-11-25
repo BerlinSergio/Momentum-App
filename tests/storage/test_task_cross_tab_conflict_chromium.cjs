@@ -22,7 +22,7 @@ async function ready(tab) {
     await tab.waitForFunction(() =>
       window.useTaskStore?.persist?.hasHydrated?.() === true &&
       window.useTaskStore?.getState?.()._hasHydrated === true,
-      { timeout: 60000 }
+      { timeout: 60000, polling: 200 }
     );
   } catch (error) {
     const diagnostic = await tab.evaluate(async () => {
@@ -63,7 +63,7 @@ async function awaitDurableTask(tab, id) {
   await tab.waitForFunction(async ({ id, key }) => {
     const db = await import('/src/storage/db.js');
     return (await db.getStoreItem(key))?.state?.tasks?.some(task => task.id === id) === true;
-  }, { timeout: 25000 }, { id, key: TASKS });
+  }, { timeout: 25000, polling: 200 }, { id, key: TASKS });
 }
 
 async function awaitConflict(tab) {
@@ -121,7 +121,7 @@ async function testStaleTab(browser) {
     await b.waitForFunction(() =>
       window.useTaskStore?.persist?.hasHydrated?.() === true &&
       window.useTaskStore?.getState?.()._hasHydrated === true,
-      { timeout: 35000 });
+      { timeout: 35000, polling: 200 });
 
     const refreshed = await b.evaluate(() => ({
       ids: window.useTaskStore.getState().tasks.map(task => task.id),
