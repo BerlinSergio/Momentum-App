@@ -746,6 +746,32 @@ async function lockScreenSingleFlight(browser) {
   } finally { await context.close(); }
 }
 
+async function lockedShellCancelsPrompts(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage();
+    await boot(a,'security');
+    await a.waitForFunction(async()=>{
+      const db=await import('/src/storage/db.js');
+      return Boolean((await db.getCommittedStoreRecord('momentum-security-storage'))?.revisionId);
+    },{timeout:30000,polling:200});
+    await a.evaluate(()=>{
+      window.__qaPromptResult='pending';
+      window.momentumConfirm({title:'QA private confirmation',message:'QA private content'})
+        .then(result=>{window.__qaPromptResult=result;});
+    });
+    await a.waitForFunction(()=>window.useConfirmStore.getState().isOpen,{timeout:10000});
+    assert.equal((await a.evaluate(()=>window.useSecurityStore.getState().setPin('2468'))).success,true);
+    await a.waitForSelector('[data-testid="app-lock-screen"]',{timeout:15000});
+    await a.waitForFunction(()=>window.__qaPromptResult===false&&!window.useConfirmStore.getState().isOpen,{timeout:15000});
+    const denied=await a.evaluate(async()=>window.momentumConfirm({title:'QA blocked confirmation'}));
+    assert.equal(denied,false);
+    assert.equal(await a.evaluate(()=>window.useConfirmStore.getState().isOpen),false);
+    assert.equal(await a.evaluate(()=>document.body.textContent.includes('QA private content')),false);
+    console.log('PASS: App Lock cancels pending and new shell confirmations without displaying private content.');
+  } finally { await context.close(); }
+}
+
 async function externalLockActivation(browser) {
   const context = await browser.createBrowserContext();
   try {
@@ -976,6 +1002,7 @@ async function main() {
     await lockScreenSingleFlight(browser);
     await unlockedSessionRevocation(browser);
     await externalLockActivation(browser);
+    await lockedShellCancelsPrompts(browser);
     await biometricAssertionIntegrity(browser);
   } finally { await browser.close(); }
 }
