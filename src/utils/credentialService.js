@@ -16,10 +16,11 @@
  * while progressive rate-limiting / lockout prevents online brute-force attacks.
  */
 
-import { getCommittedStoreRecord, commitCredentialTransition } from '../storage/db.js';
+import { getCommittedStoreRecord, commitCredentialTransition, setStoreItem } from '../storage/db.js';
 
 export const CREDENTIAL_STORE_KEY = 'momentum-credential-verifier';
 export const LOCKOUT_STORAGE_KEY = 'momentum_auth_lockout';
+export const LOCKOUT_RECORD_KEY = 'momentum-auth-attempts-v1';
 export const PBKDF2_ITERATIONS = 600000;
 export const SALT_BYTE_LENGTH = 16;
 export const VERIFIER_BIT_LENGTH = 256;
@@ -206,7 +207,7 @@ async function withPinAttemptLock(operation) {
   }
   try {
     return await navigator.locks.request(ATTEMPT_LOCK, { mode: 'exclusive' }, async () => {
-      const state = getLockoutState();
+      const state = await readCommittedLockoutState({ initialize: true });
       if (state.unavailable) return { success: false, error: 'PIN attempt storage is unavailable.' };
       if (state.isLockedOut) return { success: false, error: 'Too many attempts. Try again later.' };
       return operation();
@@ -219,16 +220,13 @@ async function withPinAttemptLock(operation) {
 export const authenticatePin = pin => withPinAttemptLock(async () => {
   const result = await verifyCredential(pin);
   if (!result.success) {
-    return { ...result, lockout: recordFailedAttempt() };
+    return { ...result, lockout: await recordFailedAttempt() };
   }
-  clearLockoutState();
+  await clearLockoutState();
   return result;
 });
 
 async function transition(mode, currentPin, newPin) {
-  if (mode !== 'create' && getLockoutState().isLockedOut) {
-    return { success: false, error: 'Too many attempts. Try again later.' };
-  }
   try {
     const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
     const security = await getCommittedStoreRecord('momentum-security-storage');
@@ -237,7 +235,7 @@ async function transition(mode, currentPin, newPin) {
     } else {
       const verified = await verifySnapshot(currentPin, credential?.value);
       if (!verified.success) {
-        recordFailedAttempt();
+        await recordFailedAttempt();
         return verified;
       }
     }
@@ -250,7 +248,7 @@ async function transition(mode, currentPin, newPin) {
     await commitCredentialTransition(credential, security, next, new Date().toISOString());
     // A cleanup failure cannot undo an already committed credential change.
     if (mode !== 'create') {
-      try { clearLockoutState(); } catch { return { success: true, lockoutWarning: true }; }
+      try { await clearLockoutState(); } catch { return { success: true, lockoutWarning: true }; }
     }
     return { success: true };
   } catch (error) {
@@ -267,17 +265,16 @@ export const removeCredential = currentPin => withPinAttemptLock(() => transitio
 // The exact credential and security snapshots must still match at commit.
 export const pauseAppLock = currentPin => withPinAttemptLock(() => pauseAppLockInternal(currentPin));
 async function pauseAppLockInternal(currentPin) {
-  if (getLockoutState().isLockedOut) return { success:false, error:'Too many attempts. Try again later.' };
   try {
     const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
     const security = await getCommittedStoreRecord('momentum-security-storage');
     const verified = await verifySnapshot(currentPin, credential?.value);
     if (!verified.success) {
-      recordFailedAttempt();
+      await recordFailedAttempt();
       return verified;
     }
     await commitCredentialTransition(credential, security, credential.value, new Date().toISOString(), { pauseLock:true });
-    try { clearLockoutState(); } catch { return { success:true, lockoutWarning:true }; }
+    try { await clearLockoutState(); } catch { return { success:true, lockoutWarning:true }; }
     return { success:true };
   } catch (error) {
     return { success:false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
@@ -293,38 +290,59 @@ async function pauseAppLockInternal(currentPin) {
  * - 10-14 failures: 300s (5min) lockout
  * - 15+ failures: 1800s (30min) lockout
  */
-// Shared origin storage survives tab close/reload. This is application-level
-// throttling, not protection against direct access to browser storage.
-export function getLockoutState() {
-  try {
-    const raw = globalThis.localStorage.getItem(LOCKOUT_STORAGE_KEY);
-    const data = raw === null ? { failedAttempts: 0, lockedUntil: 0 } : JSON.parse(raw);
-    if (!data || !Number.isSafeInteger(data.failedAttempts) || data.failedAttempts < 0 ||
-        !Number.isFinite(data.lockedUntil) || data.lockedUntil < 0) {
-      throw new Error('Malformed PIN attempt state');
-    }
-    const remainingSeconds = Math.max(0, Math.ceil((data.lockedUntil - Date.now()) / 1000));
-    return { isLockedOut: remainingSeconds > 0, remainingSeconds, failedAttempts: data.failedAttempts };
-  } catch {
-    return { isLockedOut: true, remainingSeconds: 0, failedAttempts: 0, unavailable: true };
+// The IndexedDB record is authoritative; localStorage is only a UI signal
+// and a one-time upgrade source for older shared attempt counters.
+const emptyAttempts = () => ({ failedAttempts: 0, lockedUntil: 0 });
+const unavailableAttempts = () => ({ isLockedOut: true, remainingSeconds: 0, failedAttempts: 0, unavailable: true });
+function validateAttempts(data) {
+  if (!data || !Number.isSafeInteger(data.failedAttempts) || data.failedAttempts < 0 ||
+      !Number.isFinite(data.lockedUntil) || data.lockedUntil < 0) {
+    throw new Error('Malformed PIN attempt state');
   }
+  return data;
 }
-
-// Production callers execute these changes while holding ATTEMPT_LOCK.
-export function recordFailedAttempt() {
-  const current = getLockoutState();
-  if (current.unavailable) throw new Error('PIN attempt storage unavailable');
+function summarizeAttempts(data) {
+  const remainingSeconds = Math.max(0, Math.ceil((data.lockedUntil - Date.now()) / 1000));
+  return { isLockedOut: remainingSeconds > 0, remainingSeconds, failedAttempts: data.failedAttempts };
+}
+function readLegacyAttempts() {
+  const raw = globalThis.localStorage.getItem(LOCKOUT_STORAGE_KEY);
+  return validateAttempts(raw === null ? emptyAttempts() : JSON.parse(raw));
+}
+async function writeAttempts(data) {
+  validateAttempts(data);
+  if (!await setStoreItem(LOCKOUT_RECORD_KEY, data)) throw new Error('PIN attempt state was not committed');
+  // A stale or unavailable mirror cannot affect authorization once IDB exists.
+  try { globalThis.localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(data)); } catch { /* advisory only */ }
+  return summarizeAttempts(data);
+}
+async function readAttemptRecord(initialize = false) {
+  const row = await getCommittedStoreRecord(LOCKOUT_RECORD_KEY);
+  if (row) return validateAttempts(row.value);
+  const legacy = readLegacyAttempts();
+  if (initialize) await writeAttempts(legacy);
+  return legacy;
+}
+export async function readCommittedLockoutState({ initialize = false } = {}) {
+  try { return summarizeAttempts(await readAttemptRecord(initialize)); }
+  catch { return unavailableAttempts(); }
+}
+// Retained for synchronous display compatibility only. Never authorize with it.
+export function getLockoutState() {
+  try { return summarizeAttempts(readLegacyAttempts()); }
+  catch { return unavailableAttempts(); }
+}
+// Production mutations run under ATTEMPT_LOCK and await the IDB commit.
+export async function recordFailedAttempt() {
+  const current = summarizeAttempts(await readAttemptRecord(true));
   if (current.isLockedOut) return current;
   const failedAttempts = current.failedAttempts + 1;
   const seconds = failedAttempts >= 15 ? 1800 : failedAttempts >= 10 ? 300 : failedAttempts >= 5 ? 30 : 0;
-  globalThis.localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify({
-    failedAttempts, lockedUntil: seconds ? Date.now() + seconds * 1000 : 0, updatedAt: Date.now(),
-  }));
-  return getLockoutState();
+  return writeAttempts({failedAttempts, lockedUntil: seconds ? Date.now() + seconds * 1000 : 0, updatedAt: Date.now()});
 }
-
-export function clearLockoutState() {
-  globalThis.localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+export async function clearLockoutState() {
+  // Keep an explicit zero record; deleting it could re-import stale mirrors.
+  return writeAttempts({...emptyAttempts(), updatedAt: Date.now()});
 }
 
 /**
