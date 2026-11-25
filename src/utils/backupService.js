@@ -22,6 +22,11 @@ import {
 } from '../storage/db.js';
 
 import { getAllCustomWallpapersForBackup } from './wallpaperStorage.js';
+import {
+  recoverInterruptedRestore,
+  commitCoordinatedMainRestore,
+  commitCoordinatedCrossDbRestore,
+} from './crossDatabaseRestore.js';
 
 // Specific store keys containing durable user data
 export const SUPPORTED_BACKUP_STORES = [
@@ -86,6 +91,9 @@ export async function createBackupPackage(passphrase, options = {}) {
 
   onProgress({ stage: 'COLLECTING_RECORDS', percent: 15, message: 'Collecting application records...' });
 
+  // A pending cross-DB journal means wallpaper changes may be uncommitted.
+  // Reconcile first rather than encrypting a mixture of old and new records.
+  await recoverInterruptedRestore();
   // Never export a plausible but incomplete backup from volatile memory.
   if (!(await openAppDB())) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
   // 1. Read all authoritative records from IndexedDB 'stores' table
@@ -655,19 +663,27 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
       }
     }
 
-    // The main DB and wallpaper DB cannot join one IndexedDB transaction.
-    // Reject cross-database packages before making ANY writes until a durable
-    // cross-DB recovery journal is implemented and independently tested.
     const customWallpapers = Array.isArray(decrypted.customWallpapers) ? decrypted.customWallpapers : [];
-    if (customWallpapers.some(wp => wp?.id && wp.dataUrl)) {
-      const error = new Error('Restore blocked: custom wallpapers use a separate database; cross-database atomicity is not yet verified');
-      error.code = 'CROSS_DATABASE_RESTORE_UNSAFE';
-      throw error;
+    if (customWallpapers.some(wp => !wp || typeof wp.id !== 'string' || !wp.id ||
+        typeof wp.dataUrl !== 'string' || !wp.dataUrl) ||
+        new Set(customWallpapers.map(wp => wp.id)).size !== customWallpapers.length) {
+      throw new Error('Invalid custom wallpaper records in backup');
     }
 
-    onProgress({ stage: 'COMMITTING', percent: 90, message: 'Atomically committing domains and attachments...' });
-    if (!(await commitRestoreBatch({ stores: stagedStores, attachments: stagedAttachments }))) {
-      throw new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
+    onProgress({ stage: 'COMMITTING', percent: 90, message: 'Committing recoverable backup restore...' });
+    // The main DB remains atomic. For wallpaper restores the recovery journal
+    // is persisted BEFORE separate-DB changes, and removed atomically only
+    // with the final main-DB commit. Startup reverts any interrupted restore.
+    const committed = customWallpapers.length > 0
+      ? await commitCoordinatedCrossDbRestore({
+          stores: stagedStores, attachments: stagedAttachments,
+          wallpapers: customWallpapers,
+        })
+      : await commitCoordinatedMainRestore({
+          stores: stagedStores, attachments: stagedAttachments,
+        });
+    if (committed !== true) {
+      throw new Error('Restore aborted: storage transaction did not commit');
     }
     // Update disposable mirrors only after a successful transaction commit.
     if (typeof localStorage !== 'undefined') {
@@ -698,9 +714,8 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
       manifest: decrypted.manifest,
     };
   } catch (restoreError) {
-    // All domain/attachment staging is pure, and a failed IndexedDB
-    // transaction automatically rolls back its writes. Do not run an
-    // asynchronous per-key rollback that could overwrite concurrent edits.
+    // Main-db writes are one transaction. Cross-DB restores retain a
+    // durable wallpaper recovery journal until main-db commit or rollback.
     console.error('[BackupService] Restore not completed:', restoreError);
     throw restoreError;
   }
