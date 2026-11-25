@@ -28,66 +28,82 @@ export function isIndexedDbSupported() {
  * Open or retrieve the cached IndexedDB database connection.
  */
 export function openAppDB() {
-  if (dbInstance) {
-    return Promise.resolve(dbInstance);
-  }
-  if (dbOpenPromise) {
-    return dbOpenPromise;
-  }
+  if (dbInstance) return Promise.resolve(dbInstance);
+  if (dbOpenPromise) return dbOpenPromise;
+  if (!isIndexedDbSupported()) return Promise.resolve(null);
 
-  if (!isIndexedDbSupported()) {
-    return Promise.resolve(null);
-  }
+  // A blocked upgrade must not leave startup waiting forever or use volatile data.
+  const opening = new Promise((resolve) => {
+    let settled = false;
+    let timeoutId;
+    const finish = (db) => {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(db);
+      return true;
+    };
 
-  dbOpenPromise = new Promise((resolve) => {
     try {
       const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-
-        // 1. Object store for serialized Zustand slices and structured module records
         if (!db.objectStoreNames.contains(STORES.DATA)) {
           db.createObjectStore(STORES.DATA, { keyPath: 'name' });
         }
-
-        // 2. Object store for durable binary attachments (Blobs, ArrayBuffers, Images, Audio)
         if (!db.objectStoreNames.contains(STORES.ATTACHMENTS)) {
-          const attStore = db.createObjectStore(STORES.ATTACHMENTS, { keyPath: 'id' });
-          attStore.createIndex('noteId', 'noteId', { unique: false });
-          attStore.createIndex('createdAt', 'createdAt', { unique: false });
+          const attachments = db.createObjectStore(STORES.ATTACHMENTS, { keyPath: 'id' });
+          attachments.createIndex('noteId', 'noteId', { unique: false });
+          attachments.createIndex('createdAt', 'createdAt', { unique: false });
         }
-
-        // 3. Object store for schema versions and migration metadata
         if (!db.objectStoreNames.contains(STORES.MIGRATION)) {
           db.createObjectStore(STORES.MIGRATION, { keyPath: 'key' });
         }
       };
-
       request.onsuccess = () => {
-        dbInstance = request.result;
-        dbInstance.onversionchange = () => {
-          dbInstance.close();
-          dbInstance = null;
-          dbOpenPromise = null;
+        const opened = request.result;
+        // Late success after a blocked/timeout failure must not be reused.
+        if (settled) {
+          opened.close();
+          return;
+        }
+        const invalidate = () => {
+          if (dbInstance === opened) {
+            dbInstance = null;
+            dbOpenPromise = null;
+          }
         };
-        resolve(dbInstance);
+        opened.onversionchange = () => {
+          invalidate();
+          opened.close();
+        };
+        opened.onclose = invalidate;
+        dbInstance = opened;
+        finish(opened);
       };
-
-      request.onerror = (e) => {
-        console.warn('[Momentum DB] IndexedDB open error:', e);
-        resolve(null);
+      request.onerror = (event) => {
+        console.warn('[Momentum DB] IndexedDB open error:', request.error || event);
+        finish(null);
       };
-
       request.onblocked = () => {
-        console.warn('[Momentum DB] Database open blocked by another tab');
+        console.warn('[Momentum DB] IndexedDB open blocked; refusing to report storage ready');
+        finish(null);
       };
+      timeoutId = setTimeout(() => {
+        console.warn('[Momentum DB] IndexedDB open timed out');
+        finish(null);
+      }, 8000);
     } catch (err) {
       console.warn('[Momentum DB] Initialization exception:', err);
-      resolve(null);
+      finish(null);
     }
   });
 
+  dbOpenPromise = opening.then((db) => {
+    // Allow a safe retry after the other tab closes; never erase stored data.
+    if (!db) dbOpenPromise = null;
+    return db;
+  });
   return dbOpenPromise;
 }
 
