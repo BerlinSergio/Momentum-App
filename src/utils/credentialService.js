@@ -238,7 +238,7 @@ export const authenticatePin = pin => withPinAttemptLock(async () => {
   const result = await verifyReservedAttempt(() => verifyCredential(pin));
   if (!result.success) return result;
   await clearLockoutState();
-  authenticatedReceipts.set(result, verifiedSnapshots.get(result));
+  authenticatedReceipts.set(result, {snapshot:verifiedSnapshots.get(result), issuedAt:performance.now()});
   return result;
 });
 
@@ -253,12 +253,12 @@ export async function completePinUnlock(receipt, onUnlock) {
     const latest = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
     const security = await getCommittedStoreRecord('momentum-security-storage');
     const value = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
-    if (!latest || latest.revisionId !== expected.revisionId ||
-        JSON.stringify(latest.value) !== JSON.stringify(expected.value) ||
+    if (performance.now() - expected.issuedAt > 10000 || !latest || latest.revisionId !== expected.snapshot.revisionId ||
+        JSON.stringify(latest.value) !== JSON.stringify(expected.snapshot.value) ||
         value?.state?.hasPin !== true || value?.state?.isAppLockActive !== true) {
       return {success:false,error:'Security settings changed. Verify your current PIN again.'};
     }
-    return {success: onUnlock() === true};
+    return {success: onUnlock({pinRevision:latest.revisionId, method:'pin'}) === true};
   });
 }
 
