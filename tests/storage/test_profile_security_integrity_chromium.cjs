@@ -265,10 +265,37 @@ async function credentialIntegrity(browser) {
       return creds.removeCredential();
     });
     assert.equal(rejected.success, false);
-    const removed = await b.evaluate(async () => {
-      const creds = await import('/src/utils/credentialService.js');
-      return creds.removeCredential('1357');
+    // Force the second put to throw after the first request is queued.
+    // IndexedDB must roll back BOTH records; test only isolated synthetic data.
+    const rollback = await a.evaluate(async () => {
+      const db = await import('/src/storage/db.js');
+      const svc = await import('/src/utils/credentialService.js');
+      const key = 'momentum-credential-verifier', meta = 'momentum-security-storage';
+      const before = [await db.getCommittedStoreRecord(key), await db.getCommittedStoreRecord(meta)];
+      const put = IDBObjectStore.prototype.put;
+      let injected = false;
+      IDBObjectStore.prototype.put = function(value, ...args) {
+        if (value?.name === meta) { injected = true; throw new Error('QA injected second-write failure'); }
+        return put.call(this, value, ...args);
+      };
+      let result;
+      try { result = await svc.changeCredential('1357','9753'); }
+      finally { IDBObjectStore.prototype.put = put; }
+      const after = [await db.getCommittedStoreRecord(key), await db.getCommittedStoreRecord(meta)];
+      return {injected, rejected: !result.success, unchanged: JSON.stringify(before) === JSON.stringify(after)};
     });
+    assert.deepEqual(rollback, {injected:true,rejected:true,unchanged:true});
+    console.log('PASS: second-write failure rolls back both credential and metadata.');
+    const race = await Promise.all([a,b].map((page,i) => page.evaluate(async i => {
+      const svc = await import('/src/utils/credentialService.js');
+      return (await svc.changeCredential('1357', i ? '8642' : '9753')).success;
+    },i)));
+    assert.equal(race.filter(Boolean).length,1);
+    const winnerPin = race[0] ? '9753' : '8642';
+    const removed = await b.evaluate(async (winnerPin) => {
+      const creds = await import('/src/utils/credentialService.js');
+      return creds.removeCredential(winnerPin);
+    }, winnerPin);
     assert.equal(removed.success, true);
     const afterRemove = await a.evaluate(async () => {
       const creds = await import('/src/utils/credentialService.js');
