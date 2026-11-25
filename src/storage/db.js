@@ -1024,7 +1024,9 @@ export async function commitCredentialTransition(expectedCredential, expectedSec
           }
           const state = { ...(payload?.state || {}), pin: '', alphanumeric: '',
             hasPin: nextCredential !== null, passcodeType: 'pin', lastModified };
-          if (nextCredential === null) {
+          if (nextCredential !== null) {
+            state.isAppLockActive = true;
+          } else {
             state.isAppLockActive = false;
             state.isLocked = false;
           }
