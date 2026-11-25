@@ -51,6 +51,14 @@ async function testConcurrentBackup(browser) {
     await waitForHydratedOrSafeRetry(a, 'first tab');
     await b.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForHydratedOrSafeRetry(b, 'second tab');
+    // Profile hydration alone is not a barrier for independently persisted
+    // task/notes stores; do not race the app's own cold-start persistence.
+    // Simultaneous cold start is validated in a separate regression.
+    await Promise.all([a, b].map(tab => tab.waitForFunction(
+      () => window.useTaskStore?.persist?.hasHydrated?.() === true &&
+            window.useNotesStore?.persist?.hasHydrated?.() === true,
+      { timeout: 30000 }
+    )));
     const baseline = await a.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       return main.commitRestoreBatch({
