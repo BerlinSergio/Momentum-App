@@ -102,6 +102,19 @@ async function uiConflict(browser, domain) {
   try {
     const a = await context.newPage(), b = await context.newPage();
     await boot(a, domain);
+    // A hydration flag is not a durable bootstrap barrier. Establish the
+    // initial security record before the second tab captures its baseline.
+    // Do not retry or suppress any conflict after a user edit.
+    if (domain === 'security') {
+      await a.waitForFunction(async () => {
+        const db = await import('/src/storage/db.js');
+        const row = await db.getCommittedStoreRecord('momentum-security-storage');
+        return row?.revisionId && row?.value?.state?.hasPin === false &&
+          row.value.state.lockFinance === true;
+      }, { timeout: 30000, polling: 200 });
+      await a.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+      await boot(a, domain, false);
+    }
     await boot(b, domain);
     assert.deepEqual(await record(a, domain), await record(b, domain));
     const winner = domain === 'profile' ? 'QA profile committed 216' : 'first';
