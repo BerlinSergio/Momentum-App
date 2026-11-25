@@ -147,12 +147,12 @@ export function detectLegacyUser() {
   const hasCustomName = Boolean(profile.fullName && profile.fullName.trim().length > 0 && profile.fullName.trim() !== 'User');
   const security = useSecurityStore.getState();
   const hasPin = security.hasPin === true;
-  const hasNavHistory = useNavigationStore.getState().historyStack?.length > 0;
+  // Navigation history is not user data: startup itself creates route entries.
 
   // Migration already imported legitimate legacy records before hydration.
   // Never promote a stale localStorage mirror into an onboarding decision.
   return Boolean(hasNotes || hasTasks || hasRoutines || hasFinance || hasCalendar ||
-    hasDhikr || hasCustomName || hasPin || hasNavHistory);
+    hasDhikr || hasCustomName || hasPin);
 }
 
 /**
