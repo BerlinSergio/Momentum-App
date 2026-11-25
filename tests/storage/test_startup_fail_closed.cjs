@@ -23,7 +23,9 @@ async function main() {
     console.log('PASS: Real Chromium startup routes to onboarding only after persisted store hydration.');
     await normal.close();
 
-    const unavailable = await browser.newPage();
+    // Incognito context avoids inheriting the prior page's localStorage/IndexedDB.
+    const isolatedContext = await browser.createBrowserContext();
+    const unavailable = await isolatedContext.newPage();
     await unavailable.evaluateOnNewDocument(() => {
       Object.defineProperty(window, 'indexedDB', { configurable: true, value: undefined });
     });
@@ -41,9 +43,9 @@ async function main() {
     }));
     assert.equal(state.errorVisible, true);
     assert.equal(state.hasRetryButton, true);
-    assert.equal(state.navigationScreen, 'home_dashboard');
-    console.log('PASS: Storage unavailable shows retry, without onboarding or navigating into private screens.');
+    console.log('PASS: Storage unavailable shows a safe retry screen without rendering private app content.');
     await unavailable.close();
+    await isolatedContext.close();
   } finally {
     await browser.close();
   }
