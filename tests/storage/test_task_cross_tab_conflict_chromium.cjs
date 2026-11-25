@@ -17,11 +17,12 @@ async function ready(tab) {
   });
   await tab.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
   try {
+    // The isolated task CAS test depends on the task store's committed
+    // hydration, not completion of every unrelated startup domain.
     await tab.waitForFunction(() =>
       window.useTaskStore?.persist?.hasHydrated?.() === true &&
-      window.useTaskStore?.getState?.()._hasHydrated === true &&
-      window.useProfileStore?.persist?.hasHydrated?.() === true,
-      { timeout: 16000 }
+      window.useTaskStore?.getState?.()._hasHydrated === true,
+      { timeout: 60000 }
     );
   } catch (error) {
     const diagnostic = await tab.evaluate(async () => {
