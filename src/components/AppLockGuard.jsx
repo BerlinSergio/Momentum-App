@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { authenticateBiometrics } from '../utils/biometricAuth';
 import {
   authenticatePin,
+  completePinUnlock,
   readCommittedLockoutState,
   LOCKOUT_STORAGE_KEY,
 } from '../utils/credentialService';
@@ -68,6 +69,17 @@ export default function AppLockGuard({ children }) {
     if (mounted.current) setIsAuthenticating(false);
   };
 
+  const commitSessionUnlock = (epoch) => {
+    if (!isCurrentAuthentication(epoch)) return false;
+    const latest = useSecurityStore.getState();
+    if (!latest._hasHydrated || !latest.isAppLockActive || !latest.hasPin || !latest.isLocked) return false;
+    setEnteredPin('');
+    setAuthError('');
+    setStoreLocked(false);
+    flushPendingNotificationRoute();
+    return true;
+  };
+
   const unlockAuthenticatedSession = async (epoch) => {
     if (!isCurrentAuthentication(epoch)) return;
     const current = useSecurityStore.getState();
@@ -77,13 +89,8 @@ export default function AppLockGuard({ children }) {
     const currentLockout = await readCommittedLockoutState();
     if (!isCurrentAuthentication(epoch)) return;
     if (currentLockout.isLockedOut) { setLockoutState(currentLockout); return; }
-    const latest = useSecurityStore.getState();
-    if (!latest._hasHydrated || !latest.isAppLockActive || !latest.hasPin || !latest.isLocked) return;
     setLockoutState(currentLockout);
-    setEnteredPin('');
-    setAuthError('');
-    setStoreLocked(false);
-    flushPendingNotificationRoute();
+    commitSessionUnlock(epoch);
   };
 
   useEffect(() => {
@@ -244,7 +251,10 @@ export default function AppLockGuard({ children }) {
           setAuthError(result.error || `Incorrect PIN (${nextLockout.failedAttempts}/5)`);
         }
       } else {
-        await unlockAuthenticatedSession(epoch);
+        const completion = await completePinUnlock(result, () => commitSessionUnlock(epoch));
+        if (!completion.success && isCurrentAuthentication(epoch)) {
+          setAuthError(completion.error || t('lockGuard.authError', 'Authentication error. Enter PIN to unlock.'));
+        }
       }
     } catch {
       if (isCurrentAuthentication(epoch)) {
