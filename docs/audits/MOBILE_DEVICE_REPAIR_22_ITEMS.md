@@ -30,3 +30,21 @@
 ## Release gates
 
 All 22 must be tracked individually through implementation, automated regression and actual handset confirmation. Prior web CI and APK packaging success do not establish native functionality. Security work must preserve atomic PIN/metadata transaction and durable attempt limits. A new APK is required after fixes. Do not close an item merely because a commit exists. Dependency audit remains an independent gate.
+
+## First repair batch — 2026-11-26
+
+Implemented in the draft branch, pending new CI and handset verification:
+- M01: SystemBars native inset handling and safe shell/dock CSS.
+- M02: three date/time picker portals, bounded sheets and numeric time input.
+- M03: persisted prayer inspiration bookmark collection and visible saved list.
+- M05: canonical numeric Hijri month mapping; localization and device date verification remain.
+- M09: await durable finance expense/income writes in both themes; other save/export paths remain open.
+- M11: profile action footer moved after settings; durable saves, no artificial delay.
+- M17: auto-next follows preset order and wraps to first; disabled auto-loop stops at completed target without duplicate history.
+- M18: inert plain-text note card excerpts.
+- M19: viewport portal for New Note button.
+- M21: picker and note archive viewport portals; remaining dialogs need audit.
+
+Added targeted Chromium regression at `tests/mobile/test_mobile_repair_regression.cjs` and wired it into durable-writes CI. It covers picker placement/keyboard, canonical month mapping, and persisted saved inspiration/next-preset behavior. This is not a physical device test.
+
+Still open: M04, M06–M08, M10, M12–M16, M20, M22, plus remaining scope of M09/M21 and device verification of every item. Native biometrics must use authenticated cryptographic proof; a password must have a real versioned verifier and migration, not bypass the PIN. Wallpaper's current simulated download and native media export must be replaced with verified file operations. No user data deletion or merge into Main.
