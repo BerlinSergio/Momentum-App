@@ -66,6 +66,10 @@ jobs:
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
         run: node tests/storage/test_attachment_revision_quota_chromium.cjs
+      - name: Large backup file UI guard in dark and light Chromium themes
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_large_backup_ui_chromium.cjs
       - name: Startup fail-closed Chromium regression
         env:
           MOMENTUM_URL: http://127.0.0.1:5173/
