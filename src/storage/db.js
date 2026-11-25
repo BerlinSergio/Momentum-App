@@ -379,24 +379,21 @@ export async function getAllStoreItems() {
     return map;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.DATA, 'readonly');
-      const store = tx.objectStore(STORES.DATA);
-      const req = store.getAll();
+      const req = tx.objectStore(STORES.DATA).getAll();
       req.onsuccess = () => {
-        const records = req.result || [];
         const result = {};
-        for (const item of records) {
-          if (item && item.name) {
-            result[item.name] = item.value;
-          }
+        for (const item of req.result || []) {
+          if (item && item.name) result[item.name] = item.value;
         }
         resolve(result);
       };
-      req.onerror = () => resolve({});
-    } catch {
-      resolve({});
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Bulk store read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Bulk store read aborted'));
+    } catch (err) {
+      reject(err);
     }
   });
 }
@@ -416,15 +413,15 @@ export async function getAllAttachmentRecords() {
     return list;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.ATTACHMENTS, 'readonly');
-      const store = tx.objectStore(STORES.ATTACHMENTS);
-      const req = store.getAll();
+      const req = tx.objectStore(STORES.ATTACHMENTS).getAll();
       req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
-    } catch {
-      resolve([]);
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Bulk attachment read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Bulk attachment read aborted'));
+    } catch (err) {
+      reject(err);
     }
   });
 }
