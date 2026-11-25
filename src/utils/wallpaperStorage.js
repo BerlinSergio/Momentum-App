@@ -8,6 +8,19 @@ const DB_NAME = 'momentum_wallpaper_db';
 const DB_VERSION = 1;
 const STORE_NAME = 'wallpapers';
 
+// Coordinate ordinary wallpaper UI writes with journaled cross-database
+// restoration across same-origin tabs. The recovery writer uses a separate,
+// non-reentrant internal batch API while already holding this lock.
+async function withWallpaperWriteLock(operation) {
+  const manager = globalThis.navigator?.locks || globalThis.window?.navigator?.locks;
+  if (manager?.request) {
+    return manager.request('momentum-cross-db-restore-v1', { mode: 'exclusive' }, operation);
+  }
+  // Cross-DB restores require Web Locks and refuse to run without them;
+  // existing standalone wallpaper saves may still work without this API.
+  return operation();
+}
+
 function openWallpaperDB() {
   return new Promise((resolve) => {
     if (typeof window === 'undefined' || !window.indexedDB) return resolve(null);
@@ -181,30 +194,34 @@ export async function processImageForStorage(fileOrUrl, maxDimension = 1920, qua
  * Persist wallpaper binary/DataURL to IndexedDB
  */
 export async function saveWallpaperToIndexedDB(id, dataUrl, meta = {}) {
-  try {
-    const db = await openWallpaperDB();
-    if (!db) return false;
-
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const record = {
-        id,
-        dataUrl,
-        meta,
-        updatedAt: Date.now(),
-      };
-      const req = store.put(record);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => {
-        console.warn('Failed to save to IndexedDB:', req.error);
-        resolve(false);
-      };
-    });
-  } catch (e) {
-    console.warn('IndexedDB write exception:', e);
-    return false;
-  }
+  return withWallpaperWriteLock(async () => {
+    let db;
+    try {
+      db = await openWallpaperDB();
+      if (!db) return false;
+      return await new Promise((resolve) => {
+        let tx;
+        try {
+          tx = db.transaction(STORE_NAME, 'readwrite');
+          // A successful put request may still be rolled back by a later
+          // transaction abort. Never signal durable success before oncomplete.
+          tx.oncomplete = () => resolve(true);
+          tx.onabort = () => resolve(false);
+          tx.onerror = () => resolve(false);
+          tx.objectStore(STORE_NAME).put({ id, dataUrl, meta, updatedAt: Date.now() });
+        } catch (err) {
+          console.warn('[Momentum Wallpaper] Save failed:', err);
+          try { tx?.abort(); } catch { /* inactive */ }
+          resolve(false);
+        }
+      });
+    } catch (err) {
+      console.warn('[Momentum Wallpaper] Save unavailable:', err);
+      return false;
+    } finally {
+      db?.close?.();
+    }
+  });
 }
 
 /**
@@ -385,20 +402,32 @@ export async function restoreWallpaperPreimage(before) {
  * Delete a custom wallpaper from IndexedDB
  */
 export async function deleteWallpaperFromIndexedDB(id) {
-  try {
-    const db = await openWallpaperDB();
-    if (!db) return false;
-
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.delete(id);
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => resolve(false);
-    });
-  } catch {
-    return false;
-  }
+  return withWallpaperWriteLock(async () => {
+    let db;
+    try {
+      db = await openWallpaperDB();
+      if (!db) return false;
+      return await new Promise((resolve) => {
+        let tx;
+        try {
+          tx = db.transaction(STORE_NAME, 'readwrite');
+          tx.oncomplete = () => resolve(true);
+          tx.onabort = () => resolve(false);
+          tx.onerror = () => resolve(false);
+          tx.objectStore(STORE_NAME).delete(id);
+        } catch (err) {
+          console.warn('[Momentum Wallpaper] Delete failed:', err);
+          try { tx?.abort(); } catch { /* inactive */ }
+          resolve(false);
+        }
+      });
+    } catch (err) {
+      console.warn('[Momentum Wallpaper] Delete unavailable:', err);
+      return false;
+    } finally {
+      db?.close?.();
+    }
+  });
 }
 
 /**
