@@ -43,14 +43,42 @@ async function change(page, domain, label) {
 }
 
 async function awaitChange(page, domain, label) {
-  await page.waitForFunction(async ({ name, domain, label }) => {
-    const db = await import('/src/storage/db.js');
-    const data = (await db.getStoreItem(name))?.state;
-    if (domain === 'profile') return data?.fullName === label;
-    return label === 'first' ? data?.lockFinance === false
-      : label === 'recovered' ? data?.allowQuickDhikr === false : false;
-  }, { timeout: 30000, polling: 200 },
-  { name: DOMAINS[domain].name, domain, label });
+  try {
+    await page.waitForFunction(async ({ name, domain, label }) => {
+      const db = await import('/src/storage/db.js');
+      const data = (await db.getStoreItem(name))?.state;
+      if (domain === 'profile') return data?.fullName === label;
+      return label === 'first' ? data?.lockFinance === false
+        : label === 'recovered' ? data?.allowQuickDhikr === false : false;
+    }, { timeout: 18000, polling: 200 },
+    { name: DOMAINS[domain].name, domain, label });
+  } catch (error) {
+    const details = await page.evaluate(async ({ domain, key }) => {
+      const db = await import('/src/storage/db.js');
+      const adapter = await import('/src/storage/zustandIndexedDbStorage.js');
+      const current = domain === 'profile' ? window.useProfileStore.getState()
+        : window.useSecurityStore.getState();
+      const stored = await db.getCommittedStoreRecord(key);
+      return {
+        domain,
+        inMemory: domain === 'profile'
+          ? { fullName: current.fullName, hydrated: current._hasHydrated }
+          : { lockFinance: current.lockFinance,
+              lockReflections: current.lockReflections, hydrated: current._hasHydrated },
+        persisted: domain === 'profile'
+          ? { fullName: stored?.value?.state?.fullName, revision: stored?.revisionId }
+          : { lockFinance: stored?.value?.state?.lockFinance,
+              lockReflections: stored?.value?.state?.lockReflections,
+              revision: stored?.revisionId },
+        failure: adapter.getDomainStorageFailure(),
+        alerts: [...document.querySelectorAll('[role="alert"]')]
+          .map(x => x.textContent?.slice(0, 160)),
+      };
+    }, { domain, key: DOMAINS[domain].name })
+      .catch(e => ({ diagnosticFailure: String(e) }));
+    throw new Error('Durable ' + domain + ' edit not committed: ' +
+      JSON.stringify(details), { cause: error });
+  }
 }
 
 async function expectedConflict(page, domain) {
