@@ -768,6 +768,24 @@ async function biometricAssertionIntegrity(browser) {
       if (!registered.success) return {registrationError:registered.error};
       const enrollment = JSON.parse(localStorage.getItem(key));
       const good = await svc.authenticateBiometrics();
+      const metaKey = 'momentum-security-storage';
+      const setEnabled = async enabled => {
+        const before = await db.getCommittedStoreRecord(metaKey);
+        await db.compareAndSwapDomainStore(metaKey,{...before.value,state:{...before.value.state,biometricsEnabled:enabled}},before);
+      };
+      let grants = 0;
+      const grant = () => { grants++; return true; };
+      const disabledReceipt = await svc.completeBiometricUnlock(good,grant);
+      await setEnabled(true);
+      const fresh = await svc.authenticateBiometrics();
+      const first = await svc.completeBiometricUnlock(fresh,grant);
+      const replay = await svc.completeBiometricUnlock(fresh,grant);
+      const forged = await svc.completeBiometricUnlock({...fresh},grant);
+      const beforeDisable = await svc.authenticateBiometrics();
+      await setEnabled(false);
+      const afterDisable = await svc.completeBiometricUnlock(beforeDisable,grant);
+      await setEnabled(true);
+      const receiptChecks = !disabledReceipt.success && first.success && !replay.success && !forged.success && !afterDisable.success;
       const original = navigator.credentials.get.bind(navigator.credentials);
       const tamper = async kind => {
         navigator.credentials.get = async options => {
@@ -802,10 +820,10 @@ async function biometricAssertionIntegrity(browser) {
       // Restore the synthetic record only to test invalidation independently
       // of localStorage cleanup. No real user credentials are used.
       localStorage.setItem(key,JSON.stringify(enrollment));
-      const metaKey = 'momentum-security-storage';
-      const before = await db.getCommittedStoreRecord(metaKey);
-      await db.compareAndSwapDomainStore(metaKey,{...before.value,state:{...before.value.state,biometricsEnabled:true}},before);
+      const beforeRotation = await svc.authenticateBiometrics();
       const rotation = await creds.changeCredential('2468','1357');
+      const staleReceipt = await svc.completeBiometricUnlock(beforeRotation,grant);
+      const rotationReceiptRejected = !staleReceipt.success && grants === 1;
       const oldRejected = !(await svc.authenticateBiometrics()).success;
       const disabled = (await db.getStoreItem(metaKey)).state.biometricsEnabled === false;
       const renewed = await svc.registerBiometrics({currentPin:'1357'});
@@ -815,11 +833,11 @@ async function biometricAssertionIntegrity(browser) {
       const recreated = await creds.createCredential('9753');
       const recreatedRejected = !(await svc.authenticateBiometrics()).success;
       return {legacyRejected:!legacy.success,noPinRejected:!noPin.success,deniedBeforePrompt,registered:registered.success,version:enrollment.version,
-        good:good.success,signature,credential,challenge,uv,revoked,rotation:rotation.success,oldRejected,disabled,
+        good:good.success,receiptChecks,rotationReceiptRejected,signature,credential,challenge,uv,revoked,rotation:rotation.success,oldRejected,disabled,
         renewed:renewed.success,renewedValid,removed:removed.success,removedRejected,recreated:recreated.success,recreatedRejected};
     });
     assert.deepEqual(results,{legacyRejected:true,noPinRejected:true,deniedBeforePrompt:true,registered:true,version:3,good:true,
-      signature:true,credential:true,challenge:true,uv:true,revoked:true,rotation:true,oldRejected:true,disabled:true,
+      receiptChecks:true,rotationReceiptRejected:true,signature:true,credential:true,challenge:true,uv:true,revoked:true,rotation:true,oldRejected:true,disabled:true,
       renewed:true,renewedValid:true,removed:true,removedRejected:true,recreated:true,recreatedRejected:true});
     console.log('PASS: virtual WebAuthn enrollment and signed assertions reject tampering and revocation.');
   } finally { await context.close(); }
