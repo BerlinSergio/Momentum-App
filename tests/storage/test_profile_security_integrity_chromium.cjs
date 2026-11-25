@@ -1,0 +1,242 @@
+/**
+ * Phase 2.16: Profile / Security metadata CAS and credential integrity.
+ * All browser contexts isolated and seeded with synthetic dummy values.
+ * Never logs an actual PIN or cryptographic verifier.
+ */
+const puppeteer = require('puppeteer');
+const assert = require('node:assert/strict');
+const URL = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
+const DOMAINS = {
+  profile: { name: 'momentum-profile-storage', store: 'useProfileStore' },
+  security: { name: 'momentum-security-storage', store: 'useSecurityStore' },
+};
+
+async function boot(page, domain, navigate = true) {
+  if (navigate) await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForFunction(store =>
+    window[store]?.persist?.hasHydrated?.() === true &&
+    window[store]?.getState?.()._hasHydrated === true,
+    { timeout: 45000, polling: 200 }, DOMAINS[domain].store);
+}
+
+async function record(page, domain) {
+  return page.evaluate(async name => {
+    const db = await import('/src/storage/db.js');
+    return db.getCommittedStoreRecord(name);
+  }, DOMAINS[domain].name);
+}
+
+async function change(page, domain, label) {
+  await page.evaluate(({ domain, label }) => {
+    if (domain === 'profile') {
+      window.useProfileStore.getState().updateProfile({
+        fullName: label, onboardingStep: 'completed', setupCompleted: true,
+      });
+    } else if (label === 'first') {
+      window.useSecurityStore.getState().setLockFinance(false);
+    } else if (label === 'stale') {
+      window.useSecurityStore.getState().setLockReflections(false);
+    } else {
+      window.useSecurityStore.getState().setAllowQuickDhikr(false);
+    }
+  }, { domain, label });
+}
+
+async function awaitChange(page, domain, label) {
+  await page.waitForFunction(async ({ name, domain, label }) => {
+    const db = await import('/src/storage/db.js');
+    const data = (await db.getStoreItem(name))?.state;
+    if (domain === 'profile') return data?.fullName === label;
+    return label === 'first' ? data?.lockFinance === false
+      : label === 'recovered' ? data?.allowQuickDhikr === false : false;
+  }, { timeout: 30000, polling: 200 },
+  { name: DOMAINS[domain].name, domain, label });
+}
+
+async function expectedConflict(page, domain) {
+  await page.waitForSelector('[data-testid="domain-storage-conflict"]', { timeout: 30000 });
+  const warning = await page.evaluate(async () => {
+    const adapter = await import('/src/storage/zustandIndexedDbStorage.js');
+    return {
+      failure: adapter.getDomainStorageFailure(),
+      text: document.querySelector('[data-testid="domain-storage-conflict"]')?.textContent || '',
+    };
+  });
+  assert.equal(warning.failure?.domain, DOMAINS[domain].name);
+  assert.equal(warning.failure?.code, 'DOMAIN_WRITE_CONFLICT');
+  assert.match(warning.text, /your latest edit.*not saved/i);
+  assert.match(warning.text,
+    domain === 'profile' ? /Profile changes/i : /Security settings/i);
+}
+
+async function uiConflict(browser, domain) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage(), b = await context.newPage();
+    await boot(a, domain);
+    await boot(b, domain);
+    assert.deepEqual(await record(a, domain), await record(b, domain));
+    const winner = domain === 'profile' ? 'QA profile committed 216' : 'first';
+    await change(a, domain, winner);
+    await awaitChange(a, domain, winner);
+    const saved = await record(a, domain);
+    await change(b, domain, domain === 'profile' ? 'QA profile stale 216' : 'stale');
+    await expectedConflict(b, domain);
+    assert.deepEqual(await record(a, domain), saved);
+    console.log('PASS: ' + domain + ' stale tab rejected without overwriting durable records.');
+
+    // A forged mirror must not cause a resurrected onboarding profile or
+    // bypass the active PIN metadata on reload.
+    await b.evaluate(({ domain, key }) => {
+      const state = domain === 'profile'
+        ? { fullName: 'QA PHANTOM PROFILE', setupCompleted: false }
+        : { hasPin: true, isAppLockActive: true, pin: '0000' };
+      localStorage.setItem(key, JSON.stringify({ state, version: 0 }));
+    }, { domain, key: DOMAINS[domain].name });
+    await b.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await boot(b, domain, false);
+    const actual = await b.evaluate(domain => domain === 'profile'
+      ? {
+          phantom: window.useProfileStore.getState().fullName === 'QA PHANTOM PROFILE',
+          current: window.useProfileStore.getState().fullName,
+        }
+      : {
+          phantom: window.useSecurityStore.getState().hasPin === true,
+          pin: window.useSecurityStore.getState().pin,
+        }, domain);
+    if (domain === 'profile') {
+      assert.deepEqual(actual, { phantom: false, current: winner });
+    } else {
+      assert.deepEqual(actual, { phantom: false, pin: '' });
+    }
+    assert.equal(await b.$('[data-testid="domain-storage-conflict"]'), null);
+    await change(b, domain, domain === 'profile' ? 'QA profile recovered 216' : 'recovered');
+    await awaitChange(b, domain, domain === 'profile' ? 'QA profile recovered 216' : 'recovered');
+    console.log('PASS: ' + domain + ' reload ignored injected mirror and accepted fresh CAS edit.');
+  } finally { await context.close(); }
+}
+
+async function casStress(browser, domain, rounds = 20) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage(), b = await context.newPage();
+    await boot(a, domain);
+    await boot(b, domain);
+    const key = DOMAINS[domain].name;
+    for (let i = 0; i < rounds; i++) {
+      const before = await record(a, domain);
+      await Promise.all([a,b].map(page => page.evaluate(async key => {
+        const db = await import('/src/storage/db.js');
+        window.__qa216Baseline = await db.getCommittedStoreRecord(key);
+      }, key)));
+      const outcome = await Promise.all([a,b].map((page,index) => page.evaluate(
+        async ({ key, label }) => {
+          const db = await import('/src/storage/db.js');
+          const previous = window.__qa216Baseline;
+          const body = previous?.value || { state: {}, version: 0 };
+          const state = { ...body.state };
+          if (key === 'momentum-profile-storage') state.fullName = label;
+          else state.lastModified = label; // Synthetic metadata, never PIN.
+          try {
+            await db.compareAndSwapDomainStore(key, { ...body, state }, previous);
+            return 'saved';
+          } catch (error) { return error.code || 'unexpected-error'; }
+        }, { key, label: 'qa216-' + domain + '-round-' + i + '-' + index })));
+      assert.deepEqual(outcome.sort(), ['DOMAIN_WRITE_CONFLICT','saved']);
+      const after = await record(a, domain);
+      assert.notEqual(after?.revisionId, before?.revisionId);
+      const winner = domain === 'profile' ? after?.value?.state?.fullName
+        : after?.value?.state?.lastModified;
+      assert.match(winner, new RegExp('^qa216-' + domain + '-round-' + i + '-[01]$'));
+    }
+    console.log('PASS: ' + domain + ' ' + rounds +
+      ' simultaneous two-tab revision races; exactly one committed.');
+  } finally { await context.close(); }
+}
+
+async function credentialIntegrity(browser) {
+  const context = await browser.createBrowserContext();
+  try {
+    const a = await context.newPage(), b = await context.newPage();
+    await boot(a, 'security');
+    await boot(b, 'security');
+    const invalid = await a.evaluate(() => window.useSecurityStore.getState().setPin('12'));
+    assert.equal(invalid.success, false);
+    assert.equal((await record(a, 'security'))?.value?.state?.hasPin, undefined,
+      'Invalid PIN must not set hasPin or persist secrets');
+    const initial = await a.evaluate(() => window.useSecurityStore.getState().setPin('2468'));
+    assert.equal(initial.success, true);
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      const security = await db.getStoreItem('momentum-security-storage');
+      return security?.state?.hasPin === true;
+    }, { timeout: 30000, polling: 200 });
+    const securityRecord = await record(a, 'security');
+    assert.equal(securityRecord.value.state.pin, '');
+    assert.equal(securityRecord.value.state.alphanumeric, '');
+    assert.doesNotMatch(JSON.stringify(securityRecord.value), /2468/);
+    const lockedBefore = await a.evaluate(() => {
+      window.useSecurityStore.getState().setAppLockActive(true);
+      return window.useSecurityStore.getState().isAppLockActive;
+    });
+    assert.equal(lockedBefore, true);
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      return (await db.getStoreItem('momentum-security-storage'))?.state?.isAppLockActive === true;
+    }, { timeout: 30000, polling: 200 });
+    await a.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await boot(a, 'security', false);
+    const reloaded = await a.evaluate(() => {
+      const s = window.useSecurityStore.getState();
+      return { active: s.isAppLockActive, hasPin: s.hasPin, locked: s.isLocked, pin: s.pin };
+    });
+    assert.deepEqual(reloaded, { active: true, hasPin: true, locked: true, pin: '' });
+    console.log('PASS: Reloaded active PIN app-lock is locked; no plaintext PIN in store.');
+
+    const disallowed = await b.evaluate(() => window.useSecurityStore.getState().changePin('1357'));
+    assert.equal(disallowed.success, false);
+    const rotated = await b.evaluate(async () => {
+      const creds = await import('/src/utils/credentialService.js');
+      return creds.changeCredential('2468', '1357');
+    });
+    assert.equal(rotated.success, true);
+    // Tab A may have previously read the first verifier; every verification
+    // must now read the latest committed verifier from IndexedDB.
+    const verification = await a.evaluate(async () => {
+      const creds = await import('/src/utils/credentialService.js');
+      const old = await creds.verifyCredential('2468');
+      const next = await creds.verifyCredential('1357');
+      return { old: old.success, next: next.success };
+    });
+    assert.deepEqual(verification, { old: false, next: true });
+    const removed = await b.evaluate(async () => {
+      const creds = await import('/src/utils/credentialService.js');
+      return creds.removeCredential();
+    });
+    assert.equal(removed.success, true);
+    const afterRemove = await a.evaluate(async () => {
+      const creds = await import('/src/utils/credentialService.js');
+      return { configured: await creds.hasCredential(),
+        stillValid: (await creds.verifyCredential('1357')).success };
+    });
+    assert.deepEqual(afterRemove, { configured: false, stillValid: false });
+    console.log('PASS: Cross-tab PIN rotation and committed deletion revoke old verifier; no cache fallback.');
+  } finally { await context.close(); }
+}
+
+async function main() {
+  const browser = await puppeteer.launch({
+    headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  try {
+    await uiConflict(browser, 'profile');
+    await uiConflict(browser, 'security');
+    await casStress(browser, 'profile');
+    await casStress(browser, 'security');
+    await credentialIntegrity(browser);
+  } finally { await browser.close(); }
+}
+main().catch(err => {
+  console.error('FAIL: Phase 2.16 profile/security/credential regression:', err);
+  process.exitCode = 1;
+});
