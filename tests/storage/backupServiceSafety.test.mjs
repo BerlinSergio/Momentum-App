@@ -207,6 +207,7 @@ test('one committed main-database restore includes both domain and binary attach
     const result = await restoreBackup(envelope, passphrase);
     assert.equal(result.success, true);
     assert.deepEqual(fixture.records.get(STORE).value.state.tasks.map(t => t.id), ['restored-task']);
+    assert.ok(fixture.attachments.has('restored-file'), 'attachment keys after successful transaction: ' + JSON.stringify([...fixture.attachments.keys()]));
     assert.equal(fixture.attachments.get('restored-file').blob.size, 5);
     assert.equal(JSON.parse(fixture.localWrites.get(STORE)).state.tasks[0].id, 'restored-task');
   }, () => fixture.db.onclose?.());
