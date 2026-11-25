@@ -17,6 +17,7 @@ import { runStorageMigration } from '../storage/index.js';
 import { migrateLegacyPin } from './credentialService.js';
 import { openAppDB } from '../storage/db.js';
 import { coordinateHydration } from './hydrationCoordinator.js';
+import { recoverInterruptedRestore } from './crossDatabaseRestore.js';
 
 /**
  * Momentum Central Startup & Onboarding Controller
@@ -65,6 +66,10 @@ export async function hydrateAllStores(timeoutMs = 12000) {
       if (!(await openAppDB())) {
         throw new Error('[Momentum Startup] IndexedDB is unavailable; your data is not safely loaded');
       }
+
+      // A crash between wallpaper and main-DB commits leaves a durable
+      // recovery journal. Reconcile that journal BEFORE hydrating user stores.
+      await recoverInterruptedRestore();
 
       // Migration is the single authoritative legacy import path.
       const migration = await runStorageMigration();
