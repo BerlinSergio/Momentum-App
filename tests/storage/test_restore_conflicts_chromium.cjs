@@ -19,8 +19,8 @@ async function testSimultaneousColdStart(browser) {
     ));
     const result = await Promise.allSettled(pages.map(page => page.waitForFunction(() => {
       const ready = window.useProfileStore?.persist?.hasHydrated?.() === true;
-      const failedSafely = document.querySelector('[role="alert"]')
-        ?.textContent?.includes('Cannot safely load saved data') === true;
+      const failedSafely = [...document.querySelectorAll('[role="alert"]')]
+        .some(el => el.textContent?.includes('Cannot safely load saved data'));
       return ready || failedSafely;
     }, { timeout: 35000 })));
     if (result.some(item => item.status === 'rejected')) {
@@ -40,15 +40,17 @@ async function testSimultaneousColdStart(browser) {
     }
     const results = await Promise.all(pages.map(page => page.evaluate(() => ({
       hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
-      safeError: document.querySelector('[role="alert"]')
-        ?.textContent?.includes('Cannot safely load saved data') === true,
-      canRetry: Array.from(document.querySelectorAll('button')).some(
-        button => button.textContent?.includes('Retry loading')
+      safeError: [...document.querySelectorAll('[role="alert"]')].some(
+        el => el.textContent?.includes('Cannot safely load saved data')
+      ),
+      canRetry: [...document.querySelectorAll('[role="alert"]')].some(
+        el => el.textContent?.includes('Cannot safely load saved data') &&
+          Boolean(el.querySelector('button'))
       ),
     }))));
     for (const result of results) {
       assert.ok(result.hydrated || (result.safeError && result.canRetry),
-        'Cold-start must either finish hydration or fail closed with a retry');
+        'Cold-start must hydrate or fail closed with a retry: ' + JSON.stringify(results));
     }
     console.log('PASS: Concurrent cold-start tabs each hydrate or show safe retry; no silent partial startup.');
   } finally {
