@@ -24,7 +24,7 @@ async function loadReady(page, label) {
         const error = [...document.querySelectorAll('[role="alert"]')]
           .some(el => el.textContent?.includes('Cannot safely load saved data'));
         return hydrated || error;
-      }, { timeout: 18000 });
+      }, { polling: 100, timeout: 18000 });
     } catch (error) {
       const snapshot = await page.evaluate(() => ({
         taskStore: Boolean(window.useTaskStore),
@@ -62,7 +62,7 @@ async function waitForDurableTask(page, id) {
     const { getCommittedStoreValue } = await import('/src/storage/db.js');
     const snapshot = await getCommittedStoreValue('momentum-task-storage');
     return snapshot?.state?.tasks?.some(task => task.id === taskId);
-  }, { timeout: 15000 }, id);
+  }, { polling: 100, timeout: 15000 }, id);
 }
 
 async function main() {
@@ -115,7 +115,7 @@ async function main() {
       window.__momentumStorageConflict === 'momentum-task-storage' &&
       [...document.querySelectorAll('[role="alert"]')].some(el =>
         el.textContent?.includes('Another Momentum tab has newer saved data')),
-      { timeout: 15000 }
+      { polling: 100, timeout: 15000 }
     );
     const recordsAfterConflict = await readTasks(a);
     assert.ok(recordsAfterConflict.some(task => task.id === firstId));
@@ -139,7 +139,7 @@ async function main() {
     await b.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
     await b.waitForFunction(() =>
       window.useTaskStore?.persist?.hasHydrated?.() === true,
-      { timeout: 30000 }
+      { polling: 100, timeout: 30000 }
     );
     const bTasks = await b.evaluate(() => window.useTaskStore.getState().tasks.map(x => x.id));
     assert.ok(bTasks.includes(firstId));
