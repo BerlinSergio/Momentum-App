@@ -228,46 +228,60 @@ export async function saveWallpaperToIndexedDB(id, dataUrl, meta = {}) {
  * Retrieve wallpaper from IndexedDB by id
  */
 export async function getWallpaperFromIndexedDB(id) {
-  try {
-    const db = await openWallpaperDB();
-    if (!db) return null;
-
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(id);
-      req.onsuccess = () => {
-        resolve(req.result || null);
-      };
-      req.onerror = () => {
-        console.warn('Failed to read from IndexedDB:', req.error);
-        resolve(null);
-      };
-    });
-  } catch (e) {
-    console.warn('IndexedDB read exception:', e);
-    return null;
-  }
+  return withWallpaperWriteLock(async () => {
+    let db;
+    try {
+      db = await openWallpaperDB();
+      if (!db) return null;
+      return await new Promise((resolve) => {
+        let tx;
+        let record = null;
+        try {
+          tx = db.transaction(STORE_NAME, 'readonly');
+          const request = tx.objectStore(STORE_NAME).get(id);
+          request.onsuccess = () => { record = request.result || null; };
+          request.onerror = () => resolve(null);
+          tx.onabort = () => resolve(null);
+          tx.oncomplete = () => resolve(record);
+        } catch (error) {
+          console.warn('[Momentum Wallpaper] Read failed:', error);
+          resolve(null);
+        }
+      });
+    } finally {
+      db?.close?.();
+    }
+  });
 }
 
 /**
  * Retrieve all custom wallpapers from IndexedDB
  */
 export async function getAllCustomWallpapersFromIndexedDB() {
-  try {
-    const db = await openWallpaperDB();
-    if (!db) return [];
-
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
-    });
-  } catch {
-    return [];
-  }
+  return withWallpaperWriteLock(async () => {
+    let db;
+    try {
+      db = await openWallpaperDB();
+      if (!db) return [];
+      return await new Promise((resolve) => {
+        let tx;
+        let records = [];
+        try {
+          tx = db.transaction(STORE_NAME, 'readonly');
+          const request = tx.objectStore(STORE_NAME).getAll();
+          request.onsuccess = () => { records = request.result || []; };
+          request.onerror = () => resolve([]);
+          tx.onabort = () => resolve([]);
+          tx.oncomplete = () => resolve(records);
+        } catch (error) {
+          console.warn('[Momentum Wallpaper] Bulk read failed:', error);
+          resolve([]);
+        }
+      });
+    } finally {
+      db?.close?.();
+    }
+  });
 }
 
 /**
