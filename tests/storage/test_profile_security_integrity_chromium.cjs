@@ -196,6 +196,21 @@ async function credentialIntegrity(browser) {
     const a = await context.newPage(), b = await context.newPage();
     await boot(a, 'security');
     await boot(b, 'security');
+    // Hydrated is not the same as a pending initial default-state write
+    // having committed. Two concurrently opened new tabs may still be
+    // completing the idempotent default bootstrap. Finish that bootstrap
+    // and refresh both authoritative baselines before PIN setup.
+    await a.waitForFunction(async () => {
+      const db = await import('/src/storage/db.js');
+      const row = await db.getCommittedStoreRecord('momentum-security-storage');
+      return row?.revisionId && row?.value?.state?.hasPin === false;
+    }, { timeout: 30000, polling: 200 });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await a.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await boot(a, 'security', false);
+    await b.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await boot(b, 'security', false);
+    assert.deepEqual(await record(a, 'security'), await record(b, 'security'));
     const invalid = await a.evaluate(() => window.useSecurityStore.getState().setPin('12'));
     assert.equal(invalid.success, false);
     assert.notEqual((await record(a, 'security'))?.value?.state?.hasPin, true,
