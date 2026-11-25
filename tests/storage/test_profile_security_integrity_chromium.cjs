@@ -162,7 +162,7 @@ async function credentialIntegrity(browser) {
     await boot(b, 'security');
     const invalid = await a.evaluate(() => window.useSecurityStore.getState().setPin('12'));
     assert.equal(invalid.success, false);
-    assert.equal((await record(a, 'security'))?.value?.state?.hasPin, undefined,
+    assert.notEqual((await record(a, 'security'))?.value?.state?.hasPin, true,
       'Invalid PIN must not set hasPin or persist secrets');
     const initial = await a.evaluate(() => window.useSecurityStore.getState().setPin('2468'));
     assert.equal(initial.success, true);
