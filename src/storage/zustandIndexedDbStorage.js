@@ -14,6 +14,8 @@ const NOTES_STORE = 'momentum-notes-storage';
 const FINANCE_STORE = 'momentum-finance-storage';
 const CALENDAR_STORE = 'momentum-calendar-storage-v1';
 const TASBEEH_STORE = 'momentum-tasbeeh-storage';
+const ROUTINE_STORE = 'momentum-routine-storage';
+const PRAYER_STORE = 'momentum-prayer-storage';
 const guardedFailures = new Map();
 
 /** Retained in this tab until reload, never stored in localStorage. */
@@ -108,6 +110,29 @@ export function createIndexedDbStorage(options = {}) {
       delete state.activeAttachmentId;
       if (!Array.isArray(state.notes)) state.notes = [];
       if (state.reflectionStreak === undefined) state.reflectionStreak = 0;
+    }
+    if (name === ROUTINE_STORE) {
+      // Daily rollover recomputes these per-day summaries from dated
+      // completion records. They are NOT independent user edits, and must
+      // never bump an IDB revision merely because a second tab gains focus.
+      const routines = Array.isArray(state.routines) ? state.routines : [];
+      return {
+        baseStreak: typeof state.baseStreak === 'number' ? state.baseStreak : 0,
+        routines: routines.map((routine) => {
+          const persisted = { ...routine };
+          delete persisted.completed;
+          delete persisted.streak;
+          return persisted;
+        }),
+      };
+    }
+    if (name === PRAYER_STORE) {
+      // Scheduling cursor, countdown status and punctuality percentage are
+      // derived from time and explicit prayerLogs. Persist worship logs and
+      // preference changes; advancing the display alone is not an edit.
+      delete state.prayers;
+      delete state.punctualPercentage;
+      if (!Array.isArray(state.prayerLogs)) state.prayerLogs = [];
     }
     if (name === CALENDAR_STORE && !Array.isArray(state.events)) {
       state.events = [];
