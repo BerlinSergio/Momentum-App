@@ -21,7 +21,7 @@ import {
   commitRestoreBatch,
 } from '../storage/db.js';
 
-import { getAllCustomWallpapersFromIndexedDB } from './wallpaperStorage.js';
+import { getAllCustomWallpapersForBackup } from './wallpaperStorage.js';
 
 // Specific store keys containing durable user data
 export const SUPPORTED_BACKUP_STORES = [
@@ -164,7 +164,9 @@ export async function createBackupPackage(passphrase, options = {}) {
   const attachmentChecksums = {};
 
   for (const att of rawAttachments) {
-    if (!att || !att.id) continue;
+    if (!att || !att.id) {
+      throw new Error('Backup aborted: an attachment record is missing its id');
+    }
     try {
       let base64Bytes = '';
       let sha256 = '';
@@ -176,6 +178,10 @@ export async function createBackupPackage(passphrase, options = {}) {
         const rawBlob = base64ToBlob(att.blob.split(',')[1], att.mimeType);
         base64Bytes = att.blob.split(',')[1];
         sha256 = await computeSha256(rawBlob);
+      }
+
+      if (!base64Bytes) {
+        throw new Error(`Attachment ${att.id} has no readable binary data`);
       }
 
       if (base64Bytes) {
@@ -208,7 +214,7 @@ export async function createBackupPackage(passphrase, options = {}) {
   onProgress({ stage: 'COLLECTING_WALLPAPERS', percent: 65, message: 'Packaging custom media...' });
 
   // 3. Collect custom wallpapers
-  const rawWallpapers = await getAllCustomWallpapersFromIndexedDB();
+  const rawWallpapers = await getAllCustomWallpapersForBackup();
   const customWallpapers = (rawWallpapers || []).map((w) => ({
     id: w.id,
     dataUrl: w.dataUrl,
