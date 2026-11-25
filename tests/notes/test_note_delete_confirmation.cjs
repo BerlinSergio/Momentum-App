@@ -49,10 +49,20 @@ async function main() {
   try {
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true });
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForFunction(
-      () => Boolean(window.useNotesStore && window.useNavigationStore && window.useConfirmStore && window.setIsAppLoading),
-      { timeout: 30000 }
-    );
+    // Phase 2.16: Profile and Security use fail-closed guarded writes.
+    // Never mutate app stores merely because development globals exist:
+    // migration, crash recovery and every protected store must hydrate
+    // before a QA user completes onboarding/unlocks the app.
+    await page.waitForFunction(() =>
+      Boolean(window.useNotesStore && window.useNavigationStore &&
+        window.useConfirmStore && window.setIsAppLoading) &&
+      window.useProfileStore?.persist?.hasHydrated?.() === true &&
+      window.useProfileStore?.getState?.()._hasHydrated === true &&
+      window.useSecurityStore?.persist?.hasHydrated?.() === true &&
+      window.useSecurityStore?.getState?.()._hasHydrated === true &&
+      window.useNotesStore?.persist?.hasHydrated?.() === true &&
+      window.useNotesStore?.getState?.()._hasHydrated === true,
+      { timeout: 45000, polling: 200 });
     await page.evaluate(() => {
       const profile = window.useProfileStore?.getState();
       profile?.completeSetup?.();
@@ -338,10 +348,12 @@ async function main() {
       // Hard page reload to test IndexedDB persistence across sessions
       step = 'e2e:hard-reload-check';
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(
-        () => Boolean(window.useNotesStore && window.useNavigationStore && window.setIsAppLoading),
-        { timeout: 30000 }
-      );
+      await page.waitForFunction(() =>
+        Boolean(window.useNotesStore && window.useNavigationStore && window.setIsAppLoading) &&
+        window.useProfileStore?.getState?.()._hasHydrated === true &&
+        window.useSecurityStore?.getState?.()._hasHydrated === true &&
+        window.useNotesStore?.getState?.()._hasHydrated === true,
+        { timeout: 45000, polling: 200 });
       await page.evaluate(() => {
         window.setIsAppLoading(false);
         window.useNavigationStore.getState().setActiveTab('notes_main');
