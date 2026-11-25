@@ -724,10 +724,12 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     saveInFlight.current=true;
     setIsSavingNote(true);
     try {
-    const finalAttachments = [];
-    if (imageAttachment) {
-      finalAttachments.push(imageAttachment);
-    }
+    // The editor displays one primary image. Preserve every other attachment
+    // rather than deleting documents/audio/secondary images on a text save.
+    const originalAttachments = existingNote?.attachments || [];
+    const originalPrimary = originalAttachments.find(a=>a.type==='image' && a.url);
+    const finalAttachments = originalAttachments.filter(a=>!originalPrimary || a.id!==originalPrimary.id);
+    if (imageAttachment && !finalAttachments.some(a=>a.id===imageAttachment.id)) finalAttachments.unshift(imageAttachment);
 
     const notePayload = {
       title: title.trim() || 'Untitled Quick Note',
