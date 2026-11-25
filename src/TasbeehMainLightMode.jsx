@@ -1,3 +1,4 @@
+import { useTasbeehVolumeKeys } from './hooks/useTasbeehVolumeKeys.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useEffect } from 'react';
@@ -41,19 +42,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
   const todayTotal = computeTodayTotal(historyLogs, currentCount);
   const goalPercentage = Math.min(100, Math.round((todayTotal / goal) * 100));
 
-  // Volume Keys for Counting
-  useEffect(() => {
-    if (!volumeKeysEnabled && !volumeKeys) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'AudioVolumeUp' || e.code === 'AudioVolumeUp' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        increment();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [volumeKeysEnabled, volumeKeys, increment]);
+  useTasbeehVolumeKeys(volumeKeysEnabled ?? volumeKeys ?? false);
 
   // Keep Screen Awake during Dhikr
   useEffect(() => {
