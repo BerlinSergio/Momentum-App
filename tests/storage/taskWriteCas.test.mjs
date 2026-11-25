@@ -99,9 +99,15 @@ async function withBrowser(browser, fn) {
   }
 }
 const value = id => JSON.stringify({ state: { tasks: [{ id }] }, version: 0 });
+// The production DB module caches one connection per process. Reuse the same
+// synthetic browser connection across tests and reset only its contents.
+const sharedFixture = fakeBrowser();
 
 test('separate tabs hydrate the same durable task snapshot; stale second write is rejected', async () => {
-  const { browser, rows, events } = fakeBrowser();
+  const { browser, rows, events } = sharedFixture;
+  rows.clear();
+  events.length = 0;
+  delete browser.__momentumStorageConflict;
   await withBrowser(browser, async () => {
     const a = createIndexedDbStorage({ preventConcurrentWrites: true });
     const b = createIndexedDbStorage({ preventConcurrentWrites: true });
@@ -127,7 +133,9 @@ test('separate tabs hydrate the same durable task snapshot; stale second write i
 });
 
 test('identical already-durable task values are safe no-ops across tabs', async () => {
-  const { browser, rows } = fakeBrowser();
+  const { browser, rows } = sharedFixture;
+  rows.clear();
+  delete browser.__momentumStorageConflict;
   await withBrowser(browser, async () => {
     const a = createIndexedDbStorage({ preventConcurrentWrites: true });
     const b = createIndexedDbStorage({ preventConcurrentWrites: true });
@@ -142,7 +150,9 @@ test('identical already-durable task values are safe no-ops across tabs', async 
 });
 
 test('guarded task store refuses an edit before authoritative hydration', async () => {
-  const { browser, rows } = fakeBrowser();
+  const { browser, rows } = sharedFixture;
+  rows.clear();
+  delete browser.__momentumStorageConflict;
   await withBrowser(browser, async () => {
     const guarded = createIndexedDbStorage({ preventConcurrentWrites: true });
     await assert.rejects(guarded.setItem(TASK, value('unhydrated')), /not finished authoritative hydration/);
