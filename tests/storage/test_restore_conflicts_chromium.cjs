@@ -18,7 +18,8 @@ async function testSimultaneousColdStart(browser) {
       page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })
     ));
     const result = await Promise.allSettled(pages.map(page => page.waitForFunction(() => {
-      const ready = window.useProfileStore?.persist?.hasHydrated?.() === true;
+      const ready = window.useProfileStore?.persist?.hasHydrated?.() === true &&
+        window.useTaskStore?.persist?.hasHydrated?.() === true;
       const failedSafely = [...document.querySelectorAll('[role="alert"]')]
         .some(el => el.textContent?.includes('Cannot safely load saved data'));
       return ready || failedSafely;
@@ -39,7 +40,8 @@ async function testSimultaneousColdStart(browser) {
       throw new Error('Simultaneous cold-start did not finish safely: ' + JSON.stringify(diagnostic));
     }
     const results = await Promise.all(pages.map(page => page.evaluate(() => ({
-      hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true,
+      hydrated: window.useProfileStore?.persist?.hasHydrated?.() === true &&
+        window.useTaskStore?.persist?.hasHydrated?.() === true,
       safeError: [...document.querySelectorAll('[role="alert"]')].some(
         el => el.textContent?.includes('Cannot safely load saved data')
       ),
