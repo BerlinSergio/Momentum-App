@@ -23,17 +23,43 @@ async function withWindow(fakeWindow, work, cleanup = () => {}) {
   }
 }
 
-function fakeDatabase({ abortWrites = false } = {}) {
+function fakeDatabase({ abortWrites = false, abortOnAttachment = false } = {}) {
   const records = new Map();
   const attachments = new Map();
   const wallpapers = new Map();
+  const localWrites = new Map();
   const db = {
     close() {},
-    transaction(storeName) {
-      const table = storeName === 'stores' ? records : storeName === 'attachments' ? attachments : wallpapers;
+    transaction(storeNames) {
+      const targets = Array.isArray(storeNames) ? storeNames : [storeNames];
+      const tables = { stores: records, attachments, wallpapers };
+      const pending = [];
+      let scheduled = false;
       const tx = {
         oncomplete: null, onabort: null, onerror: null,
-        objectStore() {
+        abort() { this.onabort?.({ target: this }); },
+        objectStore(name) {
+          if (!targets.includes(name)) throw new Error('Store not in transaction');
+          const table = tables[name];
+          if (!table) throw new Error('Unknown store ' + name);
+          function scheduleCompletion() {
+            if (scheduled) return;
+            scheduled = true;
+            queueMicrotask(() => {
+              if ((abortWrites && targets.includes('stores')) ||
+                  (abortOnAttachment && pending.some(op => op.store === 'attachments'))) {
+                for (const op of pending) op.request.onsuccess?.({ target: op.request });
+                tx.onabort?.({ target: tx });
+                return;
+              }
+              for (const op of pending) {
+                if (op.type === 'put') tables[op.store].set(op.key, structuredClone(op.value));
+                else tables[op.store].delete(op.key);
+                op.request.onsuccess?.({ target: op.request });
+              }
+              tx.oncomplete?.({ target: tx });
+            });
+          }
           return {
             getAll() {
               const req = { result: null, onsuccess: null, onerror: null };
@@ -45,25 +71,14 @@ function fakeDatabase({ abortWrites = false } = {}) {
             },
             put(record) {
               const req = { onsuccess: null, onerror: null };
-              queueMicrotask(() => {
-                if (abortWrites && storeName === 'stores') {
-                  req.onsuccess?.({ target: req });
-                  tx.onabort?.({ target: tx });
-                  return;
-                }
-                table.set(record.name ?? record.id, structuredClone(record));
-                req.onsuccess?.({ target: req });
-                tx.oncomplete?.({ target: tx });
-              });
+              pending.push({ type: 'put', store: name, key: record.name ?? record.id, value: record, request: req });
+              scheduleCompletion();
               return req;
             },
             delete(key) {
               const req = { onsuccess: null, onerror: null };
-              queueMicrotask(() => {
-                table.delete(key);
-                req.onsuccess?.({ target: req });
-                tx.oncomplete?.({ target: tx });
-              });
+              pending.push({ type: 'delete', store: name, key, request: req });
+              scheduleCompletion();
               return req;
             },
           };
@@ -74,9 +89,9 @@ function fakeDatabase({ abortWrites = false } = {}) {
   };
   const fakeWindow = {
     localStorage: {
-      getItem: () => JSON.stringify({ state: { tasks: [{ id: 'stale-mirror' }] }, version: 0 }),
-      setItem() {},
-      removeItem() {},
+      getItem: key => localWrites.get(key) ?? JSON.stringify({ state: { tasks: [{ id: 'stale-mirror' }] }, version: 0 }),
+      setItem: (key, value) => localWrites.set(key, value),
+      removeItem: key => localWrites.delete(key),
     },
     indexedDB: {
       open() {
@@ -86,7 +101,7 @@ function fakeDatabase({ abortWrites = false } = {}) {
       },
     },
   };
-  return { db, fakeWindow, records, attachments };
+  return { db, fakeWindow, records, attachments, localWrites };
 }
 
 test('backup refuses an unavailable IndexedDB rather than exporting a stale mirror', async () => {
@@ -120,7 +135,7 @@ test('restore aborts on a failed durable transaction and leaves no new record be
   await withWindow(fixture.fakeWindow, async () => {
     await assert.rejects(
       restoreBackup(envelope, passphrase, { mode: 'merge' }),
-      /durable save failed/
+      /atomic IndexedDB transaction failed/
     );
     assert.equal(fixture.records.has(STORE), false);
   }, () => fixture.db.onclose?.());
@@ -170,5 +185,66 @@ test('repeated synthetic merge restore does not duplicate tasks', async () => {
     assert.equal(second.success, true);
     const stored = fixture.records.get(STORE)?.value;
     assert.deepEqual(stored?.state?.tasks?.map(task => task.id), ['qa-task-1']);
+  }, () => fixture.db.onclose?.());
+});
+
+test('one committed main-database restore includes both domain and binary attachment', async () => {
+  const fixture = fakeDatabase();
+  const envelope = await encryptBackupPayload(JSON.stringify({
+    manifest: { version: 1 },
+    domains: { [STORE]: { state: { tasks: [{ id: 'restored-task' }] }, version: 0 } },
+    attachments: [{
+      id: 'restored-file', noteId: 'qa-note', mimeType: 'text/plain',
+      base64Bytes: 'aGVsbG8=', sha256: await (async () => {
+        const { computeSha256 } = await import('../../src/utils/backupCrypto.js');
+        return computeSha256(new TextEncoder().encode('hello'));
+      })(),
+    }],
+    customWallpapers: [],
+  }), passphrase);
+
+  await withWindow(fixture.fakeWindow, async () => {
+    const result = await restoreBackup(envelope, passphrase);
+    assert.equal(result.success, true);
+    assert.deepEqual(fixture.records.get(STORE).value.state.tasks.map(t => t.id), ['restored-task']);
+    assert.equal(fixture.attachments.get('restored-file').blob.size, 5);
+    assert.equal(JSON.parse(fixture.localWrites.get(STORE)).state.tasks[0].id, 'restored-task');
+  }, () => fixture.db.onclose?.());
+});
+
+test('attachment transaction abort preserves prior domain and attachment data', async () => {
+  const fixture = fakeDatabase({ abortOnAttachment: true });
+  fixture.records.set(STORE, { name: STORE, value: { state: { tasks: [{ id: 'original-task' }] }, version: 0 } });
+  fixture.attachments.set('original-file', { id: 'original-file', blob: new Blob(['original']) });
+  const envelope = await encryptBackupPayload(JSON.stringify({
+    manifest: { version: 1 },
+    domains: { [STORE]: { state: { tasks: [{ id: 'new-task' }] }, version: 0 } },
+    attachments: [{ id: 'new-file', mimeType: 'text/plain', base64Bytes: 'aGVsbG8=' }],
+    customWallpapers: [],
+  }), passphrase);
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(restoreBackup(envelope, passphrase), /atomic IndexedDB transaction failed/);
+    assert.deepEqual(fixture.records.get(STORE).value.state.tasks.map(t => t.id), ['original-task']);
+    assert.deepEqual([...fixture.attachments.keys()], ['original-file']);
+    assert.equal(fixture.localWrites.has(STORE), false);
+  }, () => fixture.db.onclose?.());
+});
+
+test('restore containing separate-database custom wallpapers is rejected before any writes', async () => {
+  const fixture = fakeDatabase();
+  const envelope = await encryptBackupPayload(JSON.stringify({
+    manifest: { version: 1 },
+    domains: { [STORE]: { state: { tasks: [{ id: 'must-not-write' }] }, version: 0 } },
+    attachments: [],
+    customWallpapers: [{ id: 'custom_active', dataUrl: 'data:image/png;base64,AA==' }],
+  }), passphrase);
+  await withWindow(fixture.fakeWindow, async () => {
+    await assert.rejects(
+      restoreBackup(envelope, passphrase),
+      error => error?.code === 'CROSS_DATABASE_RESTORE_UNSAFE'
+    );
+    assert.equal(fixture.records.size, 0);
+    assert.equal(fixture.attachments.size, 0);
+    assert.equal(fixture.localWrites.size, 0);
   }, () => fixture.db.onclose?.());
 });
