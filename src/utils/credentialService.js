@@ -309,78 +309,38 @@ export function clearLockoutState() {
  */
 export async function migrateLegacyPin({ allowLegacyImport = true } = {}) {
   try {
-    // 1. Check if a PBKDF2 credential verifier already exists.
-    const existing = await getCredentialRecord();
-    if (existing && existing.verifier) {
+    const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    const payload = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
+    const state = payload?.state || {};
+    if (credential) {
+      if (!credential.value?.salt || !credential.value?.verifier || !state.hasPin || state.pin || state.alphanumeric) return { migrated:false,error:'INCONSISTENT_CREDENTIAL_STATE' };
       await sanitizeOrdinaryStorage();
-      return { migrated: false, alreadyMigrated: true };
+      return { migrated:false,alreadyMigrated:true };
     }
-    // A completed schema migration is a durable trust boundary. After that
-    // point a stale localStorage mirror must NEVER be promoted to a new
-    // authentication credential. Only the audited first migration may read a
-    // plaintext legacy PIN.
     if (!allowLegacyImport) {
+      if (state.hasPin || state.pin || state.alphanumeric) return { migrated:false,error:'MISSING_CREDENTIAL' };
       await sanitizeOrdinaryStorage();
-      return { migrated: false, legacyImportClosed: true };
+      return { migrated:false,legacyImportClosed:true };
     }
-
-    // 2. Look for legacy plaintext PIN in localStorage
-    let legacyPin = '';
-    if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed?.state?.pin && String(parsed.state.pin).trim().length === 4) {
-            legacyPin = String(parsed.state.pin).trim();
-          }
-        } catch {
-          // ignore parse errors
-        }
-      }
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('momentum-security-storage') : null;
+    const legacy = raw ? JSON.parse(raw)?.state : null;
+    const durablePin = String(state.pin || '').trim();
+    const localPin = String(legacy?.pin || '').trim();
+    if (durablePin && localPin && durablePin !== localPin) return { migrated:false,error:'CONFLICTING_LEGACY_CREDENTIALS' };
+    const pin = durablePin || localPin;
+    if (!pin) {
+      if (state.hasPin || legacy?.hasPin || state.alphanumeric || legacy?.alphanumeric) return { migrated:false,error:'MISSING_LEGACY_PIN' };
+      return { migrated:false,noLegacyPin:true };
     }
-
-    // 3. If no PIN in localStorage, check IndexedDB 'momentum-security-storage'
-    if (!legacyPin) {
-      try {
-        const idbRecord = await getStoreItem('momentum-security-storage');
-        if (idbRecord) {
-          const parsed = typeof idbRecord === 'string' ? JSON.parse(idbRecord) : idbRecord;
-          if (parsed?.state?.pin && String(parsed.state.pin).trim().length === 4) {
-            legacyPin = String(parsed.state.pin).trim();
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (!legacyPin) {
-      return { migrated: false, noLegacyPin: true };
-    }
-
-    // 4. Derive PBKDF2 verifier from legacy PIN
-    const created = await createCredential(legacyPin);
-    if (!created.success) {
-      console.warn('[CredentialService] Migration derivation failed:', created.error);
-      return { migrated: false, error: created.error };
-    }
-
-    // 5. Verify round-trip before purging legacy plaintext
-    const testVerify = await verifyCredential(legacyPin);
-    if (!testVerify.success) {
-      console.error('[CredentialService] Self-test failed during legacy PIN migration! Retaining legacy store.');
-      return { migrated: false, error: 'ROUNDTRIP_VERIFICATION_FAILED' };
-    }
-
-    // 6. Purge plaintext PIN from localStorage and IndexedDB while preserving hasPin: true
+    const prepared = await prepareCredential(pin);
+    if (!prepared.success) return { migrated:false,error:'LEGACY_DERIVATION_FAILED' };
+    if (!(await verifySnapshot(pin, prepared.record)).success) return { migrated:false,error:'LEGACY_SELF_TEST_FAILED' };
+    await commitCredentialTransition(credential, security, prepared.record, new Date().toISOString());
     await sanitizeOrdinaryStorage();
-
-    console.info('[CredentialService] Successfully migrated legacy PIN to PBKDF2 verifier.');
-    return { migrated: true };
-  } catch (err) {
-    console.error('[CredentialService] Legacy migration exception:', err);
-    return { migrated: false, error: err.message };
+    return { migrated:true };
+  } catch {
+    return { migrated:false,error:'LEGACY_MIGRATION_FAILED' };
   }
 }
 
