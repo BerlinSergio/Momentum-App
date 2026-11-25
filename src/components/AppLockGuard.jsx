@@ -13,10 +13,9 @@ import useSecurityStore from '../store/useSecurityStore';
 import { useTranslation } from 'react-i18next';
 import { authenticateBiometrics } from '../utils/biometricAuth';
 import {
-  verifyCredential,
+  authenticatePin,
   getLockoutState,
-  recordFailedAttempt,
-  clearLockoutState,
+  LOCKOUT_STORAGE_KEY,
 } from '../utils/credentialService';
 import { flushPendingNotificationRoute } from '../utils/nativeNotifications';
 
@@ -80,8 +79,9 @@ export default function AppLockGuard({ children }) {
     if (!current._hasHydrated || !current.isAppLockActive ||
         !current.hasPin || !current.isLocked) return;
     // Do not defer the security-sensitive unlock behind an animation timer.
-    clearLockoutState();
-    setLockoutState({ isLockedOut: false, remainingSeconds: 0, failedAttempts: 0 });
+    const currentLockout = getLockoutState();
+    if (currentLockout.isLockedOut) { setLockoutState(currentLockout); return; }
+    setLockoutState(currentLockout);
     setEnteredPin('');
     setAuthError('');
     setStoreLocked(false);
@@ -94,6 +94,17 @@ export default function AppLockGuard({ children }) {
     return () => clearTimeout(timer);
   }, [isShaking]);
 
+  // Reflect lockout changes made in another tab before the next interaction.
+  useEffect(() => {
+    const sync = event => {
+      if (event.key === LOCKOUT_STORAGE_KEY || event.key === null) {
+        setLockoutState(getLockoutState());
+      }
+    };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+
   // Monitor and tick active lockout countdown
   useEffect(() => {
     if (!lockoutState.isLockedOut) return;
@@ -101,7 +112,9 @@ export default function AppLockGuard({ children }) {
     const interval = setInterval(() => {
       const current = getLockoutState();
       setLockoutState(current);
-      if (current.isLockedOut) {
+      if (current.unavailable) {
+        setAuthError('PIN attempt storage unavailable. Restart Momentum.');
+      } else if (current.isLockedOut) {
         setAuthError(t('lockGuard.tooManyAttempts', { seconds: current.remainingSeconds }));
       } else {
         setAuthError('');
@@ -206,18 +219,20 @@ export default function AppLockGuard({ children }) {
       return;
     }
     try {
-      const result = await verifyCredential(nextPin);
+      const result = await authenticatePin(nextPin);
       if (!result.success) {
-        const nextLockout = recordFailedAttempt();
+        const nextLockout = result.lockout || getLockoutState();
         if (!isCurrentAuthentication(epoch)) return;
         setLockoutState(nextLockout);
         setIsShaking(true);
-        if (nextLockout.isLockedOut) {
+        if (nextLockout.unavailable) {
+          setAuthError('PIN attempt storage unavailable. Restart Momentum.');
+        } else if (nextLockout.isLockedOut) {
           setAuthError(`Too many failed attempts. Try again in ${nextLockout.remainingSeconds}s.`);
         } else if (result.noCredential) {
           setAuthError('No credential configured. App locked.');
         } else {
-          setAuthError(`Incorrect PIN (${nextLockout.failedAttempts}/5)`);
+          setAuthError(result.error || `Incorrect PIN (${nextLockout.failedAttempts}/5)`);
         }
       } else {
         unlockAuthenticatedSession(epoch);
