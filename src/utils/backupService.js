@@ -16,7 +16,7 @@ import {
 
 import {
   openAppDB,
-  getAllStoreItems,
+  getCommittedBackupSnapshot,
 } from '../storage/db.js';
 import {
   captureCoordinatedBackupSnapshot,
@@ -421,10 +421,20 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
 
   // Never accept a volatile-only restoration or an incomplete safety snapshot.
   if (!(await openAppDB())) throw new Error('Restore unavailable: IndexedDB cannot be opened safely');
-  // 3. Staging Snapshot: Read all existing stores to enable safe rollback if restoration fails
-  const existingStores = await getAllStoreItems();
-  // Prepare ALL mutations before opening a write transaction. No partial
-  // domain is visible to another reader while a restore batch is staged.
+  // One committed readonly snapshot covers both domains and attachments.
+  // An optimistic precondition in the final readwrite transaction rejects
+  // intervening writes (including ones made by other tabs outside Web Locks).
+  const snapshot = await getCommittedBackupSnapshot();
+  const existingStores = snapshot.stores;
+  // Keep this separate: merging may mutate nested objects in the staging
+  // copy, but the pre-restore values used for CAS must stay immutable.
+  const expectedOriginalStores = Object.create(null);
+  for (const [name, value] of Object.entries(existingStores)) {
+    expectedOriginalStores[name] = structuredClone(value);
+  }
+  const previousAttachments = new Map(snapshot.attachments.map(record => [record.id, record]));
+  const expectedStoreValues = Object.create(null);
+  const expectedAttachmentRecords = Object.create(null);
   const stagedStores = [];
   const stagedAttachments = [];
 
@@ -634,6 +644,8 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
         throw new Error('SIMULATED_TRANSACTION_FAILURE_MID_RESTORE');
       }
 
+      expectedStoreValues[storeKey] =
+        Object.hasOwn(expectedOriginalStores, storeKey) ? expectedOriginalStores[storeKey] : null;
       stagedStores.push({ name: storeKey, value: updatedPayload });
     }
 
@@ -654,6 +666,7 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
           blob,
           createdAt: att.createdAt || new Date().toISOString(),
         };
+        expectedAttachmentRecords[record.id] = previousAttachments.get(record.id) || null;
         stagedAttachments.push(record);
       }
     }
@@ -672,10 +685,11 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
     const committed = customWallpapers.length > 0
       ? await commitCoordinatedCrossDbRestore({
           stores: stagedStores, attachments: stagedAttachments,
-          wallpapers: customWallpapers,
+          wallpapers: customWallpapers, expectedStoreValues, expectedAttachmentRecords,
         })
       : await commitCoordinatedMainRestore({
           stores: stagedStores, attachments: stagedAttachments,
+          expectedStoreValues, expectedAttachmentRecords,
         });
     if (committed !== true) {
       throw new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
