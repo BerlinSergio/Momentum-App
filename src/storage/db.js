@@ -203,6 +203,17 @@ export const GUARDED_DOMAINS = Object.freeze([
   'momentum-finance-storage',
 ]);
 
+function noteAttachmentIds(snapshot) {
+  const payload = typeof snapshot === 'string' ? JSON.parse(snapshot) : snapshot;
+  const ids = new Set();
+  for (const note of (Array.isArray(payload?.state?.notes) ? payload.state.notes : [])) {
+    for (const attachment of (Array.isArray(note?.attachments) ? note.attachments : [])) {
+      if (typeof attachment?.id === 'string' && attachment.id) ids.add(attachment.id);
+    }
+  }
+  return ids;
+}
+
 export async function compareAndSwapDomainStore(name, value, expectedRecord) {
   if (!GUARDED_DOMAINS.includes(name)) {
     throw new TypeError('Optimistic store write is restricted to reviewed durable domains');
@@ -217,6 +228,12 @@ export async function compareAndSwapDomainStore(name, value, expectedRecord) {
     throw error;
   }
   const revisionId = mintDurableRevision();
+  // Keep removal of note-owned attachment bytes in the SAME main-IDB
+  // transaction as the note metadata update. Never unlink bytes before a
+  // stale Notes edit has passed its durable revision precondition.
+  const removedAttachmentIds = name === 'momentum-notes-storage'
+    ? [...noteAttachmentIds(expectedRecord?.value)].filter(id => !noteAttachmentIds(value).has(id))
+    : [];
   return new Promise((resolve, reject) => {
     let tx;
     let settled = false;
@@ -229,8 +246,13 @@ export async function compareAndSwapDomainStore(name, value, expectedRecord) {
     };
     const committedAt = Date.now();
     try {
-      tx = db.transaction(STORES.DATA, 'readwrite');
+      tx = db.transaction(
+        name === 'momentum-notes-storage' ? [STORES.DATA, STORES.ATTACHMENTS] : STORES.DATA,
+        'readwrite'
+      );
       const store = tx.objectStore(STORES.DATA);
+      const attachmentStore = name === 'momentum-notes-storage'
+        ? tx.objectStore(STORES.ATTACHMENTS) : null;
       tx.oncomplete = () => finish(null);
       tx.onabort = () => finish(failure || tx.error || new Error('Task write aborted'));
       tx.onerror = () => { /* onabort is authoritative */ };
@@ -251,6 +273,7 @@ export async function compareAndSwapDomainStore(name, value, expectedRecord) {
         }
         try {
           store.put({ name, value, revisionId, updatedAt: committedAt });
+          for (const id of removedAttachmentIds) attachmentStore.delete(id);
         } catch (error) {
           failure = error;
           try { tx.abort(); } catch { finish(failure); }
