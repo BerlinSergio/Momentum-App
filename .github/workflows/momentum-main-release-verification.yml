@@ -88,11 +88,36 @@ jobs:
           printf 'Tags: '
           git tag | wc -l
           docker pull ghcr.io/gitleaks/gitleaks:v8.24.2
+          report_dir="$(mktemp -d)"
+          trap 'rm -rf "$report_dir"' EXIT
+          chmod 777 "$report_dir"
           status=0
-          docker run --rm --network none -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.2 git --log-opts="--all" --redact=100 --no-banner --ignore-gitleaks-allow --exit-code 42 /repo > "$RUNNER_TEMP/secret-scan.log" 2>&1 || status=$?
-          rm -f "$RUNNER_TEMP/secret-scan.log"
+          docker run --rm --network none -v "$PWD:/repo:ro" -v "$report_dir:/report:rw" ghcr.io/gitleaks/gitleaks:v8.24.2 git --log-opts="--all" --redact=100 --no-banner --ignore-gitleaks-allow --exit-code 42 --report-format json --report-path /report/findings.json /repo > "$report_dir/scanner.log" 2>&1 || status=$?
           case "$status" in
             0) echo "No findings from Gitleaks in scanned reachable history." ;;
-            42) echo "Potential secrets detected; review privately. No findings published."; exit 1 ;;
+            42)
+              # Emit only location metadata, never Match, Secret, Message or author details.
+              python3 - "$report_dir/findings.json" <<'PY'
+          import json, re, sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              findings = json.load(f)
+          if not isinstance(findings, list) or not findings:
+              raise SystemExit("Finding metadata unavailable")
+          print("Finding count:", len(findings))
+          for item in findings[:200]:
+              commit = item.get("Commit", "")
+              rule = item.get("RuleID", "")
+              if not re.fullmatch(r"[0-9a-f]{40,64}", commit):
+                  commit = "[unknown]"
+              if not re.fullmatch(r"[a-zA-Z0-9_-]{1,100}", rule):
+                  rule = "[unknown]"
+              path = item.get("File", "")
+              line = item.get("StartLine", 0)
+              print("Finding metadata:", json.dumps({"rule": rule, "commit": commit, "file": path, "line": line}, ensure_ascii=True))
+          if len(findings) > 200:
+              print("Metadata truncated at 200; remaining findings require private review.")
+          PY
+              echo "Potential secrets detected. Release gate remains blocked."
+              exit 1 ;;
             *) echo "Scanner could not complete; no clean result claimed."; exit 1 ;;
           esac
