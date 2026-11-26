@@ -218,10 +218,10 @@ export const useThemeStore = create(
       blurIntensity: 18,
       syncWithDarkMode: true,
       dimWallpaper: true,
-      activeBackgroundId: 'bg-04-serene-horizon',
+      activeBackgroundId: 'none',
       customWallpaper: null,
       wallpapers: BACKGROUND_LIBRARY,
-      downloadedWallpapers: DOWNLOADED_WALLPAPERS_BATCH,
+      downloadedWallpapers: [],
       _hasHydrated: false,
 
       setHasHydrated: (hasHydrated) =>
@@ -371,10 +371,10 @@ export const useThemeStore = create(
             blurIntensity: 18,
             syncWithDarkMode: true,
             dimWallpaper: true,
-            activeBackgroundId: 'bg-04-serene-horizon',
+            activeBackgroundId: 'none',
             customWallpaper: null,
             wallpapers: BACKGROUND_LIBRARY,
-            downloadedWallpapers: DOWNLOADED_WALLPAPERS_BATCH,
+            downloadedWallpapers: [],
           };
           applyAppearanceToDOM(defaults);
           return defaults;
