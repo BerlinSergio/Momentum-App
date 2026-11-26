@@ -148,6 +148,8 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
     setSection2Title('');
     setSection2Body('');
     setMilestones([]);
+    setAttachments([]);
+    setIsPinned(false);
   };
 
   useEffect(() => {
@@ -173,6 +175,8 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       setSection2Body(currentNote.section2Body || '');
       setTags(currentNote.tags || []);
       setMilestones(currentNote.milestones || []);
+      setAttachments(currentNote.attachments || []);
+      setIsPinned(Boolean(currentNote.isPinned));
       if (editorRef.current && (editorRef.current.innerHTML !== currentNote.body)) {
         editorRef.current.innerHTML = currentNote.body || '';
       }
@@ -553,6 +557,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       setIsEditing(false);
       showToast(t('toasts.noteUpdated', 'Note updated successfully!'));
     } else {
+      if (!isNew) throw Error('Existing note is unavailable');
       if (await addNote(notePayload) !== true) throw Error('Note creation not committed');
       showToast(t('toasts.noteSaved', 'Note saved successfully!'));
         if (goBack) goBack('notes_main_light_mode');
@@ -618,6 +623,8 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       setSection2Body(currentNote.section2Body || '');
       setTags(currentNote.tags || []);
       setMilestones(currentNote.milestones || []);
+      setAttachments(currentNote.attachments || []);
+      setIsPinned(Boolean(currentNote.isPinned));
       if (editorRef.current) {
         editorRef.current.innerHTML = currentNote.body || '';
       }
@@ -628,35 +635,34 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
 
   const isArchived = Boolean(currentNote.isArchived);
 
-  const handleToggleArchive = () => {
+  const handleToggleArchive = async () => {
     const targetId = currentNote.id;
-    if (!targetId || targetId === 'new') return;
-    const nextArchived = !isArchived;
-    if (nextArchived) {
-      if (archiveNote) archiveNote(targetId);
-      else updateNote(targetId, { isArchived: true });
-      showToast(t('toasts.noteArchived', 'Note archived'));
-    } else {
-      if (unarchiveNote) unarchiveNote(targetId);
-      else updateNote(targetId, { isArchived: false });
-      showToast(t('toasts.noteRestored', 'Note restored from archive'));
-    }
-    setTimeout(() => {
+    if (!targetId || targetId === 'new' || saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSavingNote(true);
+    try {
+      if (await updateNote(targetId, {isArchived: !isArchived}) !== true) throw Error('Archive change not committed');
+      showToast(isArchived ? t('toasts.noteRestored', 'Note restored from archive') : t('toasts.noteArchived', 'Note archived'));
       if (goBack) goBack('notes_main_light_mode');
       else if (setActiveTab) setActiveTab('notes_main_light_mode');
       else window.history.back();
-    }, 200);
+    } catch {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setSavingNote(false);
+    }
   };
 
   const handleDeleteNote = async () => {
     setIsMenuOpen(false);
     // Resolve targetId from all available sources so we never lose the note reference
-    const rawTarget = (currentNote?.id && currentNote.id !== 'new')
-      ? currentNote.id
-      : (effectiveNoteId && effectiveNoteId !== 'new'
-        ? effectiveNoteId
-        : (storeNoteId && storeNoteId !== 'new' ? storeNoteId : null));
-    const targetId = rawTarget ? String(rawTarget) : null;
+    if (saveInFlight.current) return;
+    const targetId = !isNew && currentNote.id !== 'new' ? String(currentNote.id) : null;
+    if (!isNew && !targetId) {
+      toast.error(t('notes.deleteFailed', 'Note is unavailable. Reload saved data.'));
+      return;
+    }
 
     const confirmed = await confirm({
       variant: 'destructive',
@@ -665,7 +671,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       confirmText: t('common.delete', 'Delete'),
       cancelText: t('common.cancel', 'Cancel'),
     });
-    if (!confirmed) return;
+    if (!confirmed || saveInFlight.current) return;
 
     if (!targetId) {
       // A new, unsaved draft has nothing to remove from storage.
@@ -675,6 +681,8 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       return;
     }
 
+    saveInFlight.current = true;
+    setSavingNote(true);
     try {
       const removed = await deleteNote(targetId);
       if (!removed) {
@@ -688,6 +696,9 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
     } catch (error) {
       console.error('[Momentum Notes] Deletion failed:', error);
       toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
+    } finally {
+      saveInFlight.current = false;
+      setSavingNote(false);
     }
   };
 
