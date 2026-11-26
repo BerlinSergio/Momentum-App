@@ -11,6 +11,14 @@ const taskStorage = createIndexedDbStorage({
 });
 const getSafeStorage = () => taskStorage;
 
+// Notification effects must not escape an optimistic transaction that fails.
+// A reminder failure must not turn a successful data commit into a save error.
+function cancelCommittedTaskReminder(id) {
+  if (typeof window === 'undefined') return;
+  Promise.resolve().then(() => window.nativeNotifications?.cancelNotificationForSource?.('task', id))
+    .catch(error => console.warn('[Task] Reminder cancellation failed:', error));
+}
+
 export const getTodayIsoDate = (tz) => {
   try {
     return getLocalDateKey(undefined, tz);
@@ -206,32 +214,32 @@ export const useTaskStore = create(
           })
         ),
 
-      deleteTask: (taskIdOrObj) =>
-        set(
+      deleteTask: async (taskIdOrObj) => {
+        const id = typeof taskIdOrObj === 'object' && taskIdOrObj !== null ? taskIdOrObj.id : taskIdOrObj;
+        const saved = await set(
           produce((state) => {
-            const id = typeof taskIdOrObj === 'object' && taskIdOrObj !== null ? taskIdOrObj.id : taskIdOrObj;
             state.tasks = state.tasks.filter((t) => t.id !== id);
-            if (state.editingTaskId === id) {
-              state.editingTaskId = null;
-            }
-            if (typeof window !== 'undefined' && window.nativeNotifications?.cancelNotificationForSource) {
-              window.nativeNotifications.cancelNotificationForSource('task', id);
-            }
+            if (state.editingTaskId === id) state.editingTaskId = null;
           })
-        ),
+        );
+        if (saved === true) cancelCommittedTaskReminder(id);
+        return saved;
+      },
 
-      toggleTaskStatus: (taskId) =>
-        set(
+      toggleTaskStatus: async (taskId) => {
+        let completed = false;
+        const saved = await set(
           produce((state) => {
             const task = state.tasks.find((t) => t.id === taskId);
             if (task) {
               task.status = task.status === 'done' ? 'todo' : 'done';
-              if (task.status === 'done' && typeof window !== 'undefined' && window.nativeNotifications?.cancelNotificationForSource) {
-                window.nativeNotifications.cancelNotificationForSource('task', taskId);
-              }
+              completed = task.status === 'done';
             }
           })
-        ),
+        );
+        if (saved === true && completed) cancelCommittedTaskReminder(taskId);
+        return saved;
+      },
 
       toggleSubTask: (taskId, subTaskId) =>
         set(
