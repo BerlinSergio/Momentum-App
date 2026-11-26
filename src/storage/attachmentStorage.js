@@ -76,25 +76,24 @@ export async function saveAttachmentFile(fileOrBlob, options = {}) {
     throw new Error('No file provided to saveAttachmentFile');
   }
 
-  const sizeBytes = fileOrBlob.size || 0;
+  // Convert first, then validate the actual bytes rather than a data URL's
+  // missing .size property. A failed binary transaction is not a save.
+  const blob = fileOrBlob instanceof Blob ? fileOrBlob
+    : (typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:') ? dataUrlToBlob(fileOrBlob) : null);
+  if (!(blob instanceof Blob)) throw new Error('Invalid attachment data');
+  const sizeBytes = blob.size;
   if (sizeBytes > MAX_ATTACHMENT_SIZE_BYTES) {
     throw new Error(`File size (${formatByteSize(sizeBytes)}) exceeds maximum allowed limit of 50 MB`);
   }
 
   const id = options.id || `att-${uuidv4().slice(0, 8)}`;
   const fileName = options.name || fileOrBlob.name || 'attachment';
-  const mimeType = fileOrBlob.type || options.mimeType || 'application/octet-stream';
+  const mimeType = blob.type || options.mimeType || 'application/octet-stream';
 
   let type = 'document';
   if (mimeType.startsWith('image/')) type = 'image';
   else if (mimeType.startsWith('audio/')) type = 'audio';
   else if (mimeType === 'application/pdf') type = 'pdf';
-
-  // Ensure we have a Blob instance
-  let blob = fileOrBlob;
-  if (!(blob instanceof Blob) && typeof fileOrBlob === 'string' && fileOrBlob.startsWith('data:')) {
-    blob = dataUrlToBlob(fileOrBlob);
-  }
 
   const record = {
     id,
@@ -109,9 +108,7 @@ export async function saveAttachmentFile(fileOrBlob, options = {}) {
   };
 
   const saved = await setAttachmentRecord(record);
-  if (!saved) {
-    console.warn('[AttachmentStorage] Failed to save attachment record to IndexedDB');
-  }
+  if (saved !== true) throw new Error('Attachment could not be safely saved to device storage');
 
   // Generate an active Blob URL for immediate UI rendering
   let activeUrl = '';
