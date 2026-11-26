@@ -67,23 +67,53 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
   }
   const registry=await page.evaluate(async()=> (await import('/src/data/screenRegistry.js')).ALL_SCREENS);
   const failures=[];let checked=0;
-  for(const screen of registry.filter(s=>!s.id.includes('splash_screen')&&!s.id.includes('personal_setup'))){
-    errors.length=0;
-    const params=screen.id.includes('task_details')?{taskId:'visual-task'}:screen.id.includes('routine_details')?{routineId:'visual-routine'}:screen.id.includes('note_media')?{noteId:'visual-note'}:screen.id.includes('note_editor')?{isNew:true}:{};
-    try{
-      await go(screen.id,screen.theme,params);
-      const state=await page.evaluate(()=>{
-        const root=document.querySelector('.momentum-canvas-viewport'),el=root?.querySelector('[data-screen-key]');
-        return {text:(el?.innerText||'').trim().slice(0,200),width:root?.clientWidth,scroll:root?.scrollWidth,viewport:innerWidth};
-      });
-      await page.screenshot({path:path.join(out,screen.id+'.png')});
-      assert.ok(state.text.length>=5&&!/Something went wrong|Screen not found|ReferenceError/.test(state.text),JSON.stringify(state));
-      assert.ok(state.scroll<=state.width+2,JSON.stringify(state));
-      assert.equal(errors.length,0,errors.join('; '));
-      checked++;console.log('PASS '+screen.id);
-    }catch(e){failures.push(screen.id+': '+e.message);console.error('FAIL '+failures.at(-1));}
+  const screens=registry.filter(s=>!s.id.includes('splash_screen')&&!s.id.includes('personal_setup'));
+  for(const locale of ['en','fa-AF','ps-AF']){
+    await page.setViewport({width:locale==='en'?390:360,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:1});
+    await page.evaluate(async(locale)=>{
+      const {useLocaleStore}=await import('/src/store/useLocaleStore.js');
+      useLocaleStore.getState().setLocale(locale);
+      await useLocaleStore.getState().setNumberSystem(locale==='en'?'latn':'arabext');
+    },locale);
+    await page.waitForFunction(locale=>document.documentElement.dir===(locale==='en'?'ltr':'rtl')&&document.documentElement.lang===locale,{timeout:10000,polling:100},locale);
+    const localeOut=path.join(out,locale);fs.mkdirSync(localeOut,{recursive:true});
+    for(const screen of screens){
+      errors.length=0;
+      const params=screen.id.includes('task_details')?{taskId:'visual-task'}:screen.id.includes('routine_details')?{routineId:'visual-routine'}:screen.id.includes('note_media')?{noteId:'visual-note'}:screen.id.includes('note_editor')?{isNew:true}:{};
+      try{
+        await go(screen.id,screen.theme,params);
+        const state=await page.evaluate(()=>{
+          const root=document.querySelector('.momentum-canvas-viewport'),el=root?.querySelector('[data-screen-key]');
+          const headers=[...el?.querySelectorAll('.momentum-glass-header-capsule')||[]];
+          const text=(el?.innerText||'').trim();
+          return {text:text.slice(0,200),placeholder:/\{\{\s*(current|target)\s*\}\}/.test(text),fakeSaved:/Autosaved • 10:45 AM/.test(text),emptyMedia:!!el?.querySelector('[data-testid="attachment-empty"]'),width:root?.clientWidth,scroll:root?.scrollWidth,viewport:innerWidth,headerOverflow:headers.some(h=>h.scrollWidth>h.clientWidth+2)};
+        });
+        await page.screenshot({path:path.join(localeOut,screen.id+'.png')});
+        assert.ok(state.text.length>=5&&!/Something went wrong|Screen not found|ReferenceError/.test(state.text),JSON.stringify(state));
+        assert.ok(state.scroll<=state.width+2&&!state.headerOverflow,JSON.stringify(state));
+        assert.equal(state.placeholder,false,'Unresolved localization interpolation');
+        assert.equal(state.fakeSaved,false,'Fabricated autosave status');
+        if(screen.id.includes('note_media'))assert.equal(state.emptyMedia,true,'Missing attachment must render an empty state');
+        assert.equal(errors.length,0,errors.join('; '));
+        checked++;console.log('PASS '+locale+' '+screen.id);
+      }catch(e){failures.push(locale+' '+screen.id+': '+e.message);console.error('FAIL '+failures.at(-1));}
+    }
+    // Exercise an actual durable attachment, not merely the empty state.
+    await page.evaluate(async()=>{
+      const {saveAttachmentFile}=await import('/src/storage/attachmentStorage.js');
+      if(window.useNotesStore.getState().notes.some(n=>n.id==='visual-real-media'))return;
+      const canvas=document.createElement('canvas');canvas.width=48;canvas.height=32;
+      canvas.getContext('2d').fillRect(0,0,48,32);
+      const attachment=await saveAttachmentFile(canvas.toDataURL('image/png'),{id:'visual-real-media-file',name:'visual-real.png'});
+      await window.useNotesStore.getState().addNote({id:'visual-real-media',type:'long',title:'Real media',attachments:[attachment]});
+    });
+    for(const theme of ['light','dark']){
+      await go('note_media_attachment_viewer_'+theme+'_mode',theme,{noteId:'visual-real-media',attachmentId:'visual-real-media-file'});
+      await page.waitForFunction(()=>[...document.querySelectorAll('img')].some(img=>img.alt==='visual-real.png'&&img.naturalWidth===48),{timeout:10000,polling:100});
+      await page.screenshot({path:path.join(localeOut,'real-attachment-'+theme+'.png')});
+    }
   }
-  console.log('Registry screens checked:',checked,'failures:',failures.length,'plus 2 onboarding routes');
+  console.log('Registry screens checked:',checked,'failures:',failures.length,'plus 2 onboarding routes, actual durable attachment in 3 languages');
   assert.deepEqual(failures,[]);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
