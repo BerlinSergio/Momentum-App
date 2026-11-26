@@ -30,6 +30,31 @@ async function waitStartup(page) {
       window.useSecurityStore.getState().setLocked(false);
     });
     await page.waitForFunction(()=>window.useProfileStore?.getState().setupCompleted===true && document.querySelector('[data-app-startup-ready="true"]'),{timeout:15000,polling:200});
+    const newFeedback = await page.evaluate(async()=>{
+      const {formatHomeDate,formatFinanceMonth,displayDigits}=await import('/src/i18n/displayDate.js');
+      const {REFLECTIONS,VERSE_REFERENCES,getDailyVerseReference,getDailyReflection}=await import('/src/data/dailyInspiration.js');
+      const {validateVerse}=await import('/src/utils/quranDaily.js');
+      const date=new Date('2026-11-26T09:00:00Z');
+      const refs=new Set(), quotes=[new Set(),new Set(),new Set()];
+      for(let i=0;i<365;i++){
+        const d=new Date(Date.UTC(2026,0,1+i,12));
+        const v=getDailyVerseReference(d,'Asia/Kabul');refs.add(v.sura+':'+v.aya);
+        ['en','fa-AF','ps-AF'].forEach((locale,k)=>quotes[k].add(getDailyReflection(d,locale,'Asia/Kabul').quote));
+      }
+      let invalidRejected=false;
+      try{validateVerse({result:{sura:1,aya:2,translation:'test',arabic_text:'test'}},1,1)}catch{invalidRejected=true}
+      return {dari:formatHomeDate(date,'fa-AF','arabext','Asia/Kabul'),pashto:formatHomeDate(date,'ps-AF','latn','Asia/Kabul'),
+        finance:formatFinanceMonth('2026-11','fa-AF','latn'),western:displayDigits('۱۲٣','latn'),eastern:displayDigits('123','arabext'),
+        refs:refs.size,quotes:quotes.map(x=>x.size),lengths:[REFLECTIONS.length,VERSE_REFERENCES.length],
+        invalidRejected,background:window.useThemeStore.getState().activeBackgroundId};
+    });
+    assert.match(newFeedback.dari,/قوس/);assert.match(newFeedback.dari,/[۰-۹]/);
+    assert.match(newFeedback.pashto,/لیندۍ/);assert.match(newFeedback.pashto,/[0-9]/);
+    assert.match(newFeedback.finance,/نومبر 2026/);
+    assert.equal(newFeedback.western,'123');assert.equal(newFeedback.eastern,'۱۲۳');
+    assert.equal(newFeedback.refs,365);assert.deepEqual(newFeedback.quotes,[365,365,365]);assert.deepEqual(newFeedback.lengths,[365,365]);
+    assert.equal(newFeedback.invalidRejected,true);assert.equal(newFeedback.background,'none');
+    console.log('PASS: Afghan localized calendar, numeral conversion, clean wallpaper default, 365 unique verse references and 365 distinct reflections in every language');
     await page.evaluate(()=>window.useNavigationStore.getState().setActiveTab('add_edit_task_dark_mode'));
     await page.waitForSelector(q('task-due-date-tile'),{visible:true});
     for (const [tile,modal,cancel] of [
