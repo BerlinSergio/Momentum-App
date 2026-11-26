@@ -339,14 +339,6 @@ html.disable-glass [class*="backdrop-blur"],
   -webkit-backdrop-filter: none !important;
 }
 
-/* solid clean slate-900 surface */
-}
-
-html:not(.dark).disable-glass [class*="backdrop-blur-"],
-html:not(.dark).disable-glass [class*="bg-white/"] {
-  background-color: #ffffff !important; /* solid clean white surface */
-}
-
 /* ========================================
    DYNAMIC GLOBAL BLUR CONTROL
    Binds all glassmorphic elements to user-defined blurIntensity
