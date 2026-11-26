@@ -135,8 +135,15 @@ async function uiTwoTab(browser, domain) {
       });
       await edit(a, domain, 'qa213-note-ahead-of-delete');
       await awaitRecord(a, domain, 'qa213-note-ahead-of-delete');
-      await b.evaluate(({ id, attachmentId }) =>
-        window.useNotesStore.getState().deleteAttachment(id, attachmentId), { id, attachmentId });
+      const rejected = await b.evaluate(async ({ id, attachmentId }) => {
+        try {
+          await window.useNotesStore.getState().deleteAttachment(id, attachmentId);
+          return null;
+        } catch (error) {
+          return error.code;
+        }
+      }, { id, attachmentId });
+      assert.equal(rejected, 'DOMAIN_WRITE_CONFLICT');
       await awaitConflict(b, domain);
       const binary = await a.evaluate(async attachmentId => {
         const db = await import('/src/storage/db.js');
@@ -146,8 +153,8 @@ async function uiTwoTab(browser, domain) {
       assert.equal(binary, 'SAFE-BYTES');
       console.log('PASS: Stale Notes deletion cannot erase the attachment binary.');
 
-      await a.evaluate(({ id, attachmentId }) =>
-        window.useNotesStore.getState().deleteAttachment(id, attachmentId), { id, attachmentId });
+      assert.equal(await a.evaluate(({ id, attachmentId }) =>
+        window.useNotesStore.getState().deleteAttachment(id, attachmentId), { id, attachmentId }), true);
       await a.waitForFunction(async ({ id, attachmentId }) => {
         const db = await import('/src/storage/db.js');
         const record = await db.getStoreItem('momentum-notes-storage');
