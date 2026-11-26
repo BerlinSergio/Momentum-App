@@ -71,13 +71,13 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
   const activeNoteId = routeParams.noteId || storeNoteId;
   const activeAttachmentId = routeParams.attachmentId || routeParams.id || storeAttachmentId;
 
-  const activeNote = notes.find((n) => n.id === activeNoteId) || notes.find((n) => Array.isArray(n.attachments) && n.attachments.length > 0) || notes[0];
+  const activeNote = notes.find((n) => n.id === activeNoteId);
 
   const passedAttachment = routeParams.attachment || (routeParams.uri || routeParams.url ? {
     id: routeParams.attachmentId || 'att-passed-' + (routeParams.uri || routeParams.url).slice(-10),
     name: routeParams.name || 'Image Attachment',
-    size: routeParams.size || 1887436,
-    file: { size: 1887436, type: 'image/jpeg' },
+    size: routeParams.size || null,
+    file: { size: routeParams.size || null, type: routeParams.mimeType || '' },
     subtitle: routeParams.subtitle || 'Attachment Preview',
     caption: routeParams.caption || '',
     type: 'image',
@@ -92,40 +92,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
     rawAttachments.unshift(passedAttachment);
   }
 
-  const attachments = rawAttachments.length > 0
-    ? rawAttachments
-    : [
-        {
-          id: 'att-fallback-1',
-          name: 'Dawn_Reflection_Sky.jpg',
-          size: 1887436,
-          file: { size: 1887436, type: 'image/jpeg' },
-          subtitle: 'Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.',
-          caption: 'Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1200'
-        },
-        {
-          id: 'att-fallback-2',
-          name: 'MindMap_Q4.png',
-          size: 2516582,
-          file: { size: 2516582, type: 'image/png' },
-          subtitle: 'Mind map architecture detailing the 14-day spiritual consistency streak.',
-          caption: 'Mind map architecture detailing the 14-day spiritual consistency streak.',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1200'
-        },
-        {
-          id: 'att-fallback-3',
-          name: 'Sanctuary_View.jpg',
-          size: 3250585,
-          file: { size: 3250585, type: 'image/jpeg' },
-          subtitle: 'Courtyard sanctuary peaceful reflection at Asr time under golden light.',
-          caption: 'Courtyard sanctuary peaceful reflection at Asr time under golden light.',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=1200'
-        }
-      ];
+  const attachments = rawAttachments.filter(Boolean);
 
   const targetAttachmentId = passedAttachment?.id || activeAttachmentId;
   const initialIndex = Math.max(0, attachments.findIndex((a) => a.id === targetAttachmentId || (passedAttachment && a.url === passedAttachment.url)));
@@ -150,6 +117,9 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
     setIsEnhanced(false);
     setIsZoomed(false);
 
+    setResolvedUrl('');
+    setResolution('—');
+    if (!currentAttachment) return;
     let active = true;
     resolveAttachmentUrl(currentAttachment).then((u) => {
       if (active) {
@@ -164,7 +134,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
           };
         }
       }
-    });
+    }).catch(() => { if(active) setResolvedUrl(''); });
 
     return () => { active = false; };
   }, [currentIndex, currentAttachment?.id, currentAttachment?.url]);
@@ -302,6 +272,21 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
       setIsSaving(false);
     }
   };
+
+  if (!currentAttachment || (activeAttachmentId && !passedAttachment && !attachments.some(a=>a.id===activeAttachmentId))) {
+    return <div className="min-h-full pb-24">
+      <MomentumGlassHeader isDarkMode={true}>
+        <h1 className="font-semibold text-base">{t('notes.attachmentDetails','Attachment Details')}</h1>
+        <button type="button" aria-label={t('common.back','Back')} onClick={()=>goBack?goBack('notes_main_dark_mode'):setActiveTab?.('notes_main_dark_mode')}><ArrowLeft size={20}/></button>
+      </MomentumGlassHeader>
+      <section data-testid="attachment-empty" className="momentum-neutral-card mx-5 mt-5 p-8 rounded-3xl border text-center space-y-3">
+        <Image className="w-10 h-10 mx-auto text-primary"/>
+        <h2 className="text-base font-semibold">{t('notes.noAttachmentSelected','No attachment selected')}</h2>
+        <p className="text-sm">{t('notes.noAttachmentDescription','Open an attachment from a saved note to view it here.')}</p>
+        <button className="rounded-xl bg-primary text-white px-5 py-2.5 text-sm font-semibold" onClick={()=>goBack?goBack('notes_main_dark_mode'):setActiveTab?.('notes_main_dark_mode')}>{t('common.back','Back')}</button>
+      </section>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-40 relative">
@@ -679,7 +664,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
                   onDragStart={(e) => e.preventDefault()}
                   onClick={(e) => e.stopPropagation()}
                   className={`max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 select-none cursor-default ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`}
-                  src={attachments[currentIndex]?.url || FALLBACK_IMAGE}
+                  src={resolvedUrl || attachments[currentIndex]?.url || FALLBACK_IMAGE}
                   alt={attachments[currentIndex]?.name || 'Fullscreen Preview'}
                   onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
                 />
