@@ -242,7 +242,6 @@ export default function HomeDashboardDarkMode({ setActiveTab }) {
         {/* Premium Glass Welcome Hero */}
         <WelcomeHero isDark={true} setActiveTab={setActiveTab} className="mb-4 lg:mb-5" />
         <WallpaperWelcomeHint setActiveTab={setActiveTab}/>
-        <DailyReflectionCard date={now} timeZone={effectiveTimezone}/>
 
         {/* Responsive Dashboard Layout: 12-Column Grid on Desktop (>= 1024px), Clean Single Column Stack on Mobile (< 1024px) */}
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
@@ -563,6 +562,9 @@ export default function HomeDashboardDarkMode({ setActiveTab }) {
               <ChevronRight className="w-5 h-5 text-primary shrink-0" />
             </div>
           </div>
+        </div>
+        <div className="mx-5 lg:mx-0 mt-4 lg:mt-5 min-w-0" data-testid="home-reflection-footer">
+          <DailyReflectionCard date={now} timeZone={effectiveTimezone}/>
         </div>
       </main>
 

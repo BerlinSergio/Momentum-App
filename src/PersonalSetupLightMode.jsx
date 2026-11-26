@@ -1,3 +1,4 @@
+import { detectAndApplyNativeLocation } from './utils/nativeLocation.js';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useProfileStore } from './store/useProfileStore';
 import { useSettingsStore } from './store/useSettingsStore';
@@ -64,6 +65,7 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
   const setTimezone = useSettingsStore((s) => s.setTimezone);
   const globalCity = useSettingsStore((s) => s.city) || profile.city || 'Kabul, Afghanistan';
   const setCity = useSettingsStore((s) => s.setCity);
+  const gpsLocation = useLocationStore(s=>s.selectedCity);
   const storedUserName = useSettingsStore((s) => s.userName);
   const setUserName = useSettingsStore((s) => s.setUserName);
 
@@ -140,69 +142,32 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
     updateProfile({ currency: (CURRENCIES[code] || CURRENCIES.AFN).fullCode });
   };
 
-  const handleAutoDetect = (e) => {
-    if (e) e.stopPropagation();
-    if (isLocating) return;
+  const handleAutoDetect = async (e) => {
+    e?.stopPropagation();
+    if (isLocating || isSubmittingRef.current) return;
     setIsLocating(true);
     setIsCityOpen(false);
-
-    const onLocationFailure = (errorMsg = t('onboarding.locationUnavailable', 'Location detection unavailable. Please select city manually.')) => {
+    try {
+      const result = await detectAndApplyNativeLocation({ highAccuracy:true, timeout:35000 });
       if (!isMountedRef.current) return;
-      setIsLocating(false);
-      showToast(errorMsg, 'error');
-    };
-
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          if (!isMountedRef.current) return;
-          try {
-            const { latitude, longitude } = position.coords;
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-            );
-            if (!isMountedRef.current) return;
-            if (res.ok) {
-              const data = await res.json();
-              const cName = data.city || data.locality || data.principalSubdivision;
-              const country = data.countryName;
-              if (cName && country) {
-                const resolved = `${cName}, ${country}`;
-                if (setCity) setCity(resolved);
-                updateProfile({ city: resolved });
-                try {
-                  useLocationStore.getState().setGpsLocation({
-                    latitude,
-                    longitude,
-                    city: cName,
-                    country: country,
-                  });
-                } catch (e) {
-                  void e;
-                }
-                setIsLocating(false);
-                showToast(t('onboarding.locationDetected', 'Location detected: {{location}} ✓', { location: resolved }), 'success');
-                return;
-              }
-            }
-            onLocationFailure(t('onboarding.geocodingUnavailable', 'Reverse-geocoding service unavailable.'));
-          } catch {
-            onLocationFailure(t('onboarding.networkErrorLocation', 'Network error while resolving location.'));
-          }
-        },
-        (geoError) => {
-          let msg = t('onboarding.locationUnavailable', 'Location detection unavailable. Please select city manually.');
-          if (geoError?.code === 1) {
-            msg = t('onboarding.locationPermissionDenied', 'Location permission denied. Please select city manually.');
-          } else if (geoError?.code === 3) {
-            msg = t('onboarding.locationTimeout', 'Location request timed out. Please select city manually.');
-          }
-          onLocationFailure(msg);
-        },
-        { timeout: 5000, enableHighAccuracy: false }
-      );
-    } else {
-      onLocationFailure(t('onboarding.geolocationNotSupported', 'Geolocation is not supported on this device.'));
+      if (!result.success) {
+        const key = result.code === 'PERMISSION_DENIED' ? 'onboarding.locationPermissionDenied' :
+          result.code === 'TIMEOUT' ? 'onboarding.locationTimeout' : 'onboarding.locationUnavailable';
+        showToast(t(key, result.error), 'error');
+        return;
+      }
+      const location = useLocationStore.getState().selectedCity;
+      const label = location.name + (location.country ? ', ' + location.country : '');
+      // GPS coordinates are authoritative even if the device is offline.
+      // Do not send them to a third-party geocoder as a condition of success.
+      await updateProfile({city:label, timezone:location.timezone});
+      setCity?.(label);
+      setTimezone?.(location.timezone);
+      showToast(t('onboarding.locationDetected','Location detected: {{location}} ✓',{location:location.coords}), 'success');
+    } catch(error) {
+      if (isMountedRef.current) showToast(t('onboarding.locationUnavailable','Location detection unavailable. Please select city manually.'),'error');
+    } finally {
+      if (isMountedRef.current) setIsLocating(false);
     }
   };
 
@@ -237,6 +202,7 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
   };
 
   const handleContinue = () => {
+    if (isLocating) return;
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
     setTimeout(() => { isSubmittingRef.current = false; }, 800);
@@ -473,7 +439,7 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-slate-900 truncate">{globalCity}</p>
-                      <span className="text-[11px] font-normal text-slate-500 block truncate">{getCityDesc(globalCity)}</span>
+                      <span className="text-[11px] font-normal text-slate-500 block truncate">{gpsLocation?.source==='gps' ? gpsLocation.coords : getCityDesc(globalCity)}</span>
                     </div>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-slate-400 flex-shrink-0 ms-2 transition-transform duration-200 ${isCityOpen ? 'rotate-180 text-indigo-600' : ''}`}/>
@@ -524,6 +490,7 @@ export default function PersonalSetupLightMode({ setActiveTab }) {
           <button
             type="button"
             onClick={handleContinue}
+            disabled={isLocating || !name.trim()}
             className="w-full h-13 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition-all cursor-pointer"
           >
             <span>{t('onboarding.continue', 'Continue')}</span>
