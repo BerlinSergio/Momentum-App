@@ -1,3 +1,4 @@
+import {DailyReflectionCard} from './components/DailyInspirationPanel.jsx';
 import WallpaperWelcomeHint from './components/WallpaperWelcomeHint.jsx';
 import { useMemo, useState } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
@@ -16,7 +17,7 @@ import UserAvatar from './components/UserAvatar';
 import WelcomeHero from './components/home/WelcomeHero';
 import { useTranslation } from 'react-i18next';
 import { useLocaleStore } from './store/useLocaleStore';
-import { formatHomeDate } from './i18n/displayDate.js';
+import { formatFinanceMonth, displayDigits } from './i18n/displayDate.js';
 import { useNotificationStore } from './store/useNotificationStore';
 import {
   Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun,
@@ -241,6 +242,7 @@ export default function HomeDashboardDarkMode({ setActiveTab }) {
         {/* Premium Glass Welcome Hero */}
         <WelcomeHero isDark={true} setActiveTab={setActiveTab} className="mb-4 lg:mb-5" />
         <WallpaperWelcomeHint setActiveTab={setActiveTab}/>
+        <DailyReflectionCard date={now} timeZone={effectiveTimezone}/>
 
         {/* Responsive Dashboard Layout: 12-Column Grid on Desktop (>= 1024px), Clean Single Column Stack on Mobile (< 1024px) */}
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
@@ -261,7 +263,7 @@ export default function HomeDashboardDarkMode({ setActiveTab }) {
                   <h2 className="text-sm font-bold text-white">{t('home.financialHealth', 'Financial Health')}</h2>
                 </div>
                 <span className="text-xs font-semibold text-primary">
-                  {formatHomeDate(now,currentLocale,numberSystem,effectiveTimezone,true)}
+                  {formatFinanceMonth(currentMonthKey,currentLocale,numberSystem)}
                 </span>
               </div>
 
