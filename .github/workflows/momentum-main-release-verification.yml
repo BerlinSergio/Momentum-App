@@ -1,0 +1,98 @@
+name: Momentum Main Release Verification
+
+on:
+  push:
+    branches:
+      - audit/main-release-verification-20261126
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c67cbf456a459b78989ef064a65a903151b4148
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify source revision
+        run: git rev-parse HEAD
+      - name: Install locked dependencies
+        run: npm ci --no-fund
+      - name: Production build
+        run: |
+          npm run build
+          test -s dist/index.html
+      - name: Durable storage and navigation regression
+        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/storage/backupSizeLimits.test.mjs tests/navigation/themeNavigation.test.mjs
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c67cbf456a459b78989ef064a65a903151b4148
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit production and development dependency graphs
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=0
+          for mode in production all; do
+            args=(--package-lock-only --json)
+            if [ "$mode" = production ]; then
+              args+=(--omit=dev)
+            else
+              args+=(--include=dev)
+            fi
+            npm audit "${args[@]}" > "$RUNNER_TEMP/$mode-audit.json" || true
+            node --input-type=module - "$RUNNER_TEMP/$mode-audit.json" "$mode" <<'NODE' || status=1
+          import fs from 'node:fs';
+          const [path, mode] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          if (report.error || !report.metadata?.vulnerabilities) throw Error('Audit unavailable');
+          console.log(mode, JSON.stringify(report.metadata.vulnerabilities));
+          if (report.metadata.vulnerabilities.total !== 0) process.exitCode = 1;
+          NODE
+          done
+          exit "$status"
+
+  reachable-history-secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan reachable branch and tag history without publishing findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --is-shallow-repository)" = false
+          printf 'Reachable commits: '
+          git rev-list --all --count
+          printf 'Remote branches: '
+          git for-each-ref --format='%(refname)' refs/remotes/origin | wc -l
+          printf 'Tags: '
+          git tag | wc -l
+          docker pull ghcr.io/gitleaks/gitleaks:v8.24.2
+          status=0
+          docker run --rm --network none -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.2 git --log-opts="--all" --redact=100 --no-banner --ignore-gitleaks-allow --exit-code 42 /repo > "$RUNNER_TEMP/secret-scan.log" 2>&1 || status=$?
+          rm -f "$RUNNER_TEMP/secret-scan.log"
+          case "$status" in
+            0) echo "No findings from Gitleaks in scanned reachable history." ;;
+            42) echo "Potential secrets detected; review privately. No findings published."; exit 1 ;;
+            *) echo "Scanner could not complete; no clean result claimed."; exit 1 ;;
+          esac
