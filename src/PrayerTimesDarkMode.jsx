@@ -1,3 +1,4 @@
+import DailyInspirationPanel from './components/DailyInspirationPanel.jsx';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
@@ -21,65 +22,6 @@ import {
   Sparkles, Bell, BellRing, BellOff, MapPin, Compass, Calendar, Check, CheckCircle2, Bookmark,
   Clock, Sunrise, Moon, RefreshCw, Sliders, X, AlertCircle
 } from 'lucide-react';
-
-const DAILY_INSPIRATION_QUOTES = [
-  {
-    ayah: "Guard strictly your habit of prayers, especially the middle prayer, and stand before Allah in profound devotion.",
-    surah: "Surah Al-Baqarah 2:238",
-  },
-  {
-    ayah: "Verily, in the remembrance of Allah do hearts find rest.",
-    surah: "Surah Ar-Ra'd 13:28",
-  },
-  {
-    ayah: "And seek help through patience and prayer; and indeed, it is difficult except for the humbly submissive.",
-    surah: "Surah Al-Baqarah 2:45",
-  },
-  {
-    ayah: "Indeed, prayer prohibits immorality and wrongdoing, and the remembrance of Allah is greater.",
-    surah: "Surah Al-Ankabut 29:45",
-  },
-  {
-    ayah: "And establish prayer at the two ends of the day and at the approach of the night. Indeed, good deeds do away with misdeeds.",
-    surah: "Surah Hud 11:114",
-  },
-  {
-    ayah: "So remember Me; I will remember you. And be grateful to Me and do not deny Me.",
-    surah: "Surah Al-Baqarah 2:152",
-  },
-  {
-    ayah: "And whoever fears Allah — He will make for him a way out, and will provide for him from where he does not expect.",
-    surah: "Surah At-Talaq 65:2-3",
-  },
-  {
-    ayah: "Indeed, with hardship comes ease. Most certainly, with hardship comes ease.",
-    surah: "Surah Ash-Sharh 94:5-6",
-  },
-  {
-    ayah: "And He found you lost and guided you, and He found you in need and made you self-sufficient.",
-    surah: "Surah Ad-Duha 93:7-8",
-  },
-  {
-    ayah: "O you who have believed, seek help through patience and prayer. Indeed, Allah is with the patient.",
-    surah: "Surah Al-Baqarah 2:153",
-  },
-  {
-    ayah: "My Lord, make me an establisher of prayer, and many from my descendants. Our Lord, and accept my supplication.",
-    surah: "Surah Ibrahim 14:40",
-  },
-  {
-    ayah: "Say, 'Indeed, my prayer, my rites of sacrifice, my living and my dying are for Allah, Lord of the worlds.'",
-    surah: "Surah Al-An'am 6:162",
-  },
-];
-
-function getDailyInspiration(baseDate = new Date()) {
-  const d = baseDate;
-  const startOfYear = new Date(d.getFullYear(), 0, 1);
-  const dayOfYear = Math.floor((d.getTime() - startOfYear.getTime()) / 86400000);
-  const index = Math.abs(dayOfYear) % DAILY_INSPIRATION_QUOTES.length;
-  return DAILY_INSPIRATION_QUOTES[index];
-}
 
 export default function PrayerTimesDarkMode({ setActiveTab }) {
   const { t } = useTranslation();
@@ -125,8 +67,6 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
     : (offsetValue === 0 || Number(offsetValue) === 0 ? 'Notifications Active' : 'Notifications Active (15m before)');
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const savedInspirations = usePrayerStore(s => s.savedInspirations);
-  const [showSavedInspirations, setShowSavedInspirations] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Calculate next prayer data using centralized engine with explicit parameters
@@ -238,18 +178,6 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
   }, [nextPrayerData.isTomorrow, currentTime]);
 
   const sunTwilight = nextPrayerData.sunTwilight;
-  const dailyQuote = useMemo(() => getDailyInspiration(displayedDate), [displayedDate]);
-  const savedQuotes = Array.isArray(savedInspirations) ? savedInspirations : [];
-  const isBookmarked = savedQuotes.some(quote => quote.id === dailyQuote.surah);
-  const toggleInspiration = async quote => {
-    try {
-      await usePrayerStore.getState().toggleSavedInspiration(quote);
-    } catch (error) {
-      console.error('[Prayer] Bookmark save failed:', error);
-      toast.error(t('storage.prayerConflictTitle', 'Prayer changes could not be saved safely'));
-    }
-  };
-
   // Dynamic Hijri and Gregorian date strings in the target prayer location's timezone
   const dynamicHijriDate = useMemo(() => {
     try {
@@ -638,49 +566,7 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
         </div>
       </div>
 
-      {/* Daily Spiritual Inspiration Widget */}
-      <div className="block mx-5 mb-6 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 text-primary">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-[10px] font-semibold tracking-wider uppercase font-sans">{t('prayer.dailyInspiration', 'Daily Inspiration')}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => toggleInspiration(dailyQuote)}
-            aria-pressed={isBookmarked} data-testid="save-daily-inspiration"
-            className="p-1 -mr-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-transform cursor-pointer pointer-events-auto"
-            title={isBookmarked ? "Remove Bookmark" : "Bookmark Inspiration"}
-            aria-label={isBookmarked ? "Remove Bookmark" : "Bookmark Inspiration"}
-          >
-            <Bookmark className={`w-4 h-4 transition-colors ${isBookmarked ? 'text-indigo-400 fill-indigo-400' : 'text-slate-400'}`} />
-          </button>
-        </div>
-        <p className="text-xs sm:text-sm font-medium italic leading-relaxed text-slate-200 font-sans">
-          "{dailyQuote.ayah}"
-        </p>
-        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 pt-1 font-sans">
-          <span>— {dailyQuote.surah}</span>
-          <span className="text-[10px] font-medium text-teal-500 dark:text-teal-400 font-sans">{t('prayer.ayahOfTheDay', 'Ayah of the Day')}</span>
-        </div>
-      </div>
-
-      <section className="mx-5 mb-4 rounded-2xl border border-primary/20 bg-slate-900/80 text-white p-4" data-testid="saved-inspirations">
-        <button type="button" onClick={() => setShowSavedInspirations(open => !open)} aria-expanded={showSavedInspirations} className="w-full flex items-center justify-between gap-2 text-sm font-bold">
-          <span className="flex items-center gap-2"><Bookmark className="w-4 h-4 text-primary"/>{t('prayer.savedInspirations', 'Saved verses & inspirations')}</span>
-          <span className="text-primary">{savedQuotes.length} {showSavedInspirations ? '−' : '+'}</span>
-        </button>
-        {showSavedInspirations && <div className="mt-3 space-y-3">
-          {!savedQuotes.length && <p className="text-xs opacity-75">{t('prayer.noSavedInspirations', 'No saved verses yet. Tap the bookmark to save a verse.')}</p>}
-          {savedQuotes.map(quote => <article key={quote.id} className="rounded-xl border border-primary/10 p-3 space-y-2">
-            <p className="text-sm leading-relaxed" dir="auto">{quote.ayah}</p>
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span dir="auto">{quote.surah}</span>
-              <button type="button" onClick={() => toggleInspiration(quote)} aria-label={t('prayer.removeSavedInspiration', 'Remove saved verse')} className="p-2 rounded-lg text-primary"><Bookmark className="w-4 h-4 fill-current"/></button>
-            </div>
-          </article>)}
-        </div>}
-      </section>
+      <DailyInspirationPanel date={currentTime} timeZone={prayerTimezone}/>
 
       {/* Prayer Calculation Settings Modal */}
       {isSettingsOpen && createPortal(
