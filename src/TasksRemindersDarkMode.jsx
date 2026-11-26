@@ -1,3 +1,4 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
@@ -66,6 +67,7 @@ const getTaskCircleColor = (task) => {
 };
 
 export default function TasksRemindersDarkMode({ setActiveTab, initialSubTab = 'tasks', goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const storeTasksSubTab = useNavigationStore((s) => s.tasksSubTab);
   const setTasksSubTab = useNavigationStore((s) => s.setTasksSubTab);
@@ -371,7 +373,7 @@ export default function TasksRemindersDarkMode({ setActiveTab, initialSubTab = '
                               />
                             </div>
                             <span className="text-[9px] font-semibold text-slate-400">
-                              {task.subTasks.filter((s) => s.completed).length}/{task.subTasks.length} {t('tasks.steps', 'steps')}
+                              {digits(task.subTasks.filter((s) => s.completed).length)}/{task.subTasks.length} {t('tasks.steps', 'steps')}
                             </span>
                           </div>
                         )}
@@ -436,7 +438,7 @@ export default function TasksRemindersDarkMode({ setActiveTab, initialSubTab = '
                   </div>
                   <h4 className="text-xs font-bold text-white">{t('tasks.completedEarlier', 'Completed Earlier')}</h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
-                    {completedTasks.length}
+                    {digits(completedTasks.length)}
                   </span>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-500 transform transition-transform duration-200 ${isCompletedExpanded ? 'rotate-180' : 'rotate-0'}`}/>
