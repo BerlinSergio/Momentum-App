@@ -832,16 +832,16 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     }
 
     try {
-      const removed = deleteNote(targetId);
+      const removed = await deleteNote(targetId);
       if (!removed) {
-        toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+        toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
         return;
       }
       toast.success(t('toasts.noteDeleted', 'Note deleted'));
       handleNavigateBack();
     } catch (error) {
       console.error('[Momentum Quick Note] Deletion failed:', error);
-      toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+      toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
     }
   };
 

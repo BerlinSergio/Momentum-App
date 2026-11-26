@@ -671,9 +671,9 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     }
 
     try {
-      const removed = deleteNote(targetId);
+      const removed = await deleteNote(targetId);
       if (!removed) {
-        toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+        toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
         return;
       }
       showToast(t('toasts.noteDeleted', 'Note deleted'));
@@ -682,7 +682,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
       else window.history.back();
     } catch (error) {
       console.error('[Momentum Notes] Deletion failed:', error);
-      toast.error(t('notes.deleteFailed', 'Could not delete this note. Please try again.'));
+      toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
     }
   };
 
