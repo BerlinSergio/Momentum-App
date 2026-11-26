@@ -745,11 +745,12 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     };
 
     if (existingNote?.id) {
-      await updateNote(existingNote.id, notePayload);
+      if (await updateNote(existingNote.id, notePayload) !== true) throw Error('Note update not committed');
       setIsEditing(false);
       toast.success(t('toasts.noteUpdated', 'Note updated'));
     } else {
-      await addNote(notePayload);
+      if (!isNew) throw Error('Existing note is unavailable');
+      if (await addNote(notePayload) !== true) throw Error('Note creation not committed');
       toast.success(t('toasts.noteSaved', 'Note saved'));
       handleNavigateBack();
     }
@@ -766,12 +767,13 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
       const current=useNotesStore.getState().notes.find(note=>note.id===existingNote.id);
       if (!current || (current.body || current.content || '') !== body) throw new Error('Note changed');
       const next=toggleChecklistLine(body,index);
-      if(next!==body) {await updateNote(current.id,{body:next});setBody(next);}
+      if(next!==body) {if(await updateNote(current.id,{body:next})!==true)throw Error('Checklist not committed');setBody(next);}
     } catch(error) {toast.error(t('notes.saveFailed','Note could not be saved safely'));}
     finally {saveInFlight.current=false;setIsSavingNote(false);}
   };
 
   const handleCancel = () => {
+    if (saveInFlight.current) return;
     if (!isEditing) {
       handleNavigateBack();
       return;
@@ -792,30 +794,32 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
 
   const isArchived = Boolean(existingNote?.isArchived);
 
-  const handleToggleArchive = () => {
+  const handleToggleArchive = async () => {
     const targetId = existingNote?.id;
-    if (!targetId || targetId === 'new') return;
-    const nextArchived = !isArchived;
-    if (nextArchived) {
-      if (archiveNote) archiveNote(targetId);
-      else updateNote(targetId, { isArchived: true });
-    } else {
-      if (unarchiveNote) unarchiveNote(targetId);
-      else updateNote(targetId, { isArchived: false });
-    }
-    setTimeout(() => {
+    if (!targetId || targetId === 'new' || saveInFlight.current) return;
+    saveInFlight.current = true;
+    setIsSavingNote(true);
+    try {
+      if (await updateNote(targetId, {isArchived: !isArchived}) !== true) throw Error('Archive change not committed');
+      toast.success(isArchived ? t('toasts.noteRestored', 'Note restored from archive') : t('toasts.noteArchived', 'Note archived'));
       handleNavigateBack();
-    }, 200);
+    } catch {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSavingNote(false);
+    }
   };
 
   const handleDeleteNote = async () => {
     setIsMenuOpen(false);
-    const rawTarget = (existingNote?.id && existingNote.id !== 'new')
-      ? existingNote.id
-      : (effectiveNoteId && effectiveNoteId !== 'new'
-        ? effectiveNoteId
-        : (storeActiveNoteId && storeActiveNoteId !== 'new' ? storeActiveNoteId : null));
-    const targetId = rawTarget ? String(rawTarget) : null;
+    if (saveInFlight.current) return;
+    // A new draft must never delete an unrelated, previously active note.
+    const targetId = !isNew && existingNote?.id ? String(existingNote.id) : null;
+    if (!isNew && !targetId) {
+      toast.error(t('notes.deleteFailed', 'Note is unavailable. Reload saved data.'));
+      return;
+    }
 
     const confirmed = await confirm({
       variant: 'destructive',
@@ -824,13 +828,15 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
       confirmText: t('common.delete', 'Delete'),
       cancelText: t('common.cancel', 'Cancel'),
     });
-    if (!confirmed) return;
+    if (!confirmed || saveInFlight.current) return;
 
     if (!targetId) {
       handleNavigateBack();
       return;
     }
 
+    saveInFlight.current = true;
+    setIsSavingNote(true);
     try {
       const removed = await deleteNote(targetId);
       if (!removed) {
@@ -842,6 +848,9 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
     } catch (error) {
       console.error('[Momentum Quick Note] Deletion failed:', error);
       toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSavingNote(false);
     }
   };
 
