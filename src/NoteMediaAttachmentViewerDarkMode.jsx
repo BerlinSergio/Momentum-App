@@ -266,7 +266,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
       const stored = useNotesStore.getState().notes.find(note => note.id === activeNote.id);
       if (!stored?.attachments?.some(att => att.id === currentAttachment?.id)) throw new Error('Attachment is not saved');
       const updated = stored.attachments.map(att => att.id === currentAttachment.id ? {...att,subtitle:caption,caption} : att);
-      await updateNote(activeNote.id, {attachments:updated});
+      if (await updateNote(activeNote.id, {attachments:updated}) !== true) throw Error('Media changes not committed');
       setIsSaved(true);
       globalToast.success(t('toasts.mediaSaved', 'Media changes saved successfully!'));
     } catch (error) {
@@ -277,18 +277,29 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
     }
   };
 
-  const handleConfirmDelete = () => {
-    setShowDeleteModal(false);
-    if (activeNote && currentAttachment?.id) {
-      deleteAttachment(activeNote.id, currentAttachment.id);
+  const handleConfirmDelete = async () => {
+    if (!activeNote || !currentAttachment?.id || saveInFlight.current) return;
+    const noteId = activeNote.id;
+    const attachmentId = currentAttachment.id;
+    saveInFlight.current = true;
+    setIsSaving(true);
+    try {
+      const stored = useNotesStore.getState().notes.find(note => note.id === noteId);
+      if (!stored?.attachments?.some(att => att.id === attachmentId)) throw Error('Attachment not saved');
+      if (await deleteAttachment(noteId, attachmentId) !== true) throw Error('Attachment removal not committed');
+      setShowDeleteModal(false);
       showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
       if (attachments.length <= 1) {
         if (goBack) goBack('notes_main_dark_mode');
         else if (setActiveTab) setActiveTab('notes_main_dark_mode');
       } else {
-        const nextIdx = currentIndex === 0 ? 0 : currentIndex - 1;
-        handleSelectIndex(nextIdx);
+        handleSelectIndex(currentIndex === 0 ? 0 : currentIndex - 1);
       }
+    } catch {
+      globalToast.error(t('notes.deleteFailed', 'Attachment could not be safely removed. Reload saved data.'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -607,7 +618,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
                 {t('common.cancel', 'Cancel')}
               </button>
               <button 
-                onClick={handleConfirmDelete}
+                onClick={handleConfirmDelete} disabled={isSaving}
                 className="flex-1 py-3 px-4 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold text-xs shadow-md shadow-red-600/30 transition-all"
               >
                 {t('common.yesRemove', 'Yes, Remove')}
