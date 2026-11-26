@@ -295,6 +295,35 @@ async function main() {
       console.log('PASS: 4. Quick Note Editor (' + theme + ' bottom bar): cancel preserves, confirm permanently deletes');
     }
 
+    // A new draft can arrive with a stale active note ID from another screen.
+    // Confirming draft deletion must never remove the previously saved note.
+    for (const theme of ['light', 'dark']) {
+      step = 'discard-new-draft:' + theme;
+      const preservedId = 'qa-preserve-active-' + theme;
+      await page.evaluate(async ({theme,preservedId}) => {
+        await window.useThemeStore.getState().setTheme(theme);
+        const notes = window.useNotesStore.getState();
+        const saved = await notes.addNote({id:preservedId,type:'quick',title:'QA preserved note',body:'Keep this saved note'});
+        if (saved !== true) throw Error('Fixture commit failed');
+        await notes.setActiveNoteId(preservedId);
+        const nav=window.useNavigationStore.getState();
+        nav.setActiveTab('notes_main');
+        nav.setActiveTab('quick_note_editor',{isNew:true});
+      }, {theme,preservedId});
+      await page.waitForFunction(()=>window.useNavigationStore.getState().routeParams?.isNew===true &&
+        document.querySelector('button.btn-danger') && document.querySelector('textarea')?.value==='', {timeout:15000,polling:200});
+      await page.click('.btn-danger');
+      await page.waitForSelector('[data-testid="momentum-dialog-confirm-btn"]',{visible:true,timeout:10000});
+      await page.click('[data-testid="momentum-dialog-confirm-btn"]');
+      await page.waitForFunction(()=>window.useNavigationStore.getState().activeTab.includes('notes_main'),{timeout:15000,polling:200});
+      assert.equal(await page.evaluate(async id=>{
+        const {getCommittedStoreRecord}=await import('/src/storage/db.js');
+        const row=await getCommittedStoreRecord('momentum-notes-storage');
+        return row?.value?.state?.notes?.some(n=>n.id===id && n.body==='Keep this saved note');
+      },preservedId),true,'Discarding a new note must preserve the unrelated saved note');
+    }
+    console.log('PASS: explicit new draft deletion preserves previously active saved notes in both themes.');
+
     // 5. Full End-to-End User Journey (NotesMain -> Card Click -> Menu -> Delete -> Confirm -> DOM check -> Reload check)
     {
       const e2eNoteId = 'qa-e2e-real-flow-' + Date.now();
