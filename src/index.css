@@ -694,3 +694,16 @@ html, body, #root {
   max-inline-size: 100%;
 }
 .momentum-canvas-viewport :is(img,video,canvas) { max-inline-size: 100%; }
+
+/* Shared neutral card surfaces. Deliberately leave colored status/brand cards,
+   dialog overlays and user-selected wallpaper untouched. */
+:root { --momentum-card-surface: rgba(255,255,255,.94); --momentum-card-solid:#fff; }
+.dark { --momentum-card-surface: rgba(15,23,42,.88); --momentum-card-solid:#0f172a; }
+html.disable-glass { --momentum-card-surface:var(--momentum-card-solid); }
+.momentum-neutral-card,
+html:not(.dark) .momentum-canvas-viewport :is(div,section,article)[class*="rounded-"][class*="backdrop-blur"]:is([class~="bg-white/50"],[class~="bg-white/60"],[class~="bg-white/70"],[class~="bg-white/80"],[class~="bg-white/90"]),
+html.dark .momentum-canvas-viewport :is(div,section,article)[class*="rounded-"][class*="backdrop-blur"]:is([class~="bg-black/30"],[class~="bg-black/40"],[class~="bg-black/50"],[class~="bg-slate-900/60"],[class~="bg-slate-900/70"],[class~="bg-slate-900/80"]) {
+  background-color:var(--momentum-card-surface) !important;
+}
+html:not(.disable-glass) .momentum-neutral-card { backdrop-filter:blur(var(--blur-intensity,18px)); -webkit-backdrop-filter:blur(var(--blur-intensity,18px)); }
+html.momentum-native-android:not(.disable-glass) .momentum-neutral-card { backdrop-filter:blur(min(var(--blur-intensity,18px),6px)); -webkit-backdrop-filter:blur(min(var(--blur-intensity,18px),6px)); }
