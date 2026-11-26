@@ -1,3 +1,4 @@
+import {DailyReflectionCard} from './components/DailyInspirationPanel.jsx';
 import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import React, { useState } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
@@ -16,7 +17,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
   const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { historyLogs, currentCount, dailyGoal, clearHistory, setActivePreset } = useTasbeehStore();
-  const { effectiveTimezone, currentDateKey, currentMonthKey, isToday, isYesterday } = useAppTime();
+  const { now, effectiveTimezone, currentDateKey, currentMonthKey, isToday, isYesterday } = useAppTime();
   const [activeFilter, setActiveFilter] = useState('Today');
 
   // Filter logs dynamically based on the active timeframe tab
@@ -151,7 +152,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
             </div>
             <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.activeStreak', 'Active Streak')}</span>
-              <span className="text-sm font-bold text-slate-900 mt-0.5 block">{digits(activeStreak)} {t('common.days','Days')}</span>
+              <span className="text-sm font-bold text-slate-900 mt-0.5 block" data-testid="tasbeeh-active-streak">{digits(activeStreak)} {t('common.days','Days')}</span>
               <span className="text-[10px] text-slate-500 block">{t('tasbeeh.personalBest', 'Personal best')}: {digits(bestStreak)}</span>
             </div>
             <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
@@ -281,18 +282,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
           })
         )}
 
-        {/* Quote Card */}
-        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-          <div className="w-8 h-8 rounded-full bg-white text-primary flex items-center justify-center shadow-2xs">
-            <Quote className="w-4 h-4"/>
-          </div>
-          <p className="text-xs font-medium italic text-slate-900 leading-relaxed">
-            {t('tasbeeh.spiritualPeaceQuote', 'The remembrance of Allah brings peace to the heart.')}
-          </p>
-          <span className="text-[11px] font-normal text-primary block text-right">
-            — {t('tasbeeh.surahRadAyah', 'Surah Ar-Ra\'d 13:28')}
-          </span>
-        </div>
+        <div className="mx-5"><DailyReflectionCard date={now} timeZone={effectiveTimezone}/></div>
 
         {/* Action Button (In-flow, clean spacing above bottom nav) */}
         <div className="mx-5 pt-2">

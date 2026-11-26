@@ -1015,8 +1015,8 @@ export default function QuickNoteEditorLightMode({ setActiveTab, goBack, noteId:
 
       {/* 2. AUTOSAVED SUB-BAR */}
       <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
-        <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-50 border border-emerald-200/80 text-emerald-700 shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-600"/>
+        <span data-testid="note-persistence-status" className={(isEditing || !existingNote) ? "h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-800 shadow-xs" : "h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-50 border border-emerald-200/80 text-emerald-700 shadow-xs"}>
+          <Sparkles className="w-3.5 h-3.5"/>
           {isEditing || !existingNote ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}
         </span>
       </div>

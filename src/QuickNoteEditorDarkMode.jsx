@@ -1017,8 +1017,8 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
 
       {/* 2. AUTOSAVED SUB-BAR */}
       <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
-        <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-400"/>
+        <span data-testid="note-persistence-status" className={(isEditing || !existingNote) ? "h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-amber-950/40 border border-amber-500/30 text-amber-300 shadow-sm" : "h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 shadow-sm"}>
+          <Sparkles className="w-3.5 h-3.5"/>
           {isEditing || !existingNote ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}
         </span>
       </div>

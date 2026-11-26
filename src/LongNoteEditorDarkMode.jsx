@@ -814,7 +814,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
         <div className="note-sheet-card flex-1 bg-[rgba(15,23,42,0.68)] backdrop-blur-2xl rounded-[28px] sm:rounded-[36px] border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(255,255,255,0.08)] px-5 sm:px-8 pt-6 pb-8 space-y-6 w-full">
           {/* CLEAN STRUCTURED METADATA ROW */}
           <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium shadow-xs">
+            <span data-testid="note-persistence-status" className={(isEditing || isNew || currentNote.id==='new') ? "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/40 border border-amber-500/30 text-amber-300 font-medium shadow-xs" : "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium shadow-xs"}>
               <CloudCheck className="w-3.5 h-3.5" />
               <span>{isEditing || isNew || currentNote.id==='new' ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}</span>
             </span>
