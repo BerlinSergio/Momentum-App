@@ -690,12 +690,13 @@ function civilAlertsQuiet(settings,at) {
   return minute>=22*60+30 || minute<4*60+30;
 }
 
-export function buildNativeReminderPlan(now=new Date()) {
+export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false}={}) {
   const settings=useSettingsStore.getState();
   if (settings.masterEnabled === false) return [];
   const notifications=[];
   const add=(key,at,title,body,channelId,type,params,targetScreen)=>{
     if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at<=now || (type!=='prayer' && civilAlertsQuiet(settings,at))) return;
+    if(!includeAlarmOnly && settings.alarmOnlyOccurrences?.[key]===at.getTime())return;
     notifications.push({
       id:hashStringToInt(key),title,body,channelId,smallIcon:'ic_stat_momentum',
       schedule:{at,allowWhileIdle:true},
@@ -786,7 +787,7 @@ export function startNativeReminderSynchronization(){
   watch(useRoutineStore,s=>s.routines);
   watch(useCalendarStore,s=>s.events);
   watch(useLocationStore,s=>s.selectedCity);
-  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND]);
+  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND,s.alarmOnlyOccurrences]);
   watch(usePrayerStore,s=>[s.prayerAlertsEnabled,s.adhanOffset,s.calculationMethod,s.madhab,s.highLatitudeRule,s.polarCircleResolution,s.prayerAdjustments]);
   App.addListener('appStateChange',state=>{if(state.isActive)sync();}).catch(error=>console.warn('[Notifications] Resume listener failed',error));
 }
