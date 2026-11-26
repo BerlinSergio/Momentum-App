@@ -35,7 +35,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
     if (activeFilter === 'This Week') {
       const logKey = getLocalDateKey(log.date, effectiveTimezone);
       const diffDays = getCalendarDaysDiff(logKey, currentDateKey);
-      return diffDays >= 0 && diffDays <= 7;
+      return diffDays >= 0 && diffDays < 7;
     }
 
     if (activeFilter === 'This Month') {
@@ -64,11 +64,11 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
   const formatLogDate = (dateStr) => {
     if (!dateStr) return t('common.unknown','Unknown');
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'Today • 08:45 PM';
+    if (isNaN(d.getTime())) return t('common.unknown','Unknown');
 
     const timeStr = formatTime(d, false, effectiveTimezone);
-    if (isToday(d)) return `Today • ${timeStr}`;
-    if (isYesterday(d)) return `Yesterday • ${timeStr}`;
+    if (isToday(d)) return t('common.today','Today')+' • '+digits(timeStr);
+    if (isYesterday(d)) return t('common.yesterday','Yesterday')+' • '+digits(timeStr);
     return `${formatDate(d, { month: 'short', day: 'numeric' }, effectiveTimezone)} • ${timeStr}`;
   };
 

@@ -84,22 +84,20 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
     url: routeParams.uri || routeParams.url
   } : null);
 
-  let rawAttachments = (activeNote && Array.isArray(activeNote.attachments) && activeNote.attachments.length > 0)
-    ? [...activeNote.attachments]
-    : [];
-
-  if (passedAttachment && !rawAttachments.some(a => a.id === passedAttachment.id || (a.url && a.url === passedAttachment.url))) {
-    rawAttachments.unshift(passedAttachment);
+  // A route snapshot is only an extra preview for an unsaved draft. Never
+  // reintroduce a previously persisted attachment after it was removed.
+  const storedAttachments=Array.isArray(activeNote?.attachments)?activeNote.attachments.filter(Boolean):[];
+  const passedWasSaved=useRef(false);
+  if(passedAttachment&&storedAttachments.some(a=>a.id===passedAttachment.id))passedWasSaved.current=true;
+  const attachments=[...storedAttachments];
+  if(passedAttachment&&!passedWasSaved.current&&(activeNote||!activeNoteId||activeNoteId==='new')&&!attachments.some(a=>a.id===passedAttachment.id||(a.url&&a.url===passedAttachment.url))){
+    attachments.unshift(passedAttachment);
   }
-
-  const attachments = rawAttachments.filter(Boolean);
-
-  const targetAttachmentId = passedAttachment?.id || activeAttachmentId;
-  const initialIndex = Math.max(0, attachments.findIndex((a) => a.id === targetAttachmentId || (passedAttachment && a.url === passedAttachment.url)));
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(initialIndex || 0);
-
-  const currentAttachment = attachments[currentIndex] || attachments[0];
+  const targetAttachmentId=passedAttachment?.id||activeAttachmentId||attachments[0]?.id||null;
+  const [selectedAttachmentId,setSelectedAttachmentId]=useState(targetAttachmentId);
+  const [isFullscreen,setIsFullscreen]=useState(false);
+  const currentIndex=attachments.findIndex(a=>a.id===selectedAttachmentId);
+  const currentAttachment=currentIndex>=0?attachments[currentIndex]:null;
   const [resolution, setResolution] = useState('Measuring...');
   const [caption, setCaption] = useState(currentAttachment?.subtitle || currentAttachment?.caption || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -157,8 +155,8 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
   const handleSelectIndex = (idx) => {
     if(!attachments.length)return;
     const boundedIdx = (idx + attachments.length) % attachments.length;
-    setCurrentIndex(boundedIdx);
     const target = attachments[boundedIdx];
+    setSelectedAttachmentId(target?.id||null);
     if (target && setActiveAttachmentId) {
       setActiveAttachmentId(target.id);
     }
@@ -260,11 +258,14 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
       if (await deleteAttachment(noteId, attachmentId) !== true) throw Error('Attachment removal not committed');
       setShowDeleteModal(false);
       showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
-      if (attachments.length <= 1) {
+      const remaining=(useNotesStore.getState().notes.find(note=>note.id===noteId)?.attachments||[]).filter(Boolean);
+      if (remaining.length === 0) {
         if (goBack) goBack('notes_main_light_mode');
         else if (setActiveTab) setActiveTab('notes_main_light_mode');
       } else {
-        handleSelectIndex(currentIndex === 0 ? 0 : currentIndex - 1);
+        const next=remaining[Math.max(0,Math.min(currentIndex-1,remaining.length-1))];
+        setSelectedAttachmentId(next.id);
+        setActiveAttachmentId?.(next.id);
       }
     } catch {
       globalToast.error(t('notes.deleteFailed', 'Attachment could not be safely removed. Reload saved data.'));
@@ -274,7 +275,7 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
     }
   };
 
-  if (!currentAttachment || (activeAttachmentId && !passedAttachment && !attachments.some(a=>a.id===activeAttachmentId))) {
+  if (!currentAttachment) {
     return <div className="min-h-full pb-24">
       <MomentumGlassHeader isDarkMode={false}>
         <h1 className="font-semibold text-base">{t('notes.attachmentDetails','Attachment Details')}</h1>
@@ -323,14 +324,14 @@ export default function NoteMediaAttachmentViewerLightMode({ setActiveTab, goBac
           onDragStart={(e) => e.preventDefault()}
           onClick={() => setIsFullscreen(true)}
           onLoad={(e) => {
-            if (e.target?.naturalWidth && e.target?.naturalHeight) {
+            if (!e.currentTarget.src.startsWith('data:image/svg+xml') && e.target?.naturalWidth && e.target?.naturalHeight) {
               setResolution(e.target.naturalWidth + ' × ' + e.target.naturalHeight);
             }
           }}
           className={`w-full h-full object-cover transition-all duration-500 select-none cursor-zoom-in ${isZoomed ? 'scale-125' : 'group-hover:scale-105'} ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`} 
           alt={attachments[currentIndex]?.name || 'Attachment Preview'} 
           src={resolvedUrl || attachments[currentIndex]?.url || FALLBACK_IMAGE}
-          onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+          onError={(e) => { setResolution('—'); if(e.currentTarget.getAttribute('src')!==FALLBACK_IMAGE)e.currentTarget.src=FALLBACK_IMAGE; }}
         />
         
         {/* Top Smooth Gradient Overlay */}
