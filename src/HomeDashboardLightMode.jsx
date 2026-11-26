@@ -15,6 +15,7 @@ import UserAvatar from './components/UserAvatar';
 import WelcomeHero from './components/home/WelcomeHero';
 import { useTranslation } from 'react-i18next';
 import { useLocaleStore } from './store/useLocaleStore';
+import { formatHomeDate } from './i18n/displayDate.js';
 import { useNotificationStore } from './store/useNotificationStore';
 import {
   Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun,
@@ -24,6 +25,7 @@ import {
 export default function HomeDashboardLightMode({ setActiveTab }) {
   const { t } = useTranslation();
   const currentLocale = useLocaleStore((s) => s.currentLocale);
+  const numberSystem = useLocaleStore(s => s.numberSystem);
   const profile = useProfileStore();
   const notifications = useNotificationStore((s) => s.notifications) || [];
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
@@ -257,7 +259,7 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
                   <h2 className="text-sm font-bold text-slate-900">{t('home.financialHealth', 'Financial Health')}</h2>
                 </div>
                 <span className="text-xs font-semibold text-primary">
-                  {new Intl.DateTimeFormat(currentLocale === 'ps-AF' ? 'ps-AF' : currentLocale === 'fa-AF' ? 'fa-AF' : 'en-US', { month: 'long', timeZone: effectiveTimezone }).format(now)}
+                  {formatHomeDate(now,currentLocale,numberSystem,effectiveTimezone,true)}
                 </span>
               </div>
 
