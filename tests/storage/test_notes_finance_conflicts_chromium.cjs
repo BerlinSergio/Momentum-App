@@ -12,8 +12,14 @@ const DOMAIN = {
 
 async function boot(page, domain) {
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await waitReady(page, domain);
+}
+
+async function waitReady(page, domain) {
+  await page.bringToFront();
   const storeName = domain === 'notes' ? 'useNotesStore' : 'useFinanceStore';
   await page.waitForFunction(name =>
+    document.querySelector('[data-app-startup-ready="true"]') !== null &&
     window[name]?.persist?.hasHydrated?.() === true &&
     window[name]?.getState?.()._hasHydrated === true,
     { timeout: 40000, polling: 200 }, storeName);
@@ -54,6 +60,7 @@ async function awaitRecord(page, domain, id) {
 }
 
 async function awaitConflict(page, domain) {
+  await page.bringToFront();
   await page.waitForSelector('[data-testid="domain-storage-conflict"]', { timeout: 30000 });
   const status = await page.evaluate(async () => {
     const adapter = await import('/src/storage/zustandIndexedDbStorage.js');
@@ -89,11 +96,7 @@ async function uiTwoTab(browser, domain) {
     assert.deepEqual(await state(a, domain), committed, 'Conflicted tab unexpectedly retried');
 
     await b.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    await b.waitForFunction(name =>
-      window[name]?.persist?.hasHydrated?.() === true &&
-      window[name]?.getState?.()._hasHydrated === true,
-      { timeout: 40000, polling: 200 },
-      domain === 'notes' ? 'useNotesStore' : 'useFinanceStore');
+    await waitReady(b, domain);
     const refreshed = await b.evaluate(({ domain, first, stale }) => {
       const store = domain === 'notes' ? window.useNotesStore : window.useFinanceStore;
       const entries = domain === 'notes' ? store.getState().notes : store.getState().transactions;
@@ -113,28 +116,31 @@ async function uiTwoTab(browser, domain) {
       // metadata has committed, then verify real successful unlink is atomic.
       const id = 'qa213-note-with-file', attachmentId = 'qa213-durable-attachment';
       await a.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-      await a.waitForFunction(() => window.useNotesStore?.getState?.()._hasHydrated, {
-        timeout: 35000, polling: 200,
-      });
+      await waitReady(a, domain);
       await a.evaluate(async ({ id, attachmentId }) => {
         const db = await import('/src/storage/db.js');
         if (!(await db.setAttachmentRecord({
           id: attachmentId, noteId: id, mimeType: 'text/plain', blob: new Blob(['SAFE-BYTES']),
         }))) throw Error('Attachment setup failed');
-        window.useNotesStore.getState().addNote({
+        if (await window.useNotesStore.getState().addNote({
           id, title: 'QA attached note', body: 'safe test',
           attachments: [{ id: attachmentId, name: 'synthetic.txt', type: 'document' }],
-        });
+        }) !== true) throw Error('Note fixture not committed');
       }, { id, attachmentId });
       await awaitRecord(a, domain, id);
       // B sees the attachment, then A changes notes. B's stale removal
       // must fail CAS, retaining the durable attachment bytes.
       await b.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
-      await b.waitForFunction(() => window.useNotesStore?.getState?.()._hasHydrated, {
-        timeout: 35000, polling: 200,
-      });
+      await waitReady(b, domain);
+      // Prove that B loaded the exact note and attachment before inducing
+      // the stale write; a no-op on an absent attachment is not a CAS test.
+      assert.equal(await b.evaluate(({id,attachmentId}) => window.useNotesStore.getState().notes
+        .find(n=>n.id===id)?.attachments.some(att=>att.id===attachmentId), {id,attachmentId}), true);
+      await a.bringToFront();
       await edit(a, domain, 'qa213-note-ahead-of-delete');
       await awaitRecord(a, domain, 'qa213-note-ahead-of-delete');
+      await b.bringToFront();
+      assert.equal(await b.evaluate(()=>window.useNotesStore.getState().notes.some(n=>n.id==='qa213-note-ahead-of-delete')),false,'B must still hold stale data');
       const rejected = await b.evaluate(async ({ id, attachmentId }) => {
         try {
           await window.useNotesStore.getState().deleteAttachment(id, attachmentId);
