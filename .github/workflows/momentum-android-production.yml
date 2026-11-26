@@ -1,0 +1,72 @@
+name: Momentum Android Production Package
+
+on:
+  push:
+    branches:
+      - release/1.0-production-prep
+    paths:
+      - '.github/workflows/momentum-android-production.yml'
+      - 'src/**'
+      - 'public/**'
+      - 'android/**'
+      - 'package*.json'
+      - 'capacitor.config.json'
+      - 'vite.config.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install locked dependencies
+        run: npm ci --no-fund
+      - name: Set up Android command-line tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install Android SDK platform
+        run: |
+          sdkmanager --version
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Build and synchronize Android assets
+        run: |
+          npm run build
+          npx --no-install cap sync android
+      - name: Assemble unsigned release APK
+        working-directory: android
+        run: bash ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Verify package and record build provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          unzip -tq "$apk"
+          mkdir -p production-artifacts
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 "$apk" production-artifacts/momentum-1.0-unsigned.apk
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 production-artifacts/momentum-1.0-unsigned.apk
+          unzip -tq production-artifacts/momentum-1.0-unsigned.apk
+          git rev-parse HEAD:src > production-artifacts/source-tree.txt
+          git rev-parse HEAD > production-artifacts/commit.txt
+          cd production-artifacts
+          sha256sum momentum-1.0-unsigned.apk > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: momentum-android-unsigned-${{ github.sha }}
+          path: production-artifacts/
+          if-no-files-found: error
+          retention-days: 30
