@@ -11,7 +11,8 @@ const textOnly=value=>{const node=document.createElement('template');node.innerH
 async function fetchWithTimeout(url,options={},ms=25000) {
   const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),ms);
   try {
-    const response=await fetch(url,{...options,signal:controller.signal,credentials:'omit'});
+    const {asJson,...request}=options;
+    const response=await fetch(url,{...request,signal:controller.signal,credentials:'omit'});
     if(!response.ok)throw Error('Online wallpaper request failed');
     return await (options.asJson?response.json():response.blob());
   }finally{clearTimeout(timer);}
@@ -58,8 +59,12 @@ async function downloadOne(item) {
     image.src=temporaryUrl;await image.decode();
     if(Math.max(image.naturalWidth,image.naturalHeight)<1280)throw Error('Image quality too low');
   }finally{URL.revokeObjectURL(temporaryUrl);}
-  const {dataUrl}=await processImageForStorage(blob,1920,0.85);
-  if(!/^data:image\/(webp|jpeg|png);base64,/.test(dataUrl)||dataUrl.length>2*1024*1024)throw Error('Image cache limit exceeded');
+  let dataUrl='';
+  for(const quality of [0.85,0.76,0.67,0.58]){
+    ({dataUrl}=await processImageForStorage(blob,1920,quality));
+    if(dataUrl.length<=768*1024)break;
+  }
+  if(!/^data:image\/(webp|jpeg|png);base64,/.test(dataUrl)||dataUrl.length>768*1024)throw Error('Image cache limit exceeded');
   const result={...item,url:dataUrl,isDownloaded:true};
   for(const field of IMAGE_FIELDS)delete result[field];
   return result;
@@ -82,7 +87,8 @@ export function downloadCloudWallpaperPack() {
       }
     }));
     if(!output.length)throw Error('No new wallpaper could be downloaded; existing wallpapers retained');
-    const active=previous.find(x=>x.id===state.activeBackgroundId);
+    const latest=useThemeStore.getState();
+    const active=(latest.downloadedWallpapers||[]).find(x=>x.id===latest.activeBackgroundId&&isLocal(x));
     const next=active?[active,...output]:output;
     const saved=await state.setDownloadedWallpapers(next,output.map(x=>x.sourceId));
     if(saved!==true)throw Error('Wallpaper storage commit failed');
