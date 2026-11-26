@@ -6,6 +6,8 @@
  */
 
 import { Geolocation } from '@capacitor/geolocation';
+import { registerPlugin } from '@capacitor/core';
+const MomentumDevice = registerPlugin('MomentumDevice');
 import { useLocationStore } from '../store/useLocationStore';
 import { isValidCoordinate } from './prayerTimes';
 import { isNativePlatform } from './nativeLifecycle';
@@ -91,24 +93,18 @@ export async function detectAndApplyNativeLocation(options = {}) {
         };
       }
 
-      // 2. Fetch native GPS fix
+      // Try the Capacitor provider first, then use the Android framework
+      // directly when Play Services/provider setup is unavailable.
       const permissions = await Geolocation.checkPermissions();
       const precise = permissions.location === 'granted';
       try {
         position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: highAccuracy && precise,
-          timeout: Math.max(timeoutMs, 20000),
-          maximumAge: 30000,
+          enableHighAccuracy:highAccuracy && precise, timeout:timeoutMs, maximumAge:0,
         });
       } catch (error) {
-        // Honor Android approximate permission and fall back to the network
-        // provider when a high-accuracy fix times out. Never invent coordinates.
-        if (!highAccuracy || !precise) throw error;
         const latest = await Geolocation.checkPermissions();
         if (latest.location !== 'granted' && latest.coarseLocation !== 'granted') throw error;
-        position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy:false, timeout:15000, maximumAge:60000,
-        });
+        position = await MomentumDevice.getDeviceLocation();
       }
     } else {
       // Web Browser standard Geolocation
