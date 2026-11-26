@@ -411,6 +411,7 @@ export const useNotesStore = create(
               type: noteData.type || 'quick',
               title: noteData.title || 'Untitled Note',
               body: noteData.body || noteData.content || '',
+              section1Title: noteData.section1Title || '',
               quote: noteData.quote || '',
               quoteAttribution: noteData.quoteAttribution || '',
               section2Title: noteData.section2Title || '',
