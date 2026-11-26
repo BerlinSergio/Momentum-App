@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   useRoutineStore,
   deriveWeekdaysFromFrequency,
@@ -97,6 +97,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
   const [isNotifyTimingPickerOpen, setIsNotifyTimingPickerOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const mutationPending = useRef(false);
   const [isDirty, setIsDirty] = useState(false);
 
   // Time picker working state
@@ -106,7 +107,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
   const [pickerPeriod, setPickerPeriod] = useState((initialTimeMatch && initialTimeMatch[3]) ? initialTimeMatch[3].toUpperCase() : 'PM');
 
   // Adjust state during render if editingRoutineId changes (official React pattern)
-  if (prevRoutineId !== editingRoutineId) {
+  if (prevRoutineId !== editingRoutineId && !isSubmitting) {
     setPrevRoutineId(editingRoutineId);
     if (existingRoutine) {
       setTitle(existingRoutine.title || '');
@@ -342,7 +343,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
 
   // Save / Update logic
   const handleSave = async () => {
-    if (isSubmitting) return;
+    if (mutationPending.current) return;
 
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
@@ -357,6 +358,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
       return;
     }
 
+    mutationPending.current = true;
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -380,24 +382,28 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
       };
 
       if (isEditing) {
-        updateRoutine(existingRoutine.id, routinePayload);
+        if (await updateRoutine(existingRoutine.id, routinePayload) !== true) throw new Error('Routine update not confirmed');
         toast.success('Routine updated');
       } else {
-        addRoutine(routinePayload);
+        if (await addRoutine(routinePayload) !== true) throw new Error('Routine creation not confirmed');
         toast.success('Routine created successfully');
       }
 
       setIsDirty(false);
       navigateBack();
     } catch (err) {
-      console.error('[RoutineForm] Save failed:', err);
-      setErrorMessage('Failed to save routine. Please try again.');
-      toast.error('Failed to save routine');
+      // Keep form contents available even if the optimistic action cleared its editor ID.
+      setPrevRoutineId(useRoutineStore.getState().editingRoutineId);
+      setErrorMessage('Routine was not safely saved. Reload before trying again.');
+      toast.error('Routine was not safely saved');
+    } finally {
+      mutationPending.current = false;
       setIsSubmitting(false);
     }
   };
 
   const handleCancel = async () => {
+    if (mutationPending.current) return;
     if (isDirty) {
       const confirmed = await confirm({
         variant: 'warning',
@@ -413,34 +419,44 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
   };
 
   const confirmDiscard = () => {
+    if (mutationPending.current) return;
     setIsDiscardConfirmOpen(false);
     setIsDirty(false);
     navigateBack();
   };
 
-  const handleDelete = async () => {
-    if (!existingRoutine) return;
-    const confirmed = await confirm({
-      variant: 'destructive',
-      titleKey: 'confirm.deleteRoutineTitle',
-      messageKey: 'confirm.deleteRoutineDescription',
-      confirmLabelKey: 'confirm.delete',
-      cancelLabelKey: 'confirm.cancel',
-    });
-    if (!confirmed) return;
-    deleteRoutine(existingRoutine.id);
-    toast.success('Routine deleted');
-    navigateBack();
+  const deleteConfirmedRoutine = async (askConfirmation) => {
+    if (!existingRoutine || mutationPending.current) return;
+    mutationPending.current = true;
+    setIsSubmitting(true);
+    const id = existingRoutine.id;
+    try {
+      if (askConfirmation) {
+        const confirmed = await confirm({
+          variant: 'destructive',
+          titleKey: 'confirm.deleteRoutineTitle',
+          messageKey: 'confirm.deleteRoutineDescription',
+          confirmLabelKey: 'confirm.delete',
+          cancelLabelKey: 'confirm.cancel',
+        });
+        if (!confirmed) return;
+      }
+      if (await deleteRoutine(id) !== true) throw new Error('Routine deletion not confirmed');
+      toast.success('Routine deleted');
+      setIsDeleteConfirmOpen(false);
+      navigateBack();
+    } catch {
+      setPrevRoutineId(useRoutineStore.getState().editingRoutineId);
+      setErrorMessage('Routine was not safely deleted. Reload before trying again.');
+      toast.error('Routine was not safely deleted');
+    } finally {
+      mutationPending.current = false;
+      setIsSubmitting(false);
+    }
   };
 
-  const confirmDelete = () => {
-    if (existingRoutine) {
-      deleteRoutine(existingRoutine.id);
-      toast.success('Routine deleted');
-    }
-    setIsDeleteConfirmOpen(false);
-    navigateBack();
-  };
+  const handleDelete = () => deleteConfirmedRoutine(true);
+  const confirmDelete = () => deleteConfirmedRoutine(false);
 
   return {
     isEditing,
