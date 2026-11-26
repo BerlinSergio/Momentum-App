@@ -108,7 +108,7 @@ function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSele
         </div>
         <h4 className="text-sm font-semibold text-white truncate line-clamp-1 line-clamp-2 leading-snug min-h-[1.5rem] flex items-center">{wallpaperTitle}</h4>
         <span className="text-xs font-medium text-primary mt-0.5 truncate">{item.mood}</span>
-        {item.sourcePage && <a href={item.sourcePage} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] opacity-80 break-words">{item.artist ? item.artist+' · ' : ''}{item.license} · Wikimedia Commons</a>}
+        {item.sourcePage && <a href={item.sourcePage} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] opacity-80 break-words">{item.artist ? item.artist+' · ' : ''}{item.license} · Wikimedia Commons</a>{item.licenseUrl&&<a href={item.licenseUrl} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] underline">{item.license} · resized</a>}}
       </div>
     </div>
   );
@@ -131,6 +131,8 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab, goBac
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [favorites, setFavorites] = useState(['bg-04-serene-horizon', 'bg-03-minaret-sunrise']);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress,setDownloadProgress]=useState(0);
+  const pendingPack=useThemeStore(s=>s.wallpaperPendingPackId);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   const isNoneActive = activeBackgroundId === 'none';
@@ -198,11 +200,11 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab, goBac
     setIsDownloading(true);
     setDownloadSuccess(false);
     try {
-      const result = await downloadCloudWallpaperPack();
+      const result = await downloadCloudWallpaperPack(({downloaded})=>setDownloadProgress(downloaded));
       setShowAll(true);
       setActiveCategory('Cloud Sanctuary');
       setDownloadSuccess(result.failed === 0 && result.downloadedCount === result.total);
-      if (result.failed) toast.error(t('wallpapers.partialDownload', '{{count}} wallpapers available offline; {{failed}} failed. Retry when connected.', {count:result.downloadedCount,failed:result.failed}));
+      if (result.failed) toast.error(t('wallpapers.partialDownload', '{{count}} of 30 wallpapers saved. Continue downloading to complete this pack.', {count:result.downloadedCount,failed:result.failed}));
       else toast.success(t('wallpapers.downloaded30', '30 Online Wallpapers Downloaded'));
     } catch (error) {
       toast.error(t('wallpapers.downloadFailed', 'Wallpaper download failed. Check your connection and storage.'));
