@@ -454,14 +454,14 @@ export const useNotesStore = create(
           })
         ),
 
-      deleteNote: (noteId) => {
+      deleteNote: async (noteId) => {
         // A delete must act only on an existing saved note. Do not claim
         // success when the editor holds an unsaved/stale note ID.
         if (!noteId || String(noteId) === 'new') return false;
         const stringId = String(noteId);
         const exists = get().notes.some((note) => String(note.id) === stringId);
         if (!exists) return false;
-        set(
+        const saved = await set(
           produce((state) => {
             state.notes = state.notes.filter((note) => String(note.id) !== stringId);
             if (String(state.activeNoteId) === stringId) {
@@ -471,7 +471,7 @@ export const useNotesStore = create(
             state.reflectionStreak = calculateReflectionStreak(state.notes);
           })
         );
-        return !get().notes.some((note) => String(note.id) === stringId);
+        return saved === true && !get().notes.some((note) => String(note.id) === stringId);
       },
 
       togglePin: (noteId) =>
