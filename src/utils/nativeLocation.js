@@ -75,7 +75,7 @@ export async function requestLocationPermission() {
  */
 export async function detectAndApplyNativeLocation(options = {}) {
   const highAccuracy = options.highAccuracy !== false;
-  const timeoutMs = Math.max(10000, Number(options.timeout) || 20000);
+  const timeoutMs = Math.max(15000, Math.min(45000, Number(options.timeout) || 35000));
 
   try {
     let position = null;
@@ -95,19 +95,19 @@ export async function detectAndApplyNativeLocation(options = {}) {
         };
       }
 
-      // Try the Capacitor provider first, then use the Android framework
-      // directly when Play Services/provider setup is unavailable.
-      try {
-        const permissions = await Geolocation.checkPermissions();
-        const precise = permissions.location === 'granted';
-        position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy:highAccuracy && precise, timeout:timeoutMs, maximumAge:0,
-        });
-      } catch (error) {
-        const nativePermission = await MomentumDevice.checkDeviceLocationPermission();
-        if (!nativePermission.granted) throw error;
-        position = await MomentumDevice.getDeviceLocation();
-      }
+      // Run the Android provider and fused provider together; a failed or
+      // slow provider must not prevent the other from returning a real fix.
+      const nativePermission = await MomentumDevice.checkDeviceLocationPermission();
+      if (!nativePermission.granted) throw Error('Location permission denied');
+      const validate = value => {
+        if (!value?.coords || !isValidCoordinate(value.coords.latitude,value.coords.longitude))
+          throw Error('Invalid device fix');
+        return value;
+      };
+      position = await Promise.any([
+        MomentumDevice.getDeviceLocation({timeout:timeoutMs}).then(validate),
+        Geolocation.getCurrentPosition({enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:120000}).then(validate),
+      ]).catch(error => {throw error.errors?.find(e=>e.code==='TIMEOUT') || error.errors?.[0] || error;});
     } else {
       // Web Browser standard Geolocation
       if (typeof navigator === 'undefined' || !navigator.geolocation) {

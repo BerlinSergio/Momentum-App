@@ -339,15 +339,7 @@ html.disable-glass [class*="backdrop-blur"],
   -webkit-backdrop-filter: none !important;
 }
 
-.dark.disable-glass [class*="backdrop-blur-"],
-.dark.disable-glass [class*="bg-black/"],
-.dark.disable-glass [class*="bg-slate-900/40"],
-.dark.disable-glass [class*="bg-slate-900/50"],
-.dark.disable-glass [class*="bg-slate-900/60"],
-.dark.disable-glass [class*="bg-slate-900/70"],
-.dark.disable-glass [class*="bg-slate-900/80"],
-.dark.disable-glass [class*="bg-white/[0.0"] {
-  background-color: #0f172a !important; /* solid clean slate-900 surface */
+/* solid clean slate-900 surface */
 }
 
 html:not(.dark).disable-glass [class*="backdrop-blur-"],
@@ -695,15 +687,27 @@ html, body, #root {
 }
 .momentum-canvas-viewport :is(img,video,canvas) { max-inline-size: 100%; }
 
-/* Shared neutral card surfaces. Deliberately leave colored status/brand cards,
-   dialog overlays and user-selected wallpaper untouched. */
-:root { --momentum-card-surface: rgba(255,255,255,.94); --momentum-card-solid:#fff; }
-.dark { --momentum-card-surface: rgba(15,23,42,.88); --momentum-card-solid:#0f172a; }
-html.disable-glass { --momentum-card-surface:var(--momentum-card-solid); }
+/* A single glass material: translucent while enabled, solid while disabled.
+   Neutral rounded surfaces include primary and nested cards, not accent colors,
+   media, text inputs, full-screen overlays or selected controls. */
+:root { --momentum-card-surface: rgba(255,255,255,.62); --momentum-card-solid:#fff; --momentum-card-edge:rgba(255,255,255,.58); }
+html.dark { --momentum-card-surface:rgba(15,23,42,.68); --momentum-card-solid:#0f172a; --momentum-card-edge:rgba(255,255,255,.13); }
+html.disable-glass { --momentum-card-surface:var(--momentum-card-solid); --momentum-card-edge:rgba(148,163,184,.22); }
+html[data-active-background="none"]:not(.disable-glass) { --momentum-card-surface:rgba(248,250,252,.78); }
+html.dark[data-active-background="none"]:not(.disable-glass) { --momentum-card-surface:rgba(30,41,59,.78); }
 .momentum-neutral-card,
-html:not(.dark) .momentum-canvas-viewport :is(div,section,article)[class*="rounded-"][class*="backdrop-blur"]:is([class~="bg-white/50"],[class~="bg-white/60"],[class~="bg-white/70"],[class~="bg-white/80"],[class~="bg-white/90"]),
-html.dark .momentum-canvas-viewport :is(div,section,article)[class*="rounded-"][class*="backdrop-blur"]:is([class~="bg-black/30"],[class~="bg-black/40"],[class~="bg-black/50"],[class~="bg-slate-900/60"],[class~="bg-slate-900/70"],[class~="bg-slate-900/80"]) {
+html:not(.dark) .momentum-canvas-viewport :is(div,section,article,button)[class*="rounded-"]:not([class~="fixed"]):not([class~="absolute"]):is([class~="bg-white"],[class~="bg-white/40"],[class~="bg-white/50"],[class~="bg-white/60"],[class~="bg-white/70"],[class~="bg-white/75"],[class~="bg-white/80"],[class~="bg-white/85"],[class~="bg-white/90"],[class~="bg-white/95"],[class~="bg-slate-50/70"],[class~="bg-slate-50/80"]),
+html.dark .momentum-canvas-viewport :is(div,section,article,button)[class*="rounded-"]:not([class~="fixed"]):not([class~="absolute"]):is([class~="bg-black/30"],[class~="bg-black/40"],[class~="bg-black/50"],[class~="bg-slate-900"],[class~="bg-slate-900/40"],[class~="bg-slate-900/45"],[class~="bg-slate-900/50"],[class~="bg-slate-900/60"],[class~="bg-slate-900/70"],[class~="bg-slate-900/80"],[class~="bg-slate-900/90"]) {
   background-color:var(--momentum-card-surface) !important;
+  border-color:var(--momentum-card-edge) !important;
+  backdrop-filter:blur(var(--momentum-glass-blur,12px)) !important;
+  -webkit-backdrop-filter:blur(var(--momentum-glass-blur,12px)) !important;
 }
-html:not(.disable-glass) .momentum-neutral-card { backdrop-filter:blur(var(--blur-intensity,18px)); -webkit-backdrop-filter:blur(var(--blur-intensity,18px)); }
-html.momentum-native-android:not(.disable-glass) .momentum-neutral-card { backdrop-filter:blur(min(var(--blur-intensity,18px),6px)); -webkit-backdrop-filter:blur(min(var(--blur-intensity,18px),6px)); }
+html { --momentum-glass-blur:clamp(4px,var(--blur-intensity,18px),20px); }
+html.momentum-native-android { --momentum-glass-blur:clamp(4px,var(--blur-intensity,18px),10px); }
+html.disable-glass { --momentum-glass-blur:0px; }
+html.disable-glass .momentum-neutral-card { backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+/* Sticky title bars need more tint than decorative cards so text below them
+   cannot compete with the navigation label. */
+html:not(.dark):not(.disable-glass) .momentum-glass-header-capsule { background-color:rgba(255,255,255,.82) !important; }
+html.dark:not(.disable-glass) .momentum-glass-header-capsule { background-color:rgba(15,23,42,.84) !important; }

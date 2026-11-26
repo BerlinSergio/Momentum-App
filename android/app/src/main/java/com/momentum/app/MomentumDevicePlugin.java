@@ -98,6 +98,7 @@ public class MomentumDevicePlugin extends Plugin {
                     if (location.hasAccuracy()) coords.put("accuracy", location.getAccuracy());
                     JSObject response = new JSObject();
                     response.put("coords", coords);
+                    response.put("timestamp", location.getTime());
                     call.resolve(response);
                 }
                 @Override public void onProviderEnabled(String provider) {}
@@ -105,20 +106,30 @@ public class MomentumDevicePlugin extends Plugin {
                 @Override public void onStatusChanged(String provider, int status, android.os.Bundle extras) {}
             };
             boolean requested = false;
+            Location recent = null;
             for (String provider : new String[]{LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER}) {
                 if (provider.equals(LocationManager.GPS_PROVIDER) && !fine) continue;
                 try {
                     if (!manager.isProviderEnabled(provider)) continue;
+                    Location cached = manager.getLastKnownLocation(provider);
+                    if (cached != null && cached.hasAccuracy() && cached.getAccuracy() <= 5000f &&
+                        android.os.SystemClock.elapsedRealtimeNanos() >= cached.getElapsedRealtimeNanos() &&
+                        android.os.SystemClock.elapsedRealtimeNanos() - cached.getElapsedRealtimeNanos() <= 120_000_000_000L &&
+                        (recent == null || cached.getAccuracy() < recent.getAccuracy())) recent = cached;
                     manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper());
                     requested = true;
                 } catch (Exception ignored) {}
             }
             if (!requested) { finished.set(true); call.reject("Turn on device location services", "POSITION_UNAVAILABLE"); return; }
+            final Location recentFix = recent;
+            // Prefer a live fix. A genuine recent device fix is acceptable if
+            // the receiver cannot refresh quickly; never substitute a city.
+            if (recentFix != null) handler.postDelayed(() -> listener.onLocationChanged(recentFix), 5000L);
             handler.postDelayed(() -> {
                 if (!finished.compareAndSet(false, true)) return;
                 manager.removeUpdates(listener);
                 call.reject("Device location acquisition timed out", "TIMEOUT");
-            }, 20000L);
+            }, Math.max(10000L, Math.min(45000L, call.getInt("timeout", 35000))));
         });
     }
 
