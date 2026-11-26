@@ -180,6 +180,12 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
     }
   }, [route?.params?.noteId, route?.params?.isNew, propNoteId, storeNoteId, currentNote?.id, isNew]);
 
+  // Initialize the uncontrolled contentEditable when entering edit mode.
+  // Rewriting on each input would disturb the caret and undo history.
+  useEffect(() => {
+    if (isEditing && editorRef.current) editorRef.current.innerHTML = body || '';
+  }, [isEditing]);
+
   const displayDate = useMemo(() => {
     if (currentNote.date && currentNote.date.includes('•')) {
       return currentNote.date.split('•')[0].trim();
@@ -543,11 +549,11 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
 
     if (currentNote.id && currentNote.id !== 'new') {
       if(!useNotesStore.getState().notes.some(note=>String(note.id)===String(currentNote.id)))throw Error('Note no longer exists');
-      await updateNote(currentNote.id, notePayload);
+      if (await updateNote(currentNote.id, notePayload) !== true) throw Error('Note update not committed');
       setIsEditing(false);
       showToast(t('toasts.noteUpdated', 'Note updated successfully!'));
     } else {
-      await addNote(notePayload);
+      if (await addNote(notePayload) !== true) throw Error('Note creation not committed');
       showToast(t('toasts.noteSaved', 'Note saved successfully!'));
         if (goBack) goBack('notes_main_light_mode');
         else if (setActiveTab) setActiveTab('notes_main_light_mode');
@@ -1067,7 +1073,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
           {/* ACTION BUTTONS IN EDIT MODE */}
           {isEditing && (
             <div className="pt-2 space-y-3">
-              <button type="button" data-testid="long-note-save" onClick={handleSaveNote} disabled={savingNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
+              <button type="button" data-testid="long-note-save-bottom" onClick={handleSaveNote} disabled={savingNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
                 <Check className="w-4 h-4 stroke-[2.5]" />
                 <span>{t('common.save', 'Save Note')}</span>
               </button>
