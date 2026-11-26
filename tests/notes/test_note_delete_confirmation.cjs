@@ -152,10 +152,15 @@ async function main() {
       step = 'long-note:' + theme + ':confirm';
       await openDeleteMenu();
       await page.click('[data-testid="momentum-dialog-confirm-btn"]');
-      await page.waitForFunction((noteId) =>
-        !window.useNotesStore.getState().notes.some((note) => String(note.id) === String(noteId)) &&
-        !window.useConfirmStore.getState().isOpen,
-        { timeout: 7000 }, id);
+      await page.waitForFunction(async (noteId) => {
+        const { getCommittedStoreRecord } = await import('/src/storage/db.js');
+        const record = await getCommittedStoreRecord('momentum-notes-storage');
+        const stored = record?.value?.state?.notes;
+        return Array.isArray(stored) && !stored.some(note => String(note.id) === String(noteId)) &&
+          !window.useNotesStore.getState().notes.some(note => String(note.id) === String(noteId)) &&
+          !window.useConfirmStore.getState().isOpen &&
+          window.useNavigationStore.getState().activeTab.includes('notes_main');
+      }, { timeout: 15000, polling: 200 }, id);
 
       const result = await page.evaluate(() => ({
         activeTab: window.useNavigationStore.getState().activeTab,
@@ -201,10 +206,15 @@ async function main() {
       step = 'quick-note:' + theme + ':confirm';
       await openDeleteMenu();
       await page.click('[data-testid="momentum-dialog-confirm-btn"]');
-      await page.waitForFunction((noteId) =>
-        !window.useNotesStore.getState().notes.some((note) => String(note.id) === String(noteId)) &&
-        !window.useConfirmStore.getState().isOpen,
-        { timeout: 7000 }, id);
+      await page.waitForFunction(async (noteId) => {
+        const { getCommittedStoreRecord } = await import('/src/storage/db.js');
+        const record = await getCommittedStoreRecord('momentum-notes-storage');
+        const stored = record?.value?.state?.notes;
+        return Array.isArray(stored) && !stored.some(note => String(note.id) === String(noteId)) &&
+          !window.useNotesStore.getState().notes.some(note => String(note.id) === String(noteId)) &&
+          !window.useConfirmStore.getState().isOpen &&
+          window.useNavigationStore.getState().activeTab.includes('notes_main');
+      }, { timeout: 15000, polling: 200 }, id);
 
       const result = await page.evaluate(() => ({
         activeTab: window.useNavigationStore.getState().activeTab,
@@ -266,10 +276,15 @@ async function main() {
       await page.waitForSelector('[data-testid="momentum-dialog-confirm-btn"]', { visible: true, timeout: 6000 });
       await page.click('[data-testid="momentum-dialog-confirm-btn"]');
 
-      await page.waitForFunction((noteId) =>
-        !window.useNotesStore.getState().notes.some((note) => String(note.id) === String(noteId)) &&
-        !window.useConfirmStore.getState().isOpen,
-        { timeout: 7000 }, id);
+      await page.waitForFunction(async (noteId) => {
+        const { getCommittedStoreRecord } = await import('/src/storage/db.js');
+        const record = await getCommittedStoreRecord('momentum-notes-storage');
+        const stored = record?.value?.state?.notes;
+        return Array.isArray(stored) && !stored.some(note => String(note.id) === String(noteId)) &&
+          !window.useNotesStore.getState().notes.some(note => String(note.id) === String(noteId)) &&
+          !window.useConfirmStore.getState().isOpen &&
+          window.useNavigationStore.getState().activeTab.includes('notes_main');
+      }, { timeout: 15000, polling: 200 }, id);
 
       const result = await page.evaluate(() => ({
         activeTab: window.useNavigationStore.getState().activeTab,
