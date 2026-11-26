@@ -6,6 +6,7 @@ import UserAvatar from './components/UserAvatar';
 import { useNotesStore } from './store/useNotesStore';
 import { useNavigationStore } from './store/useNavigationStore';
 import { saveAttachmentFile } from './storage/index.js';
+import { sanitizeNoteHtml, pasteSafeNoteContent } from './utils/safeNoteHtml.js';
 import { toast } from './components/ui/toast/index.js';
 import { confirm } from './components/ui/confirmation/index.js';
 import {
@@ -178,7 +179,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       setAttachments(currentNote.attachments || []);
       setIsPinned(Boolean(currentNote.isPinned));
       if (editorRef.current && (editorRef.current.innerHTML !== currentNote.body)) {
-        editorRef.current.innerHTML = currentNote.body || '';
+        editorRef.current.innerHTML = sanitizeNoteHtml(currentNote.body);
       }
       setIsEditing(false);
     }
@@ -187,8 +188,10 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
   // Initialize the uncontrolled contentEditable when entering edit mode.
   // Rewriting on each input would disturb the caret and undo history.
   useEffect(() => {
-    if (isEditing && editorRef.current) editorRef.current.innerHTML = body || '';
+    if (isEditing && editorRef.current) editorRef.current.innerHTML = sanitizeNoteHtml(body);
   }, [isEditing]);
+
+  const safeBody = useMemo(() => isEditing ? '' : sanitizeNoteHtml(body), [body, isEditing]);
 
   const displayDate = useMemo(() => {
     if (currentNote.date && currentNote.date.includes('•')) {
@@ -345,6 +348,11 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
   const handleInsertEditorImage = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!/^image\/(png|jpeg|gif|webp|bmp)$/i.test(file.type) || file.size > 50 * 1024 * 1024) {
+      toast.error(t('notes.unsupportedInlineImage','Choose a PNG, JPEG, GIF, WebP or BMP image up to 50 MB.'));
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       const imgUrl = uploadEvent.target?.result;
@@ -537,7 +545,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
     const notePayload = {
       title: title.trim() || 'Untitled Reflection',
       section1Title: section1Title.trim(),
-      body: currentHtml,
+      body: sanitizeNoteHtml(currentHtml),
       quote: quote.trim(),
       quoteAttribution: quoteAttribution.trim(),
       section2Title: section2Title.trim(),
@@ -626,7 +634,7 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
       setAttachments(currentNote.attachments || []);
       setIsPinned(Boolean(currentNote.isPinned));
       if (editorRef.current) {
-        editorRef.current.innerHTML = currentNote.body || '';
+        editorRef.current.innerHTML = sanitizeNoteHtml(currentNote.body);
       }
       setIsEditing(false);
       showToast(t('notes.changesDiscarded', 'Changes discarded'));
@@ -910,13 +918,15 @@ export default function LongNoteEditorLightMode({ setActiveTab, goBack, noteId: 
                   ref={editorRef}
                   data-testid="long-note-body-editor"
                   contentEditable
+                onPaste={pasteSafeNoteContent}
+                onDrop={event => event.preventDefault()}
                   onInput={handleEditorInput}
                   className="w-full min-h-[160px] text-sm sm:text-base leading-relaxed p-4 rounded-2xl bg-white/40 focus:bg-white/70 border border-slate-200/70 focus:border-indigo-400 text-slate-800 outline-none transition-all font-normal [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-700 [&_h2]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-500 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_blockquote]:bg-indigo-50/50 [&_blockquote]:rounded-r-lg [&_blockquote]:py-1 [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2" 
                 />
               </div>
             ) : (
               <div 
-                dangerouslySetInnerHTML={{ __html: body || `<p class="text-slate-400 italic">${t('notes.noNotesYetTapEdit', 'No notes yet. Tap Edit to add your thoughts.')}</p>` }} 
+                dangerouslySetInnerHTML={{ __html: safeBody || sanitizeNoteHtml(t('notes.noNotesYetTapEdit', 'No notes yet. Tap Edit to add your thoughts.')) }} 
                 className="w-full text-sm sm:text-base leading-relaxed text-slate-800 select-text font-normal [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-700 [&_h2]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-500 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_blockquote]:bg-indigo-50/50 [&_blockquote]:rounded-r-lg [&_blockquote]:py-1 [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 py-1" 
               />
             )}
