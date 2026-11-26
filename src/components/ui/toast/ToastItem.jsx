@@ -76,7 +76,7 @@ export default function ToastItem({ toast, onClose }) {
       data-toast="item"
       data-toast-id={toast.id}
       data-toast-type={toast.type}
-      className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl select-none font-sans text-xs max-w-[92vw] sm:max-w-md ${themeTokens.base}`}
+      className={`pointer-events-none flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl select-none font-sans text-xs max-w-[92vw] sm:max-w-md ${themeTokens.base}`}
     >
       {/* Icon Badge */}
       <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${variantTokens.badge}`}>
@@ -95,7 +95,7 @@ export default function ToastItem({ toast, onClose }) {
         type="button"
         onClick={onClose}
         aria-label="Dismiss notification"
-        className={`p-1 rounded-lg transition-colors cursor-pointer shrink-0 ${themeTokens.closeBtn}`}
+        className={`pointer-events-auto p-1 rounded-lg transition-colors cursor-pointer shrink-0 ${themeTokens.closeBtn}`}
       >
         <X className="w-3.5 h-3.5" />
       </button>
