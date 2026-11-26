@@ -7,6 +7,7 @@ const getSafeStorage = () => settingsStorage;
 
 export const INITIAL_NOTIFICATION_SETTINGS = {
   masterEnabled: true,
+  alarmOnlyOccurrences: {},
   dueTaskAlerts: true,
   dailyHabitCheckin: true,
   overdueMilestonePushes: false,
@@ -32,6 +33,12 @@ export const useSettingsStore = create(
     (set, get) => ({
       ...INITIAL_NOTIFICATION_SETTINGS,
 
+      // An alarm is created by the system Clock. Suppress only the exact
+      // occurrence the user explicitly confirms; a changed time gets a new alert.
+      setAlarmOnlyOccurrence: (key,at,enabled) => {
+        if(typeof key!=='string'||!key||!Number.isFinite(at)||at<=Date.now())return Promise.resolve(false);
+        return set(state=>{const next=Object.fromEntries(Object.entries(state.alarmOnlyOccurrences||{}).filter(([,time])=>Number.isFinite(time)&&time>Date.now()));if(enabled)next[key]=at;else delete next[key];return {alarmOnlyOccurrences:next};});
+      },
       // Actions
       setSetting: (key, value) => {
         if (key === 'prayerNotificationOffset' || key === 'adhanOffset') {
