@@ -156,10 +156,10 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
       <main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface">
         <div className="flex flex-col w-full pb-28 space-y-space-lg">
           {/* Subtle Ambient Glow Orbs */}
-          <div className="relative w-full">
-            <div className="absolute -top-10 -left-6 w-56 h-56 bg-primary-fixed/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
+          <div className="relative w-full min-w-0">
+            <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none -z-10"><div className="absolute -top-10 -left-6 w-56 h-56 bg-primary-fixed/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
             <div className="absolute top-24 -right-10 w-64 h-64 bg-tertiary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
-            <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/30 rounded-full blur-3xl pointer-events-none -z-10"></div></div>
 
             {/* Security Status Hero Card */}
             <section className="relative overflow-hidden flex flex-col space-y-space-md rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-xl border border-slate-200/80 shadow-md">
@@ -169,12 +169,12 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.67-3.13 8.97-7 10.15-3.87-1.18-7-5.48-7-10.15V6.3l7-3.12zM12 7c-1.66 0-3 1.34-3 3v2H8v6h8v-6h-1v-2c0-1.66-1.34-3-3-3zm0 2c.55 0 1 .45 1 1v2h-2v-2c0-.55.45-1 1-1z"></path>
                 </svg>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 min-w-0">
                 <div className="flex items-center space-x-space-sm">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary to-secondary-container flex items-center justify-center shadow-md">
                     <span className="material-symbols-outlined text-white text-[24px]">shield_lock</span>
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0 break-words">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold w-fit transition-colors ${draft.isAppLockActive ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${draft.isAppLockActive ? 'bg-emerald-600 animate-pulse' : 'bg-amber-600'}`}></span>
                       {draft.isAppLockActive ? t('common.active', 'App Lock Active') : t('common.disabled', 'App Lock Paused')}
@@ -187,7 +187,7 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
                 <button
                   aria-checked={draft.isAppLockActive}
                   onClick={handleMasterToggle}
-                  className={`w-12 h-7 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.isAppLockActive ? 'bg-primary' : 'bg-slate-300'}`}
+                  className={`w-12 h-7 shrink-0 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.isAppLockActive ? 'bg-primary' : 'bg-slate-300'}`}
                   id="master-toggle"
                   role="switch"
                   type="button"
@@ -213,14 +213,14 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div className="bg-slate-50 rounded-xl p-2.5 flex items-center space-x-2 border border-slate-100">
                   <span className="material-symbols-outlined text-primary text-[18px]">verified_user</span>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0 break-words">
                     <span className="text-[10px] font-semibold text-slate-500">{t('security.protectionStandard', 'Protection Standard')}</span>
                     <span className="text-xs font-bold text-slate-900">PBKDF2-SHA256</span>
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-2.5 flex items-center space-x-2 border border-slate-100">
                   <span className="material-symbols-outlined text-teal-600 text-[18px]">key</span>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0 break-words">
                     <span className="text-[10px] font-semibold text-slate-500">{t('security.storageVerification', 'Storage Verification')}</span>
                     <span className="text-xs font-bold text-slate-900">{t('security.clientVerifier', 'Client Verifier')}</span>
                   </div>
@@ -243,9 +243,9 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
 
                 {/* Biometric Card */}
                 <div className="space-y-space-sm rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-xl border border-slate-200/80 shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <span className="material-symbols-outlined text-[22px]">fingerprint</span>
                       </div>
                       <div>
@@ -257,7 +257,7 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
                       aria-checked={draft.biometricsEnabled}
                       onClick={handleToggleBiometrics}
                       disabled={bioPrompting}
-                      className={`w-11 h-6 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.biometricsEnabled ? 'bg-primary' : 'bg-slate-300'} ${bioPrompting ? 'animate-pulse opacity-70' : ''}`}
+                      className={`w-11 h-6 shrink-0 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.biometricsEnabled ? 'bg-primary' : 'bg-slate-300'} ${bioPrompting ? 'animate-pulse opacity-70' : ''}`}
                       id="toggle-bio"
                       role="switch"
                       type="button"
@@ -288,9 +288,9 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
 
                 {/* PIN Protection Card */}
                 <div className="space-y-space-md rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-xl border border-slate-200/80 shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-secondary">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="w-10 h-10 shrink-0 rounded-full bg-secondary-fixed/50 flex items-center justify-center text-secondary">
                         <span className="material-symbols-outlined text-[20px]">password</span>
                       </div>
                       <div>
@@ -352,7 +352,7 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-transparent'
                       }`}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 min-w-0">
                         <span className="material-symbols-outlined text-[20px] text-primary">{option.icon}</span>
                         <div>
                           <p className="text-xs font-semibold">{option.title}</p>
@@ -381,9 +381,9 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
                 </div>
 
                 <div className="rounded-3xl p-5 mb-4 bg-white/70 backdrop-blur-xl border border-slate-200/80 shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <span className="material-symbols-outlined text-[22px]">visibility_off</span>
                       </div>
                       <div>
@@ -394,7 +394,7 @@ export default function AppLockLightMode({ setActiveTab, goBack }) {
                     <button
                       aria-checked={draft.hideInMultitasking}
                       onClick={() => setDraft((prev) => ({ ...prev, hideInMultitasking: !prev.hideInMultitasking }))}
-                      className={`w-11 h-6 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.hideInMultitasking ? 'bg-primary' : 'bg-slate-300'}`}
+                      className={`w-11 h-6 shrink-0 rounded-full relative p-0.5 flex items-center transition-colors duration-200 ${draft.hideInMultitasking ? 'bg-primary' : 'bg-slate-300'}`}
                       role="switch"
                       type="button"
                     >
