@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTaskStore, getConsistencyScore } from './store/useTaskStore';
 import { useNavigationStore } from './store/useNavigationStore';
 import { useAppTime } from './hooks/useAppTime';
@@ -80,13 +80,22 @@ export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(true);
   const { tasks, toggleTaskStatus, setEditingTaskId } = useTaskStore();
 
-  const handleTaskToggle = (task) => {
-    const willBeDone = task.status !== 'done';
-    toggleTaskStatus(task.id);
-    if (willBeDone) {
-      toast.success(t('tasks.taskMarkedDone', 'Task marked as done'));
-    } else {
-      toast.info(t('tasks.taskMarkedTodo', 'Task marked as to-do'));
+  const pendingTaskIds = useRef(new Set());
+  const handleTaskToggle = async (task) => {
+    if (pendingTaskIds.current.has(task.id)) return;
+    pendingTaskIds.current.add(task.id);
+    try {
+      const willBeDone = task.status !== 'done';
+      if (await toggleTaskStatus(task.id) !== true) throw new Error('Task status commit not confirmed');
+      if (willBeDone) {
+        toast.success(t('tasks.taskMarkedDone', 'Task marked as done'));
+      } else {
+        toast.info(t('tasks.taskMarkedTodo', 'Task marked as to-do'));
+      }
+    } catch {
+      toast.error(t('toasts.taskSaveFailed', 'Task was not safely saved. Reload before trying again.'));
+    } finally {
+      pendingTaskIds.current.delete(task.id);
     }
   };
   const { currentDateKey } = useAppTime();
