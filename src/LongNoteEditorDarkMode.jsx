@@ -816,7 +816,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
           <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium shadow-xs">
               <CloudCheck className="w-3.5 h-3.5" />
-              <span>{t('common.saved', 'Saved')}</span>
+              <span>{isEditing || isNew || currentNote.id==='new' ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}</span>
             </span>
             <span className="text-slate-600">•</span>
             <span className="inline-flex items-center gap-1.5 text-slate-300 font-medium">

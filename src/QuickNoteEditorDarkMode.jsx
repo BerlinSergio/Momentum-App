@@ -679,8 +679,8 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
     if (existingNote?.savedAt) {
       return `Created ${existingNote.savedAt.replace('Today at ', 'Today • ')}`;
     }
-    return 'Created Just now';
-  }, [existingNote]);
+    return t('notes.unsavedDraft','Unsaved draft');
+  }, [existingNote,t]);
 
   const activeTintObj = useMemo(() => {
     return TINT_OPTIONS.find((t) => t.id === selectedTint) || TINT_OPTIONS[0];
@@ -1019,7 +1019,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
       <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
         <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 shadow-sm">
           <Sparkles className="w-3.5 h-3.5 text-emerald-400"/>
-          {existingNote?.savedAt ? `Autosaved • ${existingNote.savedAt.replace('Today at ', '')}` : 'Autosaved • 10:45 AM'}
+          {isEditing || !existingNote ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}
         </span>
       </div>
 

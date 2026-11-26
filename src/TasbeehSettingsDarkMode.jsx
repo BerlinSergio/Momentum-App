@@ -1,3 +1,4 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import React, { useState } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { 
     keepAwakeEnabled, 
@@ -206,7 +208,7 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold bg-primary/20 border border-primary/30 text-primary shadow-sm">
             <CheckCircle2 className="w-3.5 h-3.5 text-primary"/>
             <Sparkles className="w-3.5 h-3.5 text-amber-400"/>
-            <span>{t('tasbeeh.targetReached', 'TARGET REACHED')} • {activePreset?.target || 33} OF {activePreset?.target || 33}</span>
+            <span>{t('tasbeeh.targetReached',{defaultValue:'TARGET REACHED • {{current}} OF {{target}}',current:digits(activePreset?.target||33),target:digits(activePreset?.target||33)})}</span>
           </div>
 
           <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex items-center justify-center mx-auto shadow-lg shadow-black/40 ring-4 ring-slate-800">
