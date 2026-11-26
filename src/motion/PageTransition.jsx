@@ -20,6 +20,7 @@ export default function PageTransition({
   return (
     <motion.div
       key={screenKey}
+      data-screen-key={screenKey}
       initial="initial"
       animate="animate"
       exit="exit"
