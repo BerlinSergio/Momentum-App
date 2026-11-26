@@ -222,6 +222,7 @@ export const useThemeStore = create(
       customWallpaper: null,
       wallpapers: BACKGROUND_LIBRARY,
       downloadedWallpapers: [],
+      wallpaperSeenIds: [],
       _hasHydrated: false,
 
       setHasHydrated: (hasHydrated) =>
@@ -314,11 +315,12 @@ export const useThemeStore = create(
           };
         }),
 
-      setDownloadedWallpapers: (downloadedWallpapers) =>
+      setDownloadedWallpapers: (downloadedWallpapers, newSourceIds=[]) =>
         set((state) => {
           const list = Array.isArray(downloadedWallpapers) ? downloadedWallpapers : state.downloadedWallpapers;
           const curated = [...BACKGROUND_LIBRARY, ...(state.wallpapers || []).filter(wp => !wp.id?.startsWith('dl-') && !BACKGROUND_LIBRARY.some(base=>base.id===wp.id))];
-          return {...state, wallpapers:[...curated,...list], downloadedWallpapers:list};
+          const wallpaperSeenIds=[...new Set([...(state.wallpaperSeenIds||[]),...newSourceIds])];
+          return {...state, wallpapers:[...curated,...list], downloadedWallpapers:list,wallpaperSeenIds};
         }),
 
       loadDownloadedBatch: (batchPrefix) =>
