@@ -566,6 +566,13 @@ export const useNotesStore = create(
                 subtitle: attachment.subtitle || 'User uploaded file',
                 type: attachment.type || 'image',
                 url: attachment.url || '',
+                ...(typeof attachment.fileName === 'string' ? { fileName: attachment.fileName } : {}),
+                ...(Number.isFinite(attachment.sizeBytes) ? { sizeBytes: attachment.sizeBytes } : {}),
+                ...(typeof attachment.mimeType === 'string' ? { mimeType: attachment.mimeType } : {}),
+                ...(typeof attachment.storageKey === 'string' ? { storageKey: attachment.storageKey } : {}),
+                ...(typeof attachment.caption === 'string' ? { caption: attachment.caption } : {}),
+                ...(typeof attachment.createdAt === 'string' ? { createdAt: attachment.createdAt } : {}),
+                ...(attachment.isDurable === true ? { isDurable: true } : {}),
               });
             }
           })
@@ -575,7 +582,7 @@ export const useNotesStore = create(
         // Do not delete durable binary bytes before the note metadata passes
         // its cross-tab CAS check. The guarded main-IDB transaction removes
         // unreferenced attachment records atomically with note metadata.
-        set(
+        return set(
           produce((state) => {
             const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.attachments)) {
