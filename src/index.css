@@ -675,3 +675,22 @@ html.momentum-native-android:not(.disable-glass) .momentum-transparent-header-gl
   -webkit-backdrop-filter: blur(6px) !important;
 }
 html.momentum-native-android .momentum-native-wallpaper { filter: blur(min(var(--momentum-wallpaper-blur, 0px), 8px)) !important; }
+
+/* Keep the app shell from becoming a horizontally scrollable viewport.
+   Intentional horizontal carousels inside a screen retain their own scrolling. */
+html, body, #root {
+  max-inline-size: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+.momentum-safe-shell, .momentum-canvas-viewport {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+.momentum-canvas-viewport > * {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.momentum-canvas-viewport :is(img,video,canvas) { max-inline-size: 100%; }
