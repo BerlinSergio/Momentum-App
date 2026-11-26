@@ -108,6 +108,7 @@ function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSele
         </div>
         <h4 className="text-sm font-semibold text-white truncate line-clamp-1 line-clamp-2 leading-snug min-h-[1.5rem] flex items-center">{wallpaperTitle}</h4>
         <span className="text-xs font-medium text-primary mt-0.5 truncate">{item.mood}</span>
+        {item.sourcePage && <a href={item.sourcePage} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] opacity-80 break-words">{item.artist ? item.artist+' · ' : ''}{item.license} · Wikimedia Commons</a>}
       </div>
     </div>
   );
@@ -211,7 +212,7 @@ export default function BackgroundWallpaperLibraryDarkMode({ setActiveTab, goBac
     }
   };
 
-  const activeCloudList = downloadedWallpapers.length > 0 ? downloadedWallpapers : (wallpapers.length > 0 ? wallpapers : DOWNLOADED_WALLPAPERS_BATCH);
+  const activeCloudList = downloadedWallpapers.filter(item=>item.isDownloaded===true && /^data:image\//.test(item.url||''));
   const filteredList = activeCategory === 'All'
     ? wallpapers
     : activeCategory === 'Cloud Sanctuary'
