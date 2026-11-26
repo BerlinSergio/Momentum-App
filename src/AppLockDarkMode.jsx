@@ -159,7 +159,7 @@ export default function AppLockDarkMode({ setActiveTab, goBack }) {
           <div className="relative w-full min-w-0">
             <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none -z-10"><div className="absolute -top-10 -left-6 w-56 h-56 bg-primary-fixed/20 rounded-full blur-3xl pointer-events-none -z-10"></div>
             <div className="absolute top-24 -right-10 w-64 h-64 bg-tertiary-fixed/15 rounded-full blur-3xl pointer-events-none -z-10"></div>
-            <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/15 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div className="absolute top-96 left-8 w-60 h-60 bg-secondary-fixed/15 rounded-full blur-3xl pointer-events-none -z-10"></div></div>
 
             {/* Security Status Hero Card */}
             <section className="relative overflow-hidden flex flex-col space-y-space-md rounded-3xl p-5 mb-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
