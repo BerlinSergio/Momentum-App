@@ -63,6 +63,33 @@ async function main() {
     assert.equal(revision.retainedBlob, 'BBBB');
     console.log('PASS: Same-size, same-timestamp attachment updates get unique revisions; stale CAS fails.');
 
+    const upload = await page.evaluate(async () => {
+      const main = await import('/src/storage/db.js');
+      const { saveAttachmentFile } = await import('/src/storage/attachmentStorage.js');
+      const failedId = 'qa29-upload-failed';
+      const originalPut = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, ...args) {
+        if (this.name === 'attachments' && value?.id === failedId) {
+          throw new DOMException('QA simulated disk full', 'QuotaExceededError');
+        }
+        return originalPut.call(this, value, ...args);
+      };
+      let rejected = false;
+      try {
+        await saveAttachmentFile(new Blob(['failed'], {type:'text/plain'}), {id:failedId});
+      } catch {
+        rejected = true;
+      } finally {
+        IDBObjectStore.prototype.put = originalPut;
+      }
+      const descriptor = await saveAttachmentFile('data:text/plain;base64,QUJDRA==', {id:'qa29-upload-success'});
+      const record = await main.getAttachmentRecord(descriptor.id);
+      return {rejected, noFailedRecord: !(await main.getAttachmentRecord(failedId)),
+        durable:descriptor.isDurable, size:descriptor.sizeBytes, bytes:await record.blob.text()};
+    });
+    assert.deepEqual(upload,{rejected:true,noFailedRecord:true,durable:true,size:4,bytes:'ABCD'});
+    console.log('PASS: attachment upload rejects failed binary write and reports actual decoded byte count.');
+
     const rollback = await page.evaluate(async () => {
       const main = await import('/src/storage/db.js');
       const key = 'qa29-quota-domain';
