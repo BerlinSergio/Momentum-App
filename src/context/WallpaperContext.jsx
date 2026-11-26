@@ -47,7 +47,7 @@ export function WallpaperProvider({ children }) {
     } catch (e) {
       console.error(e);
     }
-    return true;
+    return false;
   });
 
   const [blurLevel, setBlurLevel] = useState(() => {
@@ -146,7 +146,7 @@ export function WallpaperProvider({ children }) {
       const elapsed = now - (batchFetchedAt || now);
 
       // Auto-refresh when 30 days have elapsed since batch download
-      if (elapsed >= THIRTY_DAYS_MS) {
+      if (autoDaily && useThemeStore.getState().activeBackgroundId !== 'none' && elapsed >= THIRTY_DAYS_MS) {
         fetchNewOnlinePack();
         return;
       }
