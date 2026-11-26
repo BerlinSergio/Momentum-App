@@ -1,3 +1,4 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTasbeehVolumeKeys } from './hooks/useTasbeehVolumeKeys.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehMainDarkMode({ setActiveTab }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const {
     currentCount,
@@ -190,13 +192,13 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 {t('tasbeeh.dailyDedication', 'Daily Dedication')}
               </span>
-              <span className="text-xs font-bold text-white"><strong className="text-sm font-bold">{todayTotal}</strong> counts</span>
+              <span className="text-xs font-bold text-white"><strong className="text-sm font-bold">{digits(todayTotal)}</strong> counts</span>
             </div>
           </div>
           <div className="text-right">
             <span className="text-xs font-bold text-teal-400 flex items-center gap-1 justify-end">
               <Flag className="w-3.5 h-3.5" />
-              Goal {goal.toLocaleString()}
+              Goal {digits(goal.toLocaleString())}
             </span>
             <span className="text-[10px] font-medium text-slate-400">{t('tasbeeh.goalCompleted', '{{percent}}% completed', { percent: goalPercentage })}</span>
           </div>
@@ -239,7 +241,7 @@ export default function TasbeehMainDarkMode({ setActiveTab }) {
                 COUNTER
               </span>
               <span className="text-5xl font-extrabold text-white tracking-tight my-0.5 font-display">
-                {displayCount}
+                {digits(displayCount)}
               </span>
               <span className="text-xs font-medium text-slate-400">
                 of <strong className="text-primary font-bold">{target}</strong> Target
