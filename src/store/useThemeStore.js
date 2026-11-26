@@ -223,6 +223,8 @@ export const useThemeStore = create(
       wallpapers: BACKGROUND_LIBRARY,
       downloadedWallpapers: [],
       wallpaperSeenIds: [],
+      wallpaperGuideDismissed: false,
+      dismissWallpaperGuide: () => set({wallpaperGuideDismissed:true}),
       _hasHydrated: false,
 
       setHasHydrated: (hasHydrated) =>
