@@ -1,3 +1,4 @@
+import NoteAttachmentPreview from './NoteAttachmentPreview.jsx';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { ChevronRight, Pin, Archive, ArchiveRestore } from 'lucide-react';
@@ -249,11 +250,6 @@ export default function NotePreviewCard({
     return (template.content.textContent || '').replace(/\s+/g, ' ').trim();
   })();
 
-  // 4. Extract real image attachment (if any)
-  const imageAttachment = Array.isArray(note.attachments)
-    ? note.attachments.find((a) => (a.type === 'image' || a.url) && a.url)
-    : null;
-
   // 5. Format timestamp
   const displayTime = note.savedAt || note.date || 'Recently';
 
@@ -308,20 +304,7 @@ export default function NotePreviewCard({
           </p>
         )}
 
-        {/* 4. OPTIONAL MEDIA THUMBNAIL */}
-        {imageAttachment && (
-          <div className="w-full h-36 rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 shadow-2xs mt-1">
-            <img
-              src={imageAttachment.url}
-              alt={imageAttachment.name || noteTitle}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const parent = e.currentTarget.parentElement;
-                if (parent) parent.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
+        <NoteAttachmentPreview attachments={note.attachments}/>
 
         {/* 5. METADATA ROW: TIME & READ LINK */}
         <div
