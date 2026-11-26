@@ -1,3 +1,4 @@
+import ReminderAlarmCard from './components/ReminderAlarmCard.jsx';
 import { Capacitor } from '@capacitor/core';
 import { scheduleAllActiveNotifications } from './utils/nativeNotifications.js';
 import React, { useState, useEffect } from 'react';
@@ -511,6 +512,8 @@ export default function NotificationsSettingsLightMode({
                 onChange={() => toggleSetting('masterEnabled')}
               />
             </div>
+
+            <ReminderAlarmCard isNative={isNative}/>
 
             {/* SYSTEM VERIFICATION & TEST NOTIFICATION CARD */}
             <div className="p-5 rounded-3xl bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-sm space-y-3">
