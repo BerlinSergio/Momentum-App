@@ -63,7 +63,7 @@ export const usePrayerStore = create(
           const id = String(quote.surah);
           return {savedInspirations: saved.some(item => item.id === id)
             ? saved.filter(item => item.id !== id)
-            : [{id, ayah:String(quote.ayah), surah:id, savedAt:new Date().toISOString()}, ...saved]};
+            : [{id, ayah:String(quote.ayah), surah:id, ...(Number.isInteger(quote.suraNumber)&&Number.isInteger(quote.ayaNumber)?{suraNumber:quote.suraNumber,ayaNumber:quote.ayaNumber,locale:quote.locale,arabic:quote.arabic,author:quote.author,translationKey:quote.translationKey,sourceUrl:quote.sourceUrl,footnotes:quote.footnotes}:{}), savedAt:new Date().toISOString()}, ...saved]};
         });
       },
 
