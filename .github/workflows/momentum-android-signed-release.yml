@@ -1,0 +1,141 @@
+name: Momentum Signed Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_draft_release:
+        description: 'After successful signing, create a private repository GitHub draft release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: momentum-signed-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-fund
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Assemble production package
+        run: |
+          set -euo pipefail
+          npm run build
+          npx --no-install cap sync android
+          (cd android && bash ./gradlew :app:assembleRelease --no-daemon --stacktrace)
+          mkdir -p unsigned
+          apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          unzip -tq "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 "$apk" unsigned/momentum-1.0-unsigned.apk
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 unsigned/momentum-1.0-unsigned.apk
+          git rev-parse HEAD > unsigned/commit.txt
+          git rev-parse HEAD:src > unsigned/source-tree.txt
+          (cd unsigned && sha256sum momentum-1.0-unsigned.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: momentum-unsigned-${{ github.sha }}
+          path: unsigned/
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: momentum-production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: momentum-unsigned-${{ github.sha }}
+          path: unsigned/
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - run: sdkmanager "build-tools;36.0.0"
+      - name: Sign and verify using owner-managed credentials
+        shell: bash
+        env:
+          MOMENTUM_KEYSTORE_BASE64: ${{ secrets.MOMENTUM_KEYSTORE_BASE64 }}
+          MOMENTUM_KEYSTORE_PASSWORD: ${{ secrets.MOMENTUM_KEYSTORE_PASSWORD }}
+          MOMENTUM_KEY_ALIAS: ${{ secrets.MOMENTUM_KEY_ALIAS }}
+          MOMENTUM_KEY_PASSWORD: ${{ secrets.MOMENTUM_KEY_PASSWORD }}
+          MOMENTUM_CERT_SHA256: ${{ vars.MOMENTUM_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          test "$(cat unsigned/commit.txt)" = "$GITHUB_SHA"
+          (cd unsigned && sha256sum -c SHA256SUMS.txt)
+          if [[ -z "$MOMENTUM_KEYSTORE_BASE64" || -z "$MOMENTUM_KEYSTORE_PASSWORD" || -z "$MOMENTUM_KEY_ALIAS" || -z "$MOMENTUM_KEY_PASSWORD" || -z "$MOMENTUM_CERT_SHA256" ]]; then
+            echo "::error::Configure the production environment signing secrets and expected certificate SHA-256."
+            exit 1
+          fi
+          umask 077
+          keystore="$(mktemp "$RUNNER_TEMP/momentum-signing.XXXXXX")"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$MOMENTUM_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          mkdir -p signed
+          signer="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          "$signer" sign --ks "$keystore" --ks-key-alias "$MOMENTUM_KEY_ALIAS" --ks-pass env:MOMENTUM_KEYSTORE_PASSWORD --key-pass env:MOMENTUM_KEY_PASSWORD --out signed/Momentum-1.0-release.apk unsigned/momentum-1.0-unsigned.apk
+          "$signer" verify --verbose --print-certs signed/Momentum-1.0-release.apk | tee signed/signature.txt
+          expected="$(printf '%s' "$MOMENTUM_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' signed/signature.txt)"
+          test "${#expected}" -eq 64
+          test "$actual" = "$expected"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 signed/Momentum-1.0-release.apk
+          unzip -tq signed/Momentum-1.0-release.apk
+          cp unsigned/commit.txt unsigned/source-tree.txt signed/
+          (cd signed && sha256sum Momentum-1.0-release.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: momentum-signed-${{ github.sha }}
+          path: signed/
+          if-no-files-found: error
+          retention-days: 30
+
+  draft-release:
+    needs: sign
+    if: github.ref == 'refs/heads/main' && inputs.create_draft_release == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: momentum-signed-${{ github.sha }}
+          path: signed/
+      - name: Create draft release for owner review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(cat signed/commit.txt)" = "$GITHUB_SHA"
+          (cd signed && sha256sum -c SHA256SUMS.txt)
+          gh release create v1.0 signed/Momentum-1.0-release.apk signed/SHA256SUMS.txt signed/commit.txt signed/source-tree.txt signed/signature.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Momentum 1.0" --notes "Production-signed candidate. Review and test the signed package before publication. Existing debug installations may require a backup and reinstall because of the signing-key change." --draft
