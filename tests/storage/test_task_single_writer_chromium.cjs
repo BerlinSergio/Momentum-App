@@ -13,7 +13,9 @@ const URL = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
 const KEY = 'momentum-task-storage';
 
 async function waitReady(page) {
+  await page.bringToFront();
   await page.waitForFunction(() =>
+    document.querySelector('[data-app-startup-ready="true"]') !== null &&
     window.useTaskStore?.persist?.hasHydrated?.() === true &&
     window.useTaskStore?.getState?.()._hasHydrated === true &&
     window.useProfileStore?.persist?.hasHydrated?.() === true,
@@ -51,7 +53,7 @@ async function main() {
     }, { key: KEY, id });
 
     await a.evaluate(id => {
-      window.useTaskStore.getState().addTask({
+      return window.useTaskStore.getState().addTask({
         id, title: 'Phase 2.11 synthetic task', status: 'todo',
       });
     }, id);
@@ -112,7 +114,26 @@ async function main() {
     });
     console.log('PASS: Stale localStorage mirror cannot replace already committed task data after reload.');
 
-    await b.evaluate(id => window.useTaskStore.getState().deleteTask(id), id);
+    // Await the real persistence promise so a rejected CAS or storage error
+    // is reported directly instead of being obscured by a polling timeout.
+    const deletion = await b.evaluate(async ({ key, id }) => {
+      const { getTaskStorageFailure } = await import('/src/storage/zustandIndexedDbStorage.js');
+      const db = await import('/src/storage/db.js');
+      try {
+        const saved = await window.useTaskStore.getState().deleteTask(id);
+        return { saved };
+      } catch (error) {
+        const durable = await db.getStoreItem(key);
+        return {
+          saved: false,
+          code: error?.code || null,
+          failureCode: getTaskStorageFailure()?.code || null,
+          targetStillDurable: durable?.state?.tasks?.some(task => task.id === id) === true,
+          targetStillInMemory: window.useTaskStore.getState().tasks.some(task => task.id === id),
+        };
+      }
+    }, { key: KEY, id });
+    assert.equal(deletion.saved, true, 'Task deletion commit failed: ' + JSON.stringify(deletion));
     await b.waitForFunction(async ({ key, id }) => {
       const db = await import('/src/storage/db.js');
       const stored = await db.getStoreItem(key);
