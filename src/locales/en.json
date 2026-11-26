@@ -117,7 +117,8 @@
     "replace": "Replace",
     "saving": "Saving Changes...",
     "inactive": "Inactive",
-    "allDay": "All day"
+    "allDay": "All day",
+    "unknown": "Unknown"
   },
   "nav": {
     "home": "Home",
@@ -674,7 +675,10 @@
     "deleteMilestone": "Delete milestone",
     "addReflectiveCaption": "Add reflective notes or caption for this media asset...",
     "removeConfirmPrompt": "Are you sure you want to remove this attachment? This action cannot be undone.",
-    "archived": "Archived"
+    "archived": "Archived",
+    "unsavedDraft": "Unsaved draft",
+    "noAttachmentSelected": "No attachment selected",
+    "noAttachmentDescription": "Open an attachment from a saved note to view it here."
   },
   "calendar": {
     "title": "Calendars",
@@ -1009,7 +1013,8 @@
     "physicalButtonMappings": "Physical button mappings and screen states",
     "completionRitualPreview": "Completion Ritual Preview",
     "livePreview": "Live Preview",
-    "savePreferences": "Save Tasbeeh Preferences"
+    "savePreferences": "Save Tasbeeh Preferences",
+    "completedSessions": "Recorded sessions"
   },
   "settings": {
     "title": "Settings",

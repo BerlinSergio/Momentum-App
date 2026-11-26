@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
-import useNavigationStore from '../../../store/useNavigationStore';
+import {useTheme} from '../../../context/ThemeContext.jsx';
 
 const TOAST_ICONS = {
   success: CheckCircle2,
@@ -54,8 +54,7 @@ const TOAST_STYLES = {
 
 export default function ToastItem({ toast, onClose }) {
   const shouldReduceMotion = useReducedMotion();
-  const activeTab = useNavigationStore((s) => s.activeTab) || '';
-  const isDark = activeTab.toLowerCase().includes('dark') || !activeTab.toLowerCase().includes('light');
+  const isDark = useTheme()?.theme === 'dark';
 
   const themeTokens = isDark ? TOAST_STYLES.dark : TOAST_STYLES.light;
   const variantTokens = themeTokens[toast.type] || themeTokens.info;
