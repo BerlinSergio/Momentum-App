@@ -1,3 +1,5 @@
+import {useLocaleStore} from '../store/useLocaleStore.js';
+import {displayDigits,formatHomeDate} from '../i18n/displayDate.js';
 import { useMemo } from 'react';
 import { useTimeStore } from '../store/useTimeStore';
 import {
@@ -20,6 +22,8 @@ import {
  * timezone reactivity, and midnight rollovers.
  */
 export function useAppTime() {
+  const locale=useLocaleStore(s=>s.currentLocale);
+  const numberSystem=useLocaleStore(s=>s.numberSystem);
   const effectiveTimezone = useTimeStore((s) => s.effectiveTimezone);
   const timezoneMode = useTimeStore((s) => s.timezoneMode);
   const manualTimezone = useTimeStore((s) => s.manualTimezone);
@@ -54,12 +58,12 @@ export function useAppTime() {
   }, [currentHour]);
 
   const formattedDate = useMemo(() => {
-    return formatDate(now, { weekday: 'long', day: 'numeric', month: 'short' }, effectiveTimezone);
-  }, [now, effectiveTimezone]);
+    return formatHomeDate(now,locale,numberSystem,effectiveTimezone);
+  }, [now,effectiveTimezone,locale,numberSystem]);
 
   const formattedTime = useMemo(() => {
-    return formatTime(now, timeFormat === '24h', effectiveTimezone);
-  }, [now, timeFormat, effectiveTimezone]);
+    return displayDigits(formatTime(now,timeFormat==='24h',effectiveTimezone),numberSystem);
+  }, [now,timeFormat,effectiveTimezone,numberSystem]);
 
   const timezoneLabel = useMemo(() => {
     return getTimezoneDisplayLabel(effectiveTimezone, now);
