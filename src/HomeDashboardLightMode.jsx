@@ -1,3 +1,4 @@
+import WallpaperWelcomeHint from './components/WallpaperWelcomeHint.jsx';
 import { useMemo, useState } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { motion } from 'framer-motion';
@@ -239,6 +240,7 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
       <main className="w-full bg-transparent relative z-10 pointer-events-auto">
         {/* Premium Glass Welcome Hero */}
         <WelcomeHero isDark={false} setActiveTab={setActiveTab} className="mb-4 lg:mb-5" />
+        <WallpaperWelcomeHint setActiveTab={setActiveTab}/>
 
         {/* Responsive Dashboard Layout: 12-Column Grid on Desktop (>= 1024px), Clean Single Column Stack on Mobile (< 1024px) */}
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
