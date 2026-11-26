@@ -47,6 +47,26 @@ const q = id => '[data-testid="' + id + '"]';
       } else await page.click(q(cancel));
       await page.waitForSelector(q(modal),{hidden:true});
     }
+    // Exercise real UI saves in both themes against committed IndexedDB.
+    for (const theme of ['dark', 'light']) {
+      const title = 'QA durable task ' + theme;
+      await page.evaluate(async theme => {
+        await window.useThemeStore.getState().setTheme(theme);
+        await window.useTaskStore.getState().setEditingTaskId(null);
+        window.useNavigationStore.getState().setActiveTab('add_edit_task_' + theme + '_mode');
+      }, theme);
+      await page.waitForSelector(q('task-title-input'), {visible:true,timeout:15000});
+      await page.click(q('task-title-input'), {clickCount:3});
+      await page.keyboard.type(title);
+      await page.click(q('save-task-btn'));
+      await page.waitForFunction(async title => {
+        const {getStoreItem}=await import('/src/storage/db.js');
+        const row=await getStoreItem('momentum-task-storage');
+        return row?.state?.tasks?.filter(task=>task.title===title).length===1;
+      }, {timeout:15000,polling:200}, title);
+      await page.waitForSelector(q('save-task-btn'), {hidden:true,timeout:15000});
+    }
+    console.log('PASS: both task editor themes save to committed IndexedDB before leaving the editor');
     const saved = await page.evaluate(async () => {
       const {getIslamicDateParts,getHijriDateParts,HIJRI_MONTHS}=await import('/src/utils/afghanCalendar.js');
       const d=new Date('2026-11-26T09:00:00Z');
@@ -73,6 +93,9 @@ const q = id => '[data-testid="' + id + '"]';
     await page.waitForFunction(()=>window.usePrayerStore?.persist?.hasHydrated()&&window.usePrayerStore.getState()._hasHydrated&&window.useTasbeehStore?.persist?.hasHydrated()&&window.useTasbeehStore.getState()._hasHydrated,{timeout:45000});
     assert.equal(await page.evaluate(()=>window.usePrayerStore.getState().savedInspirations.some(x=>x.id==='QA reference')),true);
     assert.equal(await page.evaluate(()=>window.useTasbeehStore.getState().activePreset.id),saved.next);
+    await page.waitForFunction(()=>window.useTaskStore?.persist?.hasHydrated()&&window.useTaskStore.getState()._hasHydrated,{timeout:45000});
+    assert.deepEqual(await page.evaluate(()=>['dark','light'].map(theme=>window.useTaskStore.getState().tasks.filter(task=>task.title==='QA durable task '+theme).length)),[1,1]);
+    console.log('PASS: task editor saves survive reload without duplicates');
     console.log('PASS: mobile picker viewport/keyboard, canonical Hijri month, bookmark and next-preset persistence');
     // An existing checklist toggles in read mode and survives reload.
     await page.evaluate(async()=>{
