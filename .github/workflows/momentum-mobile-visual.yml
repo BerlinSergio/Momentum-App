@@ -35,6 +35,11 @@ jobs:
           MOMENTUM_URL: http://127.0.0.1:5173/
           MOMENTUM_VISUAL_DIR: /tmp/momentum-visual
         run: node tests/mobile/test_visual_material_registry.cjs
+      - name: Wallpaper network retry and resumable batch regression
+        if: always()
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/mobile/test_wallpaper_download_resume.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
