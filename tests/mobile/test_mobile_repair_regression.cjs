@@ -120,6 +120,22 @@ async function waitStartup(page) {
     await waitStartup(page);
     assert.equal(await page.evaluate(()=>window.useNotesStore.getState().notes.find(n=>n.id==='qa-mobile-checklist')?.body),'- [x] First task\n- [x] Second task');
     console.log('PASS: real checklist checkbox persists on reload');
+    const richText = await page.evaluate(async()=>{
+      const {sanitizeNoteHtml}=await import('/src/utils/safeNoteHtml.js');
+      const value='<p onclick="window.__qaNoteXss=1">Keep <strong>bold</strong> &amp; <i>italic</i></p><script>window.__qaNoteXss=2</script><img src="x" onerror="window.__qaNoteXss=3" alt="image placeholder"><svg onload="window.__qaNoteXss=4"><circle/></svg><a href="javascript:window.__qaNoteXss=5">link label</a><span style="background:url(https://example.invalid)">plain text</span>';
+      const sanitized=sanitizeNoteHtml(value);
+      const template=document.createElement('template');
+      template.innerHTML=sanitized;
+      const fragment=template.content;
+      return {text:fragment.textContent,format:!!fragment.querySelector('p strong')&&!!fragment.querySelector('p i'),
+        active:!!fragment.querySelector('script,svg,img,a,[onclick],[onerror],[onload],[style],[href]'),
+        stable:sanitizeNoteHtml(sanitized)===sanitized,
+        raster:sanitizeNoteHtml('<img src="data:image/png;base64,AAAA" alt="safe">').includes('data:image/png;base64,AAAA'),
+        svgRejected:!sanitizeNoteHtml('<img src="data:image/svg+xml;base64,AAAA">').includes('<img')};
+    });
+    assert.deepEqual(richText,{text:'Keep bold & italicimage placeholderlink labelplain text',format:true,active:false,stable:true,raster:true,svgRejected:true});
+    console.log('PASS: note HTML preserves supported formatting and excludes active content and unsafe image sources');
+
     // Exercise both editors through the UI with synthetic browser speech events.
     // No microphone, speech service or private data is used by this test.
     for(const theme of ['dark','light']){
