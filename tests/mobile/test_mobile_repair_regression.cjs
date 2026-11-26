@@ -205,7 +205,15 @@ async function waitStartup(page) {
       const body=await page.$eval(q('long-note-body-editor'),el=>el.textContent);
       assert.equal((body.match(/QA first/g)||[]).length,1);
       assert.equal((body.match(/QA second/g)||[]).length,1);
-      await page.click(q(theme==='dark'?'long-note-save-bottom':'long-note-save'));
+      const saveSelector=q(theme==='dark'?'long-note-save-bottom':'long-note-save');
+      await page.$eval(saveSelector,el=>el.scrollIntoView({block:'center',inline:'nearest'}));
+      await page.waitForFunction(selector=>{
+        const el=document.querySelector(selector);
+        if(!el||el.disabled)return false;
+        const r=el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+      },{timeout:10000,polling:100},saveSelector);
+      await page.click(saveSelector);
       await page.waitForFunction(async(id)=>{
         const {getCommittedStoreRecord}=await import('/src/storage/db.js');
         const row=await getCommittedStoreRecord('momentum-notes-storage');
