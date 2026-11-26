@@ -3,25 +3,33 @@ const puppeteer = require('puppeteer');
 const url = process.env.MOMENTUM_URL || 'http://127.0.0.1:5173/';
 const q = id => '[data-testid="' + id + '"]';
 
+// The startup controller can still select a route after individual stores
+// hydrate. Wait for the actual foreground splash/route completion before
+// navigating, including after every reload.
+async function waitStartup(page) {
+  await page.bringToFront();
+  await page.waitForFunction(() =>
+    document.querySelector('[data-app-startup-ready="true"]') !== null &&
+    ['Profile','Security','Task','Prayer','Tasbeeh','Notes'].every(name =>
+      window['use'+name+'Store']?.persist?.hasHydrated?.() &&
+      window['use'+name+'Store']?.getState()._hasHydrated),
+    {timeout:45000,polling:200});
+}
+
 (async () => {
   const browser = await puppeteer.launch({headless:true,args:['--no-sandbox','--disable-setuid-sandbox']});
   const page = await browser.newPage();
   try {
     await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true});
     await page.goto(url,{waitUntil:'domcontentloaded'});
-    await page.waitForFunction(() => ['Profile','Security','Prayer','Tasbeeh','Notes'].every(
-      name => window['use'+name+'Store']?.persist?.hasHydrated() &&
-        window['use'+name+'Store']?.getState()._hasHydrated),{timeout:45000});
+    await waitStartup(page);
     page.on('pageerror',error=>console.error('Mobile page error:',String(error)));
     await page.evaluate(async () => {
       await window.useProfileStore.getState().completeSetup();
       await window.useProfileStore.getState().updateProfile({fullName:'Mobile QA',setupCompleted:true});
       window.useSecurityStore.getState().setLocked(false);
-      window.setIsAppLoading(false);
     });
-    // Startup decision and onboarding redirects must settle before routing.
-    await page.waitForFunction(()=>window.useProfileStore?.getState().setupCompleted===true,{timeout:15000});
-    await new Promise(resolve=>setTimeout(resolve,650));
+    await page.waitForFunction(()=>window.useProfileStore?.getState().setupCompleted===true && document.querySelector('[data-app-startup-ready="true"]'),{timeout:15000,polling:200});
     await page.evaluate(()=>window.useNavigationStore.getState().setActiveTab('add_edit_task_dark_mode'));
     await page.waitForSelector(q('task-due-date-tile'),{visible:true});
     for (const [tile,modal,cancel] of [
@@ -90,7 +98,7 @@ const q = id => '[data-testid="' + id + '"]';
     assert.equal(saved.next,saved.expectedNext);
     assert.equal(saved.count,0);assert.equal(saved.logs,1);assert.equal(saved.saved,true);
     await page.reload({waitUntil:'domcontentloaded'});
-    await page.waitForFunction(()=>window.usePrayerStore?.persist?.hasHydrated()&&window.usePrayerStore.getState()._hasHydrated&&window.useTasbeehStore?.persist?.hasHydrated()&&window.useTasbeehStore.getState()._hasHydrated,{timeout:45000});
+    await waitStartup(page);
     assert.equal(await page.evaluate(()=>window.usePrayerStore.getState().savedInspirations.some(x=>x.id==='QA reference')),true);
     assert.equal(await page.evaluate(()=>window.useTasbeehStore.getState().activePreset.id),saved.next);
     await page.waitForFunction(()=>window.useTaskStore?.persist?.hasHydrated()&&window.useTaskStore.getState()._hasHydrated,{timeout:45000});
@@ -100,15 +108,16 @@ const q = id => '[data-testid="' + id + '"]';
     // An existing checklist toggles in read mode and survives reload.
     await page.evaluate(async()=>{
       const notes=window.useNotesStore.getState();
-      await notes.addNote({id:'qa-mobile-checklist',type:'quick',title:'QA Checklist',body:'- [ ] First task\n- [x] Second task'});
+      await notes.addNote({id:'qa-mobile-checklist',type:'quick',title:'QA Checklist',category:'Checklist',body:'- [ ] First task\n- [x] Second task'});
       notes.setActiveNoteId('qa-mobile-checklist');
       window.useNavigationStore.getState().setActiveTab('quick_note_editor',{noteId:'qa-mobile-checklist',isNew:false});
     });
+    await page.waitForFunction(()=>window.useNavigationStore.getState().routeParams?.noteId==='qa-mobile-checklist' && window.useNotesStore.getState().notes.some(n=>n.id==='qa-mobile-checklist'),{timeout:15000,polling:200});
     await page.waitForSelector(q('quick-note-check-item'),{visible:true,timeout:15000});
     await page.click(q('quick-note-check-item'));
     await page.waitForFunction(()=>window.useNotesStore.getState().notes.find(n=>n.id==='qa-mobile-checklist')?.body.startsWith('- [x] First task'));
     await page.reload({waitUntil:'domcontentloaded'});
-    await page.waitForFunction(()=>window.useNotesStore?.getState()._hasHydrated,{timeout:45000});
+    await waitStartup(page);
     assert.equal(await page.evaluate(()=>window.useNotesStore.getState().notes.find(n=>n.id==='qa-mobile-checklist')?.body),'- [x] First task\n- [x] Second task');
     console.log('PASS: real checklist checkbox persists on reload');
     // Exercise both editors through the UI with synthetic browser speech events.
@@ -207,7 +216,7 @@ const q = id => '[data-testid="' + id + '"]';
     assert.deepEqual(back,{success:true,type:'pin'});
     console.log('PASS: passcode transition requires current credential, no plaintext, reload unlock and switch back to PIN');
   } catch(error) {
-    console.error('Mobile regression context:',await page.evaluate(()=>({tab:window.useNavigationStore?.getState().activeTab,profileReady:window.useProfileStore?.getState().setupCompleted,screen:document.body.innerText.slice(0,250)})).catch(()=>null));
+    console.error('Mobile regression context:',await page.evaluate(()=>({tab:window.useNavigationStore?.getState().activeTab,profileReady:window.useProfileStore?.getState().setupCompleted,startup:document.querySelector('[data-app-startup-status]')?.getAttribute('data-app-startup-status'),qaRoute:window.useNavigationStore?.getState().routeParams?.noteId?.startsWith?.('qa-')||false,hasChecklist:window.useNotesStore?.getState().notes.some(n=>n.id==='qa-mobile-checklist'),screen:document.body.innerText.slice(0,250)})).catch(()=>null));
     throw error;
   } finally {await browser.close();}
 })().catch(err=>{console.error(err);process.exitCode=1;});
