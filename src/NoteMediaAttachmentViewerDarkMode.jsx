@@ -16,8 +16,8 @@ import {
 const FALLBACK_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%231e293b'/><path d='M200 450 L350 250 L480 380 L560 300 L680 450 Z' fill='%23334155'/><circle cx='300' cy='200' r='40' fill='%234f46e5'/><text x='400' y='520' font-family='sans-serif' font-size='24' fill='%2394a3b8' text-anchor='middle'>Attachment Preview</text></svg>";
 
 const formatFileSize = (attachment) => {
-  if (!attachment) return '0.0 MB';
-  const sizeVal = attachment.file?.size ?? attachment.fileSize ?? attachment.size;
+  if (!attachment) return '—';
+  const sizeVal = attachment.sizeBytes ?? attachment.file?.size ?? attachment.fileSize ?? attachment.size;
   if (typeof sizeVal === 'number' && sizeVal > 0) {
     if (sizeVal >= 1024 * 1024) {
       return (sizeVal / (1024 * 1024)).toFixed(1) + ' MB';
@@ -33,11 +33,11 @@ const formatFileSize = (attachment) => {
     }
     return sizeVal;
   }
-  return '2.4 MB';
+  return '—';
 };
 
 const getFileType = (attachment) => {
-  if (!attachment) return 'JPEG Image';
+  if (!attachment) return '—';
   const mime = attachment.file?.type || attachment.mimeType || '';
   if (mime) {
     if (mime.includes('png')) return 'PNG Image';
@@ -55,7 +55,7 @@ const getFileType = (attachment) => {
     if (ext === 'MP4') return 'MP4 Video';
     return ext + ' Asset';
   }
-  return 'JPEG Image';
+  return '—';
 };
 
 export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack, route = { params: {} } }) {
@@ -69,7 +69,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
 
   const routeParams = route?.params || {};
   const activeNoteId = routeParams.noteId || storeNoteId;
-  const activeAttachmentId = routeParams.attachmentId || routeParams.id || storeAttachmentId;
+  const activeAttachmentId = routeParams.attachmentId || routeParams.id || (!routeParams.noteId ? storeAttachmentId : null);
 
   const activeNote = notes.find((n) => n.id === activeNoteId);
 
@@ -128,7 +128,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
           const img = new window.Image();
           img.src = u;
           img.onload = () => {
-            if (img.naturalWidth && img.naturalHeight) {
+            if (active && img.naturalWidth && img.naturalHeight) {
               setResolution(img.naturalWidth + ' × ' + img.naturalHeight);
             }
           };
@@ -155,6 +155,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
   };
 
   const handleSelectIndex = (idx) => {
+    if(!attachments.length)return;
     const boundedIdx = (idx + attachments.length) % attachments.length;
     setCurrentIndex(boundedIdx);
     const target = attachments[boundedIdx];
@@ -197,14 +198,14 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
       setIsEnhancing(false);
       const nextState = !isEnhanced;
       setIsEnhanced(nextState);
-      showToast(nextState ? 'AI clarity & vibrant tones applied!' : 'Restored to original format');
+      showToast(nextState ? 'Preview contrast and color adjusted' : 'Restored to original format');
     }, 550);
   };
 
   const toggleZoom = () => {
     const nextZoom = !isZoomed;
     setIsZoomed(nextZoom);
-    showToast(nextZoom ? 'Preview magnified to 150%' : 'Preview restored to 100%');
+    showToast(nextZoom ? 'Preview magnified to 125%' : 'Preview restored to 100%');
   };
 
   const exportInFlight = useRef(false);
@@ -349,7 +350,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
               onClick={(e) => { e.stopPropagation(); toggleZoom(); }}
               className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/15 shadow-sm font-semibold text-[11px] hover:bg-black/60 active:scale-95 transition-all"
             >
-              {isZoomed ? '150%' : '100%'}
+              {isZoomed ? '125%' : '100%'}
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); setIsFullscreen(true); }}
