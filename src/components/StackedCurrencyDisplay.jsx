@@ -1,3 +1,5 @@
+import {useLocaleStore} from '../store/useLocaleStore.js';
+import {displayDigits} from '../i18n/displayDate.js';
 import { formatSingleCurrency } from '../store/useFinanceStore';
 
 export default function StackedCurrencyDisplay({
@@ -13,6 +15,8 @@ export default function StackedCurrencyDisplay({
   includeZero = false,
   preferredCurrency,
 }) {
+  const system=useLocaleStore(s=>s.numberSystem);
+  const format=(value,code,options)=>displayDigits(formatSingleCurrency(value,code,options),system);
   const alignClass = 
     align === 'center' ? 'items-center text-center' :
     align === 'end' ? 'items-end text-right' :
@@ -42,7 +46,7 @@ export default function StackedCurrencyDisplay({
     return (
       <div className={`flex flex-col ${alignClass} font-display`}>
         <span className={`${primaryClass} font-display`}>
-          {formatSingleCurrency(0, defaultCur, { decimals, showSign })}{suffix}
+          {format(0, defaultCur, { decimals, showSign })}{suffix}
         </span>
       </div>
     );
@@ -55,14 +59,14 @@ export default function StackedCurrencyDisplay({
   return (
     <div className={`flex flex-col ${alignClass} font-display`}>
       <span className={`${primaryClass} font-display`}>
-        {formatSingleCurrency(primaryVal, primaryCur, { decimals, showSign })}{suffix}
+        {format(primaryVal, primaryCur, { decimals, showSign })}{suffix}
       </span>
       {secondaryEntries.map(([cur, val]) => (
         <span 
           key={cur} 
           className={`text-xs font-medium mt-0.5 ${defaultSecondaryClass} ${secondaryClass} font-display`}
         >
-          ({formatSingleCurrency(val, cur, { decimals, showSign })}{suffix})
+          ({format(val, cur, { decimals, showSign })}{suffix})
         </span>
       ))}
     </div>
