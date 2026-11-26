@@ -1,0 +1,105 @@
+name: Momentum Android Production Build
+
+on:
+  push:
+    branches:
+      - release/1.0-production-prep
+    paths:
+      - '.github/workflows/momentum-android-production.yml'
+      - 'android/**'
+      - 'src/**'
+      - 'public/**'
+      - 'package*.json'
+  workflow_dispatch:
+    inputs:
+      sign_release:
+        description: 'Sign using the owner-configured production keystore (never a debug key)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: momentum-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --no-fund
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Build production web assets
+        run: |
+          npm run build
+          npx --no-install cap sync android
+      - name: Assemble release APK
+        working-directory: android
+        run: bash ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Prepare and validate unsigned package
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$apk"
+          unzip -tq "$apk"
+          mkdir -p production-artifacts
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 "$apk" production-artifacts/momentum-1.0-unsigned.apk
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 production-artifacts/momentum-1.0-unsigned.apk
+      - name: Sign explicitly requested production build
+        if: github.event_name == 'workflow_dispatch' && inputs.sign_release == true
+        shell: bash
+        env:
+          MOMENTUM_KEYSTORE_BASE64: ${{ secrets.MOMENTUM_KEYSTORE_BASE64 }}
+          MOMENTUM_KEYSTORE_PASSWORD: ${{ secrets.MOMENTUM_KEYSTORE_PASSWORD }}
+          MOMENTUM_KEY_ALIAS: ${{ secrets.MOMENTUM_KEY_ALIAS }}
+          MOMENTUM_KEY_PASSWORD: ${{ secrets.MOMENTUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "Production signing is restricted to the approved main branch."
+            exit 1
+          fi
+          if [[ -z "$MOMENTUM_KEYSTORE_BASE64" || -z "$MOMENTUM_KEYSTORE_PASSWORD" || -z "$MOMENTUM_KEY_ALIAS" || -z "$MOMENTUM_KEY_PASSWORD" ]]; then
+            echo "Production signing credentials must be configured by the repository owner."
+            exit 1
+          fi
+          umask 077
+          keystore="$(mktemp "$RUNNER_TEMP/momentum-signing.XXXXXX")"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$MOMENTUM_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          signer="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          "$signer" sign --ks "$keystore" --ks-key-alias "$MOMENTUM_KEY_ALIAS" --ks-pass env:MOMENTUM_KEYSTORE_PASSWORD --key-pass env:MOMENTUM_KEY_PASSWORD --out production-artifacts/momentum-1.0-release.apk production-artifacts/momentum-1.0-unsigned.apk
+          "$signer" verify --verbose --print-certs production-artifacts/momentum-1.0-release.apk
+          rm production-artifacts/momentum-1.0-unsigned.apk
+      - name: Record source and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD > production-artifacts/commit.txt
+          git rev-parse HEAD:src > production-artifacts/source-tree.txt
+          cd production-artifacts
+          sha256sum *.apk > SHA256SUMS.txt
+          unzip -tq ./*.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: momentum-production-${{ github.sha }}
+          path: production-artifacts/
+          if-no-files-found: error
+          retention-days: 30
