@@ -726,3 +726,63 @@ html.dark:not(.disable-glass) .momentum-glass-header-capsule { background-color:
   backdrop-filter:var(--momentum-glass-filter) !important;
   -webkit-backdrop-filter:var(--momentum-glass-filter) !important;
 }
+
+
+/* UI audit: predictable capsule layout, legible secondary copy and one neutral
+   material. Keep accent, selected, disabled and destructive state colors. */
+.momentum-glass-header-capsule {
+  height:auto;
+  min-height:62px;
+  gap:8px;
+  padding-inline:12px;
+  padding-block:8px;
+}
+.momentum-glass-header-capsule > * { min-inline-size:0; }
+.momentum-glass-header-capsule > :first-child { flex:1 1 auto; }
+.momentum-glass-header-capsule > :last-child:not(:first-child) { flex:0 0 auto; }
+.momentum-glass-header-capsule :is(h1,h2) {
+  min-inline-size:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.3;
+  text-overflow:clip;
+  overflow:visible;
+}
+.momentum-glass-header-capsule :is(button,a) { flex-shrink:0; }
+.momentum-glass-header-capsule button:has(> svg.lucide-arrow-left) {
+  min-width:40px;
+  min-height:40px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-inline:0;
+}
+[dir="rtl"] .momentum-glass-header-capsule :is(.lucide-arrow-left,.lucide-chevron-left,.lucide-chevron-right) {
+  transform:scaleX(-1);
+}
+@media(max-width:420px) {
+  .momentum-glass-header-capsule { border-radius:26px; }
+  .momentum-glass-header-capsule > div { gap:6px; }
+  .momentum-glass-header-capsule :is(h1,h2) { font-size:clamp(13px,3.6vw,16px); }
+}
+html:not(.dark) .momentum-canvas-viewport :is(p,span,label,small).text-slate-400:not(.opacity-40):not(.opacity-50) {
+  color:#475569;
+}
+html:not(.dark) .momentum-canvas-viewport :is(p,span,label,small).text-slate-500 { color:#334155; }
+html.dark .momentum-canvas-viewport :is(p,span,label,small).text-slate-500 { color:#a5b4c8; }
+html.dark .momentum-canvas-viewport :is(p,span,label,small).text-slate-400 { color:#c0ccdb; }
+/* Nested neutral glass cards, including legacy arbitrary alpha utilities. */
+html.dark .momentum-canvas-viewport :is(div,section,article)[class*="rounded-"][class*="backdrop-blur"]:not([class~="fixed"]):not([class~="absolute"]):is([class~="bg-white/5"],[class~="bg-white/[0.04]"],[class~="bg-white/[0.06]"],[class~="bg-slate-800/40"],[class~="bg-slate-800/60"]) {
+  background-color:var(--momentum-card-surface) !important;
+  border-color:var(--momentum-card-edge) !important;
+  backdrop-filter:var(--momentum-glass-filter) !important;
+  -webkit-backdrop-filter:var(--momentum-glass-filter) !important;
+}
+.momentum-canvas-viewport :is(p,li,h1,h2,h3,h4) { overflow-wrap:break-word; }
+.momentum-canvas-viewport [data-screen-key="note_media_attachment_viewer"] > div:first-child {background-color:transparent!important;}
+/* Keep bottom navigation clearance in the application viewport; avoid two
+   extra full-screen spacers in the history and note viewer roots. */
+.momentum-canvas-viewport [data-screen-key="tasbeeh_history"] > div:first-child,
+.momentum-canvas-viewport [data-screen-key="note_media_attachment_viewer"] > div:first-child {
+  min-height:0;
+}
