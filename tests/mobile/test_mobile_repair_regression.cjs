@@ -136,6 +136,7 @@ async function waitStartup(page) {
       await page.click(q('long-note-edit'));
       await page.waitForSelector(q('long-note-body-editor'),{visible:true,timeout:15000});
       const original=await page.$eval(q('long-note-body-editor'),el=>el.textContent);
+      assert.equal(original,'Original body','Entering edit mode must preserve saved rich text');
       await page.evaluate(()=>{
         Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
         Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});
@@ -163,11 +164,11 @@ async function waitStartup(page) {
       const body=await page.$eval(q('long-note-body-editor'),el=>el.textContent);
       assert.equal((body.match(/QA first/g)||[]).length,1);
       assert.equal((body.match(/QA second/g)||[]).length,1);
-      await page.click(q('long-note-save'));
+      await page.click(q(theme==='dark'?'long-note-save-bottom':'long-note-save'));
       await page.waitForFunction(async(id)=>{
         const {getCommittedStoreRecord}=await import('/src/storage/db.js');
         const row=await getCommittedStoreRecord('momentum-notes-storage');
-        return row?.value?.state?.notes?.some(n=>n.id===id && n.body.includes('QA first')&&n.body.includes('QA second'));
+        return row?.value?.state?.notes?.some(n=>n.id===id && n.body.includes('Original body')&&n.body.includes('QA first')&&n.body.includes('QA second'));
       },{timeout:15000},id);
       await page.waitForSelector(q('long-note-body-editor'),{hidden:true,timeout:15000});
     }
