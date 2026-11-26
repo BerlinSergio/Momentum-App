@@ -108,7 +108,7 @@ function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSele
         </div>
         <h4 className="text-sm font-semibold text-slate-900 truncate line-clamp-1 line-clamp-2 leading-snug min-h-[1.5rem] flex items-center">{wallpaperTitle}</h4>
         <span className="text-xs font-medium text-primary mt-0.5 truncate">{item.mood}</span>
-        {item.sourcePage && <a href={item.sourcePage} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] opacity-80 break-words">{item.artist ? item.artist+' · ' : ''}{item.license} · Wikimedia Commons</a>{item.licenseUrl&&<a href={item.licenseUrl} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] underline">{item.license} · resized</a>}}
+        {item.sourcePage && <a href={item.sourcePage} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] opacity-80 break-words">{item.artist ? item.artist+' · ' : ''}{item.license} · Wikimedia Commons</a>}{item.licenseUrl&&<a href={item.licenseUrl} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] underline">{item.license} · resized</a>}
       </div>
     </div>
   );
@@ -506,7 +506,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>{t('appearance.downloading30', 'Downloading 30 Wallpapers...')}</span>
+                    <span>{t('appearance.downloading30', 'Downloading wallpapers…')} ({downloadProgress}/30)</span>
                   </>
                 ) : downloadSuccess ? (
                   <>
@@ -522,7 +522,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                       <path d="M12 12v9" />
                       <path d="m8 17 4 4 4-4" />
                     </svg>
-                    <span>{t('appearance.download30Wallpapers', 'Download 30 Online Wallpapers')}</span>
+                    <span>{pendingPack?t('wallpapers.continueDownload','Continue wallpaper download'):t('appearance.download30Wallpapers', 'Download 30 Online Wallpapers')}</span>
                   </>
                 )}
               </button>
