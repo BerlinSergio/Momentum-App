@@ -703,3 +703,26 @@ html.disable-glass .momentum-neutral-card { backdrop-filter:none !important; -we
    cannot compete with the navigation label. */
 html:not(.dark):not(.disable-glass) .momentum-glass-header-capsule { background-color:rgba(255,255,255,.82) !important; }
 html.dark:not(.disable-glass) .momentum-glass-header-capsule { background-color:rgba(15,23,42,.84) !important; }
+
+
+/* These three screen roots previously painted an opaque full-page layer
+   over the shared wallpaper, hiding the glass material behind their cards.
+   Target the actual mounted screen root, not nested dialogs or controls. */
+.momentum-canvas-viewport [data-screen-key="notes_main"] > div:first-child,
+.momentum-canvas-viewport [data-screen-key="notifications_settings"] > div:first-child,
+.momentum-canvas-viewport [data-screen-key="prayer_times"] > div:first-child {
+  background-color:transparent !important;
+  min-inline-size:0;
+}
+.momentum-canvas-viewport .note-sheet-card {
+  background-color:var(--momentum-card-surface) !important;
+  border-color:var(--momentum-card-edge) !important;
+  backdrop-filter:var(--momentum-glass-filter) !important;
+  -webkit-backdrop-filter:var(--momentum-glass-filter) !important;
+}
+/* Keep note editing controls readable without forcing an opaque sheet. */
+.momentum-canvas-viewport .note-sheet-card > .sticky {
+  background-color:var(--momentum-card-surface) !important;
+  backdrop-filter:var(--momentum-glass-filter) !important;
+  -webkit-backdrop-filter:var(--momentum-glass-filter) !important;
+}
