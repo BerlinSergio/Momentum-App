@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
@@ -71,6 +71,21 @@ export default function NotesMainDarkMode({ setActiveTab }) {
 
   const quickNotes = filteredNotes.filter((n) => n.type === 'quick' || (!n.type && n.type !== 'long'));
   const longNotes = filteredNotes.filter((n) => n.type === 'long');
+
+  const pendingArchiveIds = useRef(new Set());
+  const handleArchiveChange = async (note, archive) => {
+    if (pendingArchiveIds.current.has(note.id)) return;
+    pendingArchiveIds.current.add(note.id);
+    try {
+      const saved = await (archive ? archiveNote(note.id) : unarchiveNote(note.id));
+      if (saved !== true) throw Error('Archive change not committed');
+      toast.success(archive ? t('toasts.noteArchived', 'Note archived') : t('toasts.noteRestored', 'Note restored from archive'));
+    } catch {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {
+      pendingArchiveIds.current.delete(note.id);
+    }
+  };
 
   const handleOpenNote = (note) => {
     if (setActiveNoteId) setActiveNoteId(note.id);
@@ -173,10 +188,7 @@ export default function NotesMainDarkMode({ setActiveTab }) {
                     key={note.id}
                     note={note}
                     onOpen={handleOpenNote}
-                    onArchive={(n) => {
-                      archiveNote(n.id);
-                      toast.success(t('toasts.noteArchived', 'Note archived'));
-                    }}
+                    onArchive={(n) => handleArchiveChange(n, true)}
                     isDarkMode={true}
                   />
                 ))}
@@ -204,10 +216,7 @@ export default function NotesMainDarkMode({ setActiveTab }) {
                     key={note.id}
                     note={note}
                     onOpen={handleOpenNote}
-                    onArchive={(n) => {
-                      archiveNote(n.id);
-                      toast.success(t('toasts.noteArchived', 'Note archived'));
-                    }}
+                    onArchive={(n) => handleArchiveChange(n, true)}
                     isDarkMode={true}
                   />
                 ))}
@@ -314,10 +323,7 @@ export default function NotesMainDarkMode({ setActiveTab }) {
                       setIsArchiveOpen(false);
                       handleOpenNote(n);
                     }}
-                    onArchive={(n) => {
-                      unarchiveNote(n.id);
-                      toast.success(t('toasts.noteRestored', 'Note restored from archive'));
-                    }}
+                    onArchive={(n) => handleArchiveChange(n, false)}
                     isDarkMode={true}
                   />
                 ))}
