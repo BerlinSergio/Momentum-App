@@ -1,3 +1,4 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
@@ -27,6 +28,7 @@ import { toast } from './components/ui/toast/index.js';
 import { confirm } from './components/ui/confirmation/index.js';
 
 export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader = false }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { currentDateKey } = useAppTime();
   const rawRoutines = useRoutineStore((s) => s.routines);
@@ -164,7 +166,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
                 {streakCount > 0 ? t('home.routineStreak', '{{count}} Day Routine Streak', { count: streakCount }) : t('home.startHabitStreak', 'Start Your Habit Streak')}
               </span>
               <h2 className="text-2xl font-black text-white tracking-tight">
-                {doneCount} {t('common.of', 'of')} {totalCount} {t('common.done', 'Done')}
+                {digits(doneCount)} {t('common.of', 'of')} {digits(totalCount)} {t('common.done', 'Done')}
               </h2>
               <p className="text-xs text-slate-400 font-medium">
                 {totalCount > 0 ? t('routines.keepSteadySmallSteps', 'Keep steady. Small steps build profound growth.') : t('routines.addFirstRoutine', 'Add your first routine to build steady daily momentum.')}
@@ -271,7 +273,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
                         {routine.title}
                       </h3>
                       <span className="text-xs font-semibold flex-shrink-0 text-primary">
-                        {routine.time}
+                        {digits(routine.time)}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
