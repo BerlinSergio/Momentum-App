@@ -24,7 +24,8 @@ export async function checkLocationPermission() {
       return status.location === 'granted' || status.coarseLocation === 'granted' ? 'granted' : status.location;
     } catch (err) {
       console.warn('[NativeLocation] Check permission failed:', err.message);
-      return 'denied';
+      try { return (await MomentumDevice.checkDeviceLocationPermission()).granted ? 'granted' : 'prompt'; }
+      catch { return 'denied'; }
     }
   }
 
@@ -51,7 +52,8 @@ export async function requestLocationPermission() {
       return status.location === 'granted' || status.coarseLocation === 'granted' ? 'granted' : status.location;
     } catch (err) {
       console.warn('[NativeLocation] Request permission failed:', err.message);
-      return 'denied';
+      try { return (await MomentumDevice.requestDeviceLocationPermission()).granted ? 'granted' : 'denied'; }
+      catch { return 'denied'; }
     }
   }
 
@@ -95,15 +97,15 @@ export async function detectAndApplyNativeLocation(options = {}) {
 
       // Try the Capacitor provider first, then use the Android framework
       // directly when Play Services/provider setup is unavailable.
-      const permissions = await Geolocation.checkPermissions();
-      const precise = permissions.location === 'granted';
       try {
+        const permissions = await Geolocation.checkPermissions();
+        const precise = permissions.location === 'granted';
         position = await Geolocation.getCurrentPosition({
           enableHighAccuracy:highAccuracy && precise, timeout:timeoutMs, maximumAge:0,
         });
       } catch (error) {
-        const latest = await Geolocation.checkPermissions();
-        if (latest.location !== 'granted' && latest.coarseLocation !== 'granted') throw error;
+        const nativePermission = await MomentumDevice.checkDeviceLocationPermission();
+        if (!nativePermission.granted) throw error;
         position = await MomentumDevice.getDeviceLocation();
       }
     } else {

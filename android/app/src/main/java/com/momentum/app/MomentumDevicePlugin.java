@@ -21,11 +21,15 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.OutputStream;
 
-@CapacitorPlugin(name = "MomentumDevice")
+@CapacitorPlugin(name = "MomentumDevice", permissions = {
+    @Permission(alias = "deviceLocation", strings = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION})
+})
 public class MomentumDevicePlugin extends Plugin {
     private volatile boolean captureVolume = false;
 
@@ -45,6 +49,29 @@ public class MomentumDevicePlugin extends Plugin {
         if (!captureVolume || getActivity() == null || !getActivity().hasWindowFocus()) return false;
         notifyListeners("volumePress", new JSObject());
         return true;
+    }
+
+    private boolean locationGranted() {
+        return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @PluginMethod
+    public void checkDeviceLocationPermission(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("granted", locationGranted());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestDeviceLocationPermission(PluginCall call) {
+        if (locationGranted()) { checkDeviceLocationPermission(call); return; }
+        requestPermissionForAlias("deviceLocation", call, "deviceLocationPermissionResult");
+    }
+
+    @PermissionCallback
+    private void deviceLocationPermissionResult(PluginCall call) {
+        if (call != null) checkDeviceLocationPermission(call);
     }
 
     // Use Android's own location providers, including devices without Google
