@@ -1,3 +1,4 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import React, { useState } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { historyLogs, currentCount, dailyGoal, clearHistory, setActivePreset } = useTasbeehStore();
   const { effectiveTimezone, currentDateKey, currentMonthKey, isToday, isYesterday } = useAppTime();
@@ -49,10 +51,17 @@ export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
   const baselineGoal = dailyGoal || 1000;
   const targetGoal = activeFilter === 'Today' ? baselineGoal : activeFilter === 'This Week' ? baselineGoal * 7 : activeFilter === 'This Month' ? baselineGoal * 30 : baselineGoal;
   const goalPercentage = targetGoal > 0 ? Math.min(999, Math.round((totalRecited / targetGoal) * 100)) : 0;
-  const targetSessions = activeFilter === 'Today' ? 'Target 6' : activeFilter === 'This Week' ? 'Target 30' : activeFilter === 'This Month' ? 'Target 120' : 'Target 6';
+  const targetSessions = t('tasbeeh.completedSessions','Recorded sessions');
 
+  // Count real calendar days with recorded dhikr, not a sample streak.
+  const activeDays=[...new Set((historyLogs||[]).filter(log=>Number(log.count)>0&&log.date&&!Number.isNaN(new Date(log.date).getTime())).map(log=>getLocalDateKey(log.date,effectiveTimezone)))];
+  if(Number(currentCount)>0&&!activeDays.includes(currentDateKey))activeDays.push(currentDateKey);
+  const dayOffsets=[...new Set(activeDays.map(key=>getCalendarDaysDiff(key,currentDateKey)).filter(n=>Number.isFinite(n)&&n>=0))].sort((a,b)=>a-b);
+  let activeStreak=0,bestStreak=0,run=0,previous=null;
+  for(const n of dayOffsets){run=previous!==null&&n===previous+1?run+1:1;bestStreak=Math.max(bestStreak,run);previous=n;}
+  if(dayOffsets.length&&dayOffsets[0]<=1){activeStreak=1;for(let i=1;i<dayOffsets.length&&dayOffsets[i]===dayOffsets[i-1]+1;i++)activeStreak++;}
   const formatLogDate = (dateStr) => {
-    if (!dateStr) return 'Today • 08:45 PM';
+    if (!dateStr) return t('common.unknown','Unknown');
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return 'Today • 08:45 PM';
 
@@ -127,7 +136,7 @@ export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
 
           <div className="pt-0.5">
             <div className="flex items-baseline gap-2">
-              <h2 className="text-3xl font-bold text-primary">{totalRecited.toLocaleString()}</h2>
+              <h2 className="text-3xl font-bold text-primary">{digits(totalRecited.toLocaleString())}</h2>
               <span className="text-xs font-medium text-slate-400">{t('tasbeeh.dhikrCompleted', 'dhikr completed')}</span>
             </div>
           </div>
@@ -136,18 +145,18 @@ export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800">
             <div className="p-2.5 rounded-2xl text-center bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.sessions', 'Sessions')}</span>
-              <span className="text-sm font-bold text-white mt-0.5 block">{sessionCount}</span>
+              <span className="text-sm font-bold text-white mt-0.5 block">{digits(sessionCount)}</span>
               <span className="text-[10px] text-slate-400 block">{targetSessions}</span>
             </div>
             <div className="p-2.5 rounded-2xl text-center bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.activeStreak', 'Active Streak')}</span>
-              <span className="text-sm font-bold text-white mt-0.5 block">14d 🔥</span>
-              <span className="text-[10px] text-slate-400 block">{t('tasbeeh.personalBest', 'Personal best')}</span>
+              <span className="text-sm font-bold text-white mt-0.5 block">{digits(activeStreak)} {t('common.days','Days')}</span>
+              <span className="text-[10px] text-slate-400 block">{t('tasbeeh.personalBest', 'Personal best')}: {digits(bestStreak)}</span>
             </div>
             <div className="p-2.5 rounded-2xl text-center bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.goalMet', 'Goal Met')}</span>
-              <span className="text-sm font-bold text-teal-400 mt-0.5 block">{goalPercentage}%</span>
-              <span className="text-[10px] text-slate-400 block">{targetGoal.toLocaleString()} {t('tasbeeh.baseline', 'baseline')}</span>
+              <span className="text-sm font-bold text-teal-400 mt-0.5 block">{digits(goalPercentage)}%</span>
+              <span className="text-[10px] text-slate-400 block">{digits(targetGoal.toLocaleString())} {t('tasbeeh.baseline', 'baseline')}</span>
             </div>
           </div>
 
@@ -178,7 +187,7 @@ export default function TasbeehHistoryDarkMode({ setActiveTab, goBack }) {
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">{t('tasbeeh.timeline', 'Timeline')}</h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/20 border border-primary/30 text-primary">
-              {sessionCount} {t('tasbeeh.recorded', 'Recorded')}
+              {digits(sessionCount)} {t('tasbeeh.recorded', 'Recorded')}
             </span>
           </div>
           <div className="flex items-center gap-2">

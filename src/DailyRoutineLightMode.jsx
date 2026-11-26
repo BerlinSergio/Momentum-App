@@ -1,3 +1,4 @@
+import {DailyReflectionCard} from './components/DailyInspirationPanel.jsx';
 import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
@@ -30,7 +31,7 @@ import { confirm } from './components/ui/confirmation/index.js';
 export default function DailyRoutineLightMode({ setActiveTab, goBack, hideHeader = false }) {
   const digits=useDisplayDigits();
   const { t } = useTranslation();
-  const { currentDateKey } = useAppTime();
+  const { currentDateKey, now, effectiveTimezone } = useAppTime();
   const rawRoutines = useRoutineStore((s) => s.routines);
   const routines = useMemo(() => rawRoutines || [], [rawRoutines]);
   const streakCount = useRoutineStore((s) => s.getCurrentStreak ? s.getCurrentStreak(currentDateKey) : (s.streakCount ?? 0));
@@ -339,19 +340,7 @@ export default function DailyRoutineLightMode({ setActiveTab, goBack, hideHeader
           })
         )}
 
-        <div className="block mx-5 my-5 p-4 rounded-3xl flex items-start gap-3.5 text-slate-800 bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-md">
-          <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Sparkles className="w-5 h-5 text-primary"/>
-          </div>
-          <div className="flex-1">
-            <p className="text-xs font-semibold text-slate-800 italic leading-relaxed">
-              "{t('tasks.consistentQuote', 'Consistent small deeds lead to profound inner peace.')}"
-            </p>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mt-1.5">
-              {t('routines.dailyMindfulnessReflection', 'Daily Mindfulness Reflection')}
-            </span>
-          </div>
-        </div>
+        <div className="mx-5 mt-4"><DailyReflectionCard date={now} timeZone={effectiveTimezone}/></div>
 
       </main>
     </div>
