@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
@@ -382,7 +383,7 @@ export default function GregorianCalendarDarkMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Calendar className="w-5 h-5 text-white" />
@@ -394,7 +395,7 @@ export default function GregorianCalendarDarkMode({ setActiveTab, goBack }) {
           <button type="button" aria-label="Go back" data-testid="calendar-back-btn" onClick={() => (goBack ? goBack('calendars_main_dark_mode') : (setActiveTab ? setActiveTab('calendars_main_dark_mode') : window.history.back()))} className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer"><ArrowLeft className="w-5 h-5 rtl:rotate-180 transition-transform"/></button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 flex flex-col w-full pb-[120px] bg-transparent relative z-10">
         {/* MAIN CALENDAR CONTAINER */}

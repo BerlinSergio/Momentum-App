@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useTasbeehStore } from './store/useTasbeehStore';
@@ -99,7 +100,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
   return (
     <div className="min-h-screen bg-[#0B0F19] font-sans pb-10 select-none text-white">
       {/* TOP HEADER */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Sparkles className="w-5 h-5 text-white" />
@@ -120,7 +121,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* Sub-bar */}
       <div className="flex flex-row items-center justify-between w-full px-5 pt-2 pb-4">
@@ -204,7 +205,7 @@ export default function NewEditTasbeehDarkMode({ setActiveTab, goBack }) {
             </span>
 
             <h3 
-              className="text-2xl sm:text-3xl font-bold text-primary/70 font-quran leading-relaxed py-2 select-all tracking-wide"
+              className="text-center text-2xl sm:text-3xl font-bold text-primary/70 font-quran leading-relaxed py-2 select-all tracking-wide"
               dir="rtl"
             >
               {arabic}

@@ -1,4 +1,7 @@
+import DailyInspirationPanel from './components/DailyInspirationPanel.jsx';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useLocationStore } from './store/useLocationStore';
@@ -19,65 +22,6 @@ import {
   Sparkles, Bell, BellRing, BellOff, MapPin, Compass, Calendar, Check, CheckCircle2, Bookmark,
   Clock, Sunrise, Moon, RefreshCw, Sliders, X, AlertCircle
 } from 'lucide-react';
-
-const DAILY_INSPIRATION_QUOTES = [
-  {
-    ayah: "Guard strictly your habit of prayers, especially the middle prayer, and stand before Allah in profound devotion.",
-    surah: "Surah Al-Baqarah 2:238",
-  },
-  {
-    ayah: "Verily, in the remembrance of Allah do hearts find rest.",
-    surah: "Surah Ar-Ra'd 13:28",
-  },
-  {
-    ayah: "And seek help through patience and prayer; and indeed, it is difficult except for the humbly submissive.",
-    surah: "Surah Al-Baqarah 2:45",
-  },
-  {
-    ayah: "Indeed, prayer prohibits immorality and wrongdoing, and the remembrance of Allah is greater.",
-    surah: "Surah Al-Ankabut 29:45",
-  },
-  {
-    ayah: "And establish prayer at the two ends of the day and at the approach of the night. Indeed, good deeds do away with misdeeds.",
-    surah: "Surah Hud 11:114",
-  },
-  {
-    ayah: "So remember Me; I will remember you. And be grateful to Me and do not deny Me.",
-    surah: "Surah Al-Baqarah 2:152",
-  },
-  {
-    ayah: "And whoever fears Allah — He will make for him a way out, and will provide for him from where he does not expect.",
-    surah: "Surah At-Talaq 65:2-3",
-  },
-  {
-    ayah: "Indeed, with hardship comes ease. Most certainly, with hardship comes ease.",
-    surah: "Surah Ash-Sharh 94:5-6",
-  },
-  {
-    ayah: "And He found you lost and guided you, and He found you in need and made you self-sufficient.",
-    surah: "Surah Ad-Duha 93:7-8",
-  },
-  {
-    ayah: "O you who have believed, seek help through patience and prayer. Indeed, Allah is with the patient.",
-    surah: "Surah Al-Baqarah 2:153",
-  },
-  {
-    ayah: "My Lord, make me an establisher of prayer, and many from my descendants. Our Lord, and accept my supplication.",
-    surah: "Surah Ibrahim 14:40",
-  },
-  {
-    ayah: "Say, 'Indeed, my prayer, my rites of sacrifice, my living and my dying are for Allah, Lord of the worlds.'",
-    surah: "Surah Al-An'am 6:162",
-  },
-];
-
-function getDailyInspiration(baseDate = new Date()) {
-  const d = baseDate;
-  const startOfYear = new Date(d.getFullYear(), 0, 1);
-  const dayOfYear = Math.floor((d.getTime() - startOfYear.getTime()) / 86400000);
-  const index = Math.abs(dayOfYear) % DAILY_INSPIRATION_QUOTES.length;
-  return DAILY_INSPIRATION_QUOTES[index];
-}
 
 export default function PrayerTimesDarkMode({ setActiveTab }) {
   const { t } = useTranslation();
@@ -123,7 +67,6 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
     : (offsetValue === 0 || Number(offsetValue) === 0 ? 'Notifications Active' : 'Notifications Active (15m before)');
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Calculate next prayer data using centralized engine with explicit parameters
@@ -235,8 +178,6 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
   }, [nextPrayerData.isTomorrow, currentTime]);
 
   const sunTwilight = nextPrayerData.sunTwilight;
-  const dailyQuote = useMemo(() => getDailyInspiration(displayedDate), [displayedDate]);
-
   // Dynamic Hijri and Gregorian date strings in the target prayer location's timezone
   const dynamicHijriDate = useMemo(() => {
     try {
@@ -269,9 +210,9 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
     : 'MANUAL';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col pb-28 font-sans font-inter antialiased select-none">
+    <div className="min-h-0 bg-slate-950 text-white flex flex-col pb-2 font-sans font-inter antialiased select-none">
       {/* Top Header */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Sparkles className="w-5 h-5 text-white" />
@@ -304,7 +245,7 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* Title & Alerts Row */}
       <div className="flex items-center justify-between px-5 pt-2 pb-1">
@@ -625,36 +566,12 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
         </div>
       </div>
 
-      {/* Daily Spiritual Inspiration Widget */}
-      <div className="block mx-5 mb-6 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 text-primary">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span className="text-[10px] font-semibold tracking-wider uppercase font-sans">{t('prayer.dailyInspiration', 'Daily Inspiration')}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsBookmarked((prev) => !prev)}
-            className="p-1 -mr-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 active:scale-95 transition-transform cursor-pointer pointer-events-auto"
-            title={isBookmarked ? "Remove Bookmark" : "Bookmark Inspiration"}
-            aria-label={isBookmarked ? "Remove Bookmark" : "Bookmark Inspiration"}
-          >
-            <Bookmark className={`w-4 h-4 transition-colors ${isBookmarked ? 'text-indigo-400 fill-indigo-400' : 'text-slate-400'}`} />
-          </button>
-        </div>
-        <p className="text-xs sm:text-sm font-medium italic leading-relaxed text-slate-200 font-sans">
-          "{dailyQuote.ayah}"
-        </p>
-        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 pt-1 font-sans">
-          <span>— {dailyQuote.surah}</span>
-          <span className="text-[10px] font-medium text-teal-500 dark:text-teal-400 font-sans">{t('prayer.ayahOfTheDay', 'Ayah of the Day')}</span>
-        </div>
-      </div>
+      <DailyInspirationPanel date={currentTime} timeZone={prayerTimezone}/>
 
       {/* Prayer Calculation Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      {isSettingsOpen && createPortal(
+        <div className="momentum-picker-overlay flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div className="momentum-picker-panel w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -767,6 +684,7 @@ export default function PrayerTimesDarkMode({ setActiveTab }) {
             </div>
           </div>
         </div>
+        , document.body
       )}
     </div>
   );

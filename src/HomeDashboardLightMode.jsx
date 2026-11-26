@@ -1,4 +1,7 @@
+import {DailyReflectionCard} from './components/DailyInspirationPanel.jsx';
+import WallpaperWelcomeHint from './components/WallpaperWelcomeHint.jsx';
 import { useMemo, useState } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { motion } from 'framer-motion';
 import { useFinanceStore, calculateGroupedTotals, getMonthlyFinanceSummary, getSavingsTargetStats } from './store/useFinanceStore';
 import StackedCurrencyDisplay from './components/StackedCurrencyDisplay';
@@ -14,6 +17,7 @@ import UserAvatar from './components/UserAvatar';
 import WelcomeHero from './components/home/WelcomeHero';
 import { useTranslation } from 'react-i18next';
 import { useLocaleStore } from './store/useLocaleStore';
+import { formatFinanceMonth, displayDigits } from './i18n/displayDate.js';
 import { useNotificationStore } from './store/useNotificationStore';
 import {
   Bell, Wallet, CreditCard, CheckSquare, Moon, Clock, Sun,
@@ -23,6 +27,7 @@ import {
 export default function HomeDashboardLightMode({ setActiveTab }) {
   const { t } = useTranslation();
   const currentLocale = useLocaleStore((s) => s.currentLocale);
+  const numberSystem = useLocaleStore(s => s.numberSystem);
   const profile = useProfileStore();
   const notifications = useNotificationStore((s) => s.notifications) || [];
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
@@ -217,10 +222,10 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
   return (
     <div className="relative w-full pb-32 lg:pb-6 bg-transparent font-sans">
       {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader className="lg:hidden" isDarkMode={false}>
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Momentum Logo" className="w-10 h-10 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/20" />
-          <h1 className="text-base font-bold text-slate-900 tracking-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>Momentum</h1>
+          <img src="/logo.png" alt="Momentum Logo" className="w-9 h-9 object-cover rounded-xl aspect-square flex-shrink-0 shadow-md shadow-primary/20" />
+          <h1 className="text-base font-bold text-slate-900 tracking-tight">Momentum</h1>
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setActiveTab && setActiveTab('notifications_settings_light_mode')} aria-label="Notifications" className="relative p-2 rounded-full text-slate-600 hover:bg-slate-100 transition-colors pointer-events-auto cursor-pointer">
@@ -231,11 +236,12 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       <main className="w-full bg-transparent relative z-10 pointer-events-auto">
         {/* Premium Glass Welcome Hero */}
         <WelcomeHero isDark={false} setActiveTab={setActiveTab} className="mb-4 lg:mb-5" />
+        <WallpaperWelcomeHint setActiveTab={setActiveTab}/>
 
         {/* Responsive Dashboard Layout: 12-Column Grid on Desktop (>= 1024px), Clean Single Column Stack on Mobile (< 1024px) */}
         <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
@@ -256,7 +262,7 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
                   <h2 className="text-sm font-bold text-slate-900">{t('home.financialHealth', 'Financial Health')}</h2>
                 </div>
                 <span className="text-xs font-semibold text-primary">
-                  {new Intl.DateTimeFormat(currentLocale === 'ps-AF' ? 'ps-AF' : currentLocale === 'fa-AF' ? 'fa-AF' : 'en-US', { month: 'long', timeZone: effectiveTimezone }).format(now)}
+                  {formatFinanceMonth(currentMonthKey,currentLocale,numberSystem)}
                 </span>
               </div>
 
@@ -556,6 +562,9 @@ export default function HomeDashboardLightMode({ setActiveTab }) {
               <ChevronRight className="w-5 h-5 text-primary shrink-0" />
             </div>
           </div>
+        </div>
+        <div className="mx-5 lg:mx-0 mt-4 lg:mt-5 min-w-0" data-testid="home-reflection-footer">
+          <DailyReflectionCard date={now} timeZone={effectiveTimezone}/>
         </div>
       </main>
 

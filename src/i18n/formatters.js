@@ -67,8 +67,8 @@ export function toEasternDigits(value) {
  * @returns {string}
  */
 export function toLatinDigits(value) {
-  if (!value) return '';
-  return String(value).replace(/[۰-۹]/g, (digit) => ARABIC_EXT_TO_LATIN[digit] || digit);
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[۰-۹٠-٩]/g,digit=>ARABIC_EXT_TO_LATIN[digit] || String(digit.charCodeAt(0)-0x660));
 }
 
 /**
@@ -80,22 +80,23 @@ export function toLatinDigits(value) {
  */
 export function formatNumber(num, localeCode = DEFAULT_LOCALE, options = {}) {
   if (typeof num !== 'number' || isNaN(num)) return '0';
-  const { useEasternDigits = false, minimumFractionDigits = 0, maximumFractionDigits = 2 } = options;
+  const { useEasternDigits = false, numberingSystem = useEasternDigits?'arabext':'latn', minimumFractionDigits = 0, maximumFractionDigits = 2 } = options;
 
   const bcp47 = LOCALE_MAP[localeCode]?.bcp47 || 'en-US';
   try {
     let formatted = new Intl.NumberFormat(bcp47, {
       minimumFractionDigits,
       maximumFractionDigits,
+      numberingSystem: numberingSystem==='arabext'?'arabext':'latn',
     }).format(num);
 
-    if (useEasternDigits && (localeCode === 'ps-AF' || localeCode === 'fa-AF')) {
+    if (numberingSystem==='arabext') {
       return toEasternDigits(formatted);
     }
     return formatted;
   } catch (err) {
     void err;
-    return num.toLocaleString();
+    return numberingSystem==='arabext'?toEasternDigits(num):String(num);
   }
 }
 

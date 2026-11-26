@@ -1,4 +1,7 @@
+import {DailyReflectionCard} from './components/DailyInspirationPanel.jsx';
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import { 
   Sparkles, 
@@ -26,8 +29,9 @@ import { toast } from './components/ui/toast/index.js';
 import { confirm } from './components/ui/confirmation/index.js';
 
 export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader = false }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
-  const { currentDateKey } = useAppTime();
+  const { currentDateKey, now, effectiveTimezone } = useAppTime();
   const rawRoutines = useRoutineStore((s) => s.routines);
   const routines = useMemo(() => rawRoutines || [], [rawRoutines]);
   const streakCount = useRoutineStore((s) => s.getCurrentStreak ? s.getCurrentStreak(currentDateKey) : (s.streakCount ?? 0));
@@ -110,7 +114,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
     <div className="relative w-full pb-0 mb-0 bg-transparent font-sans">
       {/* Top Header Bar */}
       {!hideHeader && (
-        <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+        <MomentumGlassHeader isDarkMode={true}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <Sparkles className="w-5 h-5 text-white" />
@@ -136,7 +140,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
             </button>
             <UserAvatar setActiveTab={navigateScreen} />
           </div>
-        </header>
+        </MomentumGlassHeader>
       )}
 
       <main className="flex-1 flex flex-col relative w-full pb-32 bg-transparent z-10">
@@ -163,7 +167,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
                 {streakCount > 0 ? t('home.routineStreak', '{{count}} Day Routine Streak', { count: streakCount }) : t('home.startHabitStreak', 'Start Your Habit Streak')}
               </span>
               <h2 className="text-2xl font-black text-white tracking-tight">
-                {doneCount} {t('common.of', 'of')} {totalCount} {t('common.done', 'Done')}
+                {digits(doneCount)} {t('common.of', 'of')} {digits(totalCount)} {t('common.done', 'Done')}
               </h2>
               <p className="text-xs text-slate-400 font-medium">
                 {totalCount > 0 ? t('routines.keepSteadySmallSteps', 'Keep steady. Small steps build profound growth.') : t('routines.addFirstRoutine', 'Add your first routine to build steady daily momentum.')}
@@ -270,7 +274,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
                         {routine.title}
                       </h3>
                       <span className="text-xs font-semibold flex-shrink-0 text-primary">
-                        {routine.time}
+                        {digits(routine.time)}
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -336,19 +340,7 @@ export default function DailyRoutineDarkMode({ setActiveTab, goBack, hideHeader 
           })
         )}
 
-        <div className="block mx-5 my-5 p-4 rounded-3xl flex items-start gap-3.5 text-slate-200 bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-xl">
-          <div className="w-10 h-10 rounded-2xl bg-primary/20 border border-primary/30 text-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Sparkles className="w-5 h-5 text-primary"/>
-          </div>
-          <div className="flex-1">
-            <p className="text-xs font-semibold text-slate-300 italic leading-relaxed">
-              "{t('tasks.consistentQuote', 'Consistent small deeds lead to profound inner peace.')}"
-            </p>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-wider block mt-1.5">
-              {t('routines.dailyMindfulnessReflection', 'Daily Mindfulness Reflection')}
-            </span>
-          </div>
-        </div>
+        <div className="mx-5 mt-4"><DailyReflectionCard date={now} timeZone={effectiveTimezone}/></div>
 
       </main>
     </div>

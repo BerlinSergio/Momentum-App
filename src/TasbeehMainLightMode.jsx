@@ -1,4 +1,7 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
+import { useTasbeehVolumeKeys } from './hooks/useTasbeehVolumeKeys.js';
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useTasbeehStore, computeTodayTotal } from './store/useTasbeehStore';
@@ -7,9 +10,11 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehMainLightMode({ setActiveTab }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const {
     currentCount,
+    roundComplete,
     lapCount,
     dailyGoal,
     hapticsEnabled,
@@ -32,25 +37,14 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
   } = useTasbeehStore();
 
   const target = Number(activePreset?.target) || 33;
-  const progressRatio = target > 0 ? Math.min(1, Math.max(0, currentCount / target)) : 0;
+  const displayCount = roundComplete ? target : currentCount;
+  const progressRatio = target > 0 ? Math.min(1, Math.max(0, displayCount / target)) : 0;
   const strokeDashoffset = Math.round(264 - (progressRatio * 264));
   const goal = dailyGoal || 1000;
   const todayTotal = computeTodayTotal(historyLogs, currentCount);
   const goalPercentage = Math.min(100, Math.round((todayTotal / goal) * 100));
 
-  // Volume Keys for Counting
-  useEffect(() => {
-    if (!volumeKeysEnabled && !volumeKeys) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'AudioVolumeUp' || e.code === 'AudioVolumeUp' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        increment();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [volumeKeysEnabled, volumeKeys, increment]);
+  useTasbeehVolumeKeys(volumeKeysEnabled ?? volumeKeys ?? false);
 
   // Keep Screen Awake during Dhikr
   useEffect(() => {
@@ -102,7 +96,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
         className="flex-1 pb-28"
       >
         {/* Top Header Bar */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={false}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <Sparkles className="w-5 h-5 text-white" />
@@ -132,7 +126,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               setActiveTab={setActiveTab} 
             />
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* Current Dhikr Card */}
         <div className="block mx-5 my-3 p-5 rounded-3xl space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
@@ -167,7 +161,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
             </div>
           </div>
           <div className="text-center py-1 space-y-1">
-            <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-2xl font-bold font-quran text-slate-900" dir="rtl">{activePreset?.arabic || 'سُبْحَانَ ٱللَّٰهِ'}</h2>
+            <h2 style={{ fontFamily: 'ArabQuranIslamic, serif' }} className="text-center text-2xl font-bold font-quran text-slate-900" dir="rtl">{activePreset?.arabic || 'سُبْحَانَ ٱللَّٰهِ'}</h2>
             <p className="text-sm font-semibold text-slate-800">{activePreset?.transliteration || t('tasbeeh.subhanallahTranslit', 'Subhanallah')}</p>
             <p className="text-xs font-normal italic text-slate-500">“{activePreset?.meaning || t('tasbeeh.subhanallahMeaning', 'Glory be to Allah')}”</p>
           </div>
@@ -198,13 +192,13 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
               <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
                 {t('tasbeeh.dailyDedication', 'Daily Dedication')}
               </span>
-              <span className="text-xs font-bold text-slate-900"><strong className="text-sm font-bold">{todayTotal}</strong> counts</span>
+              <span className="text-xs font-bold text-slate-900"><strong className="text-sm font-bold">{digits(todayTotal)}</strong> counts</span>
             </div>
           </div>
           <div className="text-right">
             <span className="text-xs font-bold text-teal-600 flex items-center gap-1 justify-end">
               <Flag className="w-3.5 h-3.5" />
-              Goal {goal.toLocaleString()}
+              Goal {digits(goal.toLocaleString())}
             </span>
             <span className="text-[10px] font-medium text-slate-400">{t('tasbeeh.goalCompleted', '{{percent}}% completed', { percent: goalPercentage })}</span>
           </div>
@@ -247,7 +241,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
                 COUNTER
               </span>
               <span className="text-5xl font-extrabold text-slate-900 tracking-tight my-0.5 font-display">
-                {currentCount}
+                {digits(displayCount)}
               </span>
               <span className="text-xs font-medium text-slate-500">
                 of <strong className="text-primary font-bold">{target}</strong> Target
@@ -285,7 +279,7 @@ export default function TasbeehMainLightMode({ setActiveTab }) {
 
           <button 
             type="button"
-            onClick={increment}
+            onClick={increment} disabled={roundComplete}
             className="w-full py-5 px-6 rounded-3xl bg-gradient-to-r from-primary via-primary to-teal-600 hover:from-primary hover:to-teal-700 text-white shadow-lg shadow-primary/35 flex items-center justify-center gap-3 transition-all active:scale-[0.98] select-none mt-4 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-2xl bg-white/80 backdrop-blur-xl flex items-center justify-center">

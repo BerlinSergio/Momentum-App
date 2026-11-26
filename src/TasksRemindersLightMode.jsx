@@ -1,5 +1,7 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
-import { useState } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
+import { useState, useRef } from 'react';
 import { useTaskStore, getConsistencyScore } from './store/useTaskStore';
 import { useNavigationStore } from './store/useNavigationStore';
 import { useAppTime } from './hooks/useAppTime';
@@ -65,6 +67,7 @@ const getTaskCircleColor = (task) => {
 };
 
 export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 'tasks', goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const storeTasksSubTab = useNavigationStore((s) => s.tasksSubTab);
   const setTasksSubTab = useNavigationStore((s) => s.setTasksSubTab);
@@ -79,13 +82,22 @@ export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 
   const [isCompletedExpanded, setIsCompletedExpanded] = useState(true);
   const { tasks, toggleTaskStatus, setEditingTaskId } = useTaskStore();
 
-  const handleTaskToggle = (task) => {
-    const willBeDone = task.status !== 'done';
-    toggleTaskStatus(task.id);
-    if (willBeDone) {
-      toast.success(t('tasks.taskMarkedDone', 'Task marked as done'));
-    } else {
-      toast.info(t('tasks.taskMarkedTodo', 'Task marked as to-do'));
+  const pendingTaskIds = useRef(new Set());
+  const handleTaskToggle = async (task) => {
+    if (pendingTaskIds.current.has(task.id)) return;
+    pendingTaskIds.current.add(task.id);
+    try {
+      const willBeDone = task.status !== 'done';
+      if (await toggleTaskStatus(task.id) !== true) throw new Error('Task status commit not confirmed');
+      if (willBeDone) {
+        toast.success(t('tasks.taskMarkedDone', 'Task marked as done'));
+      } else {
+        toast.info(t('tasks.taskMarkedTodo', 'Task marked as to-do'));
+      }
+    } catch {
+      toast.error(t('toasts.taskSaveFailed', 'Task was not safely saved. Reload before trying again.'));
+    } finally {
+      pendingTaskIds.current.delete(task.id);
     }
   };
   const { currentDateKey } = useAppTime();
@@ -120,7 +132,7 @@ export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 
       <div className="flex-1 pb-32">
         
         {/* Top Header & Title Row (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={false} className="lg:hidden">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <Sparkles className="w-5 h-5 text-white"/>
@@ -137,7 +149,7 @@ export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 
               setActiveTab={setActiveTab} 
             />
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* Sleek Glassmorphic Local Navigation Tabs */}
         <div className="px-5 lg:px-0 pt-1 pb-2 relative z-50">
@@ -361,7 +373,7 @@ export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 
                               />
                             </div>
                             <span className="text-[9px] font-semibold text-slate-500">
-                              {task.subTasks.filter((s) => s.completed).length}/{task.subTasks.length} {t('tasks.steps', 'steps')}
+                              {digits(task.subTasks.filter((s) => s.completed).length)}/{task.subTasks.length} {t('tasks.steps', 'steps')}
                             </span>
                           </div>
                         )}
@@ -426,7 +438,7 @@ export default function TasksRemindersLightMode({ setActiveTab, initialSubTab = 
                   </div>
                   <h4 className="text-xs font-bold text-slate-900">{t('tasks.completedEarlier', 'Completed Earlier')}</h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-                    {completedTasks.length}
+                    {digits(completedTasks.length)}
                   </span>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transform transition-transform duration-200 ${isCompletedExpanded ? 'rotate-180' : 'rotate-0'}`}/>

@@ -1,0 +1,49 @@
+name: Momentum Full Mobile Visual Regression
+on:
+  push:
+    branches:
+      - fix/db-phase217-migration-recovery-20261125
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: visual-regression-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  mobile-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-fund
+      - run: npm run build
+      - name: Start Vite
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/momentum-visual-vite.log 2>&1 &
+          for i in $(seq 1 70); do
+            if curl --silent --fail http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/momentum-visual-vite.log
+          exit 1
+      - name: Real Chromium visual registry and appearance regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+          MOMENTUM_VISUAL_DIR: /tmp/momentum-visual
+        run: node tests/mobile/test_visual_material_registry.cjs
+      - name: Wallpaper network retry and resumable batch regression
+        if: always()
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/mobile/test_wallpaper_download_resume.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: momentum-mobile-visual-${{ github.sha }}
+          path: /tmp/momentum-visual/
+          if-no-files-found: warn
+          retention-days: 7

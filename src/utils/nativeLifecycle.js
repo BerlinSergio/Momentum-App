@@ -5,7 +5,7 @@
  */
 
 import { App } from '@capacitor/app';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
 import { useNavigationStore } from '../store/useNavigationStore';
 import useSecurityStore from '../store/useSecurityStore';
@@ -201,9 +201,9 @@ export function handleAppStateChange({ isActive }) {
 
       if (timing === 'immediate') {
         shouldRelock = true;
-      } else if (timing === 'after_1_minute' && elapsedSeconds >= 60) {
+      } else if ((timing === '1min' || timing === 'after_1_minute') && elapsedSeconds >= 60) {
         shouldRelock = true;
-      } else if (timing === 'after_5_minutes' && elapsedSeconds >= 300) {
+      } else if ((timing === '5min' || timing === 'after_5_minutes') && elapsedSeconds >= 300) {
         shouldRelock = true;
       } else if (timing === 'after_15_minutes' && elapsedSeconds >= 900) {
         shouldRelock = true;
@@ -226,11 +226,11 @@ export async function syncNativeStatusBar(isDark) {
   const isNative = isNativePlatform();
   if (isNative) {
     try {
-      await StatusBar.setStyle({
-        style: isDark ? Style.Dark : Style.Light,
+      await SystemBars.setStyle({
+        style: isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light,
       });
     } catch {
-      // Non-blocking in dev or browser
+      console.warn('[NativeLifecycle] System bar style unavailable');
     }
   }
   return { success: true, isDark, isNative };
@@ -243,6 +243,7 @@ export async function syncNativeStatusBar(isDark) {
 export function initializeNativeLifecycle() {
   if (isLifecycleInitialized || typeof window === 'undefined') return;
   isLifecycleInitialized = true;
+  if (Capacitor.getPlatform() === 'android') document.documentElement.classList.add('momentum-native-android');
 
   // 1. Hardware Back Button
   try {
@@ -263,18 +264,27 @@ export function initializeNativeLifecycle() {
   }
 
   // 3. Keyboard Visibility Helpers
-  try {
-    Keyboard.addListener('keyboardWillShow', (info) => {
-      document.body.classList.add('keyboard-open');
-      document.documentElement.style.setProperty('--keyboard-height', `${info.keyboardHeight}px`);
-    });
+  // @capacitor/keyboard has no web implementation. Calling addListener() on
+  // browsers rejects asynchronously, so a synchronous try/catch is not enough.
+  // Register only inside the native Capacitor shell and handle async failures.
+  if (isNativePlatform()) {
+    try {
+      Promise.resolve(Keyboard.addListener('keyboardWillShow', (info) => {
+        document.body.classList.add('keyboard-open');
+        document.documentElement.style.setProperty('--keyboard-height', `${info.keyboardHeight}px`);
+      })).catch((error) => {
+        console.warn('[NativeLifecycle] keyboardWillShow unavailable:', error);
+      });
 
-    Keyboard.addListener('keyboardWillHide', () => {
-      document.body.classList.remove('keyboard-open');
-      document.documentElement.style.setProperty('--keyboard-height', '0px');
-    });
-  } catch {
-    // Non-blocking
+      Promise.resolve(Keyboard.addListener('keyboardWillHide', () => {
+        document.body.classList.remove('keyboard-open');
+        document.documentElement.style.setProperty('--keyboard-height', '0px');
+      })).catch((error) => {
+        console.warn('[NativeLifecycle] keyboardWillHide unavailable:', error);
+      });
+    } catch (error) {
+      console.warn('[NativeLifecycle] Keyboard listeners unavailable:', error);
+    }
   }
 
   // 4. Initial Status Bar sync

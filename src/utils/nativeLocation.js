@@ -6,6 +6,8 @@
  */
 
 import { Geolocation } from '@capacitor/geolocation';
+import { registerPlugin } from '@capacitor/core';
+const MomentumDevice = registerPlugin('MomentumDevice');
 import { useLocationStore } from '../store/useLocationStore';
 import { isValidCoordinate } from './prayerTimes';
 import { isNativePlatform } from './nativeLifecycle';
@@ -19,10 +21,11 @@ export async function checkLocationPermission() {
   if (isNativePlatform()) {
     try {
       const status = await Geolocation.checkPermissions();
-      return status.location; // 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
+      return status.location === 'granted' || status.coarseLocation === 'granted' ? 'granted' : status.location;
     } catch (err) {
       console.warn('[NativeLocation] Check permission failed:', err.message);
-      return 'denied';
+      try { return (await MomentumDevice.checkDeviceLocationPermission()).granted ? 'granted' : 'prompt'; }
+      catch { return 'denied'; }
     }
   }
 
@@ -46,10 +49,11 @@ export async function requestLocationPermission() {
   if (isNativePlatform()) {
     try {
       const status = await Geolocation.requestPermissions({ permissions: ['location'] });
-      return status.location;
+      return status.location === 'granted' || status.coarseLocation === 'granted' ? 'granted' : status.location;
     } catch (err) {
       console.warn('[NativeLocation] Request permission failed:', err.message);
-      return 'denied';
+      try { return (await MomentumDevice.requestDeviceLocationPermission()).granted ? 'granted' : 'denied'; }
+      catch { return 'denied'; }
     }
   }
 
@@ -71,7 +75,7 @@ export async function requestLocationPermission() {
  */
 export async function detectAndApplyNativeLocation(options = {}) {
   const highAccuracy = options.highAccuracy !== false;
-  const timeoutMs = options.timeout || 10000;
+  const timeoutMs = Math.max(15000, Math.min(45000, Number(options.timeout) || 35000));
 
   try {
     let position = null;
@@ -83,7 +87,7 @@ export async function detectAndApplyNativeLocation(options = {}) {
         perm = await requestLocationPermission();
       }
 
-      if (perm === 'denied') {
+      if (perm !== 'granted') {
         return {
           success: false,
           code: 'PERMISSION_DENIED',
@@ -91,12 +95,19 @@ export async function detectAndApplyNativeLocation(options = {}) {
         };
       }
 
-      // 2. Fetch native GPS fix
-      position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: highAccuracy,
-        timeout: timeoutMs,
-        maximumAge: 30000,
-      });
+      // Run the Android provider and fused provider together; a failed or
+      // slow provider must not prevent the other from returning a real fix.
+      const nativePermission = await MomentumDevice.checkDeviceLocationPermission();
+      if (!nativePermission.granted) throw Error('Location permission denied');
+      const validate = value => {
+        if (!value?.coords || !isValidCoordinate(value.coords.latitude,value.coords.longitude))
+          throw Error('Invalid device fix');
+        return value;
+      };
+      position = await Promise.any([
+        MomentumDevice.getDeviceLocation({timeout:timeoutMs}).then(validate),
+        Geolocation.getCurrentPosition({enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:120000}).then(validate),
+      ]).catch(error => {throw error.errors?.find(e=>e.code==='TIMEOUT') || error.errors?.[0] || error;});
     } else {
       // Web Browser standard Geolocation
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -141,10 +152,11 @@ export async function detectAndApplyNativeLocation(options = {}) {
       : 'UTC';
 
     // 5. Commit genuine GPS location to location store
-    const applied = useLocationStore.getState().setGpsLocation({
+    const applied = await useLocationStore.getState().setGpsLocation({
       latitude,
       longitude,
-      altitude: altitude || 0,
+      altitude: Number.isFinite(altitude) ? altitude : null,
+      accuracy: Number.isFinite(accuracy) ? accuracy : null,
       city: 'Current Location',
       country: 'GPS Detected',
       timezone: resolvedTz,
@@ -173,13 +185,13 @@ export async function detectAndApplyNativeLocation(options = {}) {
     let code = 'DETECTION_FAILED';
     let message = err.message || 'GPS detection failed';
 
-    if (err.code === 1 || err.message?.includes('denied')) {
+    if (err.code === 1 || /denied|permission/i.test(err.message || '') || err.code === 'OS-PLUG-GLOC-0003') {
       code = 'PERMISSION_DENIED';
       message = 'Location permission was denied by device settings.';
-    } else if (err.code === 2 || err.message?.includes('unavailable')) {
+    } else if (err.code === 2 || /unavailable|disabled|location services/i.test(err.message || '')) {
       code = 'POSITION_UNAVAILABLE';
       message = 'GPS location is currently unavailable. Ensure device location is turned on.';
-    } else if (err.code === 3 || err.message?.includes('timeout')) {
+    } else if (err.code === 3 || /timeout|timed out/i.test(err.message || '')) {
       code = 'TIMEOUT';
       message = 'GPS signal acquisition timed out. Please try again or choose a city manually.';
     }

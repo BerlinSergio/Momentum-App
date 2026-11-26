@@ -1,0 +1,117 @@
+name: Momentum DB Durable Writes Regression
+
+on:
+  push:
+    branches:
+      - fix/db-durable-writes-20261125
+      - fix/db-phase23-integrity-20261125
+      - fix/db-phase24-atomic-restore-20261125
+      - fix/db-phase25-backup-completeness-20261125
+      - fix/db-phase26-cross-db-recovery-20261125
+      - fix/db-phase27-snapshot-concurrency-20261125
+      - fix/db-phase28-optimistic-conflicts-20261125
+      - fix/db-phase29-attachment-revision-quota-20261125
+      - fix/db-phase210-large-backup-ui-20261125
+      - fix/db-phase211-task-persistence-20261125
+      - fix/db-phase212-task-cross-tab-cas-20261125
+      - fix/db-phase213-notes-finance-cas-20261125
+      - fix/db-phase214-calendar-tasbeeh-cas-20261125
+      - fix/db-phase215-routine-prayer-cas-20261125
+      - fix/db-phase216-profile-security-integrity-20261125
+      - fix/db-phase217-atomic-credential-20261125
+      - fix/db-phase217-migration-recovery-20261125
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  storage-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies from lockfile
+        run: npm ci --no-fund
+      - name: Durable database and navigation regression
+        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/storage/backupSizeLimits.test.mjs tests/navigation/themeNavigation.test.mjs
+      - name: Production build
+        run: npm run build
+      - name: Start isolated Vite server
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/momentum-vite.log 2>&1 &
+          for i in $(seq 1 70); do
+            if curl --silent --fail http://127.0.0.1:5173/ >/dev/null; then
+              echo "Vite test server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/momentum-vite.log
+          exit 1
+      - name: Real Chromium atomic restore regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_atomic_restore_chromium.cjs
+      - name: Cross-database restore crash recovery Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_cross_db_restore_recovery_chromium.cjs
+      - name: Multi-tab backup snapshot and malformed journal Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_backup_multitab_chromium.cjs
+      - name: Cross-tab optimistic restore conflict Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_restore_conflicts_chromium.cjs
+      - name: Attachment revision and storage quota Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_attachment_revision_quota_chromium.cjs
+      - name: Large backup file UI guard in dark and light Chromium themes
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_large_backup_ui_chromium.cjs
+      - name: Task single-writer and stale-mirror Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_task_single_writer_chromium.cjs
+      - name: Cross-tab task CAS with conflict warning and safe reload Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_task_cross_tab_conflict_chromium.cjs
+      - name: Notes and Finance cross-tab CAS with attachment safety and stress
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_notes_finance_conflicts_chromium.cjs
+      - name: Calendar and Tasbeeh cross-tab CAS, mirror and contention stress
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_calendar_tasbeeh_conflicts_chromium.cjs
+      - name: Routine and Prayer cross-tab user logs versus time-derived state
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_routine_prayer_conflicts_chromium.cjs
+      - name: Profile and Security CAS, PIN verifier revocation and safe reload Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_profile_security_integrity_chromium.cjs
+      - name: Startup fail-closed Chromium regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/storage/test_startup_fail_closed.cjs
+      - name: Existing note deletion/persistence browser test
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/notes/test_note_delete_confirmation.cjs
+
+      - name: Mobile repair picker, calendar and worship regression
+        env:
+          MOMENTUM_URL: http://127.0.0.1:5173/
+        run: node tests/mobile/test_mobile_repair_regression.cjs

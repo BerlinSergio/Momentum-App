@@ -524,7 +524,7 @@ export function buildDownloadedWallpaperBatch(batchPrefix = 'cloud-pack-v1') {
       badge: 'Cloud Sync',
       description: theme.desc,
       seed,
-      isDownloaded: true,
+      isDownloaded: false,
       thumbnail: lightImage,
       thumbnailUrl: lightImage,
       thumb: lightImage,

@@ -1,3 +1,4 @@
+import NoteAttachmentPreview from './NoteAttachmentPreview.jsx';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { ChevronRight, Pin, Archive, ArchiveRestore } from 'lucide-react';
@@ -238,12 +239,16 @@ export default function NotePreviewCard({
   // 3. Extract content preview (guarantee body text is shown, not duplicating title)
   const rawBody = (note.body || note.content || '').trim();
   const noteTitle = (note.title || 'Untitled Note').trim();
-  const previewText = rawBody;
-
-  // 4. Extract real image attachment (if any)
-  const imageAttachment = Array.isArray(note.attachments)
-    ? note.attachments.find((a) => (a.type === 'image' || a.url) && a.url)
-    : null;
+  // Parse rich-text markup in an inert template. Never insert the HTML into
+  // the document; only render text, with block boundaries kept readable.
+  const previewText = (() => {
+    if (!/<\/?[a-z][^>]*>/i.test(rawBody)) return rawBody;
+    const template = document.createElement('template');
+    template.innerHTML = rawBody;
+    template.content.querySelectorAll('script,style,template,noscript').forEach(node => node.remove());
+    template.content.querySelectorAll('br,p,div,li,h1,h2,h3,h4,h5,h6,blockquote').forEach(node => node.after(document.createTextNode(' ')));
+    return (template.content.textContent || '').replace(/\s+/g, ' ').trim();
+  })();
 
   // 5. Format timestamp
   const displayTime = note.savedAt || note.date || 'Recently';
@@ -251,6 +256,8 @@ export default function NotePreviewCard({
   return (
     <motion.div
       onClick={() => onOpen(note)}
+      data-testid={`note-card-${note.id}`}
+      data-note-id={note.id}
       layout="position"
       whileHover={{ scale: 1.01 }}
       whileTap={{ scale: 0.985 }}
@@ -297,20 +304,7 @@ export default function NotePreviewCard({
           </p>
         )}
 
-        {/* 4. OPTIONAL MEDIA THUMBNAIL */}
-        {imageAttachment && (
-          <div className="w-full h-36 rounded-[12px] overflow-hidden bg-slate-100 dark:bg-slate-900 border border-black/5 dark:border-white/10 shadow-2xs mt-1">
-            <img
-              src={imageAttachment.url}
-              alt={imageAttachment.name || noteTitle}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const parent = e.currentTarget.parentElement;
-                if (parent) parent.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
+        <NoteAttachmentPreview attachments={note.attachments}/>
 
         {/* 5. METADATA ROW: TIME & READ LINK */}
         <div

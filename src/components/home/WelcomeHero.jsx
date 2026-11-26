@@ -9,7 +9,7 @@ import { useAppMotion } from '../../motion/useAppMotion';
 import { normalizeIanaTimezone } from '../../utils/timeService';
 import { useTranslation } from 'react-i18next';
 import { useLocaleStore } from '../../store/useLocaleStore';
-import { LOCALE_MAP } from '../../i18n/localeUtils';
+import { formatHomeDate } from '../../i18n/displayDate.js';
 
 /**
  * Premium Glass Welcome Hero Component
@@ -62,22 +62,10 @@ export default function WelcomeHero({
     return t('home.night');
   }, [currentLocale, greeting, now, t]);
 
-  // Format date chip: "WEEKDAY, MMM D" (e.g., "WEDNESDAY, NOV 18")
-  const chipFormattedDate = useMemo(() => {
-    try {
-      const validTz = normalizeIanaTimezone(effectiveTimezone);
-      const bcp47 = LOCALE_MAP[currentLocale]?.bcp47 || 'en-US';
-      const formatter = new Intl.DateTimeFormat(bcp47, {
-        timeZone: validTz,
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-      });
-      return formatter.format(now).toUpperCase();
-    } catch {
-      return (formattedDate || '').toUpperCase();
-    }
-  }, [now, effectiveTimezone, formattedDate, currentLocale]);
+  const numberSystem = useLocaleStore(s => s.numberSystem);
+  const chipFormattedDate = useMemo(() =>
+    formatHomeDate(now,currentLocale,numberSystem,normalizeIanaTimezone(effectiveTimezone)).toUpperCase(),
+    [now,currentLocale,numberSystem,effectiveTimezone]);
 
   // Handle profile navigation
   const handleProfileNavigation = (e) => {

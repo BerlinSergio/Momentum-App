@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
 import {
   ArrowLeft,
@@ -25,6 +26,8 @@ import {
   restoreBackup,
 } from './utils/backupService';
 import { exportBackupNatively } from './utils/nativeBackup';
+import { MAX_BACKUP_FILE_BYTES } from './utils/backupLimits';
+import { getBackupErrorMessage } from './utils/backupErrorMessages';
 import { toast } from './components/ui/toast/index.js';
 
 export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
@@ -55,6 +58,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
   const [restoreSuccess, setRestoreSuccess] = useState(null);
 
   const fileInputRef = useRef(null);
+  const pendingReaderRef = useRef(null);
 
   const handleBack = () => {
     if (goBack) goBack();
@@ -107,7 +111,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
       toast.success(t('toasts.backupCreated', 'Backup archive created successfully'));
     } catch (err) {
       console.error('[BackupRestore] Create backup error:', err);
-      const errMsg = err.message || 'Failed to generate encrypted backup';
+      const errMsg = getBackupErrorMessage(err, 'Failed to generate encrypted backup');
       setCreateError(errMsg);
       setCreateProgress(null);
       toast.error(errMsg);
@@ -120,12 +124,21 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    pendingReaderRef.current?.abort();
     setSelectedFileName(file.name);
+    setSelectedFileContent(null);
+    setFileInspection(null);
     setRestoreError('');
     setRestorePreview(null);
     setRestoreSuccess(null);
 
+    // No FileReader allocation for a backup beyond our in-memory limit.
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      setRestoreError(getBackupErrorMessage({ code: 'BACKUP_FILE_TOO_LARGE' }));
+      return;
+    }
     const reader = new FileReader();
+    pendingReaderRef.current = reader;
     reader.onload = (event) => {
       const content = event.target?.result;
       setSelectedFileContent(content);
@@ -155,12 +168,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
       toast.info(t('toasts.backupDecrypted', 'Backup decrypted and validated'));
     } catch (err) {
       console.error('[BackupRestore] Decrypt preview error:', err);
-      let errMsg = err.message || 'Failed to decrypt backup.';
-      if (err.code === 'INVALID_PASSPHRASE') {
-        errMsg = 'Incorrect backup passphrase. Please check and try again.';
-      } else if (err.code === 'CORRUPTED_PAYLOAD') {
-        errMsg = 'File authentication failed. The backup appears modified or corrupted.';
-      }
+      const errMsg = getBackupErrorMessage(err, 'Failed to decrypt backup.');
       setRestoreError(errMsg);
       toast.error(errMsg);
     } finally {
@@ -183,10 +191,14 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
 
       setRestoreSuccess(res);
       setRestoreProgress(null);
-      toast.success(t('toasts.dataRestored', 'All data restored successfully'));
+      if (res.requiresReload) {
+        toast.info(t('backup.restoreReloadTitle', 'Restore saved — restart required'));
+      } else {
+        toast.success(t('toasts.dataRestored', 'All data restored successfully'));
+      }
     } catch (err) {
       console.error('[BackupRestore] Restore error:', err);
-      const errMsg = err.message || 'Restoration failed. Any partial writes have been safely rolled back.';
+      const errMsg = getBackupErrorMessage(err, 'Restoration failed. Please retry safely.');
       setRestoreError(errMsg);
       setRestoreProgress(null);
       toast.error(errMsg);
@@ -198,7 +210,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
   return (
     <div className="min-h-screen w-full bg-slate-50 text-slate-800 flex flex-col font-sans select-none overflow-y-auto pb-24">
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 px-5 py-4 flex items-center justify-between shadow-sm">
+      <MomentumGlassHeader isDarkMode={false}>
         <button
           onClick={handleBack}
           className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-200 active:scale-95 transition-all"
@@ -213,7 +225,7 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
         <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-600">
           <ShieldCheck className="w-5 h-5" />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="max-w-md lg:max-w-5xl w-full mx-auto px-5 lg:px-8 pt-5 pb-28 flex flex-col gap-5">
         {/* Mode Selector Segmented Tabs */}
@@ -477,6 +489,12 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
                   <span className="font-mono text-[10px] text-emerald-700">{fileInspection.kdfAlgorithm}</span>
                 </div>
               )}
+              {restoreError && !fileInspection?.valid && (
+                <div role="alert" className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{restoreError}</span>
+                </div>
+              )}
             </div>
 
             {selectedFileContent && fileInspection?.valid && !restorePreview && (
@@ -682,7 +700,16 @@ export default function BackupRestoreLightMode({ setActiveTab, goBack }) {
               </div>
             )}
 
-            {restoreSuccess && (
+            {restoreSuccess?.requiresReload && (
+              <div role="alert" className="p-5 rounded-3xl border border-amber-500/40 bg-amber-500/10 flex flex-col gap-3">
+                <h3 className="text-sm font-bold">{t('backup.restoreReloadTitle', 'Restore saved — restart required')}</h3>
+                <p className="text-xs leading-relaxed">{t('backup.restoreReloadDescription', 'Your restored records were saved, but could not be loaded into this session. Restart Momentum before editing. Do not repeat the restore or clear app data.')}</p>
+                <button type="button" onClick={() => window.location.reload()} className="w-full h-12 rounded-2xl bg-amber-600 text-white font-semibold text-sm">
+                  {t('backup.restartMomentum', 'Restart Momentum')}
+                </button>
+              </div>
+            )}
+            {restoreSuccess && !restoreSuccess.requiresReload && (
               <div className="p-5 rounded-3xl bg-emerald-50 border border-emerald-200 flex flex-col gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">

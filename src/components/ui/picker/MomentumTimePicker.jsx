@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Clock, X, Check, ChevronUp, ChevronDown } from 'lucide-react';
 import useNavigationStore from '../../../store/useNavigationStore';
@@ -102,7 +103,7 @@ export default function MomentumTimePicker({
 
   const handleHourStep = (delta) => {
     setHour((h) => {
-      let next = h + delta;
+      let next = (Number(h) || 1) + delta;
       if (next > 12) next = 1;
       if (next < 1) next = 12;
       return next;
@@ -111,7 +112,7 @@ export default function MomentumTimePicker({
 
   const handleMinuteStep = (delta) => {
     setMinute((m) => {
-      let next = (m + delta + 60) % 60;
+      let next = ((Number(m) || 0) + delta + 60) % 60;
       return next;
     });
   };
@@ -131,8 +132,10 @@ export default function MomentumTimePicker({
   };
 
   const handleConfirm = () => {
-    const h12Pad = String(hour).padStart(2, '0');
-    const mPad = String(minute).padStart(2, '0');
+    const safeHour = Math.max(1, Math.min(12, Number(hour) || 1));
+    const safeMinute = Math.max(0, Math.min(59, Number(minute) || 0));
+    const h12Pad = String(safeHour).padStart(2, '0');
+    const mPad = String(safeMinute).padStart(2, '0');
 
     // Determine target format
     let targetFormat = outputFormat;
@@ -146,7 +149,7 @@ export default function MomentumTimePicker({
 
     let resultString = '';
     if (targetFormat === '24h') {
-      let h24 = hour;
+      let h24 = safeHour;
       if (period === 'PM' && h24 < 12) h24 += 12;
       if (period === 'AM' && h24 === 12) h24 = 0;
       resultString = `${String(h24).padStart(2, '0')}:${mPad}`;
@@ -163,10 +166,10 @@ export default function MomentumTimePicker({
     onClose();
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end sm:justify-center items-center pointer-events-auto select-none p-0 sm:p-4 font-sans">
+        <div className="momentum-picker-overlay flex flex-col justify-end sm:justify-center items-center pointer-events-auto select-none p-0 sm:p-4 font-sans">
           {/* Backdrop */}
           <motion.div
             key="timepicker-backdrop"
@@ -189,13 +192,13 @@ export default function MomentumTimePicker({
             animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 30, scale: 0.98 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className={`relative z-10 w-full max-w-sm rounded-t-[2.5rem] sm:rounded-3xl p-5 shadow-2xl border transition-colors ${
+            className={`momentum-picker-panel relative z-10 w-full max-w-sm rounded-t-[2.5rem] sm:rounded-3xl p-5 shadow-2xl border transition-colors ${
               isDark
                 ? 'bg-slate-900/95 backdrop-blur-2xl border-white/10 text-white shadow-black/60'
                 : 'bg-white/95 backdrop-blur-2xl border-slate-200/90 text-slate-900 shadow-slate-900/20'
             }`}
             style={{
-              paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'calc(1.25rem + var(--momentum-inset-bottom, 0px))',
             }}
           >
             {/* Grab Handle for Mobile */}
@@ -245,11 +248,19 @@ export default function MomentumTimePicker({
                 >
                   <ChevronUp className="w-5 h-5" />
                 </button>
-                <div className={`w-18 h-16 rounded-2xl flex items-center justify-center border text-3xl font-extrabold tracking-tight ${
+                <input  className={`w-[4.5rem] h-16 rounded-2xl text-center border text-3xl font-extrabold tracking-tight ${
                   isDark ? 'bg-black/30 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                }`}>
-                  {String(hour).padStart(2, '0')}
-                </div>
+                }`}
+                  type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
+                  aria-label={t('pickers.hours')} data-testid="time-hours-input"
+                  value={hour}
+                  onFocus={event => event.currentTarget.select()}
+                  onChange={event => {
+                    const raw = event.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+                    setHour(raw);
+                  }}
+                  onBlur={() => setHour(value => Math.max(1, Math.min(12, Number(value) || 1)))}
+                />
                 <button
                   type="button"
                   data-testid="time-hour-decrement"
@@ -279,11 +290,19 @@ export default function MomentumTimePicker({
                 >
                   <ChevronUp className="w-5 h-5" />
                 </button>
-                <div className={`w-18 h-16 rounded-2xl flex items-center justify-center border text-3xl font-extrabold tracking-tight ${
+                <input  className={`w-[4.5rem] h-16 rounded-2xl text-center border text-3xl font-extrabold tracking-tight ${
                   isDark ? 'bg-black/30 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
-                }`}>
-                  {String(minute).padStart(2, '0')}
-                </div>
+                }`}
+                  type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2}
+                  aria-label={t('pickers.minutes')} data-testid="time-minutes-input"
+                  value={minute}
+                  onFocus={event => event.currentTarget.select()}
+                  onChange={event => {
+                    const raw = event.target.value.replace(/[^0-9]/g, '').slice(0, 2);
+                    setMinute(raw);
+                  }}
+                  onBlur={() => setMinute(value => Math.max(0, Math.min(59, Number(value) || 0)))}
+                />
                 <button
                   type="button"
                   data-testid="time-minute-decrement"
@@ -385,6 +404,6 @@ export default function MomentumTimePicker({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>, document.body
   );
 }

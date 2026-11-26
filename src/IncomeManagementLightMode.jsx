@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useFinanceStore, formatSingleCurrency, calculateGroupedTotals } from './store/useFinanceStore';
@@ -223,7 +224,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-36">
       {/* Top Header */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Coins className="w-5 h-5 text-white" />
@@ -249,7 +250,7 @@ export default function IncomeManagementLightMode({ setActiveTab }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* Month Selector & Breadcrumb Header Context */}
       <div className="flex items-center justify-between px-5 py-2 mb-2 relative z-50">

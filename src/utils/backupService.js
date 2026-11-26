@@ -2,7 +2,7 @@
  * Momentum Central Backup & Restore Service
  *
  * Implements genuine encrypted backup creation, file export, inspection,
- * preview, staged atomic restoration, and attachment recovery.
+ * preview, atomic main-database restoration, and attachment recovery.
  */
 
 import {
@@ -15,16 +15,15 @@ import {
 } from './backupCrypto.js';
 
 import {
-  getAllStoreItems,
-  setStoreItem,
-  getAllAttachmentRecords,
-  setAttachmentRecord,
+  openAppDB,
+  getCommittedBackupSnapshot,
 } from '../storage/db.js';
-
+import { assertBackupFileSize, preflightBackupSnapshot } from './backupLimits.js';
 import {
-  getAllCustomWallpapersFromIndexedDB,
-  saveWallpaperToIndexedDB,
-} from './wallpaperStorage.js';
+  captureCoordinatedBackupSnapshot,
+  commitCoordinatedMainRestore,
+  commitCoordinatedCrossDbRestore,
+} from './crossDatabaseRestore.js';
 
 // Specific store keys containing durable user data
 export const SUPPORTED_BACKUP_STORES = [
@@ -89,8 +88,12 @@ export async function createBackupPackage(passphrase, options = {}) {
 
   onProgress({ stage: 'COLLECTING_RECORDS', percent: 15, message: 'Collecting application records...' });
 
-  // 1. Read all authoritative records from IndexedDB 'stores' table
-  const allDbStores = await getAllStoreItems();
+  // Refuse incomplete or mixed-version backups: both main DB object stores
+  // share one committed read transaction, and custom wallpapers are captured
+  // while holding the same origin lock as cross-DB restore/UI wallpaper writes.
+  if (!(await openAppDB())) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
+  const snapshot = await captureCoordinatedBackupSnapshot();
+  const allDbStores = snapshot.stores;
 
   const domains = {};
   const recordCounts = {
@@ -110,14 +113,8 @@ export async function createBackupPackage(passphrase, options = {}) {
   for (const storeKey of SUPPORTED_BACKUP_STORES) {
     let storeRecord = parseStoreValue(allDbStores[storeKey]);
 
-    // Fallback: If not yet in IndexedDB, check localStorage
-    if (!storeRecord && typeof localStorage !== 'undefined') {
-      const localRaw = localStorage.getItem(storeKey);
-      if (localRaw) {
-        storeRecord = parseStoreValue(localRaw);
-      }
-    }
-
+    // LocalStorage mirrors are not authoritative after migration; never
+    // silently resurrect deleted/stale data into an encrypted backup.
     if (storeRecord && storeRecord.state) {
       // Security Exclusion: Never export credentials or active lock state
       const sanitizedState = { ...storeRecord.state };
@@ -163,26 +160,39 @@ export async function createBackupPackage(passphrase, options = {}) {
     }
   }
 
+  // Fail before expensive Blob -> base64 -> JSON -> encryption copies.
+  // Refuse an oversized archive; never skip a large attachment silently.
+  preflightBackupSnapshot({
+    domains, attachments: snapshot.attachments, wallpapers: snapshot.wallpapers,
+  });
   onProgress({ stage: 'COLLECTING_ATTACHMENTS', percent: 40, message: 'Bundling binary attachments...' });
 
   // 2. Collect all durable binary attachments
-  const rawAttachments = await getAllAttachmentRecords();
+  const rawAttachments = snapshot.attachments;
   const bundledAttachments = [];
   const attachmentChecksums = {};
 
   for (const att of rawAttachments) {
-    if (!att || !att.id) continue;
+    if (!att || !att.id) {
+      throw new Error('Backup aborted: an attachment record is missing its id');
+    }
     try {
       let base64Bytes = '';
       let sha256 = '';
 
       if (att.blob instanceof Blob) {
-        base64Bytes = await blobToBase64(att.blob);
-        sha256 = await computeSha256(att.blob);
+        // Read each Blob once; use the same bytes for Base64 and checksum.
+        const bytes = await att.blob.arrayBuffer();
+        base64Bytes = bufferToBase64(bytes);
+        sha256 = await computeSha256(bytes);
       } else if (typeof att.blob === 'string' && att.blob.startsWith('data:')) {
         const rawBlob = base64ToBlob(att.blob.split(',')[1], att.mimeType);
         base64Bytes = att.blob.split(',')[1];
         sha256 = await computeSha256(rawBlob);
+      }
+
+      if (!base64Bytes) {
+        throw new Error(`Attachment ${att.id} has no readable binary data`);
       }
 
       if (base64Bytes) {
@@ -207,7 +217,7 @@ export async function createBackupPackage(passphrase, options = {}) {
         };
       }
     } catch (attErr) {
-      console.warn(`[BackupService] Warning: Failed to bundle attachment ${att.id}:`, attErr);
+      throw new Error(`Backup aborted: attachment ${att.id} could not be bundled`, { cause: attErr });
     }
   }
   recordCounts.attachments = bundledAttachments.length;
@@ -215,7 +225,7 @@ export async function createBackupPackage(passphrase, options = {}) {
   onProgress({ stage: 'COLLECTING_WALLPAPERS', percent: 65, message: 'Packaging custom media...' });
 
   // 3. Collect custom wallpapers
-  const rawWallpapers = await getAllCustomWallpapersFromIndexedDB();
+  const rawWallpapers = snapshot.wallpapers;
   const customWallpapers = (rawWallpapers || []).map((w) => ({
     id: w.id,
     dataUrl: w.dataUrl,
@@ -296,9 +306,15 @@ export async function exportBackupToFile(envelope, customFilename = null) {
 export function inspectBackupFile(fileContent) {
   let envelope;
   try {
+    if (typeof fileContent === 'string') assertBackupFileSize(fileContent.length);
     envelope = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
-  } catch {
-    return { valid: false, error: 'File is not valid JSON' };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error?.code === 'BACKUP_FILE_TOO_LARGE'
+        ? error.message
+        : 'File is not valid JSON',
+    };
   }
 
   if (!envelope || typeof envelope !== 'object') {
@@ -417,10 +433,26 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
 
   onProgress({ stage: 'CREATING_SNAPSHOT', percent: 40, message: 'Taking pre-restore safety snapshot...' });
 
-  // 3. Staging Snapshot: Read all existing stores to enable safe rollback if restoration fails
-  const existingStores = await getAllStoreItems();
+  // Never accept a volatile-only restoration or an incomplete safety snapshot.
+  if (!(await openAppDB())) throw new Error('Restore unavailable: IndexedDB cannot be opened safely');
+  // One committed readonly snapshot covers both domains and attachments.
+  // An optimistic precondition in the final readwrite transaction rejects
+  // intervening writes (including ones made by other tabs outside Web Locks).
+  const snapshot = await getCommittedBackupSnapshot();
+  const existingStores = snapshot.stores;
+  // Keep this separate: merging may mutate nested objects in the staging
+  // copy, but the pre-restore values used for CAS must stay immutable.
+  const expectedOriginalStores = Object.create(null);
+  for (const [name, value] of Object.entries(existingStores)) {
+    expectedOriginalStores[name] = structuredClone(value);
+  }
+  const previousAttachments = new Map(snapshot.attachments.map(record => [record.id, record]));
+  const expectedStoreValues = Object.create(null);
+  const expectedAttachmentRecords = Object.create(null);
+  const stagedStores = [];
+  const stagedAttachments = [];
 
-  onProgress({ stage: 'MERGING_RECORDS', percent: 60, message: 'Applying data records...' });
+  onProgress({ stage: 'MERGING_RECORDS', percent: 60, message: 'Staging data records...' });
 
   try {
     // 4. Process and stage each supported domain
@@ -626,20 +658,12 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
         throw new Error('SIMULATED_TRANSACTION_FAILURE_MID_RESTORE');
       }
 
-      // Write authoritative committed record to IndexedDB
-      await setStoreItem(storeKey, updatedPayload);
-
-      // Fast-boot mirror write
-      if (typeof localStorage !== 'undefined') {
-        try {
-          localStorage.setItem(storeKey, JSON.stringify(updatedPayload));
-        } catch {
-          // Non-blocking quota error
-        }
-      }
+      expectedStoreValues[storeKey] =
+        Object.hasOwn(expectedOriginalStores, storeKey) ? expectedOriginalStores[storeKey] : null;
+      stagedStores.push({ name: storeKey, value: updatedPayload });
     }
 
-    onProgress({ stage: 'WRITING_ATTACHMENTS', percent: 80, message: 'Restoring binary attachments...' });
+    onProgress({ stage: 'STAGING_ATTACHMENTS', percent: 80, message: 'Staging verified binary attachments...' });
 
     // 5. Restore binary attachments into IndexedDB 'attachments' store
     for (const att of attachments) {
@@ -656,55 +680,75 @@ export async function restoreBackup(fileContent, passphrase, options = {}) {
           blob,
           createdAt: att.createdAt || new Date().toISOString(),
         };
-        await setAttachmentRecord(record);
+        expectedAttachmentRecords[record.id] = previousAttachments.get(record.id) || null;
+        stagedAttachments.push(record);
       }
     }
 
-    // 6. Restore custom wallpapers
     const customWallpapers = Array.isArray(decrypted.customWallpapers) ? decrypted.customWallpapers : [];
-    for (const wp of customWallpapers) {
-      if (wp.id && wp.dataUrl) {
-        await saveWallpaperToIndexedDB(wp.id, wp.dataUrl, wp.meta || {});
+    if (customWallpapers.some(wp => !wp || typeof wp.id !== 'string' || !wp.id ||
+        typeof wp.dataUrl !== 'string' || !wp.dataUrl) ||
+        new Set(customWallpapers.map(wp => wp.id)).size !== customWallpapers.length) {
+      throw new Error('Invalid custom wallpaper records in backup');
+    }
+
+    onProgress({ stage: 'COMMITTING', percent: 90, message: 'Committing recoverable backup restore...' });
+    // The main DB remains atomic. For wallpaper restores the recovery journal
+    // is persisted BEFORE separate-DB changes, and removed atomically only
+    // with the final main-DB commit. Startup reverts any interrupted restore.
+    const committed = customWallpapers.length > 0
+      ? await commitCoordinatedCrossDbRestore({
+          stores: stagedStores, attachments: stagedAttachments,
+          wallpapers: customWallpapers, expectedStoreValues, expectedAttachmentRecords,
+        })
+      : await commitCoordinatedMainRestore({
+          stores: stagedStores, attachments: stagedAttachments,
+          expectedStoreValues, expectedAttachmentRecords,
+        });
+    if (committed !== true) {
+      const error = new Error('Restore aborted: atomic IndexedDB transaction failed; existing records were preserved');
+      error.code = 'RESTORE_WRITE_ABORTED';
+      throw error;
+    }
+    // Update disposable mirrors only after a successful transaction commit.
+    if (typeof localStorage !== 'undefined') {
+      for (const { name, value } of stagedStores) {
+        try { localStorage.setItem(name, JSON.stringify(value)); }
+        catch { /* IndexedDB remains the single source of truth */ }
       }
     }
 
     onProgress({ stage: 'REHYDRATING', percent: 95, message: 'Rehydrating application state...' });
 
-    // 7. Rehydrate in-memory Zustand persistent stores
+    // 7. The durable restore has already committed. A session hydration
+    // failure must not be presented as either a rollback or a fully ready UI.
+    let requiresReload = false;
     if (typeof window !== 'undefined') {
       try {
         const startup = await import('./startupController.js');
-        await startup.hydrateAllStores(3000);
+        const hydrated = await startup.hydrateAllStores();
+        requiresReload = hydrated?.success !== true;
       } catch (hydrateErr) {
+        requiresReload = true;
         console.warn('[BackupService] Rehydration warning:', hydrateErr);
       }
     }
 
-    onProgress({ stage: 'COMPLETE', percent: 100, message: 'Restoration completed successfully!' });
+    onProgress(requiresReload
+      ? { stage: 'RELOAD_REQUIRED', percent: 100, message: 'Restore saved. Restart Momentum to load the restored data before editing.' }
+      : { stage: 'COMPLETE', percent: 100, message: 'Restoration completed successfully!' });
 
     return {
-      success: true,
+      success: true, // Durable commit, not a guarantee of session readiness.
+      requiresReload,
       mode,
       restoredAt: new Date().toISOString(),
       manifest: decrypted.manifest,
     };
   } catch (restoreError) {
-    console.error('[BackupService] Restoration error, rolling back:', restoreError);
-
-    // Rollback protocol: Revert all modified stores from staging snapshot
-    try {
-      for (const [key, val] of Object.entries(existingStores)) {
-        await setStoreItem(key, val);
-        if (typeof localStorage !== 'undefined') {
-          try {
-            localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
-          } catch { /* ignore */ }
-        }
-      }
-    } catch (rollbackErr) {
-      console.error('[BackupService] Critical rollback exception:', rollbackErr);
-    }
-
+    // Main-db writes are one transaction. Cross-DB restores retain a
+    // durable wallpaper recovery journal until main-db commit or rollback.
+    console.error('[BackupService] Restore not completed:', restoreError);
     throw restoreError;
   }
 }

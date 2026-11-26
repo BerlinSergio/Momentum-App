@@ -16,15 +16,17 @@
  * while progressive rate-limiting / lockout prevents online brute-force attacks.
  */
 
-import { getStoreItem, setStoreItem, removeStoreItem } from '../storage/db.js';
+import { getCommittedStoreRecord, commitCredentialTransition, setStoreItem } from '../storage/db.js';
 
 export const CREDENTIAL_STORE_KEY = 'momentum-credential-verifier';
 export const LOCKOUT_STORAGE_KEY = 'momentum_auth_lockout';
+export const LOCKOUT_RECORD_KEY = 'momentum-auth-attempts-v1';
 export const PBKDF2_ITERATIONS = 600000;
 export const SALT_BYTE_LENGTH = 16;
 export const VERIFIER_BIT_LENGTH = 256;
 
-let cachedVerifierRecord = null;
+// Do not cache credential verifiers across tabs. Another tab may rotate or
+// remove a PIN; verification must always read the latest committed record.
 
 /**
  * Universal Crypto Resolver (Browser + Node.js)
@@ -121,9 +123,16 @@ async function deriveVerifier(pin, saltBytes, iterations = PBKDF2_ITERATIONS) {
 /**
  * Create and persist a new PBKDF2 credential verifier
  */
-export async function createCredential(pin) {
-  const pinStr = String(pin || '').trim();
-  if (!pinStr || pinStr.length !== 4 || !/^\d{4}$/.test(pinStr)) {
+export function validPasscode(secret) {
+  return typeof secret === 'string' && secret.length >= 6 && secret.length <= 128 && /\p{L}/u.test(secret) && /\p{N}/u.test(secret);
+}
+export function validCurrentSecret(secret, type) {
+  return type === 'alphanumeric' ? validPasscode(secret) : /^\d{4}$/.test(String(secret ?? ''));
+}
+async function prepareCredential(pin, type = 'pin') {
+  const pinStr = type === 'alphanumeric' ? pin : String(pin || '').trim();
+  if (type === 'alphanumeric' && !validPasscode(pinStr)) return {success:false,error:'Passcode must contain letters and numbers, 6–128 characters.'};
+  if (type === 'pin' && !/^\d{4}$/.test(pinStr)) {
     return { success: false, error: 'PIN must be exactly 4 numeric digits' };
   }
 
@@ -140,7 +149,8 @@ export async function createCredential(pin) {
     const verifierBase64 = await deriveVerifier(pinStr, saltBytes, PBKDF2_ITERATIONS);
 
     const record = {
-      version: 1,
+      version: type === 'alphanumeric' ? 2 : 1,
+      ...(type === 'alphanumeric' ? {credentialKind:'alphanumeric'} : {}),
       algorithm: 'PBKDF2-SHA256',
       iterations: PBKDF2_ITERATIONS,
       salt: saltBase64,
@@ -149,13 +159,7 @@ export async function createCredential(pin) {
       updatedAt: new Date().toISOString(),
     };
 
-    const saved = await setStoreItem(CREDENTIAL_STORE_KEY, record);
-    if (!saved) {
-      return { success: false, error: 'Failed to write credential to database' };
-    }
-
-    cachedVerifierRecord = record;
-    return { success: true, credential: { version: 1, algorithm: record.algorithm, iterations: record.iterations } };
+    return { success: true, record };
   } catch (err) {
     console.error('[CredentialService] createCredential error:', err);
     return { success: false, error: err.message || 'Credential generation failed' };
@@ -166,93 +170,157 @@ export async function createCredential(pin) {
  * Retrieve the active credential verifier record from cache or IndexedDB
  */
 export async function getCredentialRecord() {
-  if (cachedVerifierRecord) {
-    return cachedVerifierRecord;
-  }
-  try {
-    const record = await getStoreItem(CREDENTIAL_STORE_KEY);
-    if (record && record.verifier && record.salt) {
-      cachedVerifierRecord = record;
-      return record;
-    }
-  } catch (err) {
-    console.warn('[CredentialService] getCredentialRecord error:', err);
-  }
-  return null;
+  const snapshot = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+  const record = snapshot?.value;
+  if (record && (!record.salt || !record.verifier)) throw new Error('Invalid credential record');
+  return record || null;
 }
 
-/**
- * Check if a credential verifier is configured
- */
 export async function hasCredential() {
-  const record = await getCredentialRecord();
-  return !!(record && record.verifier && record.salt);
+  return !!(await getCredentialRecord());
 }
 
-/**
- * Verify an entered PIN against the stored cryptographic verifier
- */
-export async function verifyCredential(enteredPin) {
-  const pinStr = String(enteredPin || '').trim();
-  if (!pinStr) {
-    return { success: false, error: 'No PIN entered' };
+async function verifySnapshot(pin, record) {
+  const alpha = record?.version === 2 && record.credentialKind === 'alphanumeric';
+  const secret = alpha ? pin : String(pin || '').trim();
+  if (!record || !record.salt || !record.verifier || (!alpha && record.version !== 1) || !validCurrentSecret(secret,alpha?'alphanumeric':'pin')) {
+    return { success: false, error: 'No valid credential or PIN' };
   }
+  const derived = await deriveVerifier(secret, base64ToBuffer(record.salt), record.iterations || PBKDF2_ITERATIONS);
+  return constantTimeEqual(derived, record.verifier)
+    ? { success: true } : { success: false, error: alpha ? 'Incorrect passcode' : 'Incorrect PIN' };
+}
 
-  const record = await getCredentialRecord();
-  if (!record || !record.salt || !record.verifier) {
-    // FAIL CLOSED: No fallback to '1234' or any hardcoded value!
-    return {
-      success: false,
-      noCredential: true,
-      error: 'No credential configured on this device',
-    };
-  }
+// Verification receipts remain in memory, bound to the exact durable snapshot.
+const verifiedSnapshots = new WeakMap();
+const authenticatedReceipts = new WeakMap();
 
+export async function verifyCredential(pin) {
   try {
-    const saltBytes = base64ToBuffer(record.salt);
-    const derivedVerifier = await deriveVerifier(pinStr, saltBytes, record.iterations || PBKDF2_ITERATIONS);
-
-    const matches = constantTimeEqual(derivedVerifier, record.verifier);
-    if (matches) {
-      return { success: true };
+    const snapshot = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    if (!snapshot) return { success: false, noCredential: true, error: 'No credential configured' };
+    const result = await verifySnapshot(pin, snapshot.value);
+    if (!result.success) return result;
+    const latest = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    if (!latest || latest.revisionId !== snapshot.revisionId ||
+        JSON.stringify(latest.value) !== JSON.stringify(snapshot.value)) {
+      return { success: false, error: 'Credential changed during verification' };
     }
-    return { success: false, error: 'Incorrect PIN' };
-  } catch (err) {
-    console.error('[CredentialService] verifyCredential error:', err);
-    return { success: false, error: err.message || 'Verification calculation failed' };
+    verifiedSnapshots.set(result, snapshot);
+    return result;
+  } catch {
+    return { success: false, error: 'Credential verification unavailable' };
   }
 }
 
-/**
- * Safely change the PIN by requiring the current PIN first
- */
-export async function changeCredential(currentPin, newPin) {
-  const currentVerification = await verifyCredential(currentPin);
-  if (!currentVerification.success) {
-    return { success: false, error: 'Current PIN is incorrect' };
+// Serialize user-facing PIN checks and mutations across same-origin tabs.
+// Raw verifyCredential is retained for migration round-trip checks only.
+const ATTEMPT_LOCK = 'momentum-pin-attempt-v1';
+// Shared by final biometric authorization to coordinate with PIN rotations.
+export async function withPinAttemptLock(operation) {
+  if (!globalThis.navigator?.locks?.request) {
+    return { success: false, error: 'Secure PIN coordination is unavailable in this browser.' };
   }
-
-  const creation = await createCredential(newPin);
-  if (!creation.success) {
-    return creation;
-  }
-
-  return { success: true };
-}
-
-/**
- * Permanently remove the credential verifier
- */
-export async function removeCredential() {
   try {
-    await removeStoreItem(CREDENTIAL_STORE_KEY);
-    cachedVerifierRecord = null;
-    return { success: true };
-  } catch (err) {
-    console.error('[CredentialService] removeCredential error:', err);
-    return { success: false, error: err.message || 'Failed to remove credential' };
+    return await navigator.locks.request(ATTEMPT_LOCK, { mode: 'exclusive' }, async () => {
+      const state = await readCommittedLockoutState({ initialize: true });
+      if (state.unavailable) return { success: false, error: 'PIN attempt storage is unavailable.' };
+      if (state.isLockedOut) return { success: false, error: 'Too many attempts. Try again later.' };
+      return operation();
+    });
+  } catch {
+    return { success: false, error: 'Secure PIN coordination failed.' };
   }
 }
+
+// Charge a tentative attempt before doing any cryptographic check. A crash,
+// aborted write or failed counter commit must not grant a free PIN guess.
+// The currently authorized attempt may finish even if its reservation
+// reaches the threshold; only confirmed success clears the reservation.
+async function verifyReservedAttempt(verify) {
+  const reservation = await recordFailedAttempt();
+  const result = await verify();
+  if (!result.success) return { ...result, lockout: reservation };
+  return result;
+}
+
+export const authenticatePin = pin => withPinAttemptLock(async () => {
+  const result = await verifyReservedAttempt(() => verifyCredential(pin));
+  if (!result.success) return result;
+  await clearLockoutState();
+  authenticatedReceipts.set(result, {snapshot:verifiedSnapshots.get(result), issuedAt:performance.now()});
+  return result;
+});
+
+// Consume a PIN authorization once, immediately before the synchronous UI
+// unlock, while the same cross-tab coordination lock is held. Raw verifier
+// results and replayed receipts cannot authorize a session.
+export async function completePinUnlock(receipt, onUnlock) {
+  const expected = receipt && authenticatedReceipts.get(receipt);
+  if (!expected || typeof onUnlock !== 'function') return {success:false,error:'A fresh PIN verification is required.'};
+  authenticatedReceipts.delete(receipt);
+  return withPinAttemptLock(async () => {
+    const latest = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    const value = typeof security?.value === 'string' ? JSON.parse(security.value) : security?.value;
+    if (performance.now() - expected.issuedAt > 10000 || !latest || latest.revisionId !== expected.snapshot.revisionId ||
+        JSON.stringify(latest.value) !== JSON.stringify(expected.snapshot.value) ||
+        value?.state?.hasPin !== true || value?.state?.isAppLockActive !== true) {
+      return {success:false,error:'Security settings changed. Verify your current PIN again.'};
+    }
+    return {success: onUnlock({pinRevision:latest.revisionId, method:'pin'}) === true};
+  });
+}
+
+async function transition(mode, currentPin, newPin, type = 'pin') {
+  try {
+    const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    if (mode === 'create') {
+      if (credential) return { success: false, error: 'A PIN already exists' };
+    } else {
+      const verified = await verifyReservedAttempt(() => verifySnapshot(currentPin, credential?.value));
+      if (!verified.success) return verified;
+      await clearLockoutState();
+    }
+    let next = null;
+    if (mode !== 'remove') {
+      const prepared = await prepareCredential(newPin,type);
+      if (!prepared.success) return prepared;
+      next = prepared.record;
+    }
+    await commitCredentialTransition(credential, security, next, new Date().toISOString());
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
+      ? 'Credential or preferences changed; reload and retry.' : 'Credential transition was not committed' };
+  }
+}
+
+export const createCredential = pin => transition('create', null, pin);
+export const changeCredential = (currentPin, newPin) => withPinAttemptLock(() => transition('change', currentPin, newPin));
+export const createPasscode = secret => withPinAttemptLock(() => transition('create',null,secret,'alphanumeric'));
+export const changeToPasscode = (currentSecret, secret) => withPinAttemptLock(() => transition('change',currentSecret,secret,'alphanumeric'));
+export const removeCredential = currentPin => withPinAttemptLock(() => transition('remove', currentPin, null));
+
+// Pause App Lock without deleting or rotating the current verifier.
+// The exact credential and security snapshots must still match at commit.
+export const pauseAppLock = currentPin => withPinAttemptLock(() => pauseAppLockInternal(currentPin));
+async function pauseAppLockInternal(currentPin) {
+  try {
+    const credential = await getCommittedStoreRecord(CREDENTIAL_STORE_KEY);
+    const security = await getCommittedStoreRecord('momentum-security-storage');
+    const verified = await verifyReservedAttempt(() => verifySnapshot(currentPin, credential?.value));
+    if (!verified.success) return verified;
+    await clearLockoutState();
+    await commitCredentialTransition(credential, security, credential.value, new Date().toISOString(), { pauseLock:true });
+    return { success:true };
+  } catch (error) {
+    return { success:false, error: error?.code === 'CREDENTIAL_WRITE_CONFLICT'
+      ? 'Credential or preferences changed; reload and retry.' : 'App Lock pause was not committed' };
+  }
+}
+
 
 /**
  * Progressive Lockout & Failed Attempt Policy
@@ -261,120 +329,109 @@ export async function removeCredential() {
  * - 10-14 failures: 300s (5min) lockout
  * - 15+ failures: 1800s (30min) lockout
  */
+// The IndexedDB record is authoritative; localStorage is only a UI signal
+// and a one-time upgrade source for older shared attempt counters.
+const emptyAttempts = () => ({ failedAttempts: 0, lockedUntil: 0 });
+const unavailableAttempts = () => ({ isLockedOut: true, remainingSeconds: 0, failedAttempts: 0, unavailable: true });
+function validateAttempts(data) {
+  if (!data || !Number.isSafeInteger(data.failedAttempts) || data.failedAttempts < 0 ||
+      !Number.isFinite(data.lockedUntil) || data.lockedUntil < 0) {
+    throw new Error('Malformed PIN attempt state');
+  }
+  return data;
+}
+function summarizeAttempts(data) {
+  const remainingSeconds = Math.max(0, Math.ceil((data.lockedUntil - Date.now()) / 1000));
+  return { isLockedOut: remainingSeconds > 0, remainingSeconds, failedAttempts: data.failedAttempts };
+}
+function readLegacyAttempts() {
+  const read = storage => {
+    const raw = storage.getItem(LOCKOUT_STORAGE_KEY);
+    return validateAttempts(raw === null ? emptyAttempts() : JSON.parse(raw));
+  };
+  const shared = read(globalThis.localStorage);
+  const session = read(globalThis.sessionStorage);
+  // Upgrade from either historical format conservatively, never shorten a
+  // surviving lockout. Other closed or inaccessible sessions cannot migrate.
+  return {
+    failedAttempts: Math.max(shared.failedAttempts, session.failedAttempts),
+    lockedUntil: Math.max(shared.lockedUntil, session.lockedUntil),
+  };
+}
+async function writeAttempts(data) {
+  validateAttempts(data);
+  if (!await setStoreItem(LOCKOUT_RECORD_KEY, data)) throw new Error('PIN attempt state was not committed');
+  // A stale or unavailable mirror cannot affect authorization once IDB exists.
+  try { globalThis.localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(data)); } catch { /* advisory only */ }
+  return summarizeAttempts(data);
+}
+async function readAttemptRecord(initialize = false) {
+  const row = await getCommittedStoreRecord(LOCKOUT_RECORD_KEY);
+  if (row) return validateAttempts(row.value);
+  const legacy = readLegacyAttempts();
+  if (initialize) await writeAttempts(legacy);
+  return legacy;
+}
+export async function readCommittedLockoutState({ initialize = false } = {}) {
+  try { return summarizeAttempts(await readAttemptRecord(initialize)); }
+  catch { return unavailableAttempts(); }
+}
+// Retained for synchronous display compatibility only. Never authorize with it.
 export function getLockoutState() {
   try {
-    if (typeof sessionStorage !== 'undefined') {
-      const raw = sessionStorage.getItem(LOCKOUT_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const now = Date.now();
-        if (parsed.lockedUntil && parsed.lockedUntil > now) {
-          const remainingSeconds = Math.ceil((parsed.lockedUntil - now) / 1000);
-          return {
-            isLockedOut: true,
-            remainingSeconds,
-            failedAttempts: parsed.failedAttempts || 0,
-          };
-        }
-        return {
-          isLockedOut: false,
-          remainingSeconds: 0,
-          failedAttempts: parsed.failedAttempts || 0,
-        };
-      }
-    }
-  } catch (e) {
-    console.warn('[CredentialService] getLockoutState error:', e);
+    const raw = globalThis.localStorage.getItem(LOCKOUT_STORAGE_KEY);
+    return summarizeAttempts(validateAttempts(raw === null ? emptyAttempts() : JSON.parse(raw)));
   }
-  return { isLockedOut: false, remainingSeconds: 0, failedAttempts: 0 };
+  catch { return unavailableAttempts(); }
 }
-
-export function recordFailedAttempt() {
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      const current = getLockoutState();
-      const nextAttempts = (current.failedAttempts || 0) + 1;
-      let lockoutDurationMs = 0;
-
-      if (nextAttempts >= 15) {
-        lockoutDurationMs = 1800 * 1000; // 30 minutes
-      } else if (nextAttempts >= 10) {
-        lockoutDurationMs = 300 * 1000;  // 5 minutes
-      } else if (nextAttempts >= 5) {
-        lockoutDurationMs = 30 * 1000;   // 30 seconds
-      }
-
-      const payload = {
-        failedAttempts: nextAttempts,
-        lockedUntil: lockoutDurationMs > 0 ? Date.now() + lockoutDurationMs : 0,
-        updatedAt: Date.now(),
-      };
-
-      sessionStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(payload));
-      return {
-        failedAttempts: nextAttempts,
-        isLockedOut: lockoutDurationMs > 0,
-        remainingSeconds: Math.ceil(lockoutDurationMs / 1000),
-      };
-    }
-  } catch (e) {
-    console.warn('[CredentialService] recordFailedAttempt error:', e);
-  }
-  return { failedAttempts: 1, isLockedOut: false, remainingSeconds: 0 };
+// Production mutations run under ATTEMPT_LOCK and await the IDB commit.
+export async function recordFailedAttempt() {
+  const current = summarizeAttempts(await readAttemptRecord(true));
+  if (current.isLockedOut) throw new Error('PIN attempt is already locked out');
+  const failedAttempts = current.failedAttempts + 1;
+  const seconds = failedAttempts >= 15 ? 1800 : failedAttempts >= 10 ? 300 : failedAttempts >= 5 ? 30 : 0;
+  return writeAttempts({failedAttempts, lockedUntil: seconds ? Date.now() + seconds * 1000 : 0, updatedAt: Date.now()});
 }
-
-export function clearLockoutState() {
-  try {
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem(LOCKOUT_STORAGE_KEY);
-    }
-  } catch (e) {
-    console.warn('[CredentialService] clearLockoutState error:', e);
-  }
+export async function clearLockoutState() {
+  // Keep an explicit zero record; deleting it could re-import stale mirrors.
+  return writeAttempts({...emptyAttempts(), updatedAt: Date.now()});
 }
 
 /**
  * Safe, idempotent migration of legacy plaintext PINs to PBKDF2 verifiers
  */
-export async function migrateLegacyPin() {
+export async function migrateLegacyPin({ allowLegacyImport = true } = {}) {
   try {
-    // 1. Check if a PBKDF2 credential verifier already exists
+    // 1. Check if a PBKDF2 credential verifier already exists.
     const existing = await getCredentialRecord();
     if (existing && existing.verifier) {
-      // Already has a verifier. Clean up any leftover plaintext PIN in localStorage or IDB
-      sanitizeOrdinaryStorage();
+      await sanitizeOrdinaryStorage();
       return { migrated: false, alreadyMigrated: true };
     }
-
-    // 2. Look for legacy plaintext PIN in localStorage
-    let legacyPin = '';
-    if (typeof localStorage !== 'undefined') {
-      const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed?.state?.pin && String(parsed.state.pin).trim().length === 4) {
-            legacyPin = String(parsed.state.pin).trim();
-          }
-        } catch {
-          // ignore parse errors
-        }
-      }
+    // A completed schema migration is a durable trust boundary. After that
+    // point a stale localStorage mirror must NEVER be promoted to a new
+    // authentication credential. Only the audited first migration may read a
+    // plaintext legacy PIN.
+    if (!allowLegacyImport) {
+      await sanitizeOrdinaryStorage();
+      return { migrated: false, legacyImportClosed: true };
     }
 
-    // 3. If no PIN in localStorage, check IndexedDB 'momentum-security-storage'
-    if (!legacyPin) {
-      try {
-        const idbRecord = await getStoreItem('momentum-security-storage');
-        if (idbRecord) {
-          const parsed = typeof idbRecord === 'string' ? JSON.parse(idbRecord) : idbRecord;
-          if (parsed?.state?.pin && String(parsed.state.pin).trim().length === 4) {
-            legacyPin = String(parsed.state.pin).trim();
-          }
-        }
-      } catch {
-        // ignore
-      }
+    // Prefer the authoritative IndexedDB source over an older mirror.
+    // Never purge either source before the credential transition commits.
+    const stored = await getCommittedStoreRecord('momentum-security-storage');
+    const parseState = value => {
+      const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+      return parsed?.state || null;
+    };
+    const durableState = parseState(stored?.value);
+    let legacyPin = String(durableState?.pin || '').trim();
+    if (!legacyPin && typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('momentum-security-storage');
+      if (raw) legacyPin = String(parseState(raw)?.pin || '').trim();
+    }
+    if (legacyPin && !/^\d{4}$/.test(legacyPin)) {
+      return { migrated: false, error: 'INVALID_LEGACY_PIN' };
     }
 
     if (!legacyPin) {
@@ -384,6 +441,13 @@ export async function migrateLegacyPin() {
     // 4. Derive PBKDF2 verifier from legacy PIN
     const created = await createCredential(legacyPin);
     if (!created.success) {
+      // Another startup may have won the atomic import. Only accept the
+      // same legacy PIN after independent verification, not any verifier.
+      const concurrent = await verifyCredential(legacyPin);
+      if (concurrent.success) {
+        await sanitizeOrdinaryStorage();
+        return { migrated: false, alreadyMigrated: true };
+      }
       console.warn('[CredentialService] Migration derivation failed:', created.error);
       return { migrated: false, error: created.error };
     }

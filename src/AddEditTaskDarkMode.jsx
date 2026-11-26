@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { CheckSquare, ArrowLeft } from 'lucide-react';
@@ -126,12 +127,16 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
 
+  const [isMutating, setIsMutating] = useState(false);
+  const mutationPending = useRef(false);
   const dateInputRef = useRef(null);
   const timeInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const reminderDropdownRef = useRef(null);
 
   useEffect(() => {
+    // Optimistic store updates must not reset the form during a pending commit.
+    if (mutationPending.current) return;
     if (existingTask) {
       setTitle(existingTask.title || '');
       setCategory(existingTask.category || 'Work');
@@ -294,51 +299,44 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
   };
   const handleAddSubTask = handleAddStep;
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
+    if (mutationPending.current) return;
     const cleanTitle = title.trim();
     if (!cleanTitle) {
       toast.error(t('toasts.taskTitleRequired', 'Task title is required'));
       return;
     }
-    const finalDueDate = dueDate || getCurrentIsoDate();
-    const finalStartTime = startTime || getCurrentDisplayTime();
-    if (isEditing && existingTask) {
-      const updatedTask = {
-        ...existingTask,
+    mutationPending.current = true;
+    setIsMutating(true);
+    try {
+      const payload = {
         title: cleanTitle,
         category,
         priority,
-        dueDate: finalDueDate,
-        startTime: finalStartTime,
+        dueDate: dueDate || getCurrentIsoDate(),
+        startTime: startTime || getCurrentDisplayTime(),
         estimate,
         reminder,
         persistentAlert: Boolean(persistentAlert),
         description,
         subTasks,
       };
-      updateTask(updatedTask);
-      toast.success(t('toasts.taskUpdated', 'Task updated successfully'));
-    } else {
-      addTask({
-        title: cleanTitle,
-        category,
-        priority,
-        dueDate: finalDueDate,
-        startTime: finalStartTime,
-        estimate,
-        reminder,
-        persistentAlert: Boolean(persistentAlert),
-        description,
-        subTasks,
-      });
-      toast.success(t('toasts.taskSaved', 'Task created successfully'));
-    }
-    setEditingTaskId(null);
-    if (typeof goBack === 'function') {
-      goBack('tasks_reminders_dark_mode');
-    } else if (setActiveTab) {
-      setActiveTab('tasks_reminders_dark_mode');
+      const saved = isEditing && existingTask
+        ? await updateTask({ ...existingTask, ...payload })
+        : await addTask(payload);
+      if (saved !== true) throw new Error('Task commit not confirmed');
+      toast.success(isEditing ? t('toasts.taskUpdated', 'Task updated successfully') : t('toasts.taskSaved', 'Task created successfully'));
+      if (typeof goBack === 'function') {
+        goBack('tasks_reminders_dark_mode');
+      } else if (setActiveTab) {
+        setActiveTab('tasks_reminders_dark_mode');
+      }
+    } catch {
+      toast.error(t('toasts.taskSaveFailed', 'Task was not safely saved. Reload before trying again.'));
+    } finally {
+      mutationPending.current = false;
+      setIsMutating(false);
     }
   };
 
@@ -347,6 +345,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
     : (title.trim() !== '' || description.trim() !== '' || subTasks.length > 0);
 
   const handleCancel = async () => {
+    if (mutationPending.current) return;
     if (isDirty) {
       const confirmed = await confirm({
         variant: 'warning',
@@ -366,7 +365,10 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
   };
 
   const handleDelete = async () => {
-    if (isEditing && existingTask) {
+    if (mutationPending.current || !isEditing || !existingTask) return;
+    mutationPending.current = true;
+    setIsMutating(true);
+    try {
       const confirmed = await confirm({
         variant: 'destructive',
         titleKey: 'confirm.deleteTaskTitle',
@@ -375,21 +377,25 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
         cancelLabelKey: 'confirm.cancel',
       });
       if (!confirmed) return;
-      deleteTask(existingTask.id);
+      if (await deleteTask(existingTask.id) !== true) throw new Error('Task deletion not confirmed');
       toast.success(t('toasts.taskDeleted', 'Task deleted'));
-    }
-    setEditingTaskId(null);
-    if (typeof goBack === 'function') {
-      goBack('tasks_reminders_dark_mode');
-    } else if (setActiveTab) {
-      setActiveTab('tasks_reminders_dark_mode');
+      if (typeof goBack === 'function') {
+        goBack('tasks_reminders_dark_mode');
+      } else if (setActiveTab) {
+        setActiveTab('tasks_reminders_dark_mode');
+      }
+    } catch {
+      toast.error(t('toasts.taskDeleteFailed', 'Task was not safely deleted. Reload before trying again.'));
+    } finally {
+      mutationPending.current = false;
+      setIsMutating(false);
     }
   };
 
   return (
     <>
       {/* Top Header Bar */}
-      <header data-testid="add-edit-task-header" className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true} data-testid="add-edit-task-header">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <CheckSquare className="w-5 h-5 text-white" />
@@ -399,13 +405,13 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleCancel} className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"><ArrowLeft className="w-5 h-5"/></button>
+          <button onClick={handleCancel} disabled={isMutating} className="p-2 rounded-full text-slate-300 hover:bg-slate-800 transition-colors"><ArrowLeft className="w-5 h-5"/></button>
           <UserAvatar 
             setActiveTab={setActiveTab} 
           />
         </div>
-      </header>
-      <main className="flex-1 w-full max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-28 relative">
+      </MomentumGlassHeader>
+      <main className="flex-1 w-full min-w-0 max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-4 pb-28 relative">
         {/* Ambient Backdrop Glow Spots */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
           <div className="absolute top-1/4 -left-20 w-72 h-72 rounded-full bg-primary/15 blur-[100px]"></div>
@@ -418,7 +424,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
             {isEditing ? t('tasks.editingTaskNum', { number: taskNumber }) : t('tasks.newTask', 'NEW TASK')}
           </span>
           {isEditing && (
-            <button onClick={handleDelete} aria-label={t('tasks.deleteTask', 'Delete Task')} className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-medium text-xs shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap shrink-0 cursor-pointer" type="button">
+            <button onClick={handleDelete} disabled={isMutating} aria-label={t('tasks.deleteTask', 'Delete Task')} className="h-9 px-3.5 rounded-full flex items-center justify-center gap-1.5 bg-rose-500/90 hover:bg-rose-600 text-white font-medium text-xs shadow-sm shadow-rose-500/20 border border-rose-400/30 transition-all active:scale-95 whitespace-nowrap shrink-0 cursor-pointer" type="button">
               <span className="material-symbols-outlined text-[16px]">delete</span>
               <span>{t('common.delete', 'Delete')}</span>
             </button>
@@ -439,9 +445,9 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
                 <span>{t('tasks.taskTitle', 'Task Title')}</span>
                 <span className="text-xs text-slate-400 font-medium tracking-normal">{t('common.required', 'Required')}</span>
               </label>
-              <div className="text-white placeholder-slate-500 rounded-2xl px-4 py-3 flex items-center justify-between focus-within:border-primary transition-all bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
+              <div className="min-w-0 w-full text-white placeholder-slate-500 rounded-2xl px-3 sm:px-4 py-3 flex items-center justify-between focus-within:border-primary transition-all bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
                 <input 
-                  className="flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:outline-none text-sm" 
+                  className="min-w-0 w-0 flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:outline-none text-sm" 
                   id="task-title" 
                   data-testid="task-title-input"
                   type="text" 
@@ -450,8 +456,8 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
                   placeholder={t('tasks.taskTitlePlaceholder', 'e.g. Review Q4 product roadmap')} 
                   autoComplete="off"
                 />
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-                  <button onClick={() => setTitle('')} aria-label={t('common.clear', 'Clear')} className="btn-secondary" type="button">
+                <div className="flex shrink-0 items-center gap-1.5 ps-2 border-s border-slate-800">
+                  <button onClick={() => setTitle('')} aria-label={t('common.clear', 'Clear')} className="btn-secondary !w-8 !h-8 !min-w-8 !p-1.5" type="button">
                     <span className="material-symbols-outlined text-[18px]">close</span>
                   </button>
                   <button 
@@ -677,7 +683,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
                   <span className={`material-symbols-outlined text-[14px] transition-transform duration-200 ${isReminderMenuOpen ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
                 {isReminderMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/15 shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute end-0 top-full mt-2 w-48 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900/90 backdrop-blur-xl border border-white/15 shadow-2xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
                     {reminderOptions.map((option) => (
                       <button
                         key={option}
@@ -736,16 +742,16 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
           </div>
               {/* Actions Area */}
           <div className="flex flex-col gap-3 pt-2">
-            <button data-testid="save-task-btn" onClick={handleSave} className="btn-primary w-full cursor-pointer" type="button">
-              <span>{isEditing ? t('tasks.saveChanges', 'Save Task Changes') : t('tasks.createTask', 'Create Task')}</span>
+            <button data-testid="save-task-btn" onClick={handleSave} disabled={isMutating} className="btn-primary w-full cursor-pointer" type="button">
+              <span>{isMutating ? t('common.loading', 'Saving...') : (isEditing ? t('tasks.saveChanges', 'Save Task Changes') : t('tasks.createTask', 'Create Task'))}</span>
               <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
             </button>
             <div className={isEditing ? "grid grid-cols-2 gap-3" : "w-full"}>
-              <button onClick={handleCancel} className="btn-secondary w-full cursor-pointer" type="button">
+              <button onClick={handleCancel} disabled={isMutating} className="btn-secondary w-full cursor-pointer" type="button">
                 {t('common.cancel', 'Cancel')}
               </button>
               {isEditing && (
-                <button onClick={handleDelete} className="btn-danger w-full flex items-center justify-center gap-1.5 cursor-pointer" type="button">
+                <button onClick={handleDelete} disabled={isMutating} className="btn-danger w-full flex items-center justify-center gap-1.5 cursor-pointer" type="button">
                   <span className="material-symbols-outlined text-[16px]">delete_outline</span>
                   <span>{t('tasks.deleteTask', 'Delete Task')}</span>
                 </button>

@@ -448,87 +448,25 @@ export const initialSavingsTarget = {
   USD: 0,
 };
 
-const financeStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-finance-storage' });
+const financeStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-finance-storage',
+  optimisticDomains: ['momentum-finance-storage'],
+});
 
-const syncFinanceToLocalStorage = (slice) => {
-  try {
-    const currentState = useFinanceStore.getState?.() || {};
-    const payload = {
-      state: {
-        ...currentState,
-        ...slice,
-        editingTransaction: null,
-        editingIncome: null,
-      },
-      version: 0,
-    };
-    financeStorage.setItem('momentum-finance-storage', JSON.stringify(payload)).catch(() => {});
-  } catch (e) {
-    console.warn('[Momentum Finance] Persistence sync error:', e);
-  }
-};
-
-const getInitialFinanceState = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem('momentum-finance-storage') || window.localStorage.getItem('momentum-finance-storage-v6');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          return {
-            accounts: Array.isArray(parsed.state.accounts) ? parsed.state.accounts : [],
-            transactions: Array.isArray(parsed.state.transactions) ? parsed.state.transactions : [],
-            incomes: Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [],
-            editingIncome: null,
-            editingTransaction: null,
-            budgets: Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [],
-            monthlyBudgetCap: parsed.state.monthlyBudgetCap !== undefined ? parsed.state.monthlyBudgetCap : { AFN: 0, USD: 0 },
-            savingsTarget: parsed.state.savingsTarget !== undefined ? parsed.state.savingsTarget : null,
-            pendingTransactionType: parsed.state.pendingTransactionType || 'expense',
-            _hasHydrated: true,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse momentum-finance-storage:', e);
-    }
-  } else if (typeof localStorage !== 'undefined') {
-    try {
-      const raw = localStorage.getItem('momentum-finance-storage') || localStorage.getItem('momentum-finance-storage-v6');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          return {
-            accounts: Array.isArray(parsed.state.accounts) ? parsed.state.accounts : [],
-            transactions: Array.isArray(parsed.state.transactions) ? parsed.state.transactions : [],
-            incomes: Array.isArray(parsed.state.incomes) ? parsed.state.incomes : [],
-            editingIncome: null,
-            editingTransaction: null,
-            budgets: Array.isArray(parsed.state.budgets) ? parsed.state.budgets : [],
-            monthlyBudgetCap: parsed.state.monthlyBudgetCap !== undefined ? parsed.state.monthlyBudgetCap : { AFN: 0, USD: 0 },
-            savingsTarget: parsed.state.savingsTarget !== undefined ? parsed.state.savingsTarget : null,
-            pendingTransactionType: parsed.state.pendingTransactionType || 'expense',
-            _hasHydrated: true,
-          };
-        }
-      }
-    } catch {
-      // Ignore parse failure on fallback
-    }
-  }
-  return {
-    accounts: [],
-    transactions: [],
-    incomes: [],
-    editingIncome: null,
-    editingTransaction: null,
-    budgets: [],
-    monthlyBudgetCap: { AFN: 0, USD: 0 },
-    savingsTarget: null,
-    pendingTransactionType: 'expense',
-    _hasHydrated: true,
-  };
-};
+// IndexedDB is the only authoritative Finance source after verified legacy
+// migration. No eager localStorage mirror reads or duplicate side-effect writes.
+const getInitialFinanceState = () => ({
+  accounts: [],
+  transactions: [],
+  incomes: [],
+  editingIncome: null,
+  editingTransaction: null,
+  budgets: [],
+  monthlyBudgetCap: { AFN: 0, USD: 0 },
+  savingsTarget: null,
+  pendingTransactionType: 'expense',
+  _hasHydrated: false,
+});
 
 export const useFinanceStore = create(
   persist(
@@ -583,7 +521,6 @@ export const useFinanceStore = create(
         set((state) => {
           const updates = typeof financesOrFn === 'function' ? financesOrFn(state) : financesOrFn;
           const next = { ...state, ...updates };
-          syncFinanceToLocalStorage(next);
           return next;
         });
       },
@@ -594,13 +531,11 @@ export const useFinanceStore = create(
       setMonthlyBudgetCap: (cap) =>
         set((state) => {
           const nextCap = { ...(state.monthlyBudgetCap || initialMonthlyBudgetCap), ...cap };
-          syncFinanceToLocalStorage({ monthlyBudgetCap: nextCap });
           return { monthlyBudgetCap: nextCap };
         }),
       updateBudgetCap: (newCaps) =>
         set((state) => {
           const nextCap = { ...(state.monthlyBudgetCap || initialMonthlyBudgetCap), ...newCaps };
-          syncFinanceToLocalStorage({ monthlyBudgetCap: nextCap });
           return { monthlyBudgetCap: nextCap };
         }),
       setSavingsTarget: (target) =>
@@ -633,7 +568,6 @@ export const useFinanceStore = create(
               }
             });
           }
-          syncFinanceToLocalStorage({ savingsTarget: nextTarget });
           return { savingsTarget: nextTarget };
         }),
 
@@ -667,7 +601,6 @@ export const useFinanceStore = create(
               }
             });
           }
-          syncFinanceToLocalStorage({ savingsTarget: nextTarget });
           return { savingsTarget: nextTarget };
         }),
 
@@ -690,7 +623,6 @@ export const useFinanceStore = create(
             target: curTarget,
             current: nextSaved,
           };
-          syncFinanceToLocalStorage({ savingsTarget: currentObj });
           return { savingsTarget: currentObj };
         }),
 
@@ -711,7 +643,6 @@ export const useFinanceStore = create(
             target: curTarget,
             current: nextSaved,
           };
-          syncFinanceToLocalStorage({ savingsTarget: currentObj });
           return { savingsTarget: currentObj };
         }),
 
@@ -719,29 +650,24 @@ export const useFinanceStore = create(
       setTransactions: (transactions) => {
         const list = Array.isArray(transactions) ? transactions : [];
         set({ transactions: list });
-        syncFinanceToLocalStorage({ transactions: list });
       },
 
       setIncomes: (incomes) => {
         const list = Array.isArray(incomes) ? incomes : [];
         set({ incomes: list });
-        syncFinanceToLocalStorage({ incomes: list });
       },
 
       setAccounts: (accounts) => {
         const list = Array.isArray(accounts) ? accounts : [];
         set({ accounts: list });
-        syncFinanceToLocalStorage({ accounts: list });
       },
 
       clearAllTransactions: () => {
         set({ transactions: [], incomes: [] });
-        syncFinanceToLocalStorage({ transactions: [], incomes: [] });
       },
 
       resetToZero: () => {
         set({ transactions: [], incomes: [], accounts: [] });
-        syncFinanceToLocalStorage({ transactions: [], incomes: [], accounts: [] });
       },
 
       addIncome: (income) =>
@@ -763,7 +689,6 @@ export const useFinanceStore = create(
           const nextInc = [newInc, ...state.incomes];
           const nextTx = [newInc, ...state.transactions];
           const nextState = { ...state, incomes: nextInc, transactions: nextTx, editingIncome: null };
-          syncFinanceToLocalStorage({ incomes: nextInc, transactions: nextTx });
           return nextState;
         }),
 
@@ -774,7 +699,6 @@ export const useFinanceStore = create(
           const nextInc = state.incomes.map((i) => (String(i.id) === String(id) ? { ...i, ...changes } : i));
           const nextTx = state.transactions.map((t) => (String(t.id) === String(id) ? { ...t, ...changes } : t));
           const nextState = { ...state, incomes: nextInc, transactions: nextTx, editingIncome: null };
-          syncFinanceToLocalStorage({ incomes: nextInc, transactions: nextTx });
           return nextState;
         }),
 
@@ -784,7 +708,6 @@ export const useFinanceStore = create(
           const nextTx = state.transactions.filter((t) => String(t.id) !== String(incomeId));
           const nextEditing = state.editingIncome && String(state.editingIncome.id) === String(incomeId) ? null : state.editingIncome;
           const nextState = { ...state, incomes: nextInc, transactions: nextTx, editingIncome: nextEditing };
-          syncFinanceToLocalStorage({ incomes: nextInc, transactions: nextTx });
           return nextState;
         }),
 
@@ -817,7 +740,6 @@ export const useFinanceStore = create(
             }
           }
           const nextState = { ...state, transactions: nextTx, incomes: nextInc };
-          syncFinanceToLocalStorage({ transactions: nextTx, incomes: nextInc });
           return nextState;
         }),
 
@@ -851,7 +773,6 @@ export const useFinanceStore = create(
             return i;
           });
           const nextState = { ...state, transactions: nextTx, incomes: nextInc, editingTransaction: null };
-          syncFinanceToLocalStorage({ transactions: nextTx, incomes: nextInc });
           return nextState;
         }),
 
@@ -861,7 +782,6 @@ export const useFinanceStore = create(
           const nextInc = state.incomes.filter((i) => String(i.id) !== String(transactionId));
           const nextEditing = state.editingTransaction && String(state.editingTransaction.id) === String(transactionId) ? null : state.editingTransaction;
           const nextState = { ...state, transactions: nextTx, incomes: nextInc, editingTransaction: nextEditing };
-          syncFinanceToLocalStorage({ transactions: nextTx, incomes: nextInc });
           return nextState;
         }),
 
@@ -875,13 +795,13 @@ export const useFinanceStore = create(
             type: account.type || 'cash',
           };
           const nextAccounts = [...state.accounts, newAccount];
-          syncFinanceToLocalStorage({ accounts: nextAccounts });
           return { accounts: nextAccounts };
         }),
     }),
     {
       name: 'momentum-finance-storage',
       storage: createJSONStorage(() => financeStorage),
+      skipHydration: true,
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...(persistedState || {}),
@@ -896,61 +816,15 @@ export const useFinanceStore = create(
           : currentState.accounts,
         editingTransaction: null,
         editingIncome: null,
-        _hasHydrated: true,
+        _hasHydrated: false,
       }),
-      onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          state.setHasHydrated(true);
-        }
-      },
+      // StartupController owns readiness after all IndexedDB reads complete;
+      // do not enqueue an extra Finance whole-state write here.
     }
   )
 );
 
-// Eager synchronous rehydration for immediate state recovery
-if (typeof window !== 'undefined' && window.localStorage) {
-  try {
-    const raw = window.localStorage.getItem('momentum-finance-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        useFinanceStore.setState({
-          ...parsed.state,
-          editingTransaction: null,
-          editingIncome: null,
-          _hasHydrated: true,
-        });
-      } else {
-        useFinanceStore.setState({ _hasHydrated: true });
-      }
-    } else {
-      useFinanceStore.setState({ _hasHydrated: true });
-    }
-  } catch (e) {
-    console.warn('Failed to rehydrate finance store:', e);
-    useFinanceStore.setState({ _hasHydrated: true });
-  }
-} else if (typeof localStorage !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-finance-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        useFinanceStore.setState({
-          ...parsed.state,
-          editingTransaction: null,
-          editingIncome: null,
-          _hasHydrated: true,
-        });
-      } else {
-        useFinanceStore.setState({ _hasHydrated: true });
-      }
-    } else {
-      useFinanceStore.setState({ _hasHydrated: true });
-    }
-  } catch {
-    useFinanceStore.setState({ _hasHydrated: true });
-  }
-}
+// Legacy mirrors remain available only to the verified one-time migration.
+// The app does not load from them after initialization.
 
 export default useFinanceStore;

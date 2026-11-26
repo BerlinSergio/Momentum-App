@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef, useEffect } from 'react';
 import { useSecurityStore } from './store/useSecurityStore';
 import { useProfileStore } from './store/useProfileStore';
@@ -8,7 +9,8 @@ import {
   ArrowLeft, ShieldCheck, Lock, KeyRound, Shield, CheckCircle2, 
   AlertCircle, Info, HelpCircle, ArrowRight, AlertTriangle 
 } from 'lucide-react';
-import { verifyCredential, createCredential, changeCredential } from './utils/credentialService';
+import PasscodeChangeDialog from './components/PasscodeChangeDialog';
+import { authenticatePin } from './utils/credentialService';
 import { toast } from './components/ui/toast/index.js';
 
 export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
@@ -16,6 +18,8 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
   const navigate = useNavigate();
   const { isAppLockActive, setAppLockActive } = useSecurityStore();
   const hasExistingPin = useSecurityStore((state) => !!state.hasPin);
+  const isAlpha = useSecurityStore(state=>state.passcodeType==='alphanumeric');
+  const [wasAlpha] = useState(isAlpha);
 
   const onboardingStep = useProfileStore((s) => s.onboardingStep);
   const completeSetup = useProfileStore((s) => s.completeSetup);
@@ -82,11 +86,11 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
     setCurrentPin(cleaned);
     if (cleaned.length === 4) {
       try {
-        const verifyRes = await verifyCredential(cleaned);
+        const verifyRes = await authenticatePin(cleaned);
         if (!verifyRes.success) {
           setCurrentError(true);
           setIsCurrentVerified(false);
-          showToast(t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
+          showToast(verifyRes.error || t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
           if (currentTimeoutRef.current) clearTimeout(currentTimeoutRef.current);
           currentTimeoutRef.current = setTimeout(() => {
             setCurrentPin('');
@@ -148,11 +152,11 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
 
   const handleSavePin = async () => {
     if (hasExistingPin) {
-      const checkCurrent = await verifyCredential(currentPin);
+      const checkCurrent = await authenticatePin(currentPin);
       if (!checkCurrent.success) {
         setCurrentError(true);
         setIsCurrentVerified(false);
-        showToast(t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
+        showToast(checkCurrent.error || t('security.incorrectCurrentPin', 'Current PIN is incorrect.'), 'error');
         if (currentTimeoutRef.current) clearTimeout(currentTimeoutRef.current);
         currentTimeoutRef.current = setTimeout(() => {
           setCurrentPin('');
@@ -196,9 +200,9 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
 
     let saveResult;
     if (hasExistingPin) {
-      saveResult = await changeCredential(currentPin, newPin);
+      saveResult = await useSecurityStore.getState().changePin(currentPin, newPin);
     } else {
-      saveResult = await createCredential(newPin);
+      saveResult = await useSecurityStore.getState().setPin(newPin);
     }
 
     if (!saveResult.success) {
@@ -206,8 +210,6 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
       return;
     }
 
-    useSecurityStore.getState().setHasPin(true);
-    setAppLockActive(true);
     showToast(t('security.pinConfiguredAppLock', 'PIN configured! App Lock active.'), 'success');
     if (isOnboarding) {
       completeSetup();
@@ -244,6 +246,7 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
     }
   };
 
+  if (wasAlpha) return <PasscodeChangeDialog isDarkMode={true} toPin onClose={handleCancelReturn}/>;
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between pb-16 relative select-none">
       <style>{`
@@ -261,7 +264,7 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
 
       <div>
         {/* 1. TOP HEADER & STATUS BAR */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={true}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
               <ShieldCheck className="w-5 h-5 text-white" />
@@ -279,7 +282,7 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
             </button>
             <UserAvatar setActiveTab={setActiveTab} />
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* Protection Sub-bar */}
         <div className="flex items-center justify-between px-5 py-2.5">
@@ -485,7 +488,19 @@ export default function PinSetupChangeDarkMode({ setActiveTab, goBack }) {
             </div>
             <button 
               type="button"
-              onClick={() => setAppLockActive(!isAppLockActive)} 
+              role="switch"
+              aria-checked={isAppLockActive}
+              aria-label={t('security.appLock', 'App Lock')}
+              onClick={async () => {
+                try {
+                  const result = await setAppLockActive(!isAppLockActive);
+                  if (result?.success === false) {
+                    showToast(t('security.pauseInSettings', 'To pause App Lock, confirm your PIN in App Lock settings.'), 'error');
+                  }
+                } catch {
+                  showToast(t('security.saveFailed', 'Security preferences could not be saved.'), 'error');
+                }
+              }} 
               className={`w-12 h-7 rounded-full p-0.5 flex items-center transition-colors shadow-sm focus:outline-none cursor-pointer ${isAppLockActive ? 'bg-primary justify-end' : 'bg-slate-700 justify-start'}`}
             >
               <span className="w-6 h-6 rounded-full bg-white shadow-md"></span>

@@ -9,7 +9,10 @@ import {
 } from '../utils/prayerTimes.js';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const prayerStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-prayer-storage' });
+const prayerStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-prayer-storage',
+  optimisticDomains: ['momentum-prayer-storage'],
+});
 const getSafeStorage = () => prayerStorage;
 
 export const INITIAL_CANONICAL_PRAYERS = [
@@ -52,6 +55,18 @@ export const usePrayerStore = create(
         isha: 0,
       },
 
+      savedInspirations: [],
+      toggleSavedInspiration: (quote) => {
+        if (!quote?.surah || !quote?.ayah) return Promise.reject(new Error('Invalid inspiration'));
+        return set(state => {
+          const saved = Array.isArray(state.savedInspirations) ? state.savedInspirations : [];
+          const id = String(quote.surah);
+          return {savedInspirations: saved.some(item => item.id === id)
+            ? saved.filter(item => item.id !== id)
+            : [{id, ayah:String(quote.ayah), surah:id, ...(Number.isInteger(quote.suraNumber)&&Number.isInteger(quote.ayaNumber)?{suraNumber:quote.suraNumber,ayaNumber:quote.ayaNumber,locale:quote.locale,arabic:quote.arabic,author:quote.author,translationKey:quote.translationKey,sourceUrl:quote.sourceUrl,footnotes:quote.footnotes}:{}), savedAt:new Date().toISOString()}, ...saved]};
+        });
+      },
+
       // User worship activity (SEPARATED FROM ASTRONOMICAL PROGRESSION)
       prayerLogs: INITIAL_PRAYER_LOGS,
       prayers: INITIAL_CANONICAL_PRAYERS,
@@ -80,9 +95,10 @@ export const usePrayerStore = create(
       /**
        * Update the Islamic calculation method and sync with profile store.
        */
-      setCalculationMethod: (method) => {
+      setCalculationMethod: (method, {syncProfile = true} = {}) => {
         const canonical = normalizeCalculationMethod(method);
-        set({ calculationMethod: canonical });
+        const committed = set({ calculationMethod: canonical });
+        if (!syncProfile) return committed;
         try {
           const match = CALCULATION_METHODS.find((m) => m.id === canonical);
           const label = match ? match.name : canonical;
@@ -348,41 +364,19 @@ export const usePrayerStore = create(
     {
       name: 'momentum-prayer-storage',
       storage: createJSONStorage(() => getSafeStorage()),
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
+          // This is derived from explicit worship logs, never a new
+          // completed/missed prayer. Do not enqueue a duplicate persist.
           state.punctualPercentage = calculateRate(state.prayerLogs);
-          state.setHasHydrated(true);
         }
       },
     }
   )
 );
 
-// Eager synchronous rehydration
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-prayer-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        usePrayerStore.setState({
-          ...parsed.state,
-          calculationMethod: parsed.state.calculationMethod || 'Karachi',
-          madhab: parsed.state.madhab || 'Hanafi',
-          highLatitudeRule: parsed.state.highLatitudeRule || 'recommended',
-          polarCircleResolution: parsed.state.polarCircleResolution || 'AqrabBalad',
-          punctualPercentage: calculateRate(parsed.state.prayerLogs || []),
-          _hasHydrated: true,
-        });
-      } else {
-        usePrayerStore.setState({ punctualPercentage: 0, _hasHydrated: true });
-      }
-    } else {
-      usePrayerStore.setState({ punctualPercentage: 0, _hasHydrated: true });
-    }
-  } catch {
-    usePrayerStore.setState({ punctualPercentage: 0, _hasHydrated: true });
-  }
-}
+// StartupController performs the only authoritative hydration from
+// IndexedDB after migration and crash recovery. Never trust a mirror here.
 
 export default usePrayerStore;

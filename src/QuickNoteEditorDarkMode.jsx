@@ -1,4 +1,6 @@
+import QuickNoteChecklistBody, {hasChecklist,toggleChecklistLine} from './components/QuickNoteChecklistBody.jsx';
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNotesStore } from './store/useNotesStore';
@@ -7,6 +9,7 @@ import { saveAttachmentFile } from './storage/index.js';
 import UserAvatar from './components/UserAvatar';
 import { MomentumDatePicker, MomentumTimePicker } from './components/ui/picker/index.js';
 import { toast } from './components/ui/toast/index.js';
+import { confirm } from './components/ui/confirmation/index.js';
 import { 
   ArrowLeft, Sparkles, Pin, Trash2, X, 
   Camera, CheckSquare, List, Edit3, Bell, BellOff, Clock, ArrowRight, Check,
@@ -529,7 +532,8 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
 
   const existingNote = useMemo(() => {
     if (isNew) return null;
-    return notes.find((n) => n.id === effectiveNoteId && (n.type === 'quick' || !n.type)) || null;
+    const idStr = String(effectiveNoteId);
+    return notes.find((n) => String(n.id) === idStr && (n.type === 'quick' || !n.type)) || notes.find((n) => String(n.id) === idStr) || null;
   }, [notes, effectiveNoteId, isNew]);
 
   const routeParams = route?.params || {};
@@ -675,8 +679,8 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
     if (existingNote?.savedAt) {
       return `Created ${existingNote.savedAt.replace('Today at ', 'Today • ')}`;
     }
-    return 'Created Just now';
-  }, [existingNote]);
+    return t('notes.unsavedDraft','Unsaved draft');
+  }, [existingNote,t]);
 
   const activeTintObj = useMemo(() => {
     return TINT_OPTIONS.find((t) => t.id === selectedTint) || TINT_OPTIONS[0];
@@ -715,15 +719,23 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
     }
   };
 
-  const handleSave = () => {
-    const finalAttachments = [];
-    if (imageAttachment) {
-      finalAttachments.push(imageAttachment);
-    }
+  const saveInFlight = useRef(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const handleSave = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current=true;
+    setIsSavingNote(true);
+    try {
+    // The editor displays one primary image. Preserve every other attachment
+    // rather than deleting documents/audio/secondary images on a text save.
+    const originalAttachments = existingNote?.attachments || [];
+    const originalPrimary = originalAttachments.find(a=>a.type==='image' && a.url);
+    const finalAttachments = originalAttachments.filter(a=>!originalPrimary || a.id!==originalPrimary.id);
+    if (imageAttachment && !finalAttachments.some(a=>a.id===imageAttachment.id)) finalAttachments.unshift(imageAttachment);
 
     const notePayload = {
       title: title.trim() || 'Untitled Quick Note',
-      body: body.trim(),
+      body: body.trimEnd(),
       category: selectedCategory,
       tint: selectedTint,
       isPinned,
@@ -735,17 +747,35 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
     };
 
     if (existingNote?.id) {
-      updateNote(existingNote.id, notePayload);
+      if (await updateNote(existingNote.id, notePayload) !== true) throw Error('Note update not committed');
       setIsEditing(false);
       toast.success(t('toasts.noteUpdated', 'Note updated'));
     } else {
-      addNote(notePayload);
+      if (!isNew) throw Error('Existing note is unavailable');
+      if (await addNote(notePayload) !== true) throw Error('Note creation not committed');
       toast.success(t('toasts.noteSaved', 'Note saved'));
       handleNavigateBack();
     }
+    } catch (error) {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {saveInFlight.current=false;setIsSavingNote(false);}
+  };
+
+  const toggleSavedChecklist = async index => {
+    if (saveInFlight.current || !existingNote?.id) return;
+    saveInFlight.current=true;
+    setIsSavingNote(true);
+    try {
+      const current=useNotesStore.getState().notes.find(note=>note.id===existingNote.id);
+      if (!current || (current.body || current.content || '') !== body) throw new Error('Note changed');
+      const next=toggleChecklistLine(body,index);
+      if(next!==body) {if(await updateNote(current.id,{body:next})!==true)throw Error('Checklist not committed');setBody(next);}
+    } catch(error) {toast.error(t('notes.saveFailed','Note could not be saved safely'));}
+    finally {saveInFlight.current=false;setIsSavingNote(false);}
   };
 
   const handleCancel = () => {
+    if (saveInFlight.current) return;
     if (!isEditing) {
       handleNavigateBack();
       return;
@@ -766,27 +796,64 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
 
   const isArchived = Boolean(existingNote?.isArchived);
 
-  const handleToggleArchive = () => {
+  const handleToggleArchive = async () => {
     const targetId = existingNote?.id;
-    if (!targetId || targetId === 'new') return;
-    const nextArchived = !isArchived;
-    if (nextArchived) {
-      if (archiveNote) archiveNote(targetId);
-      else updateNote(targetId, { isArchived: true });
-    } else {
-      if (unarchiveNote) unarchiveNote(targetId);
-      else updateNote(targetId, { isArchived: false });
-    }
-    setTimeout(() => {
+    if (!targetId || targetId === 'new' || saveInFlight.current) return;
+    saveInFlight.current = true;
+    setIsSavingNote(true);
+    try {
+      if (await updateNote(targetId, {isArchived: !isArchived}) !== true) throw Error('Archive change not committed');
+      toast.success(isArchived ? t('toasts.noteRestored', 'Note restored from archive') : t('toasts.noteArchived', 'Note archived'));
       handleNavigateBack();
-    }, 200);
+    } catch {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSavingNote(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (existingNote?.id) {
-      deleteNote(existingNote.id);
+  const handleDeleteNote = async () => {
+    setIsMenuOpen(false);
+    if (saveInFlight.current) return;
+    // A new draft must never delete an unrelated, previously active note.
+    const targetId = !isNew && existingNote?.id ? String(existingNote.id) : null;
+    if (!isNew && !targetId) {
+      toast.error(t('notes.deleteFailed', 'Note is unavailable. Reload saved data.'));
+      return;
     }
-    handleNavigateBack();
+
+    const confirmed = await confirm({
+      variant: 'destructive',
+      title: t('notes.deleteNoteTitle', 'Delete Note?'),
+      description: t('notes.deleteNotePermanent', 'This note will be permanently removed from your storage.'),
+      confirmText: t('common.delete', 'Delete'),
+      cancelText: t('common.cancel', 'Cancel'),
+    });
+    if (!confirmed || saveInFlight.current) return;
+
+    if (!targetId) {
+      handleNavigateBack();
+      return;
+    }
+
+    saveInFlight.current = true;
+    setIsSavingNote(true);
+    try {
+      const removed = await deleteNote(targetId);
+      if (!removed) {
+        toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
+        return;
+      }
+      toast.success(t('toasts.noteDeleted', 'Note deleted'));
+      handleNavigateBack();
+    } catch (error) {
+      console.error('[Momentum Quick Note] Deletion failed:', error);
+      toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSavingNote(false);
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -807,23 +874,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
 
   // 1. Checklist Insertion Logic
   const handleInsertChecklist = () => {
-    const textarea = bodyTextareaRef.current;
-    if (!textarea) {
-      setBody((prev) => (prev ? `${prev}\n- [ ] ` : '- [ ] '));
-      return;
-    }
-    const start = textarea.selectionStart ?? body.length;
-    const end = textarea.selectionEnd ?? body.length;
-    const before = body.substring(0, start);
-    const after = body.substring(end);
-    const prefix = (before.length === 0 || before.endsWith('\n')) ? '- [ ] ' : '\n- [ ] ';
-    const newBody = before + prefix + after;
-    setBody(newBody);
-    setTimeout(() => {
-      textarea.focus();
-      const newCursor = start + prefix.length;
-      textarea.setSelectionRange(newCursor, newCursor);
-    }, 0);
+    setBody(prev => (prev ? prev.replace(/\n+$/,'')+'\n- [ ] ' : '- [ ] '));
   };
 
   // 2. Bullet Point Insertion Logic
@@ -869,7 +920,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
       />
 
       {/* 1. TOP HEADER & STATUS BAR */}
-      <header className="sticky top-0 z-[60] bg-slate-950/80 backdrop-blur-xl border-b border-white/5 px-4 py-2 flex flex-row items-center justify-between w-full">
+      <MomentumGlassHeader isDarkMode={true}>
         {/* Left Section */}
         <div className="flex flex-row items-center gap-2">
           <button 
@@ -880,13 +931,13 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-semibold text-white tracking-tight">
+          <h1 className="text-sm sm:text-base font-semibold text-white tracking-tight truncate min-w-0">
             {isEditing ? (isNew ? t('notes.newNote', 'New Note') : t('notes.editNote', 'Edit Note')) : t('notes.note', 'Note')}
           </h1>
         </div>
 
         {/* Right Section (Actions: Clean, Distraction-Free Header) */}
-        <div className="flex flex-row items-center gap-2.5 sm:gap-3">
+        <div className="flex flex-row items-center gap-1.5 sm:gap-3 shrink-0">
           {/* 1. Primary Clean Edit / Done Action */}
           {!isEditing ? (
             <button
@@ -902,7 +953,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
           ) : (
             <button
               type="button"
-              onClick={handleSave}
+              onClick={handleSave} disabled={isSavingNote}
               aria-label={t('notes.doneEditing', 'Done Editing')}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-all cursor-pointer active:scale-95 flex items-center gap-1"
               title={t('notes.doneEditing', 'Done Editing')}
@@ -923,7 +974,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
               <MoreVertical className="w-4.5 h-4.5" />
             </button>
             {isMenuOpen && (
-              <div className="absolute right-0 top-11 w-48 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute end-0 top-11 w-48 max-w-[min(12rem,calc(100vw-2rem))] rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
                 <button 
                   type="button" 
                   onClick={() => { setIsPinned((prev) => !prev); setIsMenuOpen(false); }} 
@@ -952,7 +1003,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
 
                 <button 
                   type="button" 
-                  onClick={() => { handleDelete(); setIsMenuOpen(false); }} 
+                  onClick={handleDeleteNote} 
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-500/10 text-left transition-colors cursor-pointer font-medium"
                 >
                   <Trash2 className="w-4 h-4 text-rose-400" />
@@ -962,13 +1013,13 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
             )}
           </div>
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       {/* 2. AUTOSAVED SUB-BAR */}
       <div className="flex flex-row items-center justify-between w-full px-5 py-2.5">
-        <span className="h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-emerald-400"/>
-          {existingNote?.savedAt ? `Autosaved • ${existingNote.savedAt.replace('Today at ', '')}` : 'Autosaved • 10:45 AM'}
+        <span data-testid="note-persistence-status" className={(isEditing || !existingNote) ? "h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-amber-950/40 border border-amber-500/30 text-amber-300 shadow-sm" : "h-9 px-3.5 rounded-full inline-flex items-center justify-center gap-1.5 text-xs font-semibold bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 shadow-sm"}>
+          <Sparkles className="w-3.5 h-3.5"/>
+          {isEditing || !existingNote ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}
         </span>
       </div>
 
@@ -1049,7 +1100,9 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
         )}
 
         {/* Body Textarea in Edit Mode, Clean paragraph in View Mode */}
-        {isEditing ? (
+        {hasChecklist(body) ? (
+          <QuickNoteChecklistBody body={body} editing={isEditing} onChange={setBody} onToggle={toggleSavedChecklist} busy={isSavingNote}/>
+        ) : isEditing ? (
           <textarea 
             ref={bodyTextareaRef}
             value={body}
@@ -1207,7 +1260,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
         <div className="px-5 pb-10 space-y-3">
           <button 
             type="button"
-            onClick={handleSave}
+            onClick={handleSave} disabled={isSavingNote}
             className="btn-primary w-full h-12 rounded-2xl flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] transition-all shadow-md shadow-primary/20"
           >
             <span>{t('notes.saveQuickNote', 'Save Quick Note')}</span>
@@ -1225,7 +1278,7 @@ export default function QuickNoteEditorDarkMode({ setActiveTab, goBack, noteId: 
             </button>
             <button 
               type="button"
-              onClick={handleDelete}
+              onClick={handleDeleteNote}
               className="btn-danger flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer active:scale-[0.99] transition-all"
             >
               <Trash2 className="w-4 h-4 text-rose-400"/>

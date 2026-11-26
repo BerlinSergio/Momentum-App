@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { isToday } from '../utils/timeService';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const tasbeehStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-tasbeeh-storage' });
+const tasbeehStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-tasbeeh-storage',
+  optimisticDomains: ['momentum-tasbeeh-storage'],
+});
 const getSafeStorage = () => tasbeehStorage;
 
 const playFeedbackAudio = () => {
@@ -81,6 +84,7 @@ export const useTasbeehStore = create(
     (set, get) => ({
       // State Schema
       currentCount: 0,
+      roundComplete: false,
       lapCount: 0,
       dailyTotal: 0,
       dailyGoal: 1000,
@@ -142,6 +146,7 @@ export const useTasbeehStore = create(
       },
 
       increment: () => {
+        if (get().roundComplete) return;
         const { soundEnabled, hapticsEnabled, activePreset, currentCount } = get();
         const target = Number(activePreset?.target) || 33;
         const willHitTarget = currentCount + 1 >= target;
@@ -153,7 +158,7 @@ export const useTasbeehStore = create(
           triggerFeedbackHaptic(willHitTarget);
         }
 
-        set(
+        return set(
           produce((state) => {
             state.currentCount += 1;
             state.dailyTotal += 1;
@@ -169,9 +174,15 @@ export const useTasbeehStore = create(
                 sessionType: 'Round Completed',
                 duration: '1m 30s',
               });
-              const shouldLoop = (state.autoLoopEnabled ?? state.autoLoop ?? true);
-              if (shouldLoop) {
-                state.currentCount = 0;
+              // Log the completed round exactly once. Auto-loop advances
+              // through the saved preset order and wraps after the last.
+              state.currentCount = 0;
+              if (state.autoLoopEnabled ?? state.autoLoop ?? true) {
+                const presets = Array.isArray(state.presets) ? state.presets : [];
+                const index = presets.findIndex(preset => preset.id === state.activePreset?.id);
+                if (presets.length) state.activePreset = {...presets[(index + 1) % presets.length]};
+              } else {
+                state.roundComplete = true;
               }
             }
           })
@@ -194,6 +205,7 @@ export const useTasbeehStore = create(
         set(
           produce((state) => {
             state.currentCount = 0;
+            state.roundComplete = false;
             state.lapCount = 0;
           })
         ),
@@ -245,6 +257,12 @@ export const useTasbeehStore = create(
             const next = !(state.autoLoopEnabled ?? state.autoLoop ?? true);
             state.autoLoopEnabled = next;
             state.autoLoop = next;
+            if (next && state.roundComplete) {
+              state.roundComplete = false;
+              const presets = Array.isArray(state.presets) ? state.presets : [];
+              const index = presets.findIndex(preset => preset.id === state.activePreset?.id);
+              if (presets.length) state.activePreset = {...presets[(index + 1) % presets.length]};
+            }
           })
         ),
 
@@ -263,6 +281,7 @@ export const useTasbeehStore = create(
           produce((state) => {
             state.activePreset = { ...preset };
             state.currentCount = 0;
+            state.roundComplete = false;
             state.lapCount = 0;
           })
         ),
@@ -276,6 +295,7 @@ export const useTasbeehStore = create(
               target: Number(preset.target) || state.activePreset?.target || 33,
             };
             state.currentCount = 0;
+            state.roundComplete = false;
             state.lapCount = 0;
           })
         ),
@@ -310,6 +330,7 @@ export const useTasbeehStore = create(
             state.historyLogs = [];
             state.dailyTotal = 0;
             state.currentCount = 0;
+            state.roundComplete = false;
             state.lapCount = 0;
           })
         ),
@@ -317,33 +338,12 @@ export const useTasbeehStore = create(
     {
       name: 'momentum-tasbeeh-storage',
       storage: createJSONStorage(() => getSafeStorage()),
-      onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          state.setHasHydrated(true);
-        }
-      },
+      skipHydration: true,
+      // Central startup coordinator confirms durable hydration; do not
+      // queue a second whole-domain save from this callback.
     }
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-tasbeeh-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        useTasbeehStore.setState({
-          ...parsed.state,
-          _hasHydrated: true,
-        });
-      } else {
-        useTasbeehStore.setState({ _hasHydrated: true });
-      }
-    } else {
-      useTasbeehStore.setState({ _hasHydrated: true });
-    }
-  } catch {
-    useTasbeehStore.setState({ _hasHydrated: true });
-  }
-}
+// Legacy localStorage mirrors are never authoritative. runStorageMigration
+// handles any one-time legacy import before coordinated IndexedDB hydration.

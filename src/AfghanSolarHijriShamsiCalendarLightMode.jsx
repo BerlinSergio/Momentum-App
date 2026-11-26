@@ -1,4 +1,6 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
@@ -18,6 +20,7 @@ import { MomentumTimePicker } from './components/ui/picker/index.js';
 import { toast } from './components/ui/toast/index.js';
 
 export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { now, effectiveTimezone } = useAppTime();
   const todayShamsi = useMemo(() => getShamsiDate(now, effectiveTimezone), [now, effectiveTimezone]);
@@ -130,7 +133,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Calendar className="w-5 h-5 text-white" />
@@ -145,7 +148,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
       <main className="flex flex-col relative w-full pb-safe min-h-screen px-4 pt-2">
         <div className="flex flex-col w-full pb-28 space-y-4">
           {/* Atmospheric Backdrop Glow & Seasonal Top Banner */}
@@ -171,7 +174,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
               </button>
               <div className="flex flex-col items-center text-center px-2">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900">{monthInfo.nameEn} {viewYear} SH</h2>
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">{monthInfo.nameEn} {digits(viewYear)} SH</h2>
                   <span className="text-base font-semibold text-primary">{monthInfo.nameFa} {toPersianDigits(viewYear)}</span>
                 </div>
                 <p className="text-xs font-normal mt-0.5 text-slate-500">
@@ -203,9 +206,9 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                 <div key={'prev-' + idx} className="aspect-square p-1 flex flex-col items-center justify-center text-center rounded-2xl opacity-30 select-none bg-slate-50 border border-slate-100 text-slate-400">
                   <span className="text-xs font-bold font-mono leading-none">{sp.shamsiDayFa}</span>
                   <div className="flex items-center justify-center gap-0.5 text-[9px] leading-none mt-1 opacity-75">
-                    <span>{sp.gregorianDay}</span>
+                    <span>{digits(sp.gregorianDay)}</span>
                     <span>•</span>
-                    <span>{sp.hijriDay}</span>
+                    <span>{digits(sp.hijriDay)}</span>
                   </div>
                 </div>
               ))}
@@ -235,14 +238,14 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                     <span className={`text-sm font-bold font-mono leading-none text-center ${
                       day.isToday ? 'text-white' : (isSelected ? 'text-primary' : (day.isFriday ? 'text-primary' : ''))
                     }`}>
-                      {day.shamsiDayFa}
+                      {digits(day.shamsiDayFa)}
                     </span>
                     <div className={`flex items-center justify-center gap-0.5 text-[9px] leading-none mt-1 ${
                       day.isToday ? 'text-white/85' : 'text-slate-500'
                     }`}>
-                      <span>{day.gregorianDay}</span>
+                      <span>{digits(day.gregorianDay)}</span>
                       <span>•</span>
-                      <span>{day.hijriDay}</span>
+                      <span>{digits(day.hijriDay)}</span>
                     </div>
                   </button>
                 );
@@ -253,9 +256,9 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                 <div key={'next-' + idx} className="aspect-square p-1 flex flex-col items-center justify-center text-center rounded-2xl opacity-30 select-none bg-slate-50 border border-slate-100 text-slate-400">
                   <span className="text-xs font-bold font-mono leading-none">{sp.shamsiDayFa}</span>
                   <div className="flex items-center justify-center gap-0.5 text-[9px] leading-none mt-1 opacity-75">
-                    <span>{sp.gregorianDay}</span>
+                    <span>{digits(sp.gregorianDay)}</span>
                     <span>•</span>
-                    <span>{sp.hijriDay}</span>
+                    <span>{digits(sp.hijriDay)}</span>
                   </div>
                 </div>
               ))}
@@ -269,7 +272,7 @@ export default function AfghanSolarHijriShamsiCalendarLightMode({ setActiveTab, 
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0"></span>
                   <h3 className="text-base font-bold tracking-tight text-slate-900 truncate">
-                    {selectedWeekdayInfo.longEn}, {selectedDay} {monthInfo.nameEn} {viewYear}
+                    {selectedWeekdayInfo.longEn}, {digits(selectedDay)} {monthInfo.nameEn} {digits(viewYear)}
                   </h3>
                 </div>
                 <p className="text-xs font-medium text-slate-500 mt-1 pl-4.5">

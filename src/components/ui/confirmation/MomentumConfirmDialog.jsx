@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, Trash2, Info, HelpCircle, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import useNavigationStore from '../../../store/useNavigationStore';
+import { useThemeStore } from '../../../store/useThemeStore';
+import { resolveThemeMode } from '../../../utils/themeNavigation.js';
 import { useLocaleStore } from '../../../store/useLocaleStore';
 import { useConfirmStore } from './confirmService';
 
@@ -59,8 +60,9 @@ const VARIANT_CONFIGS = {
 export default function MomentumConfirmDialog() {
   const { t, i18n } = useTranslation();
   const shouldReduceMotion = useReducedMotion();
-  const activeTab = useNavigationStore((s) => s.activeTab) || '';
-  const isDark = activeTab.toLowerCase().includes('dark') || !activeTab.toLowerCase().includes('light');
+  // Theme is a global user preference; canonical route names have no Dark/Light suffix.
+  const selectedTheme = useThemeStore((s) => s.theme);
+  const isDark = resolveThemeMode(selectedTheme) === 'dark';
   const storeLocale = useLocaleStore((s) => s.currentLocale);
   const storeIsRtl = useLocaleStore((s) => s.isRTL);
   const fontClass = useLocaleStore((s) => s.fontClass) || 'font-sans';

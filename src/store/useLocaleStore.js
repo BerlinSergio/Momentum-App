@@ -66,14 +66,17 @@ export const useLocaleStore = create(
        * @param {'latn' | 'arabext'} system
        */
       setNumberSystem: (system) => {
-        set({ numberSystem: system === 'arabext' ? 'arabext' : 'latn' });
+        const numberSystem=system==='arabext'?'arabext':'latn';
+        if(typeof document!=='undefined')document.documentElement.dataset.numberSystem=numberSystem;
+        return set({numberSystem});
       },
 
       /**
        * Initialize locale state on startup / rehydration.
        */
       initLocale: () => {
-        const { currentLocale } = get();
+        const { currentLocale, numberSystem } = get();
+        if(typeof document!=='undefined')document.documentElement.dataset.numberSystem=numberSystem==='arabext'?'arabext':'latn';
         const valid = LOCALE_MAP[currentLocale] ? currentLocale : DEFAULT_LOCALE;
         syncDocumentLocale(valid);
         try {

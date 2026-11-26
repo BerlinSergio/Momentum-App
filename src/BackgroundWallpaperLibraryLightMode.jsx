@@ -1,4 +1,6 @@
+import { downloadCloudWallpaperPack } from './utils/cloudWallpaperDownload.js';
 import React, { useState, useRef } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { Image, ArrowLeft, X } from 'lucide-react';
@@ -106,6 +108,7 @@ function WallpaperGridCard({ bg, item: itemProp, index, title: titleProp, isSele
         </div>
         <h4 className="text-sm font-semibold text-slate-900 truncate line-clamp-1 line-clamp-2 leading-snug min-h-[1.5rem] flex items-center">{wallpaperTitle}</h4>
         <span className="text-xs font-medium text-primary mt-0.5 truncate">{item.mood}</span>
+        {item.sourcePage && <a href={item.sourcePage} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] opacity-80 break-words">{item.artist ? item.artist+' · ' : ''}{item.license} · Wikimedia Commons</a>}{item.licenseUrl&&<a href={item.licenseUrl} target="_blank" rel="noopener noreferrer" onClick={event=>event.stopPropagation()} className="text-[10px] underline">{item.license} · resized</a>}
       </div>
     </div>
   );
@@ -128,6 +131,8 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [favorites, setFavorites] = useState(['bg-04-serene-horizon', 'bg-03-minaret-sunrise']);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress,setDownloadProgress]=useState(0);
+  const pendingPack=useThemeStore(s=>s.wallpaperPendingPackId);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   const isNoneActive = activeBackgroundId === 'none';
@@ -143,8 +148,9 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
     { id: 'Cloud Sanctuary', label: 'Cloud Sanctuary (30)' },
   ];
 
-  const handleSelectBackground = (bg) => {
-    setActiveBackgroundId(bg.id);
+  const handleSelectBackground = async (bg) => {
+    try { await setActiveBackgroundId(bg.id); }
+    catch (error) { toast.error(t('wallpapers.applyFailed', 'Wallpaper could not be saved')); return; }
     const bgName = bg.id === 'none' ? 'Pure Minimal' : (bg.title || bg.name || 'Selected');
     toast.success(`Wallpaper "${bgName}" applied`);
     if (bg.id === 'none') {
@@ -163,14 +169,15 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
       // Process through HTML5 canvas into persistent WebP/JPEG Data URL (max 1920px)
       const { dataUrl, thumbnailUrl } = await processImageForStorage(file, 1920, 0.82);
       // Save permanently to IndexedDB
-      await saveWallpaperToIndexedDB('custom_active', dataUrl, {
+      const persisted = await saveWallpaperToIndexedDB('custom_active', dataUrl, {
         thumbnailUrl,
         name: file.name ? file.name.replace(/\.[^/.]+$/, '') : 'Custom Upload',
         updatedAt: Date.now(),
       });
-      // Sync to Zustand store
-      setCustomWallpaper(dataUrl);
-      setActiveBackgroundId('custom');
+      if (!persisted) throw new Error('Wallpaper storage failed');
+      // Sync to Zustand store after durable file write.
+      await setCustomWallpaper(dataUrl);
+      await setActiveBackgroundId('custom');
       toast.success(t('toasts.customWallpaperApplied', 'Custom wallpaper applied'));
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
@@ -186,21 +193,28 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
     );
   };
 
-  const handleDownloadCloudBatch = () => {
-    if (isDownloading) return;
+  const downloadInFlight = useRef(false);
+  const handleDownloadCloudBatch = async () => {
+    if (downloadInFlight.current) return;
+    downloadInFlight.current = true;
     setIsDownloading(true);
-    setTimeout(() => {
-      const newCloudBatch = generateWallpaperBatch(`cloud-batch-${Date.now()}`);
-      if (typeof setWallpapers === 'function') setWallpapers(newCloudBatch);
-      setIsDownloading(false);
-      setDownloadSuccess(true);
+    setDownloadSuccess(false);
+    try {
+      const result = await downloadCloudWallpaperPack(({downloaded})=>setDownloadProgress(downloaded));
       setShowAll(true);
       setActiveCategory('Cloud Sanctuary');
-      setTimeout(() => setDownloadSuccess(false), 3500);
-    }, 1500);
+      setDownloadSuccess(result.failed === 0 && result.downloadedCount === result.total);
+      if (result.failed) toast.error(t('wallpapers.partialDownload', '{{count}} of 30 wallpapers saved. Continue downloading to complete this pack.', {count:result.downloadedCount,failed:result.failed}));
+      else toast.success(t('wallpapers.downloaded30', '30 Online Wallpapers Downloaded'));
+    } catch (error) {
+      toast.error(t('wallpapers.downloadFailed', 'Wallpaper download failed. Check your connection and storage.'));
+    } finally {
+      downloadInFlight.current = false;
+      setIsDownloading(false);
+    }
   };
 
-  const activeCloudList = downloadedWallpapers.length > 0 ? downloadedWallpapers : (wallpapers.length > 0 ? wallpapers : DOWNLOADED_WALLPAPERS_BATCH);
+  const activeCloudList = downloadedWallpapers.filter(item=>item.isDownloaded===true && /^data:image\//.test(item.url||''));
   const filteredList = activeCategory === 'All'
     ? wallpapers
     : activeCategory === 'Cloud Sanctuary'
@@ -217,7 +231,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
       <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileUpload} className="hidden" aria-hidden="true" />
       
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -231,7 +245,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
             {t('wallpapers.backgroundLibrary', 'Background Library')}
           </h1>
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 flex flex-col relative w-full px-margin pb-safe bg-surface">
         <div className="flex flex-col w-full pb-52 space-y-space-lg">
@@ -492,7 +506,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>{t('appearance.downloading30', 'Downloading 30 Wallpapers...')}</span>
+                    <span>{t('appearance.downloading30', 'Downloading wallpapers…')} ({downloadProgress}/30)</span>
                   </>
                 ) : downloadSuccess ? (
                   <>
@@ -508,7 +522,7 @@ export default function BackgroundWallpaperLibraryLightMode({ setActiveTab, goBa
                       <path d="M12 12v9" />
                       <path d="m8 17 4 4 4-4" />
                     </svg>
-                    <span>{t('appearance.download30Wallpapers', 'Download 30 Online Wallpapers')}</span>
+                    <span>{pendingPack?t('wallpapers.continueDownload','Continue wallpaper download'):t('appearance.download30Wallpapers', 'Download 30 Online Wallpapers')}</span>
                   </>
                 )}
               </button>

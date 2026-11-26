@@ -1,0 +1,129 @@
+name: Momentum Dependency Security Audit
+
+on:
+  push:
+    branches:
+      - fix/db-phase217-migration-recovery-20261125
+    paths:
+      - '.github/workflows/momentum-dependency-audit.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Collect locked dependency advisories
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dependency-audit
+          full_status=0
+          production_status=0
+          npm audit --package-lock-only --json > dependency-audit/all.json || full_status=$?
+          npm audit --package-lock-only --omit=dev --audit-level=high --json > dependency-audit/production.json || production_status=$?
+          printf 'full=%s\nproduction_high=%s\n' "$full_status" "$production_status" > dependency-audit/status.txt
+          git rev-parse HEAD > dependency-audit/commit.txt
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          for (const name of ['all', 'production']) {
+            const report = JSON.parse(fs.readFileSync('dependency-audit/' + name + '.json', 'utf8'));
+            if (report.error || !report.metadata?.vulnerabilities) throw Error('Audit unavailable: ' + name);
+            console.log(name, JSON.stringify(report.metadata.vulnerabilities));
+            for (const [pkg, entry] of Object.entries(report.vulnerabilities || {})) {
+              console.log(name, pkg, entry.severity, JSON.stringify(entry.fixAvailable));
+            }
+          }
+          NODE
+          # Fail the release gate if high/critical production findings remain.
+          # Preserve the full report, including dev-only findings, for review.
+          exit "$production_status"
+      - name: Generate review-only production dependency repair
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dependency-audit/candidate
+          # This changes only the disposable runner checkout. Never force
+          # upgrades, execute install scripts, commit or push from this job.
+          repair_status=0
+          npm audit fix --package-lock-only --ignore-scripts --omit=dev --no-force --json > dependency-audit/candidate/repair.json || repair_status=$?
+          printf '%s\n' "$repair_status" > dependency-audit/candidate/repair-status.txt
+          cp package.json package-lock.json dependency-audit/candidate/
+          git diff -- package.json package-lock.json > dependency-audit/candidate/changes.patch
+          git diff --stat -- package.json package-lock.json
+          # Log small exact diffs for human review, never truncate silently.
+          if [ "$(wc -l < dependency-audit/candidate/changes.patch)" -le 300 ]; then
+            cat dependency-audit/candidate/changes.patch
+          else
+            echo "Candidate patch exceeds 300 lines; review the artifact before applying."
+          fi
+          candidate_status=0
+          npm audit --package-lock-only --omit=dev --audit-level=high --json > dependency-audit/candidate/production.json || candidate_status=$?
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('dependency-audit/candidate/production.json', 'utf8'));
+          if (report.error || !report.metadata?.vulnerabilities) throw Error('Candidate audit unavailable');
+          console.log('candidate production', JSON.stringify(report.metadata.vulnerabilities));
+          NODE
+          exit "$candidate_status"
+      - name: Generate isolated full dependency repair candidate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/dependency-audit/full-candidate"
+          mkdir -p "$out/original" "$out/proposed"
+          # Start from the committed manifests, not the production candidate.
+          git show HEAD:package.json > "$out/original/package.json"
+          git show HEAD:package-lock.json > "$out/original/package-lock.json"
+          cp "$out/original/"*.json "$out/proposed/"
+          (
+            cd "$out/proposed"
+            repair_status=0
+            npm audit fix --package-lock-only --ignore-scripts --no-force --include=dev --json > "$out/repair.json" || repair_status=$?
+            printf '%s\n' "$repair_status" > "$out/repair-status.txt"
+            full_status=0
+            production_status=0
+            npm audit --package-lock-only --include=dev --json > "$out/all.json" || full_status=$?
+            npm audit --package-lock-only --omit=dev --json > "$out/production.json" || production_status=$?
+            printf 'full=%s\nproduction=%s\n' "$full_status" "$production_status" > "$out/status.txt"
+          )
+          for file in package.json package-lock.json; do
+            diff_status=0
+            diff -u "$out/original/$file" "$out/proposed/$file" > "$out/$file.patch" || diff_status=$?
+            if [ "$diff_status" -gt 1 ]; then exit "$diff_status"; fi
+          done
+          node --input-type=module - "$out" <<'NODE'
+          import fs from 'node:fs';
+          const dir = process.argv[2];
+          for (const name of ['all', 'production']) {
+            const report = JSON.parse(fs.readFileSync(dir + '/' + name + '.json', 'utf8'));
+            if (report.error || !report.metadata?.vulnerabilities) throw Error('Full candidate audit unavailable: ' + name);
+            console.log('full candidate', name, JSON.stringify(report.metadata.vulnerabilities));
+            for (const [pkg, entry] of Object.entries(report.vulnerabilities || {})) {
+              console.log('remaining', name, pkg, entry.severity, JSON.stringify(entry.fixAvailable));
+            }
+            if (name === 'production' && report.metadata.vulnerabilities.total !== 0) {
+              process.exitCode = 1;
+            }
+          }
+          NODE
+          # Review-only: residual development findings remain in the report.
+          # No forced upgrade, install scripts, commit, push or release.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: momentum-dependency-audit-${{ github.sha }}
+          path: dependency-audit/
+          if-no-files-found: error
+          retention-days: 14

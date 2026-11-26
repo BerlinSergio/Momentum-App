@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { ArrowLeft, Pencil, Trash2, UserCheck, User, Mail, Globe, Sun, ArrowRight, RefreshCw, Check, Wallet, Clock, Compass, ChevronRight, MapPin } from 'lucide-react';
@@ -118,42 +119,39 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleSave = () => {
-    if (saveStatus !== 'idle') return;
+  const saveInFlight = useRef(false);
+  const handleSave = async () => {
+    if (saveInFlight.current || saveStatus !== 'idle') return;
+    saveInFlight.current = true;
     setSaveStatus('saving');
     const payload = { fullName: fullName.trim(), email: email.trim(), avatar, currency, timezone, city, calculationConvention, hijriShamsi, lastSynced: new Date().toISOString() };
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const raw = window.localStorage.getItem('momentum-profile-storage');
-        const parsed = raw ? JSON.parse(raw) : { state: {}, version: 0 };
-        parsed.state = { ...(parsed.state || {}), ...payload, _hasHydrated: true };
-        window.localStorage.setItem('momentum-profile-storage', JSON.stringify(parsed));
+      await updateProfile(payload);
+      // The profile is committed first. Prayer calculation synchronization
+      // reports its own error; never write an unverified localStorage mirror.
+      if (usePrayerStore.getState().calculationMethod !== calculationConvention) {
+        await usePrayerStore.getState().setCalculationMethod?.(calculationConvention, {syncProfile:false});
       }
-    } catch (e) {
-      console.warn('Direct storage sync warning:', e);
-    }
-    updateProfile(payload);
-    try {
-      usePrayerStore.getState().setCalculationMethod?.(calculationConvention);
-    } catch (e) {
-      void e;
-    }
-    setTimeout(() => {
       setSaveStatus('saved');
       toast.success(t('toasts.profileUpdated', 'Profile updated successfully'));
-      setTimeout(() => {
-        if (goBack) goBack('settings_profile_light_mode');
-        else if (setActiveTab) setActiveTab('settings_profile_light_mode');
-        else window.history.back();
-      }, 350);
-    }, 450);
+      if (goBack) goBack('settings_profile_light_mode');
+      else if (setActiveTab) setActiveTab('settings_profile_light_mode');
+      else window.history.back();
+    } catch (error) {
+      console.error('[Profile] Save failed:', error);
+      setSaveStatus('idle');
+      toast.error(t('storage.profileConflictTitle', 'Profile changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+    }
   };
 
   const isDirty = fullName !== (profile.fullName || '') ||
     email !== (profile.email || '') ||
     currency !== (profile.currency || 'AFN / ؋ (Afghan Afghani)') ||
     timezone !== (profile.timezone || 'Asia/Kabul (UTC+4:30)') ||
-    city !== (profile.city || 'Kabul, Afghanistan');
+    city !== (profile.city || 'Kabul, Afghanistan') ||
+    avatar !== (profile.avatar || null) || calculationConvention !== profile.calculationConvention || hijriShamsi !== profile.hijriShamsi;
 
   const handleDiscard = async () => {
     if (isDirty) {
@@ -174,7 +172,7 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
   return (
     <>
       <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/png,image/jpeg,image/webp" className="hidden" />
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <User className="w-5 h-5 text-white" />
@@ -189,9 +187,9 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
-      <main className="flex-1 flex flex-col w-full max-w-md lg:max-w-5xl mx-auto pb-28 px-5 lg:px-8 bg-transparent relative z-10">
+      <main className="flex-1 flex flex-col w-full max-w-md lg:max-w-5xl mx-auto pb-4 px-5 lg:px-8 bg-transparent relative z-10">
         <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[120vw] h-[55vh] rounded-full bg-primary/10 blur-3xl"></div>
         </div>
@@ -252,32 +250,7 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
             </div>
           </div>
         </div>
-            <div className="rounded-3xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg flex flex-col items-center w-full">
-              {/* BOTTOM ACTION BUTTONS */}
-        <div className="pt-2 relative z-0 flex flex-col items-center">
-          <button type="button" onClick={handleSave} disabled={saveStatus !== 'idle'} className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99] transition-transform">
-            {saveStatus === 'saving' ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                <span>{t('profile.savingChanges', 'Saving Changes...')}</span>
-              </>
-            ) : saveStatus === 'saved' ? (
-              <>
-                <Check className="w-4 h-4 text-white" />
-                <span>{t('settings.changesSaved', 'Changes Saved!')}</span>
-              </>
-            ) : (
-              <>
-                <span>{t('settings.saveChanges', 'Save Changes')}</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-          <button type="button" onClick={handleDiscard} className="w-full py-3 mt-3 text-center text-sm font-medium text-slate-700 hover:text-slate-900 bg-slate-100/80 hover:bg-slate-200/80 active:bg-slate-200 border border-slate-200/90 rounded-2xl transition-all duration-150 cursor-pointer shadow-sm active:scale-[0.99] flex items-center justify-center">
-            {t('settings.discardChanges', 'Discard Changes')}
-          </button>
-        </div>
-            </div>
+            
           </div>
 
           {/* ── RIGHT COLUMN (Cols 6-12 on Desktop): Regional & Spiritual ── */}
@@ -379,6 +352,32 @@ export default function EditProfileLightMode({ setActiveTab, goBack }) {
           </div>
         </div>
           </div>
+          <div className="rounded-3xl p-5 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg flex flex-col items-center w-full mt-4 lg:col-span-12">
+              {/* BOTTOM ACTION BUTTONS */}
+        <div className="w-full flex flex-col sm:flex-row gap-3 items-stretch">
+          <button type="button" onClick={handleSave} disabled={saveStatus !== 'idle'} className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.99] transition-transform">
+            {saveStatus === 'saving' ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                <span>{t('profile.savingChanges', 'Saving Changes...')}</span>
+              </>
+            ) : saveStatus === 'saved' ? (
+              <>
+                <Check className="w-4 h-4 text-white" />
+                <span>{t('settings.changesSaved', 'Changes Saved!')}</span>
+              </>
+            ) : (
+              <>
+                <span>{t('settings.saveChanges', 'Save Changes')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+          <button type="button" onClick={handleDiscard} className="w-full py-3 text-center text-sm font-medium text-slate-700 hover:text-slate-900 bg-slate-100/80 hover:bg-slate-200/80 active:bg-slate-200 border border-slate-200/90 rounded-2xl transition-all duration-150 cursor-pointer shadow-sm active:scale-[0.99] flex items-center justify-center">
+            {t('settings.discardChanges', 'Discard Changes')}
+          </button>
+        </div>
+            </div>
         </div>
       </main>
     </>

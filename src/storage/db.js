@@ -13,6 +13,26 @@ export const STORES = {
   MIGRATION: 'migration_meta',
 };
 
+export const RESTORE_JOURNAL_KEY = 'cross_db_restore_journal_v1';
+
+/**
+ * Durable revision token: minted afresh by EVERY app-owned store/attachment put,
+ * independent of wall-clock resolution or binary length/MIME metadata.
+ * Never accept a caller-supplied revision token for a write.
+ *
+ * getRandomValues is broadly supported even when randomUUID is not available.
+ * Without secure randomness we refuse to claim a conflict-safe write.
+ */
+function mintDurableRevision() {
+  const cryptoProvider = globalThis.crypto || globalThis.window?.crypto;
+  if (!cryptoProvider?.getRandomValues) {
+    throw new Error('Attachment write requires crypto.getRandomValues for a durable revision');
+  }
+  const bytes = cryptoProvider.getRandomValues(new Uint8Array(20));
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+
 let dbInstance = null;
 let dbOpenPromise = null;
 const memoryFallback = new Map();
@@ -28,66 +48,82 @@ export function isIndexedDbSupported() {
  * Open or retrieve the cached IndexedDB database connection.
  */
 export function openAppDB() {
-  if (dbInstance) {
-    return Promise.resolve(dbInstance);
-  }
-  if (dbOpenPromise) {
-    return dbOpenPromise;
-  }
+  if (dbInstance) return Promise.resolve(dbInstance);
+  if (dbOpenPromise) return dbOpenPromise;
+  if (!isIndexedDbSupported()) return Promise.resolve(null);
 
-  if (!isIndexedDbSupported()) {
-    return Promise.resolve(null);
-  }
+  // A blocked upgrade must not leave startup waiting forever or use volatile data.
+  const opening = new Promise((resolve) => {
+    let settled = false;
+    let timeoutId;
+    const finish = (db) => {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(db);
+      return true;
+    };
 
-  dbOpenPromise = new Promise((resolve) => {
     try {
       const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-
-        // 1. Object store for serialized Zustand slices and structured module records
         if (!db.objectStoreNames.contains(STORES.DATA)) {
           db.createObjectStore(STORES.DATA, { keyPath: 'name' });
         }
-
-        // 2. Object store for durable binary attachments (Blobs, ArrayBuffers, Images, Audio)
         if (!db.objectStoreNames.contains(STORES.ATTACHMENTS)) {
-          const attStore = db.createObjectStore(STORES.ATTACHMENTS, { keyPath: 'id' });
-          attStore.createIndex('noteId', 'noteId', { unique: false });
-          attStore.createIndex('createdAt', 'createdAt', { unique: false });
+          const attachments = db.createObjectStore(STORES.ATTACHMENTS, { keyPath: 'id' });
+          attachments.createIndex('noteId', 'noteId', { unique: false });
+          attachments.createIndex('createdAt', 'createdAt', { unique: false });
         }
-
-        // 3. Object store for schema versions and migration metadata
         if (!db.objectStoreNames.contains(STORES.MIGRATION)) {
           db.createObjectStore(STORES.MIGRATION, { keyPath: 'key' });
         }
       };
-
       request.onsuccess = () => {
-        dbInstance = request.result;
-        dbInstance.onversionchange = () => {
-          dbInstance.close();
-          dbInstance = null;
-          dbOpenPromise = null;
+        const opened = request.result;
+        // Late success after a blocked/timeout failure must not be reused.
+        if (settled) {
+          opened.close();
+          return;
+        }
+        const invalidate = () => {
+          if (dbInstance === opened) {
+            dbInstance = null;
+            dbOpenPromise = null;
+          }
         };
-        resolve(dbInstance);
+        opened.onversionchange = () => {
+          invalidate();
+          opened.close();
+        };
+        opened.onclose = invalidate;
+        dbInstance = opened;
+        finish(opened);
       };
-
-      request.onerror = (e) => {
-        console.warn('[Momentum DB] IndexedDB open error:', e);
-        resolve(null);
+      request.onerror = (event) => {
+        console.warn('[Momentum DB] IndexedDB open error:', request.error || event);
+        finish(null);
       };
-
       request.onblocked = () => {
-        console.warn('[Momentum DB] Database open blocked by another tab');
+        console.warn('[Momentum DB] IndexedDB open blocked; refusing to report storage ready');
+        finish(null);
       };
+      timeoutId = setTimeout(() => {
+        console.warn('[Momentum DB] IndexedDB open timed out');
+        finish(null);
+      }, 8000);
     } catch (err) {
       console.warn('[Momentum DB] Initialization exception:', err);
-      resolve(null);
+      finish(null);
     }
   });
 
+  dbOpenPromise = opening.then((db) => {
+    // Allow a safe retry after the other tab closes; never erase stored data.
+    if (!db) dbOpenPromise = null;
+    return db;
+  });
   return dbOpenPromise;
 }
 
@@ -100,7 +136,7 @@ export async function getStoreItem(name) {
     return memoryFallback.get(`store:${name}`) ?? null;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.DATA, 'readonly');
       const store = tx.objectStore(STORES.DATA);
@@ -108,14 +144,172 @@ export async function getStoreItem(name) {
       req.onsuccess = () => resolve(req.result ? req.result.value : null);
       req.onerror = () => {
         console.warn('[Momentum DB] getStoreItem error:', req.error);
-        resolve(null);
+        reject(req.error || new Error('[Momentum DB] Store read failed'));
       };
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Store read transaction aborted'));
     } catch (err) {
       console.warn('[Momentum DB] getStoreItem exception:', err);
-      resolve(null);
+      reject(err);
     }
   });
 }
+
+/**
+ * Read the complete durable task record and its write revision.
+ * A successful get request alone is not enough: only return data after
+ * the containing readonly transaction has completed.
+ */
+export async function getCommittedStoreRecord(name) {
+  const db = await openAppDB();
+  if (!db) {
+    const error = new Error('IndexedDB unavailable for guarded task hydration');
+    error.code = 'TASK_STORAGE_UNAVAILABLE';
+    throw error;
+  }
+  return new Promise((resolve, reject) => {
+    let record = null;
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve(record);
+    };
+    try {
+      const tx = db.transaction(STORES.DATA, 'readonly');
+      const req = tx.objectStore(STORES.DATA).get(name);
+      req.onsuccess = () => { record = req.result || null; };
+      req.onerror = () => { try { tx.abort(); } catch { /* onabort follows */ } };
+      tx.oncomplete = () => finish(null);
+      tx.onabort = () => finish(tx.error || new Error('Task record snapshot aborted'));
+      tx.onerror = () => { /* onabort supplies transaction status */ };
+    } catch (error) { finish(error); }
+  });
+}
+
+/**
+ * Compare a tab's last committed task snapshot against the current record
+ * and write in the SAME IndexedDB readwrite transaction. IDB serializes
+ * conflicting store transactions across tabs. Stale tab state cannot
+ * clobber a newer tab's task edits.
+ *
+ * Never put or update a local mirror on conflict. A failed write must be
+ * surfaced to the user, not silently retried from the stale whole-domain
+ * Zustand state. Legacy records without revisionId are value-compared.
+ */
+export const GUARDED_DOMAINS = Object.freeze([
+  'momentum-task-storage',
+  'momentum-notes-storage',
+  'momentum-finance-storage',
+  // Phase 2.14: user-owned calendar events and dhikr counters/history.
+  'momentum-calendar-storage-v1',
+  'momentum-tasbeeh-storage',
+  // Phase 2.15: user-owned routine completion and prayer worship records.
+  'momentum-routine-storage',
+  'momentum-prayer-storage',
+  // Phase 2.16: profile/onboarding and credential-free security preferences.
+  'momentum-profile-storage',
+  'momentum-security-storage',
+]);
+
+function noteAttachmentIds(snapshot) {
+  const payload = typeof snapshot === 'string' ? JSON.parse(snapshot) : snapshot;
+  const ids = new Set();
+  for (const note of (Array.isArray(payload?.state?.notes) ? payload.state.notes : [])) {
+    for (const attachment of (Array.isArray(note?.attachments) ? note.attachments : [])) {
+      if (typeof attachment?.id === 'string' && attachment.id) ids.add(attachment.id);
+    }
+  }
+  return ids;
+}
+
+export async function compareAndSwapDomainStore(name, value, expectedRecord) {
+  if (!GUARDED_DOMAINS.includes(name)) {
+    throw new TypeError('Optimistic store write is restricted to reviewed durable domains');
+  }
+  if (expectedRecord !== null && (!expectedRecord || expectedRecord.name !== name)) {
+    throw new TypeError('Guarded store write requires a committed baseline snapshot');
+  }
+  const db = await openAppDB();
+  if (!db) {
+    const error = new Error('IndexedDB unavailable for guarded task write');
+    error.code = 'TASK_STORAGE_UNAVAILABLE';
+    throw error;
+  }
+  const revisionId = mintDurableRevision();
+  // Keep removal of note-owned attachment bytes in the SAME main-IDB
+  // transaction as the note metadata update. Never unlink bytes before a
+  // stale Notes edit has passed its durable revision precondition.
+  const removedAttachmentIds = name === 'momentum-notes-storage'
+    ? [...noteAttachmentIds(expectedRecord?.value)].filter(id => !noteAttachmentIds(value).has(id))
+    : [];
+  return new Promise((resolve, reject) => {
+    let tx;
+    let settled = false;
+    let failure = null;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve({ name, value, updatedAt: committedAt, revisionId });
+    };
+    const committedAt = Date.now();
+    try {
+      tx = db.transaction(
+        name === 'momentum-notes-storage' ? [STORES.DATA, STORES.ATTACHMENTS] : STORES.DATA,
+        'readwrite'
+      );
+      const store = tx.objectStore(STORES.DATA);
+      const attachmentStore = name === 'momentum-notes-storage'
+        ? tx.objectStore(STORES.ATTACHMENTS) : null;
+      tx.oncomplete = () => finish(null);
+      tx.onabort = () => finish(failure || tx.error || new Error('Task write aborted'));
+      tx.onerror = () => { /* onabort is authoritative */ };
+      const request = store.get(name);
+      request.onsuccess = () => {
+        const current = request.result || null;
+        const matches = (current === null) === (expectedRecord === null) &&
+          (current === null || (
+            (current.revisionId ?? null) === (expectedRecord.revisionId ?? null) &&
+            sameStoreValue(current.value, expectedRecord.value)
+          ));
+        if (!matches) {
+          failure = new Error(name + ' changed in another tab. Your edit was not saved; reload committed data before editing again.');
+          failure.code = name === 'momentum-task-storage' ? 'TASK_WRITE_CONFLICT' : 'DOMAIN_WRITE_CONFLICT';
+          failure.domain = name;
+          try { tx.abort(); } catch { finish(failure); }
+          return;
+        }
+        try {
+          store.put({ name, value, revisionId, updatedAt: committedAt });
+          for (const id of removedAttachmentIds) attachmentStore.delete(id);
+        } catch (error) {
+          failure = error;
+          try { tx.abort(); } catch { finish(failure); }
+        }
+      };
+      request.onerror = () => {
+        failure = request.error || new Error('Task version check failed');
+        try { tx.abort(); } catch { finish(failure); }
+      };
+    } catch (error) {
+      if (tx) {
+        failure = error;
+        try { tx.abort(); } catch { finish(error); }
+      } else {
+        finish(error);
+      }
+    }
+  });
+}
+
+// Backwards-compatible public entry for Phase 2.12 callers.
+export const compareAndSwapTaskStore = (name, value, expectedRecord) => {
+  if (name !== 'momentum-task-storage') {
+    throw new TypeError('Task CAS accepts only the task domain');
+  }
+  return compareAndSwapDomainStore(name, value, expectedRecord);
+};
 
 /**
  * Write a record into the 'stores' object store.
@@ -124,7 +318,8 @@ export async function setStoreItem(name, value, meta = {}) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.set(`store:${name}`, value);
-    return true;
+    // Volatile fallback is usable in-session, but is NOT a durable save.
+    return false;
   }
 
   return new Promise((resolve) => {
@@ -136,9 +331,16 @@ export async function setStoreItem(name, value, meta = {}) {
         value,
         updatedAt: Date.now(),
         ...meta,
+        revisionId: mintDurableRevision(), // Never accept caller-provided revisions.
       };
       const req = store.put(record);
-      req.onsuccess = () => resolve(true);
+      // A request can succeed even if its containing transaction later aborts.
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = (e) => {
+        console.warn('[Momentum DB] setStoreItem transaction error:', e);
+        resolve(false);
+      };
+      tx.onabort = () => resolve(false);
       req.onerror = (e) => {
         console.warn('[Momentum DB] setStoreItem error:', e);
         resolve(false);
@@ -157,7 +359,8 @@ export async function removeStoreItem(name) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.delete(`store:${name}`);
-    return true;
+    return false; // In-memory deletion is not a durable database transaction.
+
   }
 
   return new Promise((resolve) => {
@@ -165,7 +368,9 @@ export async function removeStoreItem(name) {
       const tx = db.transaction(STORES.DATA, 'readwrite');
       const store = tx.objectStore(STORES.DATA);
       const req = store.delete(name);
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
       req.onerror = () => resolve(false);
     } catch {
       resolve(false);
@@ -203,7 +408,8 @@ export async function setAttachmentRecord(record) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.set(`att:${record.id}`, record);
-    return true;
+    return false; // In-memory attachment can disappear on reload.
+
   }
 
   return new Promise((resolve) => {
@@ -212,9 +418,15 @@ export async function setAttachmentRecord(record) {
       const store = tx.objectStore(STORES.ATTACHMENTS);
       const req = store.put({
         ...record,
+        revisionId: mintDurableRevision(),
         updatedAt: Date.now(),
       });
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = (e) => {
+        console.warn('[Momentum DB] setAttachmentRecord transaction error:', e);
+        resolve(false);
+      };
+      tx.onabort = () => resolve(false);
       req.onerror = (e) => {
         console.warn('[Momentum DB] setAttachmentRecord error:', e);
         resolve(false);
@@ -233,7 +445,8 @@ export async function removeAttachmentRecord(id) {
   const db = await openAppDB();
   if (!db) {
     memoryFallback.delete(`att:${id}`);
-    return true;
+    return false;
+
   }
 
   return new Promise((resolve) => {
@@ -241,7 +454,9 @@ export async function removeAttachmentRecord(id) {
       const tx = db.transaction(STORES.ATTACHMENTS, 'readwrite');
       const store = tx.objectStore(STORES.ATTACHMENTS);
       const req = store.delete(id);
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
       req.onerror = () => resolve(false);
     } catch {
       resolve(false);
@@ -287,15 +502,16 @@ export async function getMigrationMeta(key) {
     return memoryFallback.get(`mig:${key}`) ?? null;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.MIGRATION, 'readonly');
       const store = tx.objectStore(STORES.MIGRATION);
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    } catch {
-      resolve(null);
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Migration metadata read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Migration metadata transaction aborted'));
+    } catch (err) {
+      reject(err);
     }
   });
 }
@@ -308,7 +524,8 @@ export async function setMigrationMeta(key, data) {
   const record = { key, ...data, timestamp: Date.now() };
   if (!db) {
     memoryFallback.set(`mig:${key}`, record);
-    return true;
+    return false; // Never mark volatile migration metadata as committed.
+
   }
 
   return new Promise((resolve) => {
@@ -316,7 +533,9 @@ export async function setMigrationMeta(key, data) {
       const tx = db.transaction(STORES.MIGRATION, 'readwrite');
       const store = tx.objectStore(STORES.MIGRATION);
       const req = store.put(record);
-      req.onsuccess = () => resolve(true);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
       req.onerror = () => resolve(false);
     } catch {
       resolve(false);
@@ -339,24 +558,21 @@ export async function getAllStoreItems() {
     return map;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.DATA, 'readonly');
-      const store = tx.objectStore(STORES.DATA);
-      const req = store.getAll();
+      const req = tx.objectStore(STORES.DATA).getAll();
       req.onsuccess = () => {
-        const records = req.result || [];
         const result = {};
-        for (const item of records) {
-          if (item && item.name) {
-            result[item.name] = item.value;
-          }
+        for (const item of req.result || []) {
+          if (item && item.name) result[item.name] = item.value;
         }
         resolve(result);
       };
-      req.onerror = () => resolve({});
-    } catch {
-      resolve({});
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Bulk store read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Bulk store read aborted'));
+    } catch (err) {
+      reject(err);
     }
   });
 }
@@ -376,15 +592,63 @@ export async function getAllAttachmentRecords() {
     return list;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORES.ATTACHMENTS, 'readonly');
-      const store = tx.objectStore(STORES.ATTACHMENTS);
-      const req = store.getAll();
+      const req = tx.objectStore(STORES.ATTACHMENTS).getAll();
       req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
-    } catch {
-      resolve([]);
+      req.onerror = () => reject(req.error || new Error('[Momentum DB] Bulk attachment read failed'));
+      tx.onabort = () => reject(tx.error || new Error('[Momentum DB] Bulk attachment read aborted'));
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Consistent, fail-closed backup snapshot across the two stores within the
+ * central IndexedDB database. A single readonly transaction guarantees that
+ * domain records and attachment records represent one committed DB version.
+ * Wallpaper storage is a different DB and needs an application Web Lock.
+ *
+ * Never substitute the volatile memory fallback for an encrypted backup.
+ */
+export async function getCommittedBackupSnapshot() {
+  const db = await openAppDB();
+  if (!db) throw new Error('Backup unavailable: IndexedDB cannot be opened safely');
+
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction([STORES.DATA, STORES.ATTACHMENTS], 'readonly');
+      let stored = null;
+      let attachments = null;
+      const storeReq = tx.objectStore(STORES.DATA).getAll();
+      const attachmentReq = tx.objectStore(STORES.ATTACHMENTS).getAll();
+      storeReq.onsuccess = () => {
+        stored = {};
+        for (const record of storeReq.result || []) {
+          if (!record || typeof record.name !== 'string' || !record.name) {
+            reject(new Error('Backup aborted: malformed store record'));
+            tx.abort();
+            return;
+          }
+          stored[record.name] = record.value;
+        }
+      };
+      attachmentReq.onsuccess = () => { attachments = attachmentReq.result || []; };
+      storeReq.onerror = () => reject(storeReq.error || new Error('Backup aborted: domain snapshot read failed'));
+      attachmentReq.onerror = () => reject(attachmentReq.error || new Error('Backup aborted: attachment snapshot read failed'));
+      tx.onabort = () => reject(tx.error || new Error('Backup aborted: main database snapshot transaction aborted'));
+      tx.onerror = () => reject(tx.error || new Error('Backup aborted: main database snapshot transaction failed'));
+      tx.oncomplete = () => {
+        if (stored === null || attachments === null) {
+          reject(new Error('Backup aborted: database snapshot was not fully read'));
+        } else {
+          resolve({ stores: stored, attachments });
+        }
+      };
+    } catch (error) {
+      reject(error);
     }
   });
 }
@@ -399,7 +663,7 @@ export async function removeStoreItems(names) {
     for (const name of names) {
       memoryFallback.delete(`store:${name}`);
     }
-    return true;
+    return false;
   }
 
   return new Promise((resolve) => {
@@ -418,3 +682,374 @@ export async function removeStoreItems(names) {
   });
 }
 
+
+/**
+ * Commit staged backup domain records and binary attachments atomically within
+ * momentum_app_db. Never await between IDB requests: a transaction can become
+ * inactive across event-loop turns. Callers must fully validate/prepare first.
+ *
+ * This does NOT cover the separate momentum_wallpaper_db. Never advertise
+ * atomicity across those two databases.
+ *
+ * @param {{stores?: Array<{name: string, value: any}>, attachments?: Array<Object>}} batch
+ * @returns {Promise<boolean>} true only after the *entire* transaction commits.
+ */
+/**
+ * The restore plans are computed from a snapshot *before* a user may write
+ * from another tab. Compare that snapshot with durable records INSIDE the
+ * final readwrite transaction, then queue every put in the last get callback.
+ * There is no await inside the transaction.
+ *
+ * A Blob cannot be byte-compared synchronously inside IDB callbacks, so
+ * attachments are guarded by their durable version/metadata. Any caller
+ * bypassing the app's updatedAt metadata contract is still an open risk.
+ */
+function sameStoreValue(a, b) {
+  try { return JSON.stringify(a) === JSON.stringify(b); }
+  catch { return false; }
+}
+
+function attachmentRevision(record) {
+  if (!record) return null;
+  if (typeof record.revisionId === 'string' && record.revisionId.length > 0) {
+    // New app writes ALWAYS generate an independent new token. Even two Blob
+    // revisions with identical size/type and same millisecond now differ.
+    return 'revision:' + record.revisionId;
+  }
+  // Pre-v2 attachments have no revision token. Retain conservative metadata
+  // comparison for compatibility. Old direct IDB writers that omit revisionId
+  // can still evade same-size/same-timestamp checks; they are out of contract.
+  return 'legacy:' + JSON.stringify([
+    record.id, record.updatedAt ?? null, record.createdAt ?? null,
+    record.noteId ?? null, record.fileName ?? null, record.name ?? null,
+    record.mimeType ?? null, record.sizeBytes ?? null, record.type ?? null,
+    record.blob?.size ?? null, record.blob?.type ?? null,
+    typeof record.blob === 'string' ? record.blob : null,
+  ]);
+}
+
+export async function commitRestoreBatch({
+  stores = [], attachments = [], restoreJournalToken = null,
+  expectedStoreValues = null, expectedAttachmentRecords = null,
+} = {}) {
+  if (!Array.isArray(stores) || !Array.isArray(attachments)) {
+    throw new TypeError('Restore batch must contain arrays of stores and attachments');
+  }
+  if (stores.some(item => !item || typeof item.name !== 'string' || !item.name)) {
+    throw new TypeError('Restore batch contains an invalid store record');
+  }
+  if (attachments.some(item => !item || typeof item.id !== 'string' || !item.id)) {
+    throw new TypeError('Restore batch contains an invalid attachment record');
+  }
+  if (new Set(stores.map(item => item.name)).size !== stores.length ||
+      new Set(attachments.map(item => item.id)).size !== attachments.length) {
+    throw new TypeError('Restore batch contains duplicate record keys');
+  }
+  if (expectedStoreValues !== null &&
+      (typeof expectedStoreValues !== 'object' || Array.isArray(expectedStoreValues) ||
+       stores.some(item => !Object.hasOwn(expectedStoreValues, item.name)))) {
+    throw new TypeError('Missing optimistic restore precondition for a domain');
+  }
+  if (expectedAttachmentRecords !== null &&
+      (typeof expectedAttachmentRecords !== 'object' || Array.isArray(expectedAttachmentRecords) ||
+       attachments.some(item => !Object.hasOwn(expectedAttachmentRecords, item.id)))) {
+    throw new TypeError('Missing optimistic restore precondition for an attachment');
+  }
+
+  const db = await openAppDB();
+  if (!db) return false;
+  if (!stores.length && !attachments.length && !restoreJournalToken) return true;
+
+  return new Promise((resolve, reject) => {
+    let tx;
+    let settled = false;
+    let conflict = null;
+    const finish = ok => {
+      if (settled) return;
+      settled = true;
+      if (conflict) reject(conflict);
+      else resolve(ok);
+    };
+    const failConflict = (type, key) => {
+      conflict = new Error(`Restore conflict: ${type} "${key}" changed after the snapshot; no restore records were committed`);
+      conflict.code = 'RESTORE_CONFLICT';
+      try { tx.abort(); } catch { finish(false); }
+    };
+
+    try {
+      const targets = [];
+      if (stores.length) targets.push(STORES.DATA);
+      if (attachments.length) targets.push(STORES.ATTACHMENTS);
+      if (restoreJournalToken) targets.push(STORES.MIGRATION);
+      tx = db.transaction(targets, 'readwrite');
+      tx.oncomplete = () => finish(true);
+      tx.onabort = () => finish(false);
+      tx.onerror = () => finish(false);
+
+      const enqueueWrites = () => {
+        if (conflict) return;
+        try {
+          if (stores.length) {
+            const destination = tx.objectStore(STORES.DATA);
+            for (const item of stores) {
+              destination.put({
+                name: item.name, value: item.value,
+                updatedAt: Date.now(), revisionId: mintDurableRevision(),
+              });
+            }
+          }
+          if (attachments.length) {
+            const destination = tx.objectStore(STORES.ATTACHMENTS);
+            for (const item of attachments) {
+              destination.put({
+                ...item, revisionId: mintDurableRevision(), updatedAt: Date.now(),
+              });
+            }
+          }
+          if (restoreJournalToken) {
+            const meta = tx.objectStore(STORES.MIGRATION);
+            const check = meta.get(RESTORE_JOURNAL_KEY);
+            check.onsuccess = () => {
+              if (check.result?.token !== restoreJournalToken) {
+                try { tx.abort(); } catch { finish(false); }
+                return;
+              }
+              meta.delete(RESTORE_JOURNAL_KEY);
+            };
+            check.onerror = () => {
+              try { tx.abort(); } catch { finish(false); }
+            };
+          }
+        } catch (err) {
+          console.warn('[Momentum DB] Atomic restore write failed:', err);
+          try { tx.abort(); } catch { finish(false); }
+        }
+      };
+
+      // Enqueue all precondition reads synchronously. Writes queue only after
+      // the last successful read callback; the readwrite transaction holds
+      // an exclusive store lock until complete, so no time-of-check race.
+      let pending = (expectedStoreValues ? stores.length : 0) +
+                    (expectedAttachmentRecords ? attachments.length : 0);
+      const verified = () => {
+        pending -= 1;
+        if (pending === 0 && !conflict) enqueueWrites();
+      };
+      if (expectedStoreValues && stores.length) {
+        const store = tx.objectStore(STORES.DATA);
+        for (const item of stores) {
+          const req = store.get(item.name);
+          req.onsuccess = () => {
+            const current = req.result ? req.result.value : null;
+            if (!sameStoreValue(current, expectedStoreValues[item.name])) {
+              failConflict('domain', item.name);
+            } else {
+              verified();
+            }
+          };
+          req.onerror = () => { try { tx.abort(); } catch { finish(false); } };
+        }
+      }
+      if (expectedAttachmentRecords && attachments.length) {
+        const store = tx.objectStore(STORES.ATTACHMENTS);
+        for (const item of attachments) {
+          const req = store.get(item.id);
+          req.onsuccess = () => {
+            const expected = expectedAttachmentRecords[item.id];
+            if (attachmentRevision(req.result || null) !== attachmentRevision(expected)) {
+              failConflict('attachment', item.id);
+            } else {
+              verified();
+            }
+          };
+          req.onerror = () => { try { tx.abort(); } catch { finish(false); } };
+        }
+      }
+      if (pending === 0) enqueueWrites();
+    } catch (err) {
+      console.warn('[Momentum DB] Atomic restore transaction failed:', err);
+      try { tx?.abort(); } catch { finish(false); }
+      finish(false);
+    }
+  });
+}
+
+/**
+ * Read the crash-recovery journal from the authoritative main database.
+ * A read failure is an error, not proof that no incomplete restore exists.
+ */
+export async function getPendingRestoreJournal() {
+  const db = await openAppDB();
+  if (!db) throw new Error('[Momentum Restore] IndexedDB unavailable');
+  return new Promise((resolve, reject) => {
+    try {
+      const tx = db.transaction(STORES.MIGRATION, 'readonly');
+      const req = tx.objectStore(STORES.MIGRATION).get(RESTORE_JOURNAL_KEY);
+      let record = null;
+      req.onsuccess = () => { record = req.result || null; };
+      req.onerror = () => reject(req.error || new Error('[Momentum Restore] Journal read failed'));
+      // A get request may succeed before its containing transaction aborts.
+      // Never interpret a pre-commit read as absence of a recovery journal.
+      tx.onabort = () => reject(tx.error || new Error('[Momentum Restore] Journal read transaction aborted'));
+      tx.onerror = () => reject(tx.error || new Error('[Momentum Restore] Journal read transaction failed'));
+      tx.oncomplete = () => resolve(record);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Create a pending journal only if no other journal already exists.
+ * The complete wallpaper preimage is stored durably before changing any
+ * wallpaper. Access should be coordinated via navigator.locks across tabs.
+ */
+export async function beginRestoreJournal({ token, wallpaperBefore }) {
+  if (typeof token !== 'string' || !token ||
+      !Array.isArray(wallpaperBefore) ||
+      wallpaperBefore.some(item => !item || typeof item.id !== 'string' || !item.id ||
+        (item.previous !== null && (!item.previous || item.previous.id !== item.id)))) {
+    throw new TypeError('Invalid cross-database recovery journal');
+  }
+  const db = await openAppDB();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    let tx;
+    try {
+      tx = db.transaction(STORES.MIGRATION, 'readwrite');
+      tx.oncomplete = () => resolve(true);
+      tx.onabort = () => resolve(false);
+      tx.onerror = () => resolve(false);
+      const meta = tx.objectStore(STORES.MIGRATION);
+      const req = meta.get(RESTORE_JOURNAL_KEY);
+      req.onsuccess = () => {
+        if (req.result) {
+          tx.abort();
+          return;
+        }
+        try {
+          meta.put({
+            key: RESTORE_JOURNAL_KEY, token,
+            status: 'pending',
+            wallpaperBefore,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.warn('[Momentum Restore] Recovery journal write failed:', err);
+          try { tx.abort(); } catch { resolve(false); }
+        }
+      };
+      req.onerror = () => tx.abort();
+    } catch (err) {
+      console.warn('[Momentum Restore] Journal creation failed:', err);
+      try { tx?.abort(); } catch { /* already inactive */ }
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Clear a journal only after its wallpaper preimage has been restored.
+ * Compare tokens within the transaction, so a stale recovery cannot clear a
+ * different restore's journal. Main-db finalize clears it atomically instead.
+ */
+export async function clearRestoreJournal(token) {
+  if (typeof token !== 'string' || !token) throw new TypeError('Invalid journal token');
+  const db = await openAppDB();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    let tx;
+    try {
+      tx = db.transaction(STORES.MIGRATION, 'readwrite');
+      tx.oncomplete = () => resolve(true);
+      tx.onabort = () => resolve(false);
+      tx.onerror = () => resolve(false);
+      const meta = tx.objectStore(STORES.MIGRATION);
+      const req = meta.get(RESTORE_JOURNAL_KEY);
+      req.onsuccess = () => {
+        if (req.result?.token !== token) {
+          tx.abort();
+          return;
+        }
+        meta.delete(RESTORE_JOURNAL_KEY);
+      };
+      req.onerror = () => tx.abort();
+    } catch (err) {
+      console.warn('[Momentum Restore] Failed to clear journal:', err);
+      try { tx?.abort(); } catch { /* already inactive */ }
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Atomic credential transition. Caller must authenticate against the exact
+ * committed credential snapshot before requesting a rotation or deletion.
+ * Both revisions are checked under the same exclusive transaction lock.
+ * No crypto awaits inside the transaction; success means oncomplete.
+ */
+export async function commitCredentialTransition(expectedCredential, expectedSecurity, nextCredential, lastModified, { pauseLock = false } = {}) {
+  const credentialKey = 'momentum-credential-verifier';
+  const securityKey = 'momentum-security-storage';
+  if ((expectedCredential !== null && expectedCredential?.name !== credentialKey) ||
+      (expectedSecurity !== null && expectedSecurity?.name !== securityKey) ||
+      (nextCredential !== null && (!nextCredential?.salt || !nextCredential?.verifier))) {
+    throw new TypeError('Invalid credential transition snapshots');
+  }
+  if (pauseLock && (!expectedCredential || !nextCredential || !sameStoreValue(expectedCredential.value, nextCredential))) {
+    throw new TypeError('Pausing App Lock must retain the authenticated credential');
+  }
+  const db = await openAppDB();
+  if (!db) throw new Error('Durable credential storage unavailable');
+  const matches = (a,b) => a === null || b === null ? a === b :
+    (a.revisionId ?? null) === (b.revisionId ?? null) && sameStoreValue(a.value,b.value);
+  return new Promise((resolve,reject) => {
+    let tx, failure, committed;
+    try {
+      tx = db.transaction(STORES.DATA, 'readwrite');
+      tx.oncomplete = () => resolve(committed);
+      tx.onabort = () => reject(failure || tx.error || new Error('Credential transaction aborted'));
+      const store = tx.objectStore(STORES.DATA);
+      const credential = store.get(credentialKey);
+      const security = store.get(securityKey);
+      security.onsuccess = () => {
+        try {
+          if (!matches(credential.result || null, expectedCredential) ||
+              !matches(security.result || null, expectedSecurity)) {
+            const err = new Error('Credential or security preferences changed; reload and retry.');
+            err.code = 'CREDENTIAL_WRITE_CONFLICT';
+            throw err;
+          }
+          const raw = security.result?.value;
+          const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (payload != null && (!payload.state || typeof payload.state !== 'object' || Array.isArray(payload.state))) {
+            throw new Error('Malformed security metadata');
+          }
+          const state = { ...(payload?.state || {}), pin: '', alphanumeric: '',
+            hasPin: nextCredential !== null, passcodeType: nextCredential?.version === 2 && nextCredential.credentialKind === 'alphanumeric' ? 'alphanumeric' : 'pin', lastModified };
+          // A new, rotated or removed PIN invalidates the previous enrollment.
+          // A pause retains the PIN revision and the enrollment preference.
+          if (!pauseLock) state.biometricsEnabled = false;
+          if (nextCredential !== null && !pauseLock) {
+            state.isAppLockActive = true;
+          } else {
+            state.isAppLockActive = false;
+            state.isLocked = false;
+          }
+          const now = Date.now();
+          if (nextCredential === null) store.delete(credentialKey);
+          else if (!pauseLock) store.put({name: credentialKey, value: nextCredential, updatedAt: now, revisionId: mintDurableRevision()});
+          committed = {name: securityKey, value: {...(payload || {version:0}), state}, updatedAt: now, revisionId: mintDurableRevision()};
+          store.put(committed);
+        } catch (error) {
+          failure = error;
+          tx.abort();
+        }
+      };
+    } catch (error) {
+      failure = error;
+      if (tx) { try { tx.abort(); } catch { reject(error); } }
+      else reject(error);
+    }
+  });
+}

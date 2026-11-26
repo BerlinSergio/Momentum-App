@@ -117,7 +117,8 @@
     "replace": "جایگزینی",
     "saving": "در حال ذخیره تغییرات...",
     "inactive": "غیرفعال",
-    "allDay": "تمام روز"
+    "allDay": "تمام روز",
+    "unknown": "نامعلوم"
   },
   "nav": {
     "home": "صفحه نخست",
@@ -674,7 +675,10 @@
     "deleteMilestone": "حذف مرحله",
     "addReflectiveCaption": "یادداشت یا توضیحات تامل‌برانگیز برای این فایل بنویسید...",
     "removeConfirmPrompt": "آیا مطمئن هستید که می‌خواهید این پیوست را حذف کنید؟ این عمل غیرقابل بازگشت است.",
-    "archived": "بایگانی‌شده"
+    "archived": "بایگانی‌شده",
+    "unsavedDraft": "پیش‌نویس ذخیره‌نشده",
+    "noAttachmentSelected": "هیچ پیوستی انتخاب نشده",
+    "noAttachmentDescription": "برای مشاهده، پیوستی را از یک یادداشت ذخیره‌شده باز کنید."
   },
   "calendar": {
     "title": "گاه‌شمارها",
@@ -1009,7 +1013,8 @@
     "physicalButtonMappings": "تنظیمات دکمه‌های فیزیکی و حالت‌های صفحه",
     "completionRitualPreview": "پیش‌نمایش آیین تکمیل",
     "livePreview": "پیش‌نمایش زنده",
-    "savePreferences": "ذخیره تنظیمات تسبیح"
+    "savePreferences": "ذخیره تنظیمات تسبیح",
+    "completedSessions": "جلسات ثبت‌شده"
   },
   "settings": {
     "title": "تنظیمات",

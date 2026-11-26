@@ -1,6 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { exportFileBlob, fetchExportBlob } from './utils/nativeFileExport.js';
 import { createPortal } from 'react-dom';
 import { useSwipeable } from 'react-swipeable';
 import UserAvatar from './components/UserAvatar';
@@ -14,8 +16,8 @@ import {
 const FALLBACK_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%231e293b'/><path d='M200 450 L350 250 L480 380 L560 300 L680 450 Z' fill='%23334155'/><circle cx='300' cy='200' r='40' fill='%234f46e5'/><text x='400' y='520' font-family='sans-serif' font-size='24' fill='%2394a3b8' text-anchor='middle'>Attachment Preview</text></svg>";
 
 const formatFileSize = (attachment) => {
-  if (!attachment) return '0.0 MB';
-  const sizeVal = attachment.file?.size ?? attachment.fileSize ?? attachment.size;
+  if (!attachment) return '—';
+  const sizeVal = attachment.sizeBytes ?? attachment.file?.size ?? attachment.fileSize ?? attachment.size;
   if (typeof sizeVal === 'number' && sizeVal > 0) {
     if (sizeVal >= 1024 * 1024) {
       return (sizeVal / (1024 * 1024)).toFixed(1) + ' MB';
@@ -31,11 +33,11 @@ const formatFileSize = (attachment) => {
     }
     return sizeVal;
   }
-  return '2.4 MB';
+  return '—';
 };
 
 const getFileType = (attachment) => {
-  if (!attachment) return 'JPEG Image';
+  if (!attachment) return '—';
   const mime = attachment.file?.type || attachment.mimeType || '';
   if (mime) {
     if (mime.includes('png')) return 'PNG Image';
@@ -53,7 +55,7 @@ const getFileType = (attachment) => {
     if (ext === 'MP4') return 'MP4 Video';
     return ext + ' Asset';
   }
-  return 'JPEG Image';
+  return '—';
 };
 
 export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack, route = { params: {} } }) {
@@ -67,70 +69,35 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
 
   const routeParams = route?.params || {};
   const activeNoteId = routeParams.noteId || storeNoteId;
-  const activeAttachmentId = routeParams.attachmentId || routeParams.id || storeAttachmentId;
+  const activeAttachmentId = routeParams.attachmentId || routeParams.id || (!routeParams.noteId ? storeAttachmentId : null);
 
-  const activeNote = notes.find((n) => n.id === activeNoteId) || notes.find((n) => Array.isArray(n.attachments) && n.attachments.length > 0) || notes[0];
+  const activeNote = notes.find((n) => n.id === activeNoteId);
 
   const passedAttachment = routeParams.attachment || (routeParams.uri || routeParams.url ? {
     id: routeParams.attachmentId || 'att-passed-' + (routeParams.uri || routeParams.url).slice(-10),
     name: routeParams.name || 'Image Attachment',
-    size: routeParams.size || 1887436,
-    file: { size: 1887436, type: 'image/jpeg' },
+    size: routeParams.size || null,
+    file: { size: routeParams.size || null, type: routeParams.mimeType || '' },
     subtitle: routeParams.subtitle || 'Attachment Preview',
     caption: routeParams.caption || '',
     type: 'image',
     url: routeParams.uri || routeParams.url
   } : null);
 
-  let rawAttachments = (activeNote && Array.isArray(activeNote.attachments) && activeNote.attachments.length > 0)
-    ? [...activeNote.attachments]
-    : [];
-
-  if (passedAttachment && !rawAttachments.some(a => a.id === passedAttachment.id || (a.url && a.url === passedAttachment.url))) {
-    rawAttachments.unshift(passedAttachment);
+  // A route snapshot is only an extra preview for an unsaved draft. Never
+  // reintroduce a previously persisted attachment after it was removed.
+  const storedAttachments=Array.isArray(activeNote?.attachments)?activeNote.attachments.filter(Boolean):[];
+  const passedWasSaved=useRef(false);
+  if(passedAttachment&&storedAttachments.some(a=>a.id===passedAttachment.id))passedWasSaved.current=true;
+  const attachments=[...storedAttachments];
+  if(passedAttachment&&!passedWasSaved.current&&(activeNote||!activeNoteId||activeNoteId==='new')&&!attachments.some(a=>a.id===passedAttachment.id||(a.url&&a.url===passedAttachment.url))){
+    attachments.unshift(passedAttachment);
   }
-
-  const attachments = rawAttachments.length > 0
-    ? rawAttachments
-    : [
-        {
-          id: 'att-fallback-1',
-          name: 'Dawn_Reflection_Sky.jpg',
-          size: 1887436,
-          file: { size: 1887436, type: 'image/jpeg' },
-          subtitle: 'Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.',
-          caption: 'Captured immediately after morning Fajr prayer while meditating on the courtyard terrace.',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1200'
-        },
-        {
-          id: 'att-fallback-2',
-          name: 'MindMap_Q4.png',
-          size: 2516582,
-          file: { size: 2516582, type: 'image/png' },
-          subtitle: 'Mind map architecture detailing the 14-day spiritual consistency streak.',
-          caption: 'Mind map architecture detailing the 14-day spiritual consistency streak.',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&q=80&w=1200'
-        },
-        {
-          id: 'att-fallback-3',
-          name: 'Sanctuary_View.jpg',
-          size: 3250585,
-          file: { size: 3250585, type: 'image/jpeg' },
-          subtitle: 'Courtyard sanctuary peaceful reflection at Asr time under golden light.',
-          caption: 'Courtyard sanctuary peaceful reflection at Asr time under golden light.',
-          type: 'image',
-          url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80&w=1200'
-        }
-      ];
-
-  const targetAttachmentId = passedAttachment?.id || activeAttachmentId;
-  const initialIndex = Math.max(0, attachments.findIndex((a) => a.id === targetAttachmentId || (passedAttachment && a.url === passedAttachment.url)));
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(initialIndex || 0);
-
-  const currentAttachment = attachments[currentIndex] || attachments[0];
+  const targetAttachmentId=passedAttachment?.id||activeAttachmentId||attachments[0]?.id||null;
+  const [selectedAttachmentId,setSelectedAttachmentId]=useState(targetAttachmentId);
+  const [isFullscreen,setIsFullscreen]=useState(false);
+  const currentIndex=attachments.findIndex(a=>a.id===selectedAttachmentId);
+  const currentAttachment=currentIndex>=0?attachments[currentIndex]:null;
   const [resolution, setResolution] = useState('Measuring...');
   const [caption, setCaption] = useState(currentAttachment?.subtitle || currentAttachment?.caption || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -148,6 +115,9 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
     setIsEnhanced(false);
     setIsZoomed(false);
 
+    setResolvedUrl('');
+    setResolution('—');
+    if (!currentAttachment) return;
     let active = true;
     resolveAttachmentUrl(currentAttachment).then((u) => {
       if (active) {
@@ -156,13 +126,13 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
           const img = new window.Image();
           img.src = u;
           img.onload = () => {
-            if (img.naturalWidth && img.naturalHeight) {
+            if (active && img.naturalWidth && img.naturalHeight) {
               setResolution(img.naturalWidth + ' × ' + img.naturalHeight);
             }
           };
         }
       }
-    });
+    }).catch(() => { if(active) setResolvedUrl(''); });
 
     return () => { active = false; };
   }, [currentIndex, currentAttachment?.id, currentAttachment?.url]);
@@ -183,9 +153,10 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
   };
 
   const handleSelectIndex = (idx) => {
+    if(!attachments.length)return;
     const boundedIdx = (idx + attachments.length) % attachments.length;
-    setCurrentIndex(boundedIdx);
     const target = attachments[boundedIdx];
+    setSelectedAttachmentId(target?.id||null);
     if (target && setActiveAttachmentId) {
       setActiveAttachmentId(target.id);
     }
@@ -225,109 +196,104 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
       setIsEnhancing(false);
       const nextState = !isEnhanced;
       setIsEnhanced(nextState);
-      showToast(nextState ? 'AI clarity & vibrant tones applied!' : 'Restored to original format');
+      showToast(nextState ? 'Preview contrast and color adjusted' : 'Restored to original format');
     }, 550);
   };
 
   const toggleZoom = () => {
     const nextZoom = !isZoomed;
     setIsZoomed(nextZoom);
-    showToast(nextZoom ? 'Preview magnified to 150%' : 'Preview restored to 100%');
+    showToast(nextZoom ? 'Preview magnified to 125%' : 'Preview restored to 100%');
   };
 
-  const handleDownload = async () => {
-    const targetUrl = currentAttachment?.url || FALLBACK_IMAGE;
-    const fileName = currentAttachment?.name || 'attachment.jpg';
-    showToast(t('toasts.downloadingFile', 'Downloading {{file}}...', { file: fileName }));
+  const exportInFlight = useRef(false);
+  const saveInFlight = useRef(false);
+  const exportAttachment = async (share = false) => {
+    if (exportInFlight.current) return;
+    exportInFlight.current = true;
     try {
-      if (targetUrl.startsWith('data:') || targetUrl.startsWith('blob:')) {
-        const anchor = document.createElement('a');
-        anchor.href = targetUrl;
-        anchor.download = fileName;
-        document.body.appendChild(anchor);
-        anchor.click();
-        document.body.removeChild(anchor);
-        return;
-      }
-      const response = await fetch(targetUrl, { mode: 'cors' });
-      if (!response.ok) throw new Error('Fetch failed');
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      const anchor = document.createElement('a');
-      anchor.href = targetUrl;
-      anchor.download = fileName;
-      anchor.target = '_blank';
-      anchor.rel = 'noopener noreferrer';
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
+      if (!currentAttachment || currentAttachment.id?.startsWith('att-fallback-')) throw new Error('No actual attachment selected');
+      const url = await resolveAttachmentUrl(currentAttachment);
+      const blob = await fetchExportBlob(url);
+      const result = await exportFileBlob(blob, currentAttachment.name || 'attachment', {share});
+      if (result.saved) globalToast.success(t('notes.fileSaved', 'File saved to selected location'));
+      else if (result.downloadStarted) globalToast.info?.(t('notes.downloadStarted', 'Download started'));
+    } catch (error) {
+      if (error?.name !== 'AbortError') globalToast.error(t('notes.exportFailed', 'Could not export this attachment'));
+    } finally {
+      exportInFlight.current = false;
     }
   };
+  const handleDownload = () => exportAttachment(false);
+  const handleShare = () => exportAttachment(true);
 
-  const handleShare = async () => {
-    const shareTitle = currentAttachment?.name || 'Attachment Details';
-    const shareText = 'Check out ' + (currentAttachment?.name || 'this media') + ' from ' + (activeNote?.title || 'Momentum Notes');
-    if (navigator?.share) {
-      try {
-        await navigator.share({ title: shareTitle, text: shareText, url: window.location.href });
-      } catch (err) {
-        /* user dismiss */
-      }
-    } else if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(shareTitle + ': ' + window.location.href);
-      showToast(t('toasts.linkCopied', 'Attachment link copied to clipboard!'));
-    } else {
-      showToast(t('toasts.shareNotSupported', 'Sharing is not supported on this platform'));
-    }
-  };
-
-  const handleSave = () => {
-    if (!activeNote || isSaving) return;
+  const handleSave = async () => {
+    if (!activeNote || saveInFlight.current) return;
+    saveInFlight.current = true;
     setIsSaving(true);
-    setTimeout(() => {
-      const updated = attachments.map((att, idx) => {
-        if (idx === currentIndex) {
-          return { ...att, subtitle: caption, caption };
-        }
-        return att;
-      });
-      updateNote(activeNote.id, { attachments: updated });
-      setIsSaving(false);
+    try {
+      const stored = useNotesStore.getState().notes.find(note => note.id === activeNote.id);
+      if (!stored?.attachments?.some(att => att.id === currentAttachment?.id)) throw new Error('Attachment is not saved');
+      const updated = stored.attachments.map(att => att.id === currentAttachment.id ? {...att,subtitle:caption,caption} : att);
+      if (await updateNote(activeNote.id, {attachments:updated}) !== true) throw Error('Media changes not committed');
       setIsSaved(true);
-      showToast(t('toasts.mediaSaved', 'Media changes saved successfully!'));
-      setTimeout(() => {
-        setIsSaved(false);
-      }, 2500);
-    }, 600);
+      globalToast.success(t('toasts.mediaSaved', 'Media changes saved successfully!'));
+    } catch (error) {
+      globalToast.error(t('notes.saveFailed', 'Media changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
-    setShowDeleteModal(false);
-    if (activeNote && currentAttachment?.id) {
-      deleteAttachment(activeNote.id, currentAttachment.id);
+  const handleConfirmDelete = async () => {
+    if (!activeNote || !currentAttachment?.id || saveInFlight.current) return;
+    const noteId = activeNote.id;
+    const attachmentId = currentAttachment.id;
+    saveInFlight.current = true;
+    setIsSaving(true);
+    try {
+      const stored = useNotesStore.getState().notes.find(note => note.id === noteId);
+      if (!stored?.attachments?.some(att => att.id === attachmentId)) throw Error('Attachment not saved');
+      if (await deleteAttachment(noteId, attachmentId) !== true) throw Error('Attachment removal not committed');
+      setShowDeleteModal(false);
       showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
-      if (attachments.length <= 1) {
+      const remaining=(useNotesStore.getState().notes.find(note=>note.id===noteId)?.attachments||[]).filter(Boolean);
+      if (remaining.length === 0) {
         if (goBack) goBack('notes_main_dark_mode');
         else if (setActiveTab) setActiveTab('notes_main_dark_mode');
       } else {
-        const nextIdx = currentIndex === 0 ? 0 : currentIndex - 1;
-        handleSelectIndex(nextIdx);
+        const next=remaining[Math.max(0,Math.min(currentIndex-1,remaining.length-1))];
+        setSelectedAttachmentId(next.id);
+        setActiveAttachmentId?.(next.id);
       }
+    } catch {
+      globalToast.error(t('notes.deleteFailed', 'Attachment could not be safely removed. Reload saved data.'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
     }
   };
+
+  if (!currentAttachment) {
+    return <div className="min-h-full pb-24">
+      <MomentumGlassHeader isDarkMode={true}>
+        <h1 className="font-semibold text-base">{t('notes.attachmentDetails','Attachment Details')}</h1>
+        <button type="button" aria-label={t('common.back','Back')} onClick={()=>goBack?goBack('notes_main_dark_mode'):setActiveTab?.('notes_main_dark_mode')}><ArrowLeft size={20}/></button>
+      </MomentumGlassHeader>
+      <section data-testid="attachment-empty" className="momentum-neutral-card mx-5 mt-5 p-8 rounded-3xl border text-center space-y-3">
+        <Image className="w-10 h-10 mx-auto text-primary"/>
+        <h2 className="text-base font-semibold">{t('notes.noAttachmentSelected','No attachment selected')}</h2>
+        <p className="text-sm">{t('notes.noAttachmentDescription','Open an attachment from a saved note to view it here.')}</p>
+        <button className="rounded-xl bg-primary text-white px-5 py-2.5 text-sm font-semibold" onClick={()=>goBack?goBack('notes_main_dark_mode'):setActiveTab?.('notes_main_dark_mode')}>{t('common.back','Back')}</button>
+      </section>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-40 relative">
       {/* 1. TOP HEADER */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30">
             <Image className="w-5 h-5 text-white" />
@@ -346,7 +312,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       {/* 2. MEDIA HERO SECTION (EXPLICIT ATTACHMENT[CURRENTINDEX].URL BINDING) */}
       <div 
@@ -358,14 +324,14 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
           onDragStart={(e) => e.preventDefault()}
           onClick={() => setIsFullscreen(true)}
           onLoad={(e) => {
-            if (e.target?.naturalWidth && e.target?.naturalHeight) {
+            if (!e.currentTarget.src.startsWith('data:image/svg+xml') && e.target?.naturalWidth && e.target?.naturalHeight) {
               setResolution(e.target.naturalWidth + ' × ' + e.target.naturalHeight);
             }
           }}
           className={`w-full h-full object-cover transition-all duration-500 select-none cursor-zoom-in ${isZoomed ? 'scale-125' : 'group-hover:scale-105'} ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`} 
           alt={attachments[currentIndex]?.name || 'Attachment Preview'} 
           src={resolvedUrl || attachments[currentIndex]?.url || FALLBACK_IMAGE}
-          onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
+          onError={(e) => { setResolution('—'); if(e.currentTarget.getAttribute('src')!==FALLBACK_IMAGE)e.currentTarget.src=FALLBACK_IMAGE; }}
         />
         
         {/* Top Smooth Gradient Overlay */}
@@ -385,7 +351,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
               onClick={(e) => { e.stopPropagation(); toggleZoom(); }}
               className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-white border border-white/15 shadow-sm font-semibold text-[11px] hover:bg-black/60 active:scale-95 transition-all"
             >
-              {isZoomed ? '150%' : '100%'}
+              {isZoomed ? '125%' : '100%'}
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); setIsFullscreen(true); }}
@@ -639,7 +605,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
                 {t('common.cancel', 'Cancel')}
               </button>
               <button 
-                onClick={handleConfirmDelete}
+                onClick={handleConfirmDelete} disabled={isSaving}
                 className="flex-1 py-3 px-4 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold text-xs shadow-md shadow-red-600/30 transition-all"
               >
                 {t('common.yesRemove', 'Yes, Remove')}
@@ -700,7 +666,7 @@ export default function NoteMediaAttachmentViewerDarkMode({ setActiveTab, goBack
                   onDragStart={(e) => e.preventDefault()}
                   onClick={(e) => e.stopPropagation()}
                   className={`max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 select-none cursor-default ${isEnhanced ? 'contrast-[1.14] saturate-[1.18] brightness-[1.04]' : ''}`}
-                  src={attachments[currentIndex]?.url || FALLBACK_IMAGE}
+                  src={resolvedUrl || attachments[currentIndex]?.url || FALLBACK_IMAGE}
                   alt={attachments[currentIndex]?.name || 'Fullscreen Preview'}
                   onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
                 />

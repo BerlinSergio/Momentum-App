@@ -1,3 +1,4 @@
+import { App } from '@capacitor/app';
 /**
  * Momentum Unified Notification Engine
  * Dual-adapter delivery for Windows Desktop (HTML5 Web Notifications)
@@ -34,7 +35,7 @@ export const CHANNELS = {
     name: 'Tasks & Reminders',
     description: 'Notifications for upcoming task deadlines and to-dos',
     importance: 4, // High
-    visibility: 1, // Public
+    visibility: 0, // Private on lock screen
     vibration: true,
   },
   ROUTINES: {
@@ -42,7 +43,7 @@ export const CHANNELS = {
     name: 'Daily Routines',
     description: 'Auditory and visual cues for daily mindful routines',
     importance: 4,
-    visibility: 1,
+    visibility: 0,
     vibration: true,
   },
   PRAYERS: {
@@ -50,7 +51,7 @@ export const CHANNELS = {
     name: 'Prayer Times & Adhan',
     description: 'Prayer time reminders and call to prayer alerts',
     importance: 5, // Max
-    visibility: 1,
+    visibility: 0,
     vibration: true,
   },
   SYSTEM: {
@@ -58,7 +59,7 @@ export const CHANNELS = {
     name: 'System & Calm Alerts',
     description: 'Mindful system notifications and verification tests',
     importance: 3,
-    visibility: 1,
+    visibility: 0,
     vibration: true,
   },
 };
@@ -73,7 +74,7 @@ export function hashStringToInt(str) {
     hash = (hash << 5) - hash + char;
     hash |= 0; // Convert to 32bit integer
   }
-  const pos = Math.abs(hash);
+  const pos = hash & 0x7fffffff;
   return pos === 0 ? 1 : pos;
 }
 
@@ -289,6 +290,7 @@ export async function deliverNotification({
   // 3. Deliver to OS
   if (isNativePlatform()) {
     try {
+      if (await checkNotificationPermission() !== 'granted') return {success:false,reason:'permission_not_granted'};
       await initializeNotificationChannels();
       await LocalNotifications.schedule({
         notifications: [
@@ -297,14 +299,13 @@ export async function deliverNotification({
             title,
             body,
             channelId,
-            schedule: { at: new Date(Date.now() + 100) },
             extra: {
               targetScreen,
               params,
               sourceType,
               sourceId,
             },
-            smallIcon: 'ic_launcher',
+            smallIcon: 'ic_stat_momentum',
           },
         ],
       });
@@ -356,7 +357,8 @@ export async function sendTestNotification() {
   const perm = await requestNotificationPermission();
   const testId = `test-${Date.now()}`;
   const title = 'Momentum — System Verification';
-  const body = 'Desktop notifications are connected and working with precision on your computer.';
+  if (perm !== 'granted') return {success:false,permission:perm,delivery:{reason:'permission_not_granted'}};
+  const body = 'Momentum notification delivery test.';
 
   const result = await deliverNotification({
     id: testId,
@@ -369,7 +371,7 @@ export async function sendTestNotification() {
   });
 
   return {
-    success: true,
+    success: result.success === true && result.platform !== 'in_app_only',
     permission: perm,
     delivery: result,
   };
@@ -379,7 +381,7 @@ export async function sendTestNotification() {
  * Parses task due time and reminder offset into a Date object
  */
 export function calculateTaskTriggerDate(task) {
-  if (!task || !task.dueDate) return null;
+  if (!task || !task.dueDate || task.reminderEnabled === false || /^(none|off|no reminder)$/i.test(String(task.reminder || '').trim())) return null;
   const dueDateStr = task.dueDate; // YYYY-MM-DD
   const [year, month, day] = dueDateStr.split('-').map(Number);
   if (!year || !month || !day) return null;
@@ -400,12 +402,15 @@ export function calculateTaskTriggerDate(task) {
     }
   }
 
+  if (!Number.isInteger(hours) || hours<0 || hours>23 || !Number.isInteger(minutes) || minutes<0 || minutes>59) return null;
   const baseDate = new Date(year, month - 1, day, hours, minutes, 0);
+  if (baseDate.getFullYear()!==year || baseDate.getMonth()!==month-1 || baseDate.getDate()!==day) return null;
 
   // Compute offset in minutes
   let offsetMinutes = 0;
   const rem = String(task.reminder || '').toLowerCase();
-  if (rem.includes('15')) offsetMinutes = 15;
+  if (rem.includes('10')) offsetMinutes = 10;
+  else if (rem.includes('15')) offsetMinutes = 15;
   else if (rem.includes('30')) offsetMinutes = 30;
   else if (rem.includes('1 hour') || rem.includes('60')) offsetMinutes = 60;
   else if (rem.includes('1 day') || rem.includes('day')) offsetMinutes = 1440;
@@ -418,7 +423,7 @@ export function calculateTaskTriggerDate(task) {
  * Parses routine scheduled time and reminder offset into a Date object for today
  */
 export function calculateRoutineTriggerDate(routine, baseDate = new Date()) {
-  if (!routine || (!routine.targetTime && !routine.time)) return null;
+  if (!routine || routine.reminderEnabled === false || /^(none|off|no reminder)$/i.test(String(routine.reminder || '').trim()) || (!routine.targetTime && !routine.time)) return null;
   const timeStr = routine.targetTime || routine.time;
   const isPM = /pm/i.test(timeStr);
   const isAM = /am/i.test(timeStr);
@@ -430,8 +435,10 @@ export function calculateRoutineTriggerDate(routine, baseDate = new Date()) {
   if (isPM && hours < 12) hours += 12;
   if (isAM && hours === 12) hours = 0;
 
+  if (!Number.isInteger(hours) || hours<0 || hours>23 || !Number.isInteger(minutes) || minutes<0 || minutes>59) return null;
   const routineDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hours, minutes, 0);
-  const offsetMin = Number(routine.reminderOffset) || 0;
+  const offsetMin = Number(routine.reminderOffset ?? 0);
+  if (!Number.isFinite(offsetMin) || offsetMin<0 || offsetMin>1440) return null;
   return new Date(routineDate.getTime() - offsetMin * 60 * 1000);
 }
 
@@ -528,15 +535,18 @@ export async function tickNotificationScheduler() {
         longitude: loc.longitude,
         elevation: loc.elevationMeters || 0,
         calculationMethod: prayerSettings.calculationMethod,
-        juristicMethod: prayerSettings.juristicMethod,
-        adjustments: prayerSettings.manualAdjustments,
+        timezone:loc.timezone,
+        madhab: prayerSettings.madhab,
+        highLatitudeRule:prayerSettings.highLatitudeRule,
+        polarCircleResolution:prayerSettings.polarCircleResolution,
+        adjustments: prayerSettings.prayerAdjustments,
       });
 
       if (dayCalc?.pt) {
-        const offsetMin = Number(prayerSettings.adhanOffset || settings.adhanOffset || 0);
+        const offsetMin = Number(prayerSettings.adhanOffset ?? settings.adhanOffset ?? 0);
 
         for (const [pName, pInstant] of Object.entries(dayCalc.pt)) {
-          if (!pInstant) continue;
+          if (!(pInstant instanceof Date) || !Number.isFinite(pInstant.getTime())) continue;
           const capName = pName.charAt(0).toUpperCase() + pName.slice(1);
           if (!enabledPrayers.includes(capName)) continue;
 
@@ -610,7 +620,7 @@ export async function tickNotificationScheduler() {
  * Start the Active Web Scheduler for Desktop Web (Windows)
  */
 export function startNotificationScheduler() {
-  if (webSchedulerIntervalId) return;
+  if (isNativePlatform() || webSchedulerIntervalId) return;
 
   // Run initial tick immediately
   tickNotificationScheduler().catch((e) => console.warn('[NotificationEngine] Initial tick error:', e));
@@ -661,104 +671,124 @@ export async function cancelNotificationForSource(sourceType, sourceId) {
 /**
  * Central schedule coordinator across native and web platforms
  */
-export async function scheduleAllActiveNotifications() {
-  const isNative = isNativePlatform();
+let nativeScheduleQueue=Promise.resolve();
+let nativeSchedulingStarted=false;
+let scheduleTimer=null;
 
-  // On Web / Windows Desktop, start active scheduler
-  if (!isNative) {
-    startNotificationScheduler();
-    return {
-      success: true,
-      isNative: false,
-      schedulerRunning: true,
-    };
-  }
-
-  // On Native Capacitor (Android)
-  const permission = await checkNotificationPermission();
-  if (permission !== 'granted') {
-    return { success: false, reason: 'permission_not_granted', permission };
-  }
-
-  await initializeNotificationChannels();
-  registerNotificationTapListener();
-
-  const now = new Date();
-  const notificationsToSchedule = [];
-
-  // 1. Task Reminders for Native
-  const tasks = useTaskStore.getState().tasks || [];
-  for (const task of tasks) {
-    if (task.completed || task.status === 'done' || !task.dueDate) continue;
-    const triggerAt = calculateTaskTriggerDate(task);
-    if (!triggerAt || triggerAt <= now) continue;
-
-    notificationsToSchedule.push({
-      id: hashStringToInt(`task-${task.id}`),
-      title: 'Task Reminder',
-      body: task.title,
-      channelId: CHANNELS.TASKS.id,
-      schedule: { at: triggerAt, allowWhileIdle: true },
-      extra: {
-        type: 'task',
-        taskId: task.id,
-        targetScreen: 'tasks_reminders_dark_mode',
-        params: { taskId: task.id },
-      },
-      smallIcon: 'ic_launcher',
-    });
-  }
-
-  // 2. Routine Reminders for Native
-  const routines = useRoutineStore.getState().routines || [];
-  for (const routine of routines) {
-    if (routine.reminderEnabled === false || routine.reminder === 'None') continue;
-    for (let dayOffset = 0; dayOffset < 3; dayOffset++) {
-      const targetDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset);
-      const dateKey = targetDay.toISOString().slice(0, 10);
-      if (!isRoutineScheduledForDate(routine, dateKey)) continue;
-
-      const triggerAt = calculateRoutineTriggerDate(routine, targetDay);
-      if (!triggerAt || triggerAt <= now) continue;
-
-      notificationsToSchedule.push({
-        id: hashStringToInt(`routine-${routine.id}-${dateKey}`),
-        title: 'Daily Routine',
-        body: routine.title || 'Time for your routine',
-        channelId: CHANNELS.ROUTINES.id,
-        schedule: { at: triggerAt, allowWhileIdle: true },
-        extra: {
-          type: 'routine',
-          routineId: routine.id,
-          dateKey,
-          targetScreen: 'daily_routine_dark_mode',
-          params: { routineId: routine.id, dateKey },
-        },
-        smallIcon: 'ic_launcher',
-      });
-    }
-  }
-
-  // 3. Commit Native Schedule
-  try {
-    const pending = await LocalNotifications.getPending();
-    if (pending.notifications.length > 0) {
-      await LocalNotifications.cancel({ notifications: pending.notifications });
-    }
-
-    if (notificationsToSchedule.length > 0) {
-      await LocalNotifications.schedule({ notifications: notificationsToSchedule });
-    }
-
-    return {
-      success: true,
-      isNative: true,
-      scheduledCount: notificationsToSchedule.length,
-    };
-  } catch (err) {
-    console.error('[NotificationEngine] Native scheduling failed:', err);
-    return { success: false, error: err.message };
-  }
+// These times come from the existing Notification Settings screen.
+// They are local-time nudges, not calculated prayer times.
+const DAILY_NUDGES = [
+  ['morningIntention',5,0,'Morning intention','Begin your day with a mindful intention.','daily_routine_dark_mode'],
+  ['dailyRadianceQuote',8,0,'Daily radiance','Open Momentum for today’s inspiration.','prayer_times_dark_mode'],
+  ['middayPause',13,0,'Midday pause','Take a moment to breathe and hydrate.','daily_routine_dark_mode'],
+  ['dailyHabitCheckin',20,30,'Daily habit check-in','Review your daily routines.','daily_routine_dark_mode'],
+  ['eveningWinddown',21,30,'Evening wind-down','Take a moment for gratitude and reflection.','notes_main_dark_mode'],
+];
+function civilAlertsQuiet(settings,at) {
+  if(!settings.zenFocusDND)return false;
+  const minute=at.getHours()*60+at.getMinutes();
+  return minute>=22*60+30 || minute<4*60+30;
 }
 
+export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false}={}) {
+  const settings=useSettingsStore.getState();
+  if (settings.masterEnabled === false) return [];
+  const notifications=[];
+  const add=(key,at,title,body,channelId,type,params,targetScreen)=>{
+    if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at<=now || (type!=='prayer' && civilAlertsQuiet(settings,at))) return;
+    if(!includeAlarmOnly && settings.alarmOnlyOccurrences?.[key]===at.getTime())return;
+    notifications.push({
+      id:hashStringToInt(key),title,body,channelId,smallIcon:'ic_stat_momentum',
+      schedule:{at,allowWhileIdle:true},
+      extra:{momentumManaged:true,key,type,params,targetScreen},
+    });
+  };
+  if(settings.dueTaskAlerts!==false) {
+    for(const task of useTaskStore.getState().tasks||[]) {
+      if(task.completed||task.status==='done') continue;
+      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'tasks_reminders_dark_mode');
+    }
+  }
+  const routines=useRoutineStore.getState().routines||[];
+  const loc=useLocationStore.getState().selectedCity;
+  const prayer=usePrayerStore.getState();
+  const enabled=(settings.enabledPrayerAlerts||[]).map(value=>String(value).toLowerCase());
+  for(let offset=0;offset<7;offset++){
+    const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset,12);
+    const dateKey=getLocalDateKey(day);
+    for(const [flag,hour,minute,title,body,screen] of DAILY_NUDGES) {
+      if(settings[flag]!==true)continue;
+      const at=new Date(day.getFullYear(),day.getMonth(),day.getDate(),hour,minute);
+      add('nudge-'+flag+'-'+dateKey,at,title,body,CHANNELS.ROUTINES.id,'nudge',{},screen);
+    }
+    for(const routine of routines){
+      if(routine.reminderEnabled===false||routine.reminder==='None'||!isRoutineScheduledForDate(routine,dateKey)||isRoutineCompletedForDate(routine,dateKey))continue;
+      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'daily_routine_dark_mode');
+    }
+    if(loc && Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude) && settings.prayerAlertsEnabled!==false && prayer.prayerAlertsEnabled!==false){
+      const result=calculatePrayerTimes({baseDate:day,latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone,
+        calculationMethod:prayer.calculationMethod,madhab:prayer.madhab,highLatitudeRule:prayer.highLatitudeRule,
+        polarCircleResolution:prayer.polarCircleResolution,adjustments:prayer.prayerAdjustments});
+      if(result.status!=='unavailable') for(const entry of result.prayers){
+        if(!enabled.includes(entry.id)||!(entry.prayerDate instanceof Date))continue;
+        const minutes=Number(prayer.adhanOffset ?? settings.adhanOffset ?? 0);
+        const at=new Date(entry.prayerDate.getTime()-minutes*60000);
+        add('prayer-'+entry.id+'-'+result.civilDateKey,at,entry.name+' prayer',minutes?'Prayer reminder ('+minutes+' min before)':'It is time for prayer',CHANNELS.PRAYERS.id,'prayer',{prayer:entry.id},'prayer_times_dark_mode');
+      }
+    }
+  }
+  for(const event of useCalendarStore.getState().events||[]){
+    if(event.completed||!event.date||!event.time||event.reminderEnabled===false)continue;
+    const at=calculateTaskTriggerDate({dueDate:event.date,startTime:String(event.time).split('–')[0].trim(),reminder:'10 minutes before'});
+    add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode');
+  }
+  // Android has a limited pending-alarm budget; retain the soonest 60.
+  return notifications.sort((a,b)=>a.schedule.at-b.schedule.at).slice(0,60);
+}
+
+async function reconcileNativeReminders(){
+  const permission=await checkNotificationPermission();
+  if(permission!=='granted')return {success:false,reason:'permission_not_granted',permission};
+  await initializeNotificationChannels();
+  registerNotificationTapListener();
+  const plan=buildNativeReminderPlan();
+  const pending=(await LocalNotifications.getPending()).notifications||[];
+  const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar','nudge'].includes(item.extra?.type));
+  const wanted=new Set(plan.map(item=>item.id));
+  const obsolete=managed.filter(item=>!wanted.has(item.id));
+  if(obsolete.length)await LocalNotifications.cancel({notifications:obsolete.map(({id})=>({id}))});
+  if(plan.length)await LocalNotifications.schedule({notifications:plan});
+  return {success:true,isNative:true,scheduledCount:plan.length};
+}
+export function scheduleAllActiveNotifications(){
+  if(!isNativePlatform()){
+    startNotificationScheduler();
+    return Promise.resolve({success:true,isNative:false,schedulerRunning:true});
+  }
+  const run=nativeScheduleQueue.catch(()=>{}).then(reconcileNativeReminders);
+  nativeScheduleQueue=run;
+  return run.catch(error=>({success:false,error:error.message}));
+}
+
+export function startNativeReminderSynchronization(){
+  if(!isNativePlatform()||nativeSchedulingStarted)return;
+  nativeSchedulingStarted=true;
+  const sync=()=>{
+    clearTimeout(scheduleTimer);
+    scheduleTimer=setTimeout(()=>scheduleAllActiveNotifications().then(result=>{
+      if(!result.success&&result.reason!=='permission_not_granted')console.warn('[Notifications] Native schedule failed',result.error);
+    }),500);
+  };
+  const watch=(store,select)=>{let previous=JSON.stringify(select(store.getState()));store.subscribe(state=>{
+    const next=JSON.stringify(select(state));
+    if(next!==previous){previous=next;sync();}
+  });};
+  watch(useTaskStore,s=>s.tasks);
+  watch(useRoutineStore,s=>s.routines);
+  watch(useCalendarStore,s=>s.events);
+  watch(useLocationStore,s=>s.selectedCity);
+  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND,s.alarmOnlyOccurrences]);
+  watch(usePrayerStore,s=>[s.prayerAlertsEnabled,s.adhanOffset,s.calculationMethod,s.madhab,s.highLatitudeRule,s.polarCircleResolution,s.prayerAdjustments]);
+  App.addListener('appStateChange',state=>{if(state.isActive)sync();}).catch(error=>console.warn('[Notifications] Resume listener failed',error));
+}
 export const scheduleAllReminders = scheduleAllActiveNotifications;

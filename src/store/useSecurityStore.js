@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createIndexedDbStorage } from '../storage/index.js';
-import { createCredential, removeCredential } from '../utils/credentialService.js';
+import {
+  createCredential, changeCredential, removeCredential, pauseAppLock, createPasscode, changeToPasscode,
+} from '../utils/credentialService.js';
 
 const sanitizeSecurityPayload = (payload) => {
   if (!payload) return payload;
@@ -31,11 +33,15 @@ const sanitizeSecurityPayload = (payload) => {
 const rawSecurityStorage = createIndexedDbStorage({
   legacyLocalStorageKey: 'momentum-security-storage',
   mirrorToLocalStorage: false,
+  optimisticDomains: ['momentum-security-storage'],
 });
 
 const securityStorage = {
   getItem: async (name) => {
-    return rawSecurityStorage.getItem(name);
+    // Migration runs before rehydration; sanitize any malformed/legacy
+    // ordinary security state again before it is exposed to Zustand.
+    const value = await rawSecurityStorage.getItem(name);
+    return value == null ? value : sanitizeSecurityPayload(value);
   },
   setItem: async (name, value) => {
     const sanitized = sanitizeSecurityPayload(value);
@@ -100,72 +106,40 @@ const INITIAL_STATE = {
   _hasHydrated: false,
 };
 
-const getInitialSecurityState = () => {
-  if (typeof localStorage !== 'undefined') {
-    try {
-      const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          const effectivePin = parsed.state.pin !== undefined && parsed.state.pin !== null ? String(parsed.state.pin) : '';
-          const hasPin = parsed.state.hasPin !== undefined ? !!parsed.state.hasPin : !!(effectivePin && String(effectivePin).trim().length === 4);
-          const isAppLockActive = !!parsed.state.isAppLockActive;
-          const isLocked = isAppLockActive && hasPin;
-          return {
-            ...INITIAL_STATE,
-            ...parsed.state,
-            pin: '', // Purged from memory representation
-            alphanumeric: '',
-            hasPin,
-            isLocked,
-            _hasHydrated: false,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse momentum-security-storage:', e);
-    }
-  }
-  return INITIAL_STATE;
-};
+// Credentials are stored only as an independently verified PBKDF2 record.
+// This store holds metadata/preferences and never eagerly trusts a mirror.
+const getInitialSecurityState = () => ({ ...INITIAL_STATE });
 
-const syncSecurityStorage = (patch) => {
+// Refresh the committed metadata and CAS baseline after an atomic transition.
+async function finishCredentialTransition(result) {
+  if (!result.success) return result;
   try {
-    if (typeof localStorage !== 'undefined') {
-      let parsed = { state: {}, version: 0 };
-      const raw = localStorage.getItem('momentum-security-storage');
-      if (raw) {
-        try {
-          parsed = JSON.parse(raw);
-          if (!parsed || typeof parsed !== 'object') {
-            parsed = { state: {}, version: 0 };
-          }
-        } catch {
-          parsed = { state: {}, version: 0 };
-        }
-      }
-      const safePatch = { ...patch };
-      delete safePatch.pin;
-      delete safePatch.alphanumeric;
-
-      parsed.state = {
-        ...(parsed.state || {}),
-        ...safePatch,
-        pin: '',
-        alphanumeric: '',
-      };
-      const serialized = JSON.stringify(parsed);
-      localStorage.setItem('momentum-security-storage', serialized);
-      securityStorage.setItem('momentum-security-storage', serialized).catch((err) => {
-        console.warn('[Momentum Security] IndexedDB sync error:', err);
-      });
+    await useSecurityStore.persist.rehydrate();
+    if (!useSecurityStore.persist.hasHydrated()) {
+      throw new Error('Committed security metadata could not be rehydrated');
     }
-  } catch (e) {
-    console.warn('[Momentum Security] Direct localStorage sync error:', e);
+    await useSecurityStore.getState().setHasHydrated(true);
+    return result;
+  } catch {
+    return {success:false, committed:true, error:'Security change committed; reload to refresh security settings.'};
   }
-};
+}
+// A local credential operation includes its post-commit metadata refresh.
+// The guard must not mistake that short interval for an external activation.
+let pendingCredentialTransitions = 0;
+export const isCredentialTransitionPending = () => pendingCredentialTransitions > 0;
+async function runCredentialTransition(operation) {
+  pendingCredentialTransitions++;
+  try { return await finishCredentialTransition(await operation()); }
+  finally { pendingCredentialTransitions--; }
+}
+const setFirstPinSafely = newPin => runCredentialTransition(() => createCredential(newPin));
+const changePinSafely = (currentPin,newPin) => runCredentialTransition(() => changeCredential(currentPin,newPin));
+const removePinSafely = currentPin => runCredentialTransition(() => removeCredential(currentPin));
 
-export const useSecurityStore = create(
+// Capture the vanilla Zustand setter outside persist. A session-only lock
+// transition must never enqueue a whole-domain durable snapshot.
+export const useSecurityStore = create((setTransient, get, api) =>
   persist(
     (set) => ({
       ...getInitialSecurityState(),
@@ -174,173 +148,130 @@ export const useSecurityStore = create(
         set({ _hasHydrated: !!hasHydrated }),
 
       setLocked: (locked) =>
-        set((state) => {
+        setTransient((state) => {
           const next = typeof locked === 'function' ? locked(state.isLocked) : !!locked;
           return { isLocked: next };
         }),
 
-      setHasPin: (hasPin) =>
-        set((state) => {
-          const next = typeof hasPin === 'function' ? hasPin(state.hasPin) : !!hasPin;
-          syncSecurityStorage({ hasPin: next });
-          return { hasPin: next };
-        }),
+      setHasPin: () => ({success:false, error:'Use an authenticated PIN operation.'}),
 
-      setAppLockActive: (isActive) =>
-        set((state) => {
-          const next = typeof isActive === 'function' ? isActive(state.isAppLockActive) : !!isActive;
-          syncSecurityStorage({ isAppLockActive: next });
-          return {
-            isAppLockActive: next,
-            isLocked: next && state.hasPin ? state.isLocked : false,
-          };
-        }),
+      setAppLockActive: (isActive) => {
+        const state = useSecurityStore.getState();
+        const next = typeof isActive === 'function' ? !!isActive(state.isAppLockActive) : !!isActive;
+        if (!next && state.hasPin && state.isAppLockActive) {
+          return { success:false, error:'Confirm your current PIN to pause App Lock.' };
+        }
+        return set({ isAppLockActive: next, isLocked: next && state.hasPin ? (!state.isAppLockActive || state.isLocked) : false });
+      },
+
+      pauseAppLock: (currentPin) => runCredentialTransition(() => pauseAppLock(currentPin)),
 
       setBiometricsEnabled: (enabled) =>
         set((state) => {
           const next = typeof enabled === 'function' ? enabled(state.biometricsEnabled) : !!enabled;
-          syncSecurityStorage({ biometricsEnabled: next });
+          
           return { biometricsEnabled: next };
         }),
 
       setLockTiming: (timing) => {
-        syncSecurityStorage({ lockTiming: timing });
+        
         return set({ lockTiming: timing });
       },
 
       setHideInMultitasking: (hide) =>
         set((state) => {
           const next = typeof hide === 'function' ? hide(state.hideInMultitasking) : !!hide;
-          syncSecurityStorage({ hideInMultitasking: next });
+          
           return { hideInMultitasking: next };
         }),
 
-      setGuardrail: (key, value) =>
-        set((state) => {
-          const next = typeof value === 'function' ? value(state[key]) : !!value;
-          syncSecurityStorage({ [key]: next });
+      setGuardrail: (key, value) => {
+        if (!['lockFinance', 'lockReflections', 'allowQuickDhikr'].includes(key)) {
+          return { success: false, error: 'Unknown security guardrail.' };
+        }
+        return set((state) => {
+          const next = typeof value === 'function' ? !!value(state[key]) : !!value;
           return { [key]: next };
-        }),
+        });
+      },
 
       setLockFinance: (lock) =>
         set((state) => {
           const next = typeof lock === 'function' ? lock(state.lockFinance) : !!lock;
-          syncSecurityStorage({ lockFinance: next });
+          
           return { lockFinance: next };
         }),
 
       setLockReflections: (lock) =>
         set((state) => {
           const next = typeof lock === 'function' ? lock(state.lockReflections) : !!lock;
-          syncSecurityStorage({ lockReflections: next });
+          
           return { lockReflections: next };
         }),
 
       setAllowQuickDhikr: (allow) =>
         set((state) => {
           const next = typeof allow === 'function' ? allow(state.allowQuickDhikr) : !!allow;
-          syncSecurityStorage({ allowQuickDhikr: next });
+          
           return { allowQuickDhikr: next };
         }),
 
-      // Safe PIN mutators: stores cryptographic verifier in credentialService, NEVER plaintext in store/storage
-      setPin: (newPin) => {
-        const pinStr = String(newPin || '');
-        const hasPin = pinStr.trim().length === 4;
-        if (hasPin) {
-          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
+      // Legacy PIN API is asynchronous and fail-closed: verifier first,
+      // metadata only after successful cryptographic storage.
+      // Callers MUST await the returned result.
+      setPin: (newPin) => setFirstPinSafely(newPin),
+      changePin: (currentPin, newPin) => changePinSafely(currentPin, newPin),
+      updatePin: (currentPin, newPin) => changePinSafely(currentPin, newPin),
+      removePin: (currentPin) => removePinSafely(currentPin),
+
+      // Credential type and verifier are committed together; changing an existing
+      // credential always requires the current secret, even when lock is paused.
+      createPasscode: secret => runCredentialTransition(() => createPasscode(secret)),
+      changeToPasscode: (currentSecret,secret) => runCredentialTransition(() => changeToPasscode(currentSecret,secret)),
+      setAlphanumeric: () => ({success:false,error:'Use an authenticated passcode change.'}),
+
+      updatePreferences: (draft) => {
+        // Generic settings edits must never change credential identity or
+        // hydration/lock session metadata outside the dedicated operations.
+        const patch = typeof draft === 'function' ? draft({ ...useSecurityStore.getState() }) : draft;
+        const allowed = new Set([
+          'isAppLockActive', 'biometricsEnabled', 'lockTiming', 'hideInMultitasking',
+          'lockFinance', 'lockReflections', 'allowQuickDhikr',
+        ]);
+        if (!patch || typeof patch !== 'object' || Array.isArray(patch) ||
+            Object.keys(patch).some(key => !allowed.has(key))) {
+          return { success: false, error: 'Invalid security preferences.' };
         }
-        set({
-          pin: '',
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-      },
-
-      changePin: (newPin) => {
-        const pinStr = String(newPin || '');
-        const hasPin = pinStr.trim().length === 4;
-        if (hasPin) {
-          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
+        const state = useSecurityStore.getState();
+        if (Object.hasOwn(patch, 'isAppLockActive') &&
+            (typeof patch.isAppLockActive !== 'boolean' ||
+             (state.hasPin && state.isAppLockActive && !patch.isAppLockActive))) {
+          return { success:false, error:'Confirm your current PIN to pause App Lock.' };
         }
-        set({
-          pin: '',
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
+        const activating = patch.isAppLockActive === true && !state.isAppLockActive && state.hasPin;
+        return set({ ...patch, ...(activating ? { isLocked: true } : {}), lastModified: getFormattedTimestamp() });
       },
 
-      updatePin: (newPin) => {
-        const pinStr = String(newPin || '');
-        const hasPin = pinStr.trim().length === 4;
-        if (hasPin) {
-          createCredential(pinStr).catch((err) => console.warn('[useSecurityStore] createCredential err:', err));
+      // Reset preferences only; never manufacture startup readiness or
+      // alter the credential/session state while the application is locked.
+      resetToDefaults: () => {
+        const state = useSecurityStore.getState();
+        if (!state._hasHydrated || !useSecurityStore.persist.hasHydrated()) {
+          return { success: false, error: 'Security settings are not loaded. Restart Momentum before resetting.' };
         }
-        set({
-          pin: '',
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin,
-          passcodeType: 'pin',
-          lastModified: getFormattedTimestamp(),
-        });
-      },
-
-      removePin: () => {
-        removeCredential().catch((err) => console.warn('[useSecurityStore] removeCredential err:', err));
-        set({
-          pin: '',
-          hasPin: false,
-          isLocked: false,
-          isAppLockActive: false,
-          lastModified: getFormattedTimestamp(),
-        });
-        syncSecurityStorage({
-          hasPin: false,
-          isAppLockActive: false,
-          lastModified: getFormattedTimestamp(),
-        });
-      },
-
-      setAlphanumeric: () =>
-        set({
-          alphanumeric: '',
-          passcodeType: 'alphanumeric',
-          lastModified: getFormattedTimestamp(),
-        }),
-
-      updatePreferences: (draft) =>
-        set((state) => {
-          const patch = typeof draft === 'function' ? draft(state) : draft;
-          const next = {
-            ...patch,
-            lastModified: getFormattedTimestamp(),
-          };
-          syncSecurityStorage(next);
-          return next;
-        }),
-
-      resetToDefaults: () =>
-        set({
+        if (state.isAppLockActive && state.hasPin && state.isLocked) {
+          return { success: false, error: 'Unlock Momentum before resetting security preferences.' };
+        }
+        return set({
           ...INITIAL_STATE,
-          _hasHydrated: true,
+          hasPin: state.hasPin,
+          passcodeType: state.passcodeType,
+          isAppLockActive: state.isAppLockActive,
+          isLocked: state.isLocked,
+          _hasHydrated: state._hasHydrated,
           lastModified: getFormattedTimestamp(),
-        }),
+        });
+      },
     }),
     {
       name: 'momentum-security-storage',
@@ -353,7 +284,9 @@ export const useSecurityStore = create(
         const isAppLockActive = persistedState?.isAppLockActive !== undefined
           ? !!persistedState.isAppLockActive
           : currentState.isAppLockActive;
-        const isLocked = isAppLockActive && hasPin ? (currentState.isLocked ?? true) : false;
+        // A returning tab with an enabled PIN lock starts LOCKED, regardless
+        // of a stale local unlocked flag or previous in-memory session.
+        const isLocked = Boolean(isAppLockActive && hasPin);
         return {
           ...currentState,
           ...(persistedState || {}),
@@ -362,16 +295,20 @@ export const useSecurityStore = create(
           hasPin,
           isAppLockActive,
           isLocked,
-          _hasHydrated: true,
+          _hasHydrated: false,
         };
       },
-      onRehydrateStorage: () => (state, error) => {
-        if (!error && state) {
-          state.setHasHydrated(true);
-        }
-      },
+      // The central StartupController owns the post-migration readiness flag.
+      // Never trigger a second whole-state write during rehydration.
     }
-  )
+  )(setTransient, get, api)
 );
+
+// Tab-local fail-closed latch, deliberately outside persistent preferences.
+// Only a new document (explicit reload) clears the restart requirement.
+export const useSecuritySessionGate = create(set => ({
+  restartRequired: false,
+  requireRestart: () => set({restartRequired:true}),
+}));
 
 export default useSecurityStore;

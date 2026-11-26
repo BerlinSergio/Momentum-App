@@ -2,9 +2,12 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { produce } from 'immer';
 import { v4 as uuidv4 } from 'uuid';
-import { createIndexedDbStorage, deleteAttachmentFile } from '../storage/index.js';
+import { createIndexedDbStorage } from '../storage/index.js';
 
-const notesStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-notes-storage' });
+const notesStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-notes-storage',
+  optimisticDomains: ['momentum-notes-storage'],
+});
 
 const getSafeStorage = () => notesStorage;
 
@@ -408,6 +411,7 @@ export const useNotesStore = create(
               type: noteData.type || 'quick',
               title: noteData.title || 'Untitled Note',
               body: noteData.body || noteData.content || '',
+              section1Title: noteData.section1Title || '',
               quote: noteData.quote || '',
               quoteAttribution: noteData.quoteAttribution || '',
               section2Title: noteData.section2Title || '',
@@ -438,7 +442,7 @@ export const useNotesStore = create(
       updateNote: (noteId, updates) =>
         set(
           produce((state) => {
-            const index = state.notes.findIndex((n) => n.id === noteId);
+            const index = state.notes.findIndex((n) => String(n.id) === String(noteId));
             if (index !== -1) {
               state.notes[index] = {
                 ...state.notes[index],
@@ -451,18 +455,30 @@ export const useNotesStore = create(
           })
         ),
 
-      deleteNote: (noteId) =>
-        set(
+      deleteNote: async (noteId) => {
+        // A delete must act only on an existing saved note. Do not claim
+        // success when the editor holds an unsaved/stale note ID.
+        if (!noteId || String(noteId) === 'new') return false;
+        const stringId = String(noteId);
+        const exists = get().notes.some((note) => String(note.id) === stringId);
+        if (!exists) return false;
+        const saved = await set(
           produce((state) => {
-            state.notes = state.notes.filter((n) => n.id !== noteId);
+            state.notes = state.notes.filter((note) => String(note.id) !== stringId);
+            if (String(state.activeNoteId) === stringId) {
+              state.activeNoteId = null;
+              state.activeAttachmentId = null;
+            }
             state.reflectionStreak = calculateReflectionStreak(state.notes);
           })
-        ),
+        );
+        return saved === true && !get().notes.some((note) => String(note.id) === stringId);
+      },
 
       togglePin: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isPinned = !note.isPinned;
             }
@@ -472,7 +488,7 @@ export const useNotesStore = create(
       archiveNote: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isArchived = true;
             }
@@ -482,7 +498,7 @@ export const useNotesStore = create(
       unarchiveNote: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isArchived = false;
             }
@@ -492,7 +508,7 @@ export const useNotesStore = create(
       toggleArchive: (noteId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               note.isArchived = !note.isArchived;
             }
@@ -502,9 +518,9 @@ export const useNotesStore = create(
       toggleMilestone: (noteId, milestoneId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.milestones)) {
-              const ms = note.milestones.find((m) => m.id === milestoneId);
+              const ms = note.milestones.find((m) => String(m.id) === String(milestoneId));
               if (ms) {
                 ms.completed = !ms.completed;
               }
@@ -515,7 +531,7 @@ export const useNotesStore = create(
       addMilestone: (noteId, text) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               if (!Array.isArray(note.milestones)) note.milestones = [];
               note.milestones.push({
@@ -530,9 +546,9 @@ export const useNotesStore = create(
       deleteMilestone: (noteId, milestoneId) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.milestones)) {
-              note.milestones = note.milestones.filter((m) => m.id !== milestoneId);
+              note.milestones = note.milestones.filter((m) => String(m.id) !== String(milestoneId));
             }
           })
         ),
@@ -540,7 +556,7 @@ export const useNotesStore = create(
       addAttachment: (noteId, attachment) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               if (!Array.isArray(note.attachments)) note.attachments = [];
               note.attachments.push({
@@ -550,18 +566,27 @@ export const useNotesStore = create(
                 subtitle: attachment.subtitle || 'User uploaded file',
                 type: attachment.type || 'image',
                 url: attachment.url || '',
+                ...(typeof attachment.fileName === 'string' ? { fileName: attachment.fileName } : {}),
+                ...(Number.isFinite(attachment.sizeBytes) ? { sizeBytes: attachment.sizeBytes } : {}),
+                ...(typeof attachment.mimeType === 'string' ? { mimeType: attachment.mimeType } : {}),
+                ...(typeof attachment.storageKey === 'string' ? { storageKey: attachment.storageKey } : {}),
+                ...(typeof attachment.caption === 'string' ? { caption: attachment.caption } : {}),
+                ...(typeof attachment.createdAt === 'string' ? { createdAt: attachment.createdAt } : {}),
+                ...(attachment.isDurable === true ? { isDurable: true } : {}),
               });
             }
           })
         ),
 
       deleteAttachment: (noteId, attachmentId) => {
-        deleteAttachmentFile(attachmentId).catch(() => {});
-        set(
+        // Do not delete durable binary bytes before the note metadata passes
+        // its cross-tab CAS check. The guarded main-IDB transaction removes
+        // unreferenced attachment records atomically with note metadata.
+        return set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.attachments)) {
-              note.attachments = note.attachments.filter((a) => a.id !== attachmentId);
+              note.attachments = note.attachments.filter((a) => String(a.id) !== String(attachmentId));
             }
           })
         );
@@ -570,7 +595,7 @@ export const useNotesStore = create(
       addTag: (noteId, tag) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note) {
               if (!Array.isArray(note.tags)) note.tags = [];
               if (!note.tags.includes(tag)) {
@@ -583,7 +608,7 @@ export const useNotesStore = create(
       removeTag: (noteId, tag) =>
         set(
           produce((state) => {
-            const note = state.notes.find((n) => n.id === noteId);
+            const note = state.notes.find((n) => String(n.id) === String(noteId));
             if (note && Array.isArray(note.tags)) {
               note.tags = note.tags.filter((t) => t !== tag);
             }
@@ -602,6 +627,7 @@ export const useNotesStore = create(
     {
       name: 'momentum-notes-storage',
       storage: createJSONStorage(() => getSafeStorage()),
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           if (Array.isArray(state.notes)) {
@@ -619,44 +645,15 @@ export const useNotesStore = create(
           if (typeof state.reflectionStreak !== 'number') {
             state.reflectionStreak = 0;
           }
-          state.setHasHydrated(true);
+          // StartupController owns the hydrated flag after committed reads;
+          // do not trigger an extra Notes write from this callback.
         }
       },
     }
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-notes-storage');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.state?.notes)) {
-        const notes = parsed.state.notes.map((n) => ({
-          ...n,
-          milestones: n.milestones || [],
-          attachments: n.attachments || [],
-          tags: n.tags || [],
-          savedAt: n.savedAt || n.date || 'Today',
-          isArchived: Boolean(n.isArchived),
-        }));
-        useNotesStore.setState({
-          ...parsed.state,
-          notes,
-          activeNoteId: parsed.state.activeNoteId || null,
-          reflectionStreak: calculateReflectionStreak(notes),
-          _hasHydrated: true,
-        });
-      } else {
-        useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
-      }
-    } else {
-      useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
-    }
-  } catch {
-    useNotesStore.setState({ notes: [], activeNoteId: null, reflectionStreak: 0, _hasHydrated: true });
-  }
-}
+// StartupController coordinates crash recovery, legacy migration, and
+// authoritative Notes hydration before unlocking application screens.
 
 export default useNotesStore;

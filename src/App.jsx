@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigationStore } from './store/useNavigationStore';
 import { useState, useEffect, useMemo } from 'react';
+import {
+  getTaskStorageFailure, getDomainStorageFailure,
+} from './storage/zustandIndexedDbStorage';
 import { AnimatePresence } from 'framer-motion';
 import { WallpaperProvider } from './context/WallpaperContext';
 import GlobalBackground from './components/GlobalBackground';
@@ -90,13 +93,15 @@ import DesktopSidebar from './components/DesktopSidebar';
 import DevScreenNavigatorModal from './components/dev/DevScreenNavigatorModal';
 import { PageTransition } from './motion/index.js';
 import { ToastViewport, toast, useToastStore } from './components/ui/toast/index.js';
-import { ConfirmationViewport } from './components/ui/confirmation/index.js';
+import { ConfirmationViewport, useConfirmStore } from './components/ui/confirmation/index.js';
 
 
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { themedScreenId } from './utils/themeNavigation.js';
 
 import { useThemeStore } from './store/useThemeStore';
 import { useNotesStore } from './store/useNotesStore';
+import { useSecuritySessionGate } from './store/useSecurityStore';
 import useSecurityStore from './store/useSecurityStore';
 import { useProfileStore } from './store/useProfileStore';
 import { useLocaleStore } from './store/useLocaleStore';
@@ -121,7 +126,7 @@ import * as nativeLocation from './utils/nativeLocation';
 import * as nativeNotifications from './utils/nativeNotifications';
 import * as nativeBackup from './utils/nativeBackup';
 import { initializeNativeLifecycle } from './utils/nativeLifecycle';
-import { scheduleAllActiveNotifications } from './utils/nativeNotifications';
+import { scheduleAllActiveNotifications, startNativeReminderSynchronization } from './utils/nativeNotifications';
 import { hydrateAllStores, getStartupDecision, isOnboardingRoute } from './utils/startupController';
 import { BACKGROUND_LIBRARY, getWallpaperPair } from './data/defaultWallpapers';
 import { isRtl } from './i18n/localeUtils.js';
@@ -192,11 +197,12 @@ function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
 
   return (
     <div 
-      className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none bg-cover bg-center transition-all duration-300 scale-105"
+      className="momentum-native-wallpaper absolute inset-0 z-0 pointer-events-none overflow-hidden select-none bg-cover bg-center scale-105"
       style={{
         backgroundImage: currentBgImage ? `url("${currentBgImage}"), ${activeGradient}` : activeGradient,
         backgroundColor: isDarkMode ? '#090D16' : '#FFFFFF',
         filter: `blur(${blurIntensity}px)`,
+        '--momentum-wallpaper-blur': `${blurIntensity}px`,
       }}
     >
       {/* Dark Mode Wallpaper Dimming Overlay: strictly for Dark Mode screens, directly on top of wallpaper, behind UI */}
@@ -209,7 +215,7 @@ function PhoneWallpaperCanvas({ isDarkMode, activeTab }) {
   );
 }
 
-function AppContent() {
+function AppContent({ startupStatus = 'ready' }) {
   const { t } = useTranslation();
   const { activeTab, setActiveTab, goBack, syncFromPopState, routeParams, navigationDirection, sidebarPosition: rawSidebarPos } = useNavigationStore();
   const sidebarPosition = rawSidebarPos || 'left';
@@ -238,10 +244,30 @@ function AppContent() {
   const isLocked = useSecurityStore((s) => s.isLocked);
   const isAppLockActive = useSecurityStore((s) => s.isAppLockActive);
   const hasPin = useSecurityStore((s) => s.hasPin);
-  const isVaultLocked = isLocked && isAppLockActive && hasPin;
+  const sessionRestartRequired = useSecuritySessionGate(s => s.restartRequired);
+  const isVaultLocked = sessionRestartRequired || (isLocked && isAppLockActive && hasPin);
 
   // App-level Initialization Splash Screen State (runs every time the app launches/reloads)
   const [isAppLoading, setIsAppLoading] = useState(true);
+  // A failed optimistic task save must remain visible until reload; this is
+  // not a transient toast because a stale in-memory tab must stop editing.
+  const [taskStorageFailure, setTaskStorageFailure] = useState(() => getTaskStorageFailure());
+  useEffect(() => {
+    const onFailure = (event) => setTaskStorageFailure(event.detail || getTaskStorageFailure());
+    window.addEventListener('momentum:task-storage-failure', onFailure);
+    return () => window.removeEventListener('momentum:task-storage-failure', onFailure);
+  }, []);
+  const [domainStorageFailure, setDomainStorageFailure] = useState(() => getDomainStorageFailure());
+  useEffect(() => {
+    const onFailure = event => {
+      if (event.detail?.domain !== 'momentum-task-storage') {
+        setDomainStorageFailure(event.detail || getDomainStorageFailure());
+      }
+    };
+    window.addEventListener('momentum:domain-storage-failure', onFailure);
+    return () => window.removeEventListener('momentum:domain-storage-failure', onFailure);
+  }, []);
+
 
   if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
     window.setIsAppLoading = setIsAppLoading;
@@ -255,14 +281,10 @@ function AppContent() {
     setupCompleted !== true;
   
   const [isWallpaperSelectorOpen, setIsWallpaperSelectorOpen] = useState(false);
-  const { syncThemeToScreen, theme } = useTheme();
+  const { theme } = useTheme();
 
-  const isDarkMode = activeTab.includes('_dark_mode') || (theme === 'dark' && !activeTab.includes('_light_mode'));
-
-  // Auto-sync theme based on active screen name
-  useEffect(() => {
-    syncThemeToScreen(activeTab);
-  }, [activeTab, syncThemeToScreen]);
+  // The user-selected global appearance, never the route suffix, controls the whole app.
+  const isDarkMode = theme === 'dark';
 
   // Onboarding route protection guard: prevent deep links, history or dev-navigator from bypassing onboarding
   useEffect(() => {
@@ -278,6 +300,7 @@ function AppContent() {
   }, [isAppLoading, setupCompleted, onboardingStep, activeTab, theme, setActiveTab]);
 
   const handleSplashComplete = () => {
+    if (startupStatus !== 'ready') return;
     const isDark = typeof theme === 'string' ? theme === 'dark' : true;
     const requestedScreen = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('screen')
@@ -287,6 +310,16 @@ function AppContent() {
     setActiveTab(decision.targetScreen);
     setIsAppLoading(false);
   };
+
+  const startupFailureView = (
+    <div role="alert" className="h-full w-full flex flex-col items-center justify-center gap-4 px-6 py-12 text-center bg-slate-950 text-white">
+      <h2 className="text-lg font-bold">{t('startup.storageErrorTitle', 'Cannot safely load saved data')}</h2>
+      <p className="text-sm text-slate-300 max-w-md">{t('startup.storageErrorBody', 'Your data has not been cleared. Storage could be unavailable or slow. Do not reset the app or restore a backup here.')}</p>
+      <button type="button" onClick={() => window.location.reload()} className="px-6 py-3 bg-primary text-white rounded-xl font-semibold">
+        {t('startup.retryLoading', 'Retry loading')}
+      </button>
+    </div>
+  );
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -302,6 +335,19 @@ function AppContent() {
 
   // Developer Screen Navigator & Layout Mode States (DEV ONLY)
   const [isDevNavigatorOpen, setIsDevNavigatorOpen] = useState(false);
+  // Cancel sensitive pending prompts instead of letting a hidden dialog
+  // execute or reappear after a later unlock. Close private shell modals.
+  useEffect(() => {
+    if (!isVaultLocked) return;
+    setIsDevNavigatorOpen(false);
+    setIsWallpaperSelectorOpen(false);
+    const cancel = () => {
+      if (useConfirmStore.getState().isOpen) useConfirmStore.getState().handleCancel();
+    };
+    cancel();
+    toast.clear();
+    return useConfirmStore.subscribe(cancel);
+  }, [isVaultLocked]);
   const [devLayoutMode, setDevLayoutMode] = useState(() => {
     if (typeof window !== 'undefined' && Boolean(import.meta.env.DEV)) {
       return localStorage.getItem('momentum_dev_layout_mode') || 'responsive';
@@ -350,7 +396,9 @@ function AppContent() {
   }, [isVaultLocked]);
 
   const renderScreen = () => {
- switch (activeTab) {
+ // Preserve all existing Dark/Light component designs, but select by global appearance.
+ // Legacy deep links are translated without changing navigation identity/history.
+ switch (themedScreenId(activeTab, theme)) {
  case 'about_momentum_dark_mode': return <AboutMomentumDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'about_momentum_light_mode': return <AboutMomentumLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'add_edit_expense_dark_mode': return <AddEditExpenseDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -415,9 +463,9 @@ function AppContent() {
  case 'language_settings':
  case 'language': return isDarkMode ? <LanguageSettingsDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <LanguageSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'note_editor_dark_mode':
- case 'long_note_editor_dark_mode': return <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'long_note_editor_dark_mode': return <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'note_editor_light_mode':
- case 'long_note_editor_light_mode': return <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'long_note_editor_light_mode': return <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'more_dark_mode': return <MoreDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'more_light_mode': return <MoreLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'new_edit_tasbeeh_dark_mode': return <NewEditTasbeehDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -443,8 +491,8 @@ function AppContent() {
    return <NotificationsSettingsLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'prayer_times_dark_mode': return <PrayerTimesDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'prayer_times_light_mode': return <PrayerTimesLightMode setActiveTab={setActiveTab} goBack={goBack} />;
- case 'quick_note_editor_dark_mode': return <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
- case 'quick_note_editor_light_mode': return <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'quick_note_editor_dark_mode': return <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
+ case 'quick_note_editor_light_mode': return <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'settings_profile_dark_mode': return <SettingsProfileDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'settings_profile_light_mode': return <SettingsProfileLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'splash_screen_dark_mode': return <SplashScreenDarkMode setActiveTab={setActiveTab} goBack={goBack} />;
@@ -502,8 +550,8 @@ function AppContent() {
  case 'notes_main':
  case 'reflections': return isDarkMode ? <NotesMainDarkMode setActiveTab={setActiveTab} goBack={goBack} /> : <NotesMainLightMode setActiveTab={setActiveTab} goBack={goBack} />;
  case 'note_editor':
- case 'long_note_editor': return isDarkMode ? <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} /> : <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
- case 'quick_note_editor': return isDarkMode ? <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} /> : <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} isNew={isNewNote} />;
+ case 'long_note_editor': return isDarkMode ? <LongNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} /> : <LongNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
+ case 'quick_note_editor': return isDarkMode ? <QuickNoteEditorDarkMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} /> : <QuickNoteEditorLightMode setActiveTab={setActiveTab} goBack={goBack} route={route} noteId={routeParams?.noteId} isNew={isNewNote} />;
  case 'AttachmentDetails':
  case 'attachment_details':
  case 'note_media_attachment_viewer':
@@ -525,7 +573,7 @@ function AppContent() {
     <>
       {devLayoutMode === 'mobile_preview' && Boolean(import.meta.env.DEV) ? (
         /* ── DEV-ONLY SIMULATED MOBILE PHONE PREVIEW ── */
-        <div className="h-screen w-full flex flex-col items-center justify-center p-2 sm:p-6 relative font-sans antialiased text-on-surface overflow-hidden">
+        <div className="h-[100dvh] w-full flex flex-col items-center justify-center p-2 sm:p-6 relative font-sans antialiased text-on-surface overflow-hidden">
           <GlobalBackground isDarkMode={isDarkMode} />
 
           {/* Dev Mode Banner */}
@@ -543,14 +591,17 @@ function AppContent() {
 
           {/* Centered Realistic Mobile Phone Frame Container */}
           <div className="w-full h-full sm:h-[892px] sm:max-w-[412px] sm:rounded-[40px] sm:border-[8px] sm:border-outline-variant/40 sm:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] mx-auto relative overflow-hidden bg-transparent flex flex-col font-sans">
-            {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
-            <div className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
+            {!isAppLoading && !isVaultLocked && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
+            <div data-app-startup-status={startupStatus} data-app-startup-ready={!isAppLoading && startupStatus === 'ready'} className={`flex-1 ${isAppLoading || activeTab.includes('splash_screen') ? 'overflow-hidden overscroll-none' : 'overflow-y-auto'} relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'} ${hideBottomNav ? 'pb-0' : 'pb-32'}`}>
               <AnimatePresence mode="wait">
                 {isAppLoading ? (
-                  <SplashScreen 
-                    key="initial-app-splash"
-                    onComplete={handleSplashComplete} 
-                  />
+                  startupStatus === 'failed' ? startupFailureView : (
+                    <SplashScreen
+                      key="initial-app-splash"
+                      onComplete={handleSplashComplete}
+                      ready={startupStatus === 'ready'}
+                    />
+                  )
                 ) : (
                   <AppLockGuard>
                     <AnimatePresence mode="wait" initial={false}>
@@ -558,7 +609,7 @@ function AppContent() {
                         key={activeTab}
                         screenKey={activeTab}
                         direction={navigationDirection}
-                        className="w-full h-full flex flex-col"
+                        className="w-full min-w-0 h-full flex flex-col"
                       >
                         {renderScreen()}
                       </PageTransition>
@@ -578,8 +629,8 @@ function AppContent() {
         </div>
       ) : (
         /* ── RESPONSIVE APPLICATION SHELL (DEFAULT FOR DESKTOP, TABLET & MOBILE) ── */
-        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`w-full h-screen overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
-          {!isAppLoading && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
+        <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className={`momentum-safe-shell w-full h-[100dvh] overflow-hidden flex relative font-sans text-on-surface transition-all duration-300 ${shellLayoutClass}`}>
+          {!isAppLoading && !isVaultLocked && <PhoneWallpaperCanvas isDarkMode={isDarkMode} activeTab={activeTab} />}
 
           {/* Desktop Navigation Sidebar (Only rendered on desktop viewports: >= 1024px) */}
           {!hideBottomNav && (
@@ -598,29 +649,33 @@ function AppContent() {
           <div dir={isCurrentRtl ? 'rtl' : 'ltr'} className="flex-1 h-full overflow-hidden relative flex flex-col items-center min-w-0 transition-all duration-300 z-10">
 
             <div
+              data-app-startup-status={startupStatus} data-app-startup-ready={!isAppLoading && startupStatus === 'ready'}
               className={`flex-1 ${
                 isAppLoading || activeTab.includes('splash_screen')
                   ? 'overflow-hidden overscroll-none'
                   : 'overflow-y-auto'
               } relative no-scrollbar w-full h-full z-10 momentum-canvas-viewport font-sans ${
                 isAppLoading || activeTab.includes('splash_screen') ? '' : 'wallpaper-active'
-              } ${hideBottomNav ? 'pb-0' : sidebarPosition === 'bottom' ? 'pb-4' : 'pb-36 lg:pb-8'}`}
+              } ${hideBottomNav ? 'pb-0' : 'momentum-dock-clearance'}`}
             >
               <AnimatePresence mode="wait">
                 {isAppLoading ? (
-                  <SplashScreen 
-                    key="initial-app-splash"
-                    onComplete={handleSplashComplete} 
-                  />
+                  startupStatus === 'failed' ? startupFailureView : (
+                    <SplashScreen
+                      key="initial-app-splash"
+                      onComplete={handleSplashComplete}
+                      ready={startupStatus === 'ready'}
+                    />
+                  )
                 ) : (
                   <AppLockGuard>
-                    <div className="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto flex-1 flex flex-col items-center px-0 lg:px-6 xl:px-8 py-0 lg:py-4">
+                    <div className="w-full min-w-0 max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto flex-1 flex flex-col items-center px-0 lg:px-6 xl:px-8 py-0 lg:py-4">
                       <AnimatePresence mode="wait" initial={false}>
                         <PageTransition
                           key={activeTab}
                           screenKey={activeTab}
                           direction={navigationDirection}
-                          className="w-full flex-1 flex flex-col"
+                          className="w-full min-w-0 flex-1 flex flex-col"
                         >
                           {renderScreen()}
                         </PageTransition>
@@ -645,11 +700,75 @@ function AppContent() {
         </div>
       )}
 
+      {taskStorageFailure && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="task-storage-conflict"
+          className="fixed z-[10000] top-3 left-3 right-3 mx-auto max-w-xl rounded-2xl border border-amber-500 bg-slate-950 text-white shadow-2xl p-4 flex flex-col gap-3"
+        >
+          <p className="font-semibold text-sm">
+            {t('storage.taskConflictTitle', 'Task changes could not be saved safely')}
+          </p>
+          <p className="text-sm text-slate-200">
+            {taskStorageFailure.code === 'TASK_WRITE_CONFLICT'
+              ? t('storage.taskConflictBody', 'Another Momentum tab saved newer tasks. Your latest task edit in this tab was not saved. Copy any unsaved work before reloading to view the durable tasks.')
+              : t('storage.taskStorageFailureBody', 'Task storage is unavailable or requires a safe reload. Your latest task edit may not have been saved. Do not clear app storage.')}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-amber-400 text-slate-950 font-semibold px-4 py-2 text-sm self-start"
+          >
+            {t('storage.reloadSavedTasks', 'Reload saved tasks')}
+          </button>
+        </div>
+      )}
+
+      {domainStorageFailure && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          data-testid="domain-storage-conflict"
+          className="fixed z-[10001] top-3 left-3 right-3 mx-auto max-w-xl rounded-2xl border border-amber-500 bg-slate-950 text-white shadow-2xl p-4 flex flex-col gap-3"
+        >
+          <p className="font-semibold text-sm">
+            {domainStorageFailure.domain === 'momentum-finance-storage'
+              ? t('storage.financeConflictTitle', 'Finance changes could not be saved safely')
+              : domainStorageFailure.domain === 'momentum-calendar-storage-v1'
+                ? t('storage.calendarConflictTitle', 'Calendar changes could not be saved safely')
+                : domainStorageFailure.domain === 'momentum-tasbeeh-storage'
+                  ? t('storage.tasbeehConflictTitle', 'Tasbeeh changes could not be saved safely')
+                  : domainStorageFailure.domain === 'momentum-routine-storage'
+                    ? t('storage.routineConflictTitle', 'Routine changes could not be saved safely')
+                    : domainStorageFailure.domain === 'momentum-prayer-storage'
+                      ? t('storage.prayerConflictTitle', 'Prayer changes could not be saved safely')
+                      : domainStorageFailure.domain === 'momentum-profile-storage'
+                        ? t('storage.profileConflictTitle', 'Profile changes could not be saved safely')
+                        : domainStorageFailure.domain === 'momentum-security-storage'
+                          ? t('storage.securityConflictTitle', 'Security settings could not be saved safely')
+                          : t('storage.notesConflictTitle', 'Notes changes could not be saved safely')}
+          </p>
+          <p className="text-sm text-slate-200">
+            {domainStorageFailure.code === 'DOMAIN_WRITE_CONFLICT'
+              ? t('storage.domainConflictBody', 'Another Momentum tab saved newer data. Your latest edit in this tab was not saved. Copy unsaved work before reloading to see committed data.')
+              : t('storage.domainFailureBody', 'Storage is unavailable or the save failed. Your latest edit may not be saved. Do not clear the app\'s site data.')}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-amber-400 text-slate-950 font-semibold px-4 py-2 text-sm self-start"
+          >
+            {t('storage.reloadCommittedData', 'Reload saved data')}
+          </button>
+        </div>
+      )}
+
       {/* Universal Top-Center In-App Toast Viewport */}
-      <ToastViewport />
+      {!isVaultLocked && <ToastViewport />}
 
       {/* Universal Momentum Confirmation & Prompt Dialog Viewport */}
-      <ConfirmationViewport />
+      {!isVaultLocked && <ConfirmationViewport />}
 
       {/* On-Demand Developer Screen Navigator Modal (Strictly isolated to dev mode) */}
       {Boolean(import.meta.env.DEV) && (
@@ -667,7 +786,7 @@ function AppContent() {
       )}
 
       {/* Wallpaper Engine Modal */}
-      {isWallpaperSelectorOpen && (
+      {isWallpaperSelectorOpen && !isVaultLocked && (
         <WallpaperSelector 
           isDarkMode={isDarkMode} 
           onClose={() => setIsWallpaperSelectorOpen(false)} 
@@ -678,31 +797,34 @@ function AppContent() {
 }
 
 export default function App() {
-  const { t } = useTranslation();
-  const [, setHasHydrated] = useState(false);
+  const [startupStatus, setStartupStatus] = useState('loading');
 
   useEffect(() => {
+    let active = true;
     async function hydrateStores() {
       try {
         await hydrateAllStores();
-        // Reconcile and schedule pending alerts after stores are hydrated
-        scheduleAllActiveNotifications().catch(() => {});
+        if (!active) return;
+        setStartupStatus('ready');
+        // Only schedule notifications when persisted data is confirmed loaded.
+        startNativeReminderSynchronization();
+        scheduleAllActiveNotifications().catch((error) => {
+          console.warn('[Momentum Startup] Notification scheduling warning:', error);
+        });
       } catch (err) {
-        console.warn('[Momentum Hydration] Error:', err);
-      } finally {
-        setHasHydrated(true);
+        console.warn('[Momentum Startup] Safe hydration failed:', err);
+        if (active) setStartupStatus('failed');
       }
     }
     hydrateStores();
     initializeNativeLifecycle();
+    return () => { active = false; };
   }, []);
-
-  // Stores rehydrate in background while initial SplashScreen animates
 
   return (
     <ThemeProvider>
       <WallpaperProvider>
-        <AppContent />
+        <AppContent startupStatus={startupStatus} />
       </WallpaperProvider>
     </ThemeProvider>
   );

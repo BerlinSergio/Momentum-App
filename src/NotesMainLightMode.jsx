@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import NotePreviewCard from './components/NotePreviewCard';
 import NewNoteFloatingMenu from './components/NewNoteFloatingMenu';
@@ -70,6 +72,21 @@ export default function NotesMainLightMode({ setActiveTab }) {
   const quickNotes = filteredNotes.filter((n) => n.type === 'quick' || (!n.type && n.type !== 'long'));
   const longNotes = filteredNotes.filter((n) => n.type === 'long');
 
+  const pendingArchiveIds = useRef(new Set());
+  const handleArchiveChange = async (note, archive) => {
+    if (pendingArchiveIds.current.has(note.id)) return;
+    pendingArchiveIds.current.add(note.id);
+    try {
+      const saved = await (archive ? archiveNote(note.id) : unarchiveNote(note.id));
+      if (saved !== true) throw Error('Archive change not committed');
+      toast.success(archive ? t('toasts.noteArchived', 'Note archived') : t('toasts.noteRestored', 'Note restored from archive'));
+    } catch {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {
+      pendingArchiveIds.current.delete(note.id);
+    }
+  };
+
   const handleOpenNote = (note) => {
     if (setActiveNoteId) setActiveNoteId(note.id);
     const isQuick = note.type === 'quick' || (!note.type && note.type !== 'long');
@@ -78,9 +95,9 @@ export default function NotesMainLightMode({ setActiveTab }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-36">
+    <div className="min-h-0 bg-slate-50 font-sans pb-16">
       {/* 1. TOP HEADER (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false} className="lg:hidden">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <PenTool className="w-5 h-5 text-white"/>
@@ -90,7 +107,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
           </h1>
         </div>
         <UserAvatar setActiveTab={setActiveTab} />
-      </div>
+      </MomentumGlassHeader>
 
       <div className="px-5 lg:px-0 mt-6 mb-3">
         <div className="w-full flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
@@ -171,10 +188,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
                     key={note.id}
                     note={note}
                     onOpen={handleOpenNote}
-                    onArchive={(n) => {
-                      archiveNote(n.id);
-                      toast.success(t('toasts.noteArchived', 'Note archived'));
-                    }}
+                    onArchive={(n) => handleArchiveChange(n, true)}
                     isDarkMode={false}
                   />
                 ))}
@@ -202,10 +216,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
                     key={note.id}
                     note={note}
                     onOpen={handleOpenNote}
-                    onArchive={(n) => {
-                      archiveNote(n.id);
-                      toast.success(t('toasts.noteArchived', 'Note archived'));
-                    }}
+                    onArchive={(n) => handleArchiveChange(n, true)}
                     isDarkMode={false}
                   />
                 ))}
@@ -238,7 +249,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
       </div>
 
       {/* 6. PREMIUM EXTENDED FLOATING NEW NOTE FAB & COMPACT POPOVER */}
-      <div className="fixed bottom-24 right-5 z-50">
+      {createPortal(<div className="fixed bottom-[calc(6rem+var(--momentum-inset-bottom))] right-[calc(1.25rem+var(--momentum-inset-right))] z-[70]" data-testid="note-fab-layer">
         {/* Floating Pop-up Menu */}
         <NewNoteFloatingMenu
           isOpen={isMenuOpen}
@@ -251,6 +262,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
         {/* FAB Button */}
         <button
           type="button"
+          data-testid="fab-new-note-btn"
           onClick={() => setIsMenuOpen((prev) => !prev)}
           aria-label="New Note"
           aria-expanded={isMenuOpen}
@@ -261,13 +273,13 @@ export default function NotesMainLightMode({ setActiveTab }) {
           <PenTool className={`w-4 h-4 stroke-[2.2] text-white transition-transform duration-200 ${isMenuOpen ? 'rotate-45' : 'group-hover:rotate-6'}`}/>
           <span>{t('notes.newNote', 'New Note')}</span>
         </button>
-      </div>
+      </div>, document.body)}
 
       {/* 7. INTERACTIVE ARCHIVE DRAWER MODAL */}
-      {isArchiveOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      {isArchiveOpen && createPortal(
+        <div className="momentum-picker-overlay flex items-end justify-center">
           <div onClick={() => setIsArchiveOpen(false)} className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity cursor-pointer" />
-          <div className="relative z-10 w-full max-w-md max-h-[85vh] bg-white border-t border-slate-200 rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4 animate-in slide-in-from-bottom duration-200">
+          <div role="dialog" aria-modal="true" aria-label={t('notes.archivedNotes', 'Archived Notes & Journals')} className="momentum-picker-panel relative z-10 w-full max-w-md bg-white border-t border-slate-200 rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4 animate-in slide-in-from-bottom duration-200">
             <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto shrink-0 mb-1" />
             
             <div className="flex items-center justify-between shrink-0">
@@ -311,10 +323,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
                       setIsArchiveOpen(false);
                       handleOpenNote(n);
                     }}
-                    onArchive={(n) => {
-                      unarchiveNote(n.id);
-                      toast.success(t('toasts.noteRestored', 'Note restored from archive'));
-                    }}
+                    onArchive={(n) => handleArchiveChange(n, false)}
                     isDarkMode={false}
                   />
                 ))}
@@ -328,7 +337,7 @@ export default function NotesMainLightMode({ setActiveTab }) {
               Back to Notes Dashboard
             </button>
           </div>
-        </div>
+        </div>, document.body
       )}
 
     </div>

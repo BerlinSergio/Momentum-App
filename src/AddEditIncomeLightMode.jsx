@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useFinanceStore } from './store/useFinanceStore';
@@ -85,16 +86,22 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
     }
   };
 
-  const handleSave = (e) => {
+  const saveInFlight = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
+    if (saveInFlight.current) return;
     const numericAmount = parseFloat(String(amount).replace(/,/g, '')) || 0;
     if (numericAmount <= 0) {
       toast.error(t('toasts.validIncomeAmount', 'Please enter a valid income amount'));
       return;
     }
+    saveInFlight.current = true;
+    setIsSaving(true);
+    try {
     const title = payerName.trim() || `${incomeSource} Income`;
     if (editingIncome && updateIncome) {
-      updateIncome({
+      await updateIncome({
         ...editingIncome,
         amount: numericAmount,
         category: incomeSource,
@@ -107,10 +114,10 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
         notes: memo.trim(),
         note: memo.trim(),
       });
-      if (setEditingIncome) setEditingIncome(null);
+      if (setEditingIncome) await setEditingIncome(null);
       toast.success(t('toasts.incomeUpdated', 'Income updated successfully'));
     } else {
-      addTransaction({
+      await addTransaction({
         id: Date.now(),
         amount: numericAmount,
         category: incomeSource,
@@ -129,6 +136,13 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
       goBack('income_management_light_mode');
     } else if (setActiveTab) {
       setActiveTab('income_management_light_mode');
+    }
+    } catch (error) {
+      console.error('[Finance] Save failed:', error);
+      toast.error(t('storage.financeConflictTitle', 'Finance changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -198,7 +212,7 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Wallet className="w-5 h-5 text-white" />
@@ -219,7 +233,7 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <main className="flex-1 w-full bg-surface pb-safe px-4 lg:px-8 pt-2">
         <div className="w-full max-w-md lg:max-w-5xl mx-auto pb-28 flex flex-col select-none">
@@ -478,7 +492,7 @@ export default function AddEditIncomeLightMode({ setActiveTab, goBack }) {
               <div className="rounded-3xl p-5 space-y-3 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg w-full">
                 {/* Radiant Primary Button */}
                 <button 
-                  onClick={handleSave}
+                  onClick={handleSave} disabled={isSaving}
                   className="btn-primary w-full h-12 text-sm font-bold shadow-md cursor-pointer select-none !bg-emerald-600 hover:!bg-emerald-700 flex items-center justify-center gap-2" 
                   id="save-income-btn" 
                   type="button"

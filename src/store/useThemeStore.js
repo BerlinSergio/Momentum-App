@@ -9,7 +9,6 @@ import {
 } from '../data/defaultWallpapers.js';
 import {
   saveWallpaperToIndexedDB,
-  sanitizeAndHydrateWallpaperStorage,
 } from '../utils/wallpaperStorage.js';
 import { createIndexedDbStorage } from '../storage/index.js';
 
@@ -219,10 +218,14 @@ export const useThemeStore = create(
       blurIntensity: 18,
       syncWithDarkMode: true,
       dimWallpaper: true,
-      activeBackgroundId: 'bg-04-serene-horizon',
+      activeBackgroundId: 'none',
       customWallpaper: null,
       wallpapers: BACKGROUND_LIBRARY,
-      downloadedWallpapers: DOWNLOADED_WALLPAPERS_BATCH,
+      downloadedWallpapers: [],
+      wallpaperSeenIds: [],
+      wallpaperPendingPackId:null,
+      wallpaperGuideDismissed: false,
+      dismissWallpaperGuide: () => set({wallpaperGuideDismissed:true}),
       _hasHydrated: false,
 
       setHasHydrated: (hasHydrated) =>
@@ -315,14 +318,12 @@ export const useThemeStore = create(
           };
         }),
 
-      setDownloadedWallpapers: (downloadedWallpapers) =>
+      setDownloadedWallpapers: (downloadedWallpapers, newSourceIds=[], wallpaperPendingPackId=null) =>
         set((state) => {
           const list = Array.isArray(downloadedWallpapers) ? downloadedWallpapers : state.downloadedWallpapers;
-          return {
-            ...state,
-            wallpapers: list,
-            downloadedWallpapers: list,
-          };
+          const curated = [...BACKGROUND_LIBRARY, ...(state.wallpapers || []).filter(wp => !wp.id?.startsWith('dl-') && !BACKGROUND_LIBRARY.some(base=>base.id===wp.id))];
+          const wallpaperSeenIds=[...new Set([...(state.wallpaperSeenIds||[]),...newSourceIds])];
+          return {...state, wallpapers:[...curated,...list], downloadedWallpapers:list,wallpaperSeenIds,wallpaperPendingPackId};
         }),
 
       loadDownloadedBatch: (batchPrefix) =>
@@ -375,10 +376,10 @@ export const useThemeStore = create(
             blurIntensity: 18,
             syncWithDarkMode: true,
             dimWallpaper: true,
-            activeBackgroundId: 'bg-04-serene-horizon',
+            activeBackgroundId: 'none',
             customWallpaper: null,
             wallpapers: BACKGROUND_LIBRARY,
-            downloadedWallpapers: DOWNLOADED_WALLPAPERS_BATCH,
+            downloadedWallpapers: [],
           };
           applyAppearanceToDOM(defaults);
           return defaults;
@@ -390,44 +391,13 @@ export const useThemeStore = create(
       skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
-          state.setHasHydrated(true);
           applyAppearanceToDOM(state);
-          sanitizeAndHydrateWallpaperStorage(useThemeStore);
         }
       },
     }
   )
 );
 
-// Eagerly initialize DOM and store on first module import in client
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum_appearance_settings_v1');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        useThemeStore.setState({
-          ...parsed.state,
-          wallpapers: Array.isArray(parsed.state.wallpapers) && parsed.state.wallpapers.length > 0
-            ? parsed.state.wallpapers
-            : (Array.isArray(parsed.state.downloadedWallpapers) && parsed.state.downloadedWallpapers.length > 0
-                ? parsed.state.downloadedWallpapers
-                : BACKGROUND_LIBRARY),
-          _hasHydrated: false,
-        });
-        applyAppearanceToDOM(parsed.state);
-      } else {
-        useThemeStore.setState({ _hasHydrated: false });
-        applyAppearanceToDOM(useThemeStore.getState());
-      }
-    } else {
-      useThemeStore.setState({ _hasHydrated: false });
-      applyAppearanceToDOM(useThemeStore.getState());
-    }
-    // Startup sanitization of dead blobs and restoration from IndexedDB
-    sanitizeAndHydrateWallpaperStorage(useThemeStore);
-  } catch {
-    useThemeStore.setState({ _hasHydrated: false });
-    applyAppearanceToDOM(useThemeStore.getState());
-  }
-}
+// No eager Zustand writes before migration/hydration. The IndexedDB
+// snapshot (not a possibly stale or quota-limited localStorage mirror)
+// remains authoritative for offline wallpaper bytes and appearance.

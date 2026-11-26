@@ -1,4 +1,7 @@
+import {DailyReflectionCard} from './components/DailyInspirationPanel.jsx';
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import React, { useState } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useTasbeehStore } from './store/useTasbeehStore';
@@ -11,9 +14,10 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { historyLogs, currentCount, dailyGoal, clearHistory, setActivePreset } = useTasbeehStore();
-  const { effectiveTimezone, currentDateKey, currentMonthKey, isToday, isYesterday } = useAppTime();
+  const { now, effectiveTimezone, currentDateKey, currentMonthKey, isToday, isYesterday } = useAppTime();
   const [activeFilter, setActiveFilter] = useState('Today');
 
   // Filter logs dynamically based on the active timeframe tab
@@ -31,7 +35,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
     if (activeFilter === 'This Week') {
       const logKey = getLocalDateKey(log.date, effectiveTimezone);
       const diffDays = getCalendarDaysDiff(logKey, currentDateKey);
-      return diffDays >= 0 && diffDays <= 7;
+      return diffDays >= 0 && diffDays < 7;
     }
 
     if (activeFilter === 'This Month') {
@@ -48,16 +52,23 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
   const baselineGoal = dailyGoal || 1000;
   const targetGoal = activeFilter === 'Today' ? baselineGoal : activeFilter === 'This Week' ? baselineGoal * 7 : activeFilter === 'This Month' ? baselineGoal * 30 : baselineGoal;
   const goalPercentage = targetGoal > 0 ? Math.min(999, Math.round((totalRecited / targetGoal) * 100)) : 0;
-  const targetSessions = activeFilter === 'Today' ? 'Target 6' : activeFilter === 'This Week' ? 'Target 30' : activeFilter === 'This Month' ? 'Target 120' : 'Target 6';
+  const targetSessions = t('tasbeeh.completedSessions','Recorded sessions');
 
+  // Count real calendar days with recorded dhikr, not a sample streak.
+  const activeDays=[...new Set((historyLogs||[]).filter(log=>Number(log.count)>0&&log.date&&!Number.isNaN(new Date(log.date).getTime())).map(log=>getLocalDateKey(log.date,effectiveTimezone)))];
+  if(Number(currentCount)>0&&!activeDays.includes(currentDateKey))activeDays.push(currentDateKey);
+  const dayOffsets=[...new Set(activeDays.map(key=>getCalendarDaysDiff(key,currentDateKey)).filter(n=>Number.isFinite(n)&&n>=0))].sort((a,b)=>a-b);
+  let activeStreak=0,bestStreak=0,run=0,previous=null;
+  for(const n of dayOffsets){run=previous!==null&&n===previous+1?run+1:1;bestStreak=Math.max(bestStreak,run);previous=n;}
+  if(dayOffsets.length&&dayOffsets[0]<=1){activeStreak=1;for(let i=1;i<dayOffsets.length&&dayOffsets[i]===dayOffsets[i-1]+1;i++)activeStreak++;}
   const formatLogDate = (dateStr) => {
-    if (!dateStr) return 'Today • 08:45 PM';
+    if (!dateStr) return t('common.unknown','Unknown');
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'Today • 08:45 PM';
+    if (isNaN(d.getTime())) return t('common.unknown','Unknown');
 
     const timeStr = formatTime(d, false, effectiveTimezone);
-    if (isToday(d)) return `Today • ${timeStr}`;
-    if (isYesterday(d)) return `Yesterday • ${timeStr}`;
+    if (isToday(d)) return t('common.today','Today')+' • '+digits(timeStr);
+    if (isYesterday(d)) return t('common.yesterday','Yesterday')+' • '+digits(timeStr);
     return `${formatDate(d, { month: 'short', day: 'numeric' }, effectiveTimezone)} • ${timeStr}`;
   };
 
@@ -68,7 +79,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
       <div className="flex-1 pb-40">
         
         {/* 1. TOP HEADER BAR */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={false}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
               <History className="w-5 h-5 text-white" />
@@ -89,7 +100,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* 2. SUB-BAR: DATE & DESCRIPTION */}
         <div className="px-5 pt-2 pb-3">
@@ -127,7 +138,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
 
           <div className="pt-0.5">
             <div className="flex items-baseline gap-2">
-              <h2 className="text-3xl font-bold text-primary">{totalRecited.toLocaleString()}</h2>
+              <h2 className="text-3xl font-bold text-primary">{digits(totalRecited.toLocaleString())}</h2>
               <span className="text-xs font-medium text-slate-500">{t('tasbeeh.dhikrCompleted', 'dhikr completed')}</span>
             </div>
           </div>
@@ -136,18 +147,18 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
             <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.sessions', 'Sessions')}</span>
-              <span className="text-sm font-bold text-slate-900 mt-0.5 block">{sessionCount}</span>
+              <span className="text-sm font-bold text-slate-900 mt-0.5 block">{digits(sessionCount)}</span>
               <span className="text-[10px] text-slate-500 block">{targetSessions}</span>
             </div>
             <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.activeStreak', 'Active Streak')}</span>
-              <span className="text-sm font-bold text-slate-900 mt-0.5 block">14d 🔥</span>
-              <span className="text-[10px] text-slate-500 block">{t('tasbeeh.personalBest', 'Personal best')}</span>
+              <span className="text-sm font-bold text-slate-900 mt-0.5 block" data-testid="tasbeeh-active-streak">{digits(activeStreak)} {t('common.days','Days')}</span>
+              <span className="text-[10px] text-slate-500 block">{t('tasbeeh.personalBest', 'Personal best')}: {digits(bestStreak)}</span>
             </div>
             <div className="p-2.5 rounded-2xl text-center bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
               <span className="text-[10px] font-medium text-slate-400 block">{t('tasbeeh.goalMet', 'Goal Met')}</span>
-              <span className="text-sm font-bold text-teal-600 mt-0.5 block">{goalPercentage}%</span>
-              <span className="text-[10px] text-slate-500 block">{targetGoal.toLocaleString()} {t('tasbeeh.baseline', 'baseline')}</span>
+              <span className="text-sm font-bold text-teal-600 mt-0.5 block">{digits(goalPercentage)}%</span>
+              <span className="text-[10px] text-slate-500 block">{digits(targetGoal.toLocaleString())} {t('tasbeeh.baseline', 'baseline')}</span>
             </div>
           </div>
 
@@ -178,7 +189,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>{t('tasbeeh.timeline', 'Timeline')}</h3>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 border border-primary/20 text-slate-900" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.15)' }}>
-              {sessionCount} {t('tasbeeh.recorded', 'Recorded')}
+              {digits(sessionCount)} {t('tasbeeh.recorded', 'Recorded')}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -271,18 +282,7 @@ export default function TasbeehHistoryLightMode({ setActiveTab, goBack }) {
           })
         )}
 
-        {/* Quote Card */}
-        <div className="block mx-5 mb-4 p-5 rounded-3xl space-y-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg">
-          <div className="w-8 h-8 rounded-full bg-white text-primary flex items-center justify-center shadow-2xs">
-            <Quote className="w-4 h-4"/>
-          </div>
-          <p className="text-xs font-medium italic text-slate-900 leading-relaxed">
-            {t('tasbeeh.spiritualPeaceQuote', 'The remembrance of Allah brings peace to the heart.')}
-          </p>
-          <span className="text-[11px] font-normal text-primary block text-right">
-            — {t('tasbeeh.surahRadAyah', 'Surah Ar-Ra\'d 13:28')}
-          </span>
-        </div>
+        <div className="mx-5"><DailyReflectionCard date={now} timeZone={effectiveTimezone}/></div>
 
         {/* Action Button (In-flow, clean spacing above bottom nav) */}
         <div className="mx-5 pt-2">

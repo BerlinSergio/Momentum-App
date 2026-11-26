@@ -1,4 +1,6 @@
+import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import React, { useState } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useTasbeehStore } from './store/useTasbeehStore';
@@ -8,6 +10,7 @@ import {
 } from 'lucide-react';
 
 export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
+  const digits=useDisplayDigits();
   const { t } = useTranslation();
   const { 
     keepAwakeEnabled, 
@@ -69,7 +72,7 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between select-none relative">
       <div className="flex-1">
         {/* Top Header Bar */}
-        <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+        <MomentumGlassHeader isDarkMode={true}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
               <SlidersHorizontal className="w-5 h-5 text-white" />
@@ -89,7 +92,7 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
             setActiveTab={setActiveTab} 
           />
           </div>
-        </div>
+        </MomentumGlassHeader>
 
         {/* Counter Behavior Card */}
         <div className="block mx-5 mb-5 p-5 rounded-3xl space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
@@ -205,7 +208,7 @@ export default function TasbeehSettingsDarkMode({ setActiveTab, goBack }) {
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold bg-primary/20 border border-primary/30 text-primary shadow-sm">
             <CheckCircle2 className="w-3.5 h-3.5 text-primary"/>
             <Sparkles className="w-3.5 h-3.5 text-amber-400"/>
-            <span>{t('tasbeeh.targetReached', 'TARGET REACHED')} • {activePreset?.target || 33} OF {activePreset?.target || 33}</span>
+            <span>{t('tasbeeh.targetReached',{defaultValue:'TARGET REACHED • {{current}} OF {{target}}',current:digits(activePreset?.target||33),target:digits(activePreset?.target||33)})}</span>
           </div>
 
           <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-primary to-primary-container text-white flex items-center justify-center mx-auto shadow-lg shadow-black/40 ring-4 ring-slate-800">

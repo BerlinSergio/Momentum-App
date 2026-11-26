@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { useThemeStore } from '../store/useThemeStore.js';
 /**
  * Momentum Motion Hook — useAppMotion
  * 
@@ -11,7 +13,9 @@ import { DURATION, EASING, SPRINGS } from './motionTokens.js';
 
 export function useAppMotion() {
   const systemReducedMotion = useReducedMotion();
-  const shouldReduceMotion = Boolean(systemReducedMotion);
+  const gentleTransitions = useThemeStore(s=>s.gentleTransitions);
+  const shouldReduceMotion = Boolean(systemReducedMotion) || gentleTransitions===false;
+  const nativeAndroid = Capacitor.getPlatform()==='android';
 
   /**
    * Resolves appropriate page animation variants based on direction
@@ -19,8 +23,9 @@ export function useAppMotion() {
    */
   const getPageVariants = (direction = 'tab') => {
     if (shouldReduceMotion) {
-      return pageVariants.reduced;
+      return {initial:{opacity:1},animate:{opacity:1,transition:{duration:0}},exit:{opacity:1,transition:{duration:0}}};
     }
+    if (nativeAndroid) return {initial:{opacity:0.92},animate:{opacity:1,transition:{duration:0.1}},exit:{opacity:0.92,transition:{duration:0.06}}};
     return pageVariants[direction] || pageVariants.tab;
   };
 

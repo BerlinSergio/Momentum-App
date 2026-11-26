@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getShamsiDate, findFirstDayOfShamsiMonth, getHijriDateParts, hijriToGregorian } from '../utils/afghanCalendar.js';
 import { createIndexedDbStorage } from '../storage/index.js';
 
-const calendarStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-calendar-storage-v1' });
+const calendarStorage = createIndexedDbStorage({
+  legacyLocalStorageKey: 'momentum-calendar-storage-v1',
+  optimisticDomains: ['momentum-calendar-storage-v1'],
+});
 const getSafeStorage = () => calendarStorage;
 
 const initialEvents = [
@@ -534,38 +537,19 @@ export const useCalendarStore = create(
     {
       name: 'momentum-calendar-storage-v1',
       storage: createJSONStorage(() => getSafeStorage()),
+      skipHydration: true,
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
           if (!Array.isArray(state.events)) {
             state.events = [];
           }
-          state.setHasHydrated(true);
+          // Central startup coordinator marks hydration complete; avoid
+          // an extra whole-domain write from this callback.
         }
       },
     }
   )
 );
 
-// Eagerly rehydrate synchronously if in browser to prevent initial render flicker
-if (typeof window !== 'undefined') {
-  try {
-    const raw = localStorage.getItem('momentum-calendar-storage-v1');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.state) {
-        const events = Array.isArray(parsed.state.events) ? parsed.state.events : [];
-        useCalendarStore.setState({
-          ...parsed.state,
-          events,
-          _hasHydrated: true,
-        });
-      } else {
-        useCalendarStore.setState({ events: [], _hasHydrated: true });
-      }
-    } else {
-      useCalendarStore.setState({ events: [], _hasHydrated: true });
-    }
-  } catch {
-    useCalendarStore.setState({ events: [], _hasHydrated: true });
-  }
-}
+// Legacy localStorage mirrors are never authoritative. runStorageMigration
+// handles any one-time legacy import before coordinated IndexedDB hydration.

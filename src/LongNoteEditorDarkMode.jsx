@@ -1,10 +1,12 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps, no-unused-vars */
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef, useMemo, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import { useNotesStore } from './store/useNotesStore';
 import { useNavigationStore } from './store/useNavigationStore';
 import { saveAttachmentFile } from './storage/index.js';
+import { sanitizeNoteHtml, pasteSafeNoteContent } from './utils/safeNoteHtml.js';
 import { toast } from './components/ui/toast/index.js';
 import { confirm } from './components/ui/confirmation/index.js';
 import {
@@ -62,7 +64,8 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
         attachments: []
       };
     }
-    const found = notes.find((n) => n.id === effectiveNoteId && n.type === 'long') || notes.find((n) => n.id === effectiveNoteId);
+    const idStr = String(effectiveNoteId);
+    const found = notes.find((n) => String(n.id) === idStr && n.type === 'long') || notes.find((n) => String(n.id) === idStr);
     if (found) return found;
     return {
       id: 'new',
@@ -146,6 +149,8 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     setSection2Title('');
     setSection2Body('');
     setMilestones([]);
+    setAttachments([]);
+    setIsPinned(false);
   };
 
   useEffect(() => {
@@ -171,12 +176,22 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
       setSection2Body(currentNote.section2Body || '');
       setTags(currentNote.tags || []);
       setMilestones(currentNote.milestones || []);
+      setAttachments(currentNote.attachments || []);
+      setIsPinned(Boolean(currentNote.isPinned));
       if (editorRef.current && (editorRef.current.innerHTML !== currentNote.body)) {
-        editorRef.current.innerHTML = currentNote.body || '';
+        editorRef.current.innerHTML = sanitizeNoteHtml(currentNote.body);
       }
       setIsEditing(false);
     }
   }, [route?.params?.noteId, route?.params?.isNew, propNoteId, storeNoteId, currentNote?.id, isNew]);
+
+  // Initialize the uncontrolled contentEditable when entering edit mode.
+  // Rewriting on each input would disturb the caret and undo history.
+  useEffect(() => {
+    if (isEditing && editorRef.current) editorRef.current.innerHTML = sanitizeNoteHtml(body);
+  }, [isEditing]);
+
+  const safeBody = useMemo(() => isEditing ? '' : sanitizeNoteHtml(body), [body, isEditing]);
 
   const displayDate = useMemo(() => {
     if (currentNote.date && currentNote.date.includes('•')) {
@@ -333,6 +348,11 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
   const handleInsertEditorImage = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!/^image\/(png|jpeg|gif|webp|bmp)$/i.test(file.type) || file.size > 50 * 1024 * 1024) {
+      toast.error(t('notes.unsupportedInlineImage','Choose a PNG, JPEG, GIF, WebP or BMP image up to 50 MB.'));
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       const imgUrl = uploadEvent.target?.result;
@@ -356,75 +376,68 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     if (editorImageInputRef.current) editorImageInputRef.current.value = '';
   };
 
+  // This is dictation, not audio-file recording. Never invent a transcript.
+  const stopDictation = () => {
+    const rec=recognitionRef.current;
+    recognitionRef.current=null;
+    if(rec) {
+      rec.onresult=null; rec.onerror=null; rec.onend=null; rec.onstart=null;
+      try {rec.abort();} catch {}
+    }
+    setIsRecording(false);
+  };
+  useEffect(()=>{
+    const onHidden=()=>{if(document.hidden)stopDictation();};
+    document.addEventListener('visibilitychange',onHidden);
+    return ()=>{
+      document.removeEventListener('visibilitychange',onHidden);
+      const rec=recognitionRef.current;
+      recognitionRef.current=null;
+      if(rec){rec.onresult=null;rec.onerror=null;rec.onend=null;rec.onstart=null;try{rec.abort();}catch{}}
+    };
+  },[effectiveNoteId]);
+  useEffect(()=>{if(!isEditing)stopDictation();},[isEditing]);
+
   const handleToggleVoice = (e) => {
     e.preventDefault();
-    if (isRecording) {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (err) { /* ignore */ } 
-      }
-      setIsRecording(false);
-      showToast(t('toasts.voiceMemoStopped', 'Voice memo stopped'));
+    if(recognitionRef.current) {
+      try {recognitionRef.current.stop();}
+      catch {stopDictation();}
       return;
     }
-    setIsRecording(true);
-    showToast(t('toasts.recordingVoiceMemo', 'Recording voice memo...'));
-    const SpeechRec = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (SpeechRec) {
-      try {
-        const rec = new SpeechRec();
-        rec.continuous = true;
-        rec.interimResults = false;
-        rec.lang = 'en-US';
-        let speechReceived = false;
-        rec.onstart = () => {
-          showToast(t('toasts.listeningSpeakNow', 'Listening... Speak now'));
-        };
-        rec.onresult = (evt) => {
-          speechReceived = true;
-          const results = Array.from(evt.results);
-          const transcript = results.map((r) => r[0].transcript).join(' ');
-          if (transcript && editorRef.current) {
-            editorRef.current.focus();
-            document.execCommand('insertText', false, ' ' + transcript);
-            setBody(editorRef.current.innerHTML);
-          }
-        };
-        rec.onerror = () => {
-          if (!speechReceived) {
-            setTimeout(() => {
-              if (editorRef.current) {
-                editorRef.current.focus();
-                document.execCommand('insertText', false, ' [Voice Note: 15-minute Fajr reflection completed with calm focus.]');
-                setBody(editorRef.current.innerHTML);
-              }
-              setIsRecording(false);
-              showToast(t('toasts.voiceMemoTranscribed', 'Voice memo transcribed'));
-            }, 1800);
-          } else {
-            setIsRecording(false);
-          }
-        };
-        rec.onend = () => {
-          if (speechReceived) {
-            setIsRecording(false);
-          }
-        };
-        recognitionRef.current = rec;
-        rec.start();
-        return;
-      } catch {
-        // Fallback simulation below
-      }
-    }
-    setTimeout(() => {
-      if (editorRef.current) {
-        editorRef.current.focus();
-        document.execCommand('insertText', false, ' [Voice Note: 15-minute Fajr reflection completed with calm focus.]');
-        setBody(editorRef.current.innerHTML);
-      }
-      setIsRecording(false);
-      showToast(t('toasts.voiceMemoTranscribed', 'Voice memo transcribed'));
-    }, 1800);
+    const SpeechRec=window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRec){toast.error(t('notes.dictationUnavailable','Voice dictation is unavailable on this device. You can type or attach an audio file.'));return;}
+    try{
+      const rec=new SpeechRec();
+      recognitionRef.current=rec;
+      rec.continuous=true;
+      rec.interimResults=false;
+      rec.lang=document.documentElement.lang || navigator.language || 'en-US';
+      let committedResults=0;
+      const active=()=>recognitionRef.current===rec && !document.hidden;
+      const finish=()=>{if(recognitionRef.current===rec){recognitionRef.current=null;setIsRecording(false);}};
+      rec.onstart=()=>{if(active())toast.info(t('toasts.listeningSpeakNow','Listening... Speak now'));};
+      rec.onresult=evt=>{
+        if(!active()||!editorRef.current)return;
+        // Results are cumulative. Append only new, final segments.
+        const parts=[];
+        for(let index=committedResults;index<evt.results.length;index++){
+          const result=evt.results[index];
+          if(!result.isFinal)break;
+          if(result[0]?.transcript?.trim())parts.push(result[0].transcript.trim());
+          committedResults=index+1;
+        }
+        if(parts.length){
+          editorRef.current.focus();
+          document.execCommand('insertText',false,' '+parts.join(' '));
+          setBody(editorRef.current.innerHTML);
+        }
+      };
+      rec.onerror=()=>{if(active())toast.error(t('notes.dictationFailed','Voice dictation failed. Check microphone permission or type your note.'));finish();};
+      rec.onend=finish;
+      setIsRecording(true);
+      rec.start();
+    }catch{stopDictation();toast.error(t('notes.dictationFailed','Voice dictation failed. Check microphone permission or type your note.'));}
   };
 
   const handleTogglePin = () => {
@@ -520,13 +533,19 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     showToast(t('toasts.attachmentRemoved', 'Attachment removed'));
   };
 
-  const handleSaveNote = () => {
+  const saveInFlight=useRef(false);
+  const [savingNote,setSavingNote]=useState(false);
+  const handleSaveNote = async () => {
+    if(saveInFlight.current)return;
+    saveInFlight.current=true;setSavingNote(true);
+    stopDictation();
+    try {
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const currentHtml = editorRef.current ? editorRef.current.innerHTML : body;
     const notePayload = {
       title: title.trim() || 'Untitled Reflection',
       section1Title: section1Title.trim(),
-      body: currentHtml,
+      body: sanitizeNoteHtml(currentHtml),
       quote: quote.trim(),
       quoteAttribution: quoteAttribution.trim(),
       section2Title: section2Title.trim(),
@@ -541,21 +560,25 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     };
 
     if (currentNote.id && currentNote.id !== 'new') {
-      updateNote(currentNote.id, notePayload);
+      if(!useNotesStore.getState().notes.some(note=>String(note.id)===String(currentNote.id)))throw Error('Note no longer exists');
+      if (await updateNote(currentNote.id, notePayload) !== true) throw Error('Note update not committed');
       setIsEditing(false);
       showToast(t('toasts.noteUpdated', 'Note updated successfully!'));
     } else {
-      const created = addNote(notePayload);
+      if (!isNew) throw Error('Existing note is unavailable');
+      if (await addNote(notePayload) !== true) throw Error('Note creation not committed');
       showToast(t('toasts.noteSaved', 'Note saved successfully!'));
-      setTimeout(() => {
         if (goBack) goBack('notes_main_dark_mode');
         else if (setActiveTab) setActiveTab('notes_main_dark_mode');
         else window.history.back();
-      }, 350);
     }
+    }catch{toast.error(t('notes.saveFailed','Note could not be saved safely'));}
+    finally{saveInFlight.current=false;setSavingNote(false);}
   };
 
   const handleCancelDraft = async () => {
+    if(saveInFlight.current)return;
+    stopDictation();
     if (!isEditing) {
       if (goBack) goBack('notes_main_dark_mode');
       else if (setActiveTab) setActiveTab('notes_main_dark_mode');
@@ -609,8 +632,10 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
       setSection2Body(currentNote.section2Body || '');
       setTags(currentNote.tags || []);
       setMilestones(currentNote.milestones || []);
+      setAttachments(currentNote.attachments || []);
+      setIsPinned(Boolean(currentNote.isPinned));
       if (editorRef.current) {
-        editorRef.current.innerHTML = currentNote.body || '';
+        editorRef.current.innerHTML = sanitizeNoteHtml(currentNote.body);
       }
       setIsEditing(false);
       showToast(t('notes.changesDiscarded', 'Changes discarded'));
@@ -619,28 +644,35 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
 
   const isArchived = Boolean(currentNote.isArchived);
 
-  const handleToggleArchive = () => {
+  const handleToggleArchive = async () => {
     const targetId = currentNote.id;
-    if (!targetId || targetId === 'new') return;
-    const nextArchived = !isArchived;
-    if (nextArchived) {
-      if (archiveNote) archiveNote(targetId);
-      else updateNote(targetId, { isArchived: true });
-      showToast(t('toasts.noteArchived', 'Note archived'));
-    } else {
-      if (unarchiveNote) unarchiveNote(targetId);
-      else updateNote(targetId, { isArchived: false });
-      showToast(t('toasts.noteRestored', 'Note restored from archive'));
-    }
-    setTimeout(() => {
+    if (!targetId || targetId === 'new' || saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSavingNote(true);
+    try {
+      if (await updateNote(targetId, {isArchived: !isArchived}) !== true) throw Error('Archive change not committed');
+      showToast(isArchived ? t('toasts.noteRestored', 'Note restored from archive') : t('toasts.noteArchived', 'Note archived'));
       if (goBack) goBack('notes_main_dark_mode');
       else if (setActiveTab) setActiveTab('notes_main_dark_mode');
       else window.history.back();
-    }, 200);
+    } catch {
+      toast.error(t('notes.saveFailed','Note could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setSavingNote(false);
+    }
   };
 
   const handleDeleteNote = async () => {
     setIsMenuOpen(false);
+    // Resolve targetId from all available sources so we never lose the note reference
+    if (saveInFlight.current) return;
+    const targetId = !isNew && currentNote.id !== 'new' ? String(currentNote.id) : null;
+    if (!isNew && !targetId) {
+      toast.error(t('notes.deleteFailed', 'Note is unavailable. Reload saved data.'));
+      return;
+    }
+
     const confirmed = await confirm({
       variant: 'destructive',
       title: t('notes.deleteNoteTitle', 'Delete Note?'),
@@ -648,14 +680,34 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
       confirmText: t('common.delete', 'Delete'),
       cancelText: t('common.cancel', 'Cancel'),
     });
-    if (confirmed) {
-      if (currentNote.id && currentNote.id !== 'new') {
-        deleteNote(currentNote.id);
+    if (!confirmed || saveInFlight.current) return;
+
+    if (!targetId) {
+      // A new, unsaved draft has nothing to remove from storage.
+      if (goBack) goBack('notes_main_dark_mode');
+      else if (setActiveTab) setActiveTab('notes_main_dark_mode');
+      else window.history.back();
+      return;
+    }
+
+    saveInFlight.current = true;
+    setSavingNote(true);
+    try {
+      const removed = await deleteNote(targetId);
+      if (!removed) {
+        toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
+        return;
       }
       showToast(t('toasts.noteDeleted', 'Note deleted'));
       if (goBack) goBack('notes_main_dark_mode');
       else if (setActiveTab) setActiveTab('notes_main_dark_mode');
       else window.history.back();
+    } catch (error) {
+      console.error('[Momentum Notes] Deletion failed:', error);
+      toast.error(t('notes.deleteFailed', 'Note was not safely deleted. Reload saved data before trying again.'));
+    } finally {
+      saveInFlight.current = false;
+      setSavingNote(false);
     }
   };
 
@@ -663,7 +715,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
     <div className="w-full min-h-full font-sans relative text-slate-100 flex flex-col items-center pb-24 sm:pb-32 px-3 sm:px-6 py-2 sm:py-4">
       <div className="w-full max-w-4xl lg:max-w-5xl flex flex-col gap-4 sm:gap-6">
         {/* TOP FLOATING GLASS HEADER */}
-        <header className="sticky top-2 sm:top-3 z-40 bg-[rgba(15,23,42,0.78)] backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-[24px] px-4 py-2.5 sm:py-3 flex flex-row items-center justify-between w-full shadow-[0_12px_32px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.08)]">
+        <MomentumGlassHeader isDarkMode={true} className="w-full !px-0" capsuleClassName="w-full">
           {/* Left Section */}
           <div className="flex flex-row items-center gap-2">
             <button 
@@ -674,18 +726,18 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-base font-semibold text-white tracking-tight">
+            <h1 className="text-sm sm:text-base font-semibold text-white tracking-tight truncate min-w-0">
               {isEditing ? (isNew ? t('notes.newNote', 'New Note') : t('notes.editNote', 'Edit Note')) : t('notes.note', 'Note')}
             </h1>
           </div>
 
           {/* Right Section (Actions: Clean, Distraction-Free Header) */}
-          <div className="flex flex-row items-center gap-2.5 sm:gap-3">
+          <div className="flex flex-row items-center gap-1.5 sm:gap-3 shrink-0">
             {/* 1. Primary Clean Edit / Done Action */}
             {!isEditing ? (
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                data-testid="long-note-edit" onClick={() => setIsEditing(true)}
                 aria-label={t('notes.editNote', 'Edit Note')}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-300 hover:text-indigo-200 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-400/20 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-2xs"
                 title={t('notes.editNote', 'Edit Note')}
@@ -696,7 +748,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
             ) : (
               <button
                 type="button"
-                onClick={handleSaveNote}
+                data-testid="long-note-save" onClick={handleSaveNote} disabled={savingNote}
                 aria-label={t('notes.doneEditing', 'Done Editing')}
                 className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-300 hover:text-emerald-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/20 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-2xs"
                 title={t('notes.doneEditing', 'Done Editing')}
@@ -717,7 +769,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
                 <MoreVertical className="w-4.5 h-4.5" />
               </button>
               {isMenuOpen && (
-                <div className="absolute right-0 top-11 w-48 rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute end-0 top-11 w-48 max-w-[min(12rem,calc(100vw-2rem))] rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl p-1.5 z-50 text-xs font-medium space-y-1 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
                   <button 
                     type="button" 
                     onClick={() => { handleTogglePin(); setIsMenuOpen(false); }} 
@@ -756,15 +808,15 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
               )}
             </div>
           </div>
-        </header>
+        </MomentumGlassHeader>
 
         {/* ELEGANT STRUCTURED FLOATING GLASS SHEET */}
         <div className="note-sheet-card flex-1 bg-[rgba(15,23,42,0.68)] backdrop-blur-2xl rounded-[28px] sm:rounded-[36px] border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(255,255,255,0.08)] px-5 sm:px-8 pt-6 pb-8 space-y-6 w-full">
           {/* CLEAN STRUCTURED METADATA ROW */}
           <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium shadow-xs">
+            <span data-testid="note-persistence-status" className={(isEditing || isNew || currentNote.id==='new') ? "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/40 border border-amber-500/30 text-amber-300 font-medium shadow-xs" : "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-medium shadow-xs"}>
               <CloudCheck className="w-3.5 h-3.5" />
-              <span>{t('common.saved', 'Saved')}</span>
+              <span>{isEditing || isNew || currentNote.id==='new' ? t('notes.unsavedDraft','Unsaved draft') : t('common.saved','Saved')}</span>
             </span>
             <span className="text-slate-600">•</span>
             <span className="inline-flex items-center gap-1.5 text-slate-300 font-medium">
@@ -841,7 +893,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleToggleQuote} aria-label="Quote" className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors cursor-pointer ${activeFormats.quote ? 'bg-indigo-500/25 text-indigo-300 font-bold border border-indigo-400/30 shadow-xs' : 'hover:bg-white/10 text-slate-300'}`}><Quote className="w-3.5 h-3.5" /></button>
             <div className="w-px h-4 bg-white/10 mx-1"></div>
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => editorImageInputRef.current?.click()} aria-label="Insert Image" className="w-8 h-8 rounded-xl hover:bg-white/10 text-indigo-400 flex items-center justify-center shrink-0 transition-colors cursor-pointer"><ImageIcon className="w-3.5 h-3.5" /></button>
-            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleToggleVoice} aria-label="Record Audio" className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs ml-auto transition-all cursor-pointer ${isRecording ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-400/50 scale-105' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}><Mic className="w-3.5 h-3.5" /></button>
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleToggleVoice} aria-label="Voice dictation" aria-pressed={isRecording} disabled={savingNote} className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs ml-auto transition-all cursor-pointer ${isRecording ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-400/50 scale-105' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}><Mic className="w-3.5 h-3.5" /></button>
           </div>
         )}
         <input type="file" ref={editorImageInputRef} onChange={handleInsertEditorImage} className="hidden" accept="image/*" />
@@ -865,14 +917,17 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
               )}
               <div
                 ref={editorRef}
+                data-testid="long-note-body-editor"
                 contentEditable
+                onPaste={pasteSafeNoteContent}
+                onDrop={event => event.preventDefault()}
                 onInput={handleEditorInput}
                 className="w-full min-h-[160px] text-sm sm:text-base leading-relaxed p-4 rounded-2xl bg-slate-950/40 focus:bg-slate-950/70 border border-white/10 focus:border-indigo-500/60 text-slate-100 outline-none transition-all font-normal [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-400 [&_h2]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-400 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_blockquote]:bg-indigo-950/40 [&_blockquote]:rounded-r-lg [&_blockquote]:py-1 [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2" 
               />
             </div>
           ) : (
             <div 
-              dangerouslySetInnerHTML={{ __html: body || `<p class="text-slate-500 italic">${t('notes.noNotesYetTapEdit', 'No notes yet. Tap Edit to add your thoughts.')}</p>` }} 
+              dangerouslySetInnerHTML={{ __html: safeBody || sanitizeNoteHtml(t('notes.noNotesYetTapEdit', 'No notes yet. Tap Edit to add your thoughts.')) }} 
               className="w-full text-sm sm:text-base leading-relaxed text-slate-100 select-text font-normal [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-indigo-400 [&_h2]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-400 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-2 [&_blockquote]:bg-indigo-950/40 [&_blockquote]:rounded-r-lg [&_blockquote]:py-1 [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-2 py-1" 
             />
           )}
@@ -1040,7 +1095,7 @@ export default function LongNoteEditorDarkMode({ setActiveTab, goBack, noteId: p
         {/* ACTION BUTTONS IN EDIT MODE */}
         {isEditing && (
           <div className="pt-2 space-y-3">
-            <button type="button" onClick={handleSaveNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
+            <button type="button" data-testid="long-note-save-bottom" onClick={handleSaveNote} disabled={savingNote} className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-600/25 active:scale-[0.99] transition-all cursor-pointer">
               <Check className="w-4 h-4 stroke-[2.5]" />
               <span>{t('common.save', 'Save Note')}</span>
             </button>

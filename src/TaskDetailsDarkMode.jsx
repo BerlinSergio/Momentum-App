@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { 
   ArrowLeft, CheckCircle2, Clock, Calendar, 
   AlertCircle, Check, RotateCcw, Pencil, Trash2, 
@@ -13,6 +13,9 @@ import { toast } from './components/ui/toast/index.js';
 export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
   const { t } = useTranslation();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const pendingMutation = useRef(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [deletingSnapshot, setDeletingSnapshot] = useState(null);
   const routeParams = useNavigationStore((s) => s.routeParams) || route?.params || {};
   const taskId = routeParams.taskId;
   
@@ -24,10 +27,11 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
   const setEditingTaskId = useTaskStore((s) => s.setEditingTaskId);
 
   const task = useMemo(() => {
-    return tasks.find((t) => t.id === taskId);
-  }, [tasks, taskId]);
+    return tasks.find((t) => t.id === taskId) || (deletingSnapshot?.id === taskId ? deletingSnapshot : undefined);
+  }, [tasks, taskId, deletingSnapshot]);
 
   const handleBack = () => {
+    if (pendingMutation.current) return;
     if (typeof goBack === 'function') {
       goBack('tasks_reminders_dark_mode');
     } else if (setActiveTab) {
@@ -38,29 +42,55 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
   };
 
   const handleEdit = () => {
-    if (!task) return;
+    if (!task || pendingMutation.current) return;
     setEditingTaskId(task.id);
     const nav = setActiveTab || useNavigationStore.getState().navigateTo;
     nav('add_edit_task_dark_mode', { taskId: task.id });
   };
 
+  const runMutation = async (operation, onCommitted) => {
+    if (pendingMutation.current) return false;
+    pendingMutation.current = true;
+    setIsMutating(true);
+    try {
+      if (await operation() !== true) throw new Error('Task commit not confirmed');
+    } catch {
+      toast.error(t('toasts.taskSaveFailed', 'Task change was not safely saved. Reload before trying again.'));
+      return false;
+    } finally {
+      pendingMutation.current = false;
+      setIsMutating(false);
+    }
+    onCommitted?.();
+    return true;
+  };
+
   const handleConfirmDelete = () => {
-    if (!task) return;
-    deleteTask(task.id);
-    toast.success(t('tasks.taskDeleted', 'Task deleted'));
-    setIsDeleteModalOpen(false);
-    handleBack();
+    if (!task || pendingMutation.current) return;
+    // Keep the original detail visible until the optimistic deletion commits.
+    setDeletingSnapshot(task);
+    return runMutation(() => deleteTask(task.id), () => {
+      toast.success(t('tasks.taskDeleted', 'Task deleted'));
+      setIsDeleteModalOpen(false);
+      handleBack();
+    });
   };
 
   const handleToggleStatus = () => {
     if (!task) return;
     const willBeDone = !isDone;
-    toggleTaskStatus(task.id);
-    if (willBeDone) {
-      toast.success(t('tasks.taskMarkedDone', 'Task marked as done'));
-    } else {
-      toast.info(t('tasks.taskMarkedTodo', 'Task marked as to-do'));
-    }
+    return runMutation(() => toggleTaskStatus(task.id), () => {
+      if (willBeDone) {
+        toast.success(t('tasks.taskMarkedDone', 'Task marked as done'));
+      } else {
+        toast.info(t('tasks.taskMarkedTodo', 'Task marked as to-do'));
+      }
+    });
+  };
+
+  const handleToggleSubTask = (subId) => {
+    if (!task) return;
+    return runMutation(() => toggleSubTask(task.id, subId));
   };
 
   const todayKey = getLocalDateKey();
@@ -154,7 +184,7 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleEdit}
+            onClick={handleEdit} disabled={isMutating}
             aria-label={t('tasks.editTask', 'Edit Task')}
             className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 backdrop-blur-xl border border-white/10 text-slate-300 hover:text-white hover:bg-black/60 transition-all active:scale-95 cursor-pointer"
           >
@@ -162,7 +192,7 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
           </button>
           <button
             type="button"
-            onClick={() => setIsDeleteModalOpen(true)}
+            onClick={() => setIsDeleteModalOpen(true)} disabled={isMutating}
             aria-label={t('tasks.deleteTask', 'Delete Task')}
             className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 backdrop-blur-xl border border-white/10 text-rose-400 hover:bg-rose-500/20 transition-all active:scale-95 cursor-pointer"
           >
@@ -299,7 +329,7 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
               {subTasks.map((sub) => (
                 <div
                   key={sub.id}
-                  onClick={() => toggleSubTask(task.id, sub.id)}
+                  onClick={() => handleToggleSubTask(sub.id)}
                   className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all cursor-pointer select-none"
                 >
                   <button
@@ -307,7 +337,7 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
                     aria-label={`Toggle ${sub.title}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleSubTask(task.id, sub.id);
+                      handleToggleSubTask(sub.id);
                     }}
                     className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
                       sub.completed 
@@ -331,7 +361,7 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
       <div className="fixed bottom-6 left-0 right-0 max-w-md mx-auto px-5 z-40 flex items-center gap-3">
         <button
           type="button"
-          onClick={handleToggleStatus}
+          onClick={handleToggleStatus} disabled={isMutating}
           aria-label={isDone ? t('tasks.undoCompletion', 'Undo Completion') : t('tasks.markDone', 'Mark as Done')}
           className={`flex-1 py-3.5 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer ${
             isDone
@@ -352,7 +382,7 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
 
         <button
           type="button"
-          onClick={handleEdit}
+          onClick={handleEdit} disabled={isMutating}
           aria-label={t('tasks.editTask', 'Edit Task')}
           className="py-3.5 px-5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 hover:bg-black/80 transition-all active:scale-95 shadow-lg cursor-pointer"
         >
@@ -376,14 +406,14 @@ export default function TaskDetailsDarkMode({ setActiveTab, goBack, route }) {
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setIsDeleteModalOpen(false)}
+                onClick={() => setIsDeleteModalOpen(false)} disabled={isMutating}
                 className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700 transition-all active:scale-95 cursor-pointer"
               >
                 {t('common.cancel', 'Cancel')}
               </button>
               <button
                 type="button"
-                onClick={handleConfirmDelete}
+                onClick={handleConfirmDelete} disabled={isMutating}
                 className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 shadow-md shadow-rose-500/20 transition-all active:scale-95 cursor-pointer"
               >
                 {t('common.delete', 'Delete')}

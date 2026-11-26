@@ -12,6 +12,13 @@
  * - Key Wrapping: DEK encrypted with KEK using AES-256-GCM with unique 96-bit IV
  */
 
+import {
+  MAX_BACKUP_PLAINTEXT_BYTES,
+  MAX_BACKUP_FILE_BYTES,
+  assertBackupFileSize,
+  assertBackupPayloadSize,
+} from './backupLimits.js';
+
 export const BACKUP_FORMAT_IDENTIFIER = 'momentum-backup';
 export const CURRENT_BACKUP_VERSION = 1;
 export const PBKDF2_BACKUP_ITERATIONS = 600000;
@@ -168,6 +175,9 @@ export async function encryptBackupPayload(payloadJson, passphrase) {
   }
 
   const jsonStr = typeof payloadJson === 'string' ? payloadJson : JSON.stringify(payloadJson);
+  // The current v1 format encrypts one entire JSON string in memory.
+  // Check size before PBKDF2/key creation or expensive byte copying.
+  if (jsonStr?.length > MAX_BACKUP_PLAINTEXT_BYTES) assertBackupPayloadSize(jsonStr.length);
   if (!jsonStr || !jsonStr.trim()) {
     throw new Error('Payload to encrypt must be a non-empty string');
   }
@@ -197,6 +207,7 @@ export async function encryptBackupPayload(payloadJson, passphrase) {
 
   // 4. Encrypt the data payload with DEK using AES-256-GCM
   const payloadBytes = new TextEncoder().encode(jsonStr);
+  assertBackupPayloadSize(payloadBytes.byteLength);
   const encryptedPayloadBuffer = await cryptoInstance.subtle.encrypt(
     {
       name: 'AES-GCM',
@@ -262,6 +273,7 @@ export async function decryptBackupPayload(envelopeOrString, passphrase) {
 
   let envelope = envelopeOrString;
   if (typeof envelopeOrString === 'string') {
+    assertBackupFileSize(envelopeOrString.length);
     try {
       envelope = JSON.parse(envelopeOrString);
     } catch {
@@ -301,6 +313,15 @@ export async function decryptBackupPayload(envelopeOrString, passphrase) {
 
   if (!envelope.wrappedKey || !envelope.encryptedPayload) {
     throw new Error('Corrupted backup: Missing encrypted key or payload data');
+  }
+  // Do not allocate a huge decoded ciphertext just to discover that v1's
+  // single-buffer decrypt cannot safely process the archive.
+  if (typeof envelope.encryptedPayload !== 'string') {
+    throw new Error('Corrupted backup: Invalid encrypted payload');
+  }
+  assertBackupFileSize(envelope.encryptedPayload.length);
+  if (envelope.encryptedPayload.length > 4 * Math.ceil((MAX_BACKUP_PLAINTEXT_BYTES + 16) / 3)) {
+    assertBackupPayloadSize(Math.floor(envelope.encryptedPayload.length * 3 / 4) - 16);
   }
 
   // 2. Decode Base64 parameters
@@ -368,7 +389,9 @@ export async function decryptBackupPayload(envelopeOrString, passphrase) {
     throw err;
   }
 
-  // 7. Parse plaintext JSON
+  // 7. Parse plaintext JSON. Guard before turning large binary data into
+  // another in-memory string and object graph.
+  assertBackupPayloadSize(decryptedBuffer.byteLength);
   const plaintextString = new TextDecoder().decode(decryptedBuffer);
   try {
     return JSON.parse(plaintextString);

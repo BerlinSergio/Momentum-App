@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useRef } from 'react';
 import { useFinanceStore } from './store/useFinanceStore';
 import { getLocalDateKey, getLocalDateParts } from './utils/timeService';
@@ -134,18 +135,24 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
     setAmount(finalVal.toFixed(2));
   };
 
-  const handleSave = (e) => {
+  const saveInFlight = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
+    if (saveInFlight.current) return;
     const numericAmount = parseFloat(amount) || 0;
     if (numericAmount <= 0) {
       toast.error(t('toasts.validAmount', 'Please enter a valid amount'));
       return;
     }
+    saveInFlight.current = true;
+    setIsSaving(true);
+    try {
     const title = note.trim() || `${selectedCategory} ${transactionType === 'expense' ? 'Expense' : 'Income'}`;
     const selectedDate = dateTime.split('T')[0] || getLocalDateKey();
 
     if (editingTransaction && updateTransaction) {
-      updateTransaction({
+      await updateTransaction({
         ...editingTransaction,
         title,
         amount: numericAmount,
@@ -156,10 +163,10 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
         note: note.trim(),
         notes: note.trim(),
       });
-      if (setEditingTransaction) setEditingTransaction(null);
+      if (setEditingTransaction) await setEditingTransaction(null);
       toast.success(transactionType === 'expense' ? t('toasts.expenseUpdated', 'Expense updated') : t('toasts.incomeUpdated', 'Income updated'));
     } else {
-      addTransaction({
+      await addTransaction({
         title,
         amount: numericAmount,
         type: transactionType,
@@ -173,6 +180,13 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
     }
 
     handleNavigate('finance_expense_tracker_dark_mode');
+    } catch (error) {
+      console.error('[Finance] Save failed:', error);
+      toast.error(t('storage.financeConflictTitle', 'Finance changes could not be saved safely'));
+    } finally {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    }
   };
 
   const isDirty = editingTransaction
@@ -195,7 +209,7 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
 
   return (
     <div className="relative w-full min-h-screen bg-transparent font-sans">
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30">
             <Coins className="w-5 h-5 text-white" />
@@ -213,7 +227,7 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
             <ArrowLeft className="w-5 h-5" />
           </button>
         </div>
-      </header>
+      </MomentumGlassHeader>
 
             <main className="flex-1 w-full bg-transparent pb-safe px-5 lg:px-8 pt-2">
         <div className="w-full max-w-md lg:max-w-5xl mx-auto pb-28">
@@ -425,7 +439,7 @@ export default function AddEditExpenseDarkMode({ setActiveTab, goBack }) {
               {/* Form Action Buttons Card */}
               <div className="w-full rounded-3xl p-5 space-y-3 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
                 <button 
-                  onClick={handleSave}
+                  onClick={handleSave} disabled={isSaving}
                   className={`btn-primary w-full h-12 text-sm font-bold shadow-lg cursor-pointer pointer-events-auto ${
                     transactionType === 'income' ? '!bg-emerald-600 hover:!bg-emerald-700' : ''
                   }`}

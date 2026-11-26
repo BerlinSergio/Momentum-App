@@ -1,4 +1,8 @@
+import ReminderAlarmCard from './components/ReminderAlarmCard.jsx';
+import { Capacitor } from '@capacitor/core';
+import { scheduleAllActiveNotifications } from './utils/nativeNotifications.js';
 import React, { useState, useEffect } from 'react';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from './store/useSettingsStore';
@@ -100,6 +104,7 @@ export default function NotificationsSettingsDarkMode({
   initialSubTab = 'notifications',
 }) {
   const { t } = useTranslation();
+  const isNative = Capacitor.isNativePlatform();
   const [subTab, setSubTab] = useState(initialSubTab); // 'notifications' | 'preferences'
   const [filter, setFilter] = useState('all'); // 'all' | 'unread'
   const [permissionStatus, setPermissionStatus] = useState('prompt');
@@ -157,9 +162,10 @@ export default function NotificationsSettingsDarkMode({
       const res = await requestNotificationPermission();
       setPermissionStatus(res);
       if (res === 'granted') {
-        globalToast.success(t('notifications.permissionGranted', 'Desktop notifications enabled'));
+        await scheduleAllActiveNotifications();
+        globalToast.success((isNative ? t('notifications.mobilePermissionGranted','Mobile notifications enabled') : t('notifications.permissionGranted', 'Desktop notifications enabled')));
       } else if (res === 'denied') {
-        globalToast.error(t('notifications.permissionDenied', 'Notifications blocked in browser settings'));
+        globalToast.error((isNative ? t('notifications.mobilePermissionDenied','Notifications blocked in Android settings') : t('notifications.permissionDenied', 'Notifications blocked in browser settings')));
       }
     } catch {
       // ignore
@@ -171,7 +177,8 @@ export default function NotificationsSettingsDarkMode({
     try {
       const res = await sendTestNotification();
       setPermissionStatus(res.permission);
-      globalToast.success(t('notifications.testDispatched', 'Test notification dispatched!'));
+      if (res.success) globalToast.success(t('notifications.testDispatched', 'Test notification dispatched!'));
+      else globalToast.error(t('notifications.testFailed', 'Test notification was not sent. Check notification permissions and master switch.'));
     } catch (err) {
       globalToast.error('Failed to send test: ' + err.message);
     } finally {
@@ -228,9 +235,9 @@ export default function NotificationsSettingsDarkMode({
   const activeAlertsCount = enabledPrayerAlerts.length;
 
   return (
-    <div className="min-h-screen bg-slate-950/90 text-white pb-40 relative font-sans">
+    <div className="min-h-0 bg-slate-950/90 text-white pb-2 relative font-sans">
       {/* TOP HEADER BAR */}
-      <div className="sticky top-0 z-[60] bg-slate-900/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-5 py-3 shadow-xs">
+      <MomentumGlassHeader isDarkMode={true}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/30 relative">
             <Bell className="w-5 h-5 text-white" />
@@ -262,7 +269,7 @@ export default function NotificationsSettingsDarkMode({
           </button>
           <UserAvatar setActiveTab={setActiveTab} />
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-4">
         {/* SEGMENTED TAB SELECTOR: NOTIFICATIONS FEED vs PREFERENCES */}
@@ -373,10 +380,10 @@ export default function NotificationsSettingsDarkMode({
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-white">
-                      {t('notifications.enableDesktopTitle', 'Enable Desktop Notifications')}
+                      {(isNative ? t('notifications.enableMobileTitle','Enable Mobile Notifications') : t('notifications.enableDesktopTitle', 'Enable Desktop Notifications'))}
                     </h3>
                     <p className="text-[11px] text-indigo-300 mt-0.5 leading-relaxed">
-                      {t('notifications.enableDesktopDesc', 'Receive reminders on your Windows computer for scheduled tasks, daily routines, and prayer times.')}
+                      {(isNative ? t('notifications.enableMobileDesc','Allow Android reminders for tasks, routines and prayer times.') : t('notifications.enableDesktopDesc', 'Receive reminders on your Windows computer for scheduled tasks, daily routines, and prayer times.'))}
                     </p>
                   </div>
                 </div>
@@ -385,7 +392,7 @@ export default function NotificationsSettingsDarkMode({
                   onClick={handleRequestPermission}
                   className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer text-center"
                 >
-                  {t('notifications.enableButton', 'Enable Desktop Reminders')}
+                  {(isNative ? t('notifications.enableMobileButton','Enable mobile reminders') : t('notifications.enableButton', 'Enable Desktop Reminders'))}
                 </button>
               </div>
             )}
@@ -506,6 +513,8 @@ export default function NotificationsSettingsDarkMode({
               />
             </div>
 
+            <ReminderAlarmCard isNative={isNative}/>
+
             {/* SYSTEM VERIFICATION & TEST NOTIFICATION CARD */}
             <div className="p-5 rounded-3xl bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
@@ -519,10 +528,10 @@ export default function NotificationsSettingsDarkMode({
                     </h3>
                     <p className="text-[11px] text-slate-400">
                       {permissionStatus === 'granted'
-                        ? t('notifications.permissionGranted', 'Desktop notifications enabled')
+                        ? (isNative ? t('notifications.mobilePermissionGranted','Mobile notifications enabled') : t('notifications.permissionGranted', 'Desktop notifications enabled'))
                         : permissionStatus === 'denied'
-                        ? t('notifications.permissionDenied', 'Notifications blocked in browser settings')
-                        : t('notifications.permissionPrompt', 'Desktop notifications pending permission')}
+                        ? (isNative ? t('notifications.mobilePermissionDenied','Notifications blocked in Android settings') : t('notifications.permissionDenied', 'Notifications blocked in browser settings'))
+                        : (isNative ? t('notifications.mobilePermissionPrompt','Allow notifications in device settings') : t('notifications.permissionPrompt', 'Desktop notifications pending permission'))}
                     </p>
                   </div>
                 </div>

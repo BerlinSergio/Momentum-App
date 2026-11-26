@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createIndexedDbStorage } from '../storage/index.js';
+import { logicalScreenId, logicalHistoryStack } from '../utils/themeNavigation.js';
 
 const navigationStorage = createIndexedDbStorage({ legacyLocalStorageKey: 'momentum-navigation-storage' });
 const getSafeStorage = () => navigationStorage;
@@ -43,14 +44,14 @@ export const useNavigationStore = create(
         ? (() => {
             const sp = new URLSearchParams(window.location.search);
             const queryScreen = sp.get('screen');
-            if (queryScreen) return queryScreen;
+            if (queryScreen) return logicalScreenId(queryScreen);
             const path = window.location.pathname;
-            if (path.includes('/finance/dashboard')) return 'finance_dashboard_dark_mode';
-            if (path.includes('/finance/income')) return 'income_management_dark_mode';
-            if (path.includes('/finance/expenses')) return 'finance_expense_tracker_dark_mode';
-            return 'home_dashboard_dark_mode';
+            if (path.includes('/finance/dashboard')) return 'finance_dashboard';
+            if (path.includes('/finance/income')) return 'income_management';
+            if (path.includes('/finance/expenses')) return 'finance_expense_tracker';
+            return 'home_dashboard';
           })()
-        : 'home_dashboard_dark_mode',
+        : 'home_dashboard',
       
       routeParams: typeof window !== 'undefined'
         ? (() => {
@@ -131,10 +132,11 @@ export const useNavigationStore = create(
       /**
        * Navigate forward to a target screen and push the current screen to the history stack
        */
-      navigateTo: (nextScreen, params = {}) => {
-        if (!nextScreen) return;
+      navigateTo: (requestedScreen, params = {}) => {
+        if (!requestedScreen) return;
+        const nextScreen = logicalScreenId(requestedScreen);
         const { activeTab, tasksSubTab, financeSubTab, historyStack, routeParams } = get();
-        if (nextScreen === activeTab) {
+        if (nextScreen === logicalScreenId(activeTab)) {
           if (params && Object.keys(params).length > 0) {
             set({ routeParams: params });
           }
@@ -142,17 +144,17 @@ export const useNavigationStore = create(
         }
 
         const historyEntry = {
-          screen: activeTab,
+          screen: logicalScreenId(activeTab),
           params: routeParams || {},
           tasksSubTab,
           financeSubTab,
         };
-        const nextStack = [...historyStack, historyEntry];
+        const nextStack = [...logicalHistoryStack(historyStack), historyEntry];
         const nextState = {
           activeTab: nextScreen,
           routeParams: params || {},
           historyStack: nextStack,
-          navigationDirection: resolveNavigationDirection(activeTab, nextScreen, false),
+          navigationDirection: resolveNavigationDirection(logicalScreenId(activeTab), nextScreen, false),
         };
 
         if (nextScreen.includes('finance_dashboard')) {
@@ -217,17 +219,15 @@ export const useNavigationStore = create(
        * Navigate back to the previous screen in the stack, or use the provided fallback / Home screen
        */
       goBack: (fallback) => {
-        const { activeTab, historyStack } = get();
-        const isDark = activeTab ? activeTab.toLowerCase().includes('dark') : false;
-        const defaultHome = isDark ? 'home_dashboard_dark_mode' : 'home_dashboard_light_mode';
-        const targetFallback = fallback || defaultHome;
+        const { historyStack } = get();
+        const targetFallback = logicalScreenId(fallback || 'home_dashboard');
 
         if (historyStack.length > 0) {
-          const nextStack = [...historyStack];
+          const nextStack = logicalHistoryStack(historyStack);
           const previousEntry = nextStack.pop();
-          const previousScreen = typeof previousEntry === 'object' && previousEntry !== null
+          const previousScreen = logicalScreenId(typeof previousEntry === 'object' && previousEntry !== null
             ? previousEntry.screen
-            : previousEntry;
+            : previousEntry);
 
           const backState = {
             activeTab: previousScreen,
@@ -347,9 +347,10 @@ export const useNavigationStore = create(
        */
       syncFromPopState: (screen) => {
         if (!screen) return;
+        const targetScreen = logicalScreenId(screen);
         set((state) => {
-          const stack = [...state.historyStack];
-          const prevIdx = stack.map((e) => (typeof e === 'object' && e !== null ? e.screen : e)).lastIndexOf(screen);
+          const stack = logicalHistoryStack(state.historyStack);
+          const prevIdx = stack.map((e) => (typeof e === 'object' && e !== null ? e.screen : e)).lastIndexOf(targetScreen);
           let restoredTasksSubTab = state.tasksSubTab;
           let restoredFinanceSubTab = state.financeSubTab;
           if (prevIdx !== -1) {
@@ -361,7 +362,7 @@ export const useNavigationStore = create(
             stack.splice(prevIdx);
           }
           return {
-            activeTab: screen,
+            activeTab: targetScreen,
             historyStack: stack,
             tasksSubTab: restoredTasksSubTab,
             financeSubTab: restoredFinanceSubTab,
@@ -380,6 +381,12 @@ export const useNavigationStore = create(
       storage: createJSONStorage(() => getSafeStorage()),
       onRehydrateStorage: () => (state, error) => {
         if (!error && state) {
+          // Older versions persisted separate Dark/Light route IDs. Migrate them
+          // in memory without touching notes, finance, tasks or any other data.
+          useNavigationStore.setState({
+            activeTab: logicalScreenId(state.activeTab),
+            historyStack: logicalHistoryStack(state.historyStack),
+          });
           state.setHasHydrated(true);
         }
       },
@@ -400,7 +407,7 @@ if (typeof window !== 'undefined') {
         if (sp.has('taskId')) urlParams.taskId = sp.get('taskId');
         if (sp.has('routineId')) urlParams.routineId = sp.get('routineId');
         if (sp.has('dateKey')) urlParams.dateKey = sp.get('dateKey');
-        const effectiveScreen = urlScreen || parsed.state.activeTab;
+        const effectiveScreen = logicalScreenId(urlScreen || parsed.state.activeTab);
         const effectiveParams = Object.keys(urlParams).length > 0 ? urlParams : (parsed.state.routeParams || {});
         const initialSubTabs = {};
         if (urlScreen) {
@@ -420,6 +427,7 @@ if (typeof window !== 'undefined') {
         useNavigationStore.setState({
           ...parsed.state,
           activeTab: effectiveScreen,
+          historyStack: logicalHistoryStack(parsed.state.historyStack),
           routeParams: effectiveParams,
           ...initialSubTabs,
           _hasHydrated: true,

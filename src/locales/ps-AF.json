@@ -117,7 +117,8 @@
     "replace": "ځای ناستی کول",
     "saving": "بدلونونه خوندي کیږي...",
     "inactive": "غیرفعال",
-    "allDay": "ټوله ورځ"
+    "allDay": "ټوله ورځ",
+    "unknown": "نامعلوم"
   },
   "nav": {
     "home": "کور",
@@ -674,7 +675,10 @@
     "deleteMilestone": "پړاو ړنګ کړئ",
     "addReflectiveCaption": "د دې رسنۍ لپاره څرګندونې یا یادښت ولیکئ...",
     "removeConfirmPrompt": "ایا تاسو ډاډه یاست چې دا ضمیمه لرې کول غواړئ؟ دا عمل نه شي ګرځېدلی.",
-    "archived": "آرشیف شوی"
+    "archived": "آرشیف شوی",
+    "unsavedDraft": "ناخوندي مسوده",
+    "noAttachmentSelected": "هیڅ ضمیمه نه ده ټاکل شوې",
+    "noAttachmentDescription": "د لیدلو لپاره له خوندي یادښت څخه ضمیمه خلاصه کړئ."
   },
   "calendar": {
     "title": "جنترۍ",
@@ -1009,7 +1013,8 @@
     "physicalButtonMappings": "د فزیکي بټنو تنظیمات او د سکرین حالتونه",
     "completionRitualPreview": "د بشپړېدو احساس ننداره",
     "livePreview": "ژوندۍ ننداره",
-    "savePreferences": "د تسبیح غوره توبونه خوندي کړئ"
+    "savePreferences": "د تسبیح غوره توبونه خوندي کړئ",
+    "completedSessions": "ثبت شوې ناستې"
   },
   "settings": {
     "title": "ترتیبات",

@@ -1,10 +1,12 @@
+import {getWallpaperPair} from './data/defaultWallpapers.js';
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useEffect } from 'react';
 import UserAvatar from './components/UserAvatar';
 import {
   Palette, ArrowLeft, Check, CheckCircle2, Sun, Moon, Sparkles, Layers, Wind, ArrowRight, RotateCcw, Monitor, ChevronRight
 } from 'lucide-react';
-import { useThemeStore, AURA_PRESETS, applyAppearanceToDOM } from './store/useThemeStore';
+import { useThemeStore, AURA_PRESETS } from './store/useThemeStore';
 import { toast } from './components/ui/toast/index.js';
 
 export default function AppearanceLightMode({ setActiveTab, goBack }) {
@@ -14,6 +16,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
     aura: globalAura,
     glassEffects: globalGlass,
     gentleTransitions: globalTransitions,
+    activeBackgroundId, customWallpaper, wallpapers,
     _hasHydrated,
     applyPreferences,
     resetDefaults
@@ -25,6 +28,8 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
   const [draftGentleTransitions, setDraftGentleTransitions] = useState(globalTransitions !== false);
   const [previewMode, setPreviewMode] = useState('light');
 
+  const selectedWallpaper=getWallpaperPair(activeBackgroundId,customWallpaper,false,wallpapers);
+  const wallpaperName=selectedWallpaper.isNone?t('wallpapers.none','No wallpaper'):selectedWallpaper.name;
   const activeAuraPreset = AURA_PRESETS[draftAura] || AURA_PRESETS.indigo;
 
   // Synchronize draft preferences when theme store completes hydration
@@ -37,35 +42,22 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
     }
   }, [_hasHydrated, globalTheme, globalAura, globalGlass, globalTransitions]);
 
-  // Live aura preview: update CSS variables on the root element whenever the
-  // draft aura or theme changes — before the user clicks Apply.
-  useEffect(() => {
-    applyAppearanceToDOM({
-      theme: draftTheme,
-      aura: draftAura,
-      glassEffects: draftGlassEffects,
-      gentleTransitions: draftGentleTransitions,
-    });
-  }, [draftAura, draftTheme, draftGlassEffects, draftGentleTransitions]);
+  // Keep draft settings inside this screen's preview until Apply is pressed.
+  // Navigating away or Back must never commit a preview theme globally.
 
-  const handleApply = () => {
-    applyPreferences({
+  const handleApply = async () => {
+    try {
+    const saved=await applyPreferences({
       theme: draftTheme,
       aura: draftAura,
       glassEffects: draftGlassEffects,
       gentleTransitions: draftGentleTransitions,
     });
+    if(saved!==true)throw Error('Appearance write rejected');
+    // Global appearance store updates the displayed component in place.
+    // Do not push a themed Appearance screen onto navigation history.
     toast.success(t('toasts.preferencesSaved', 'Preferences saved and applied to your ecosystem'));
-    setTimeout(() => {
-      if (draftTheme === 'dark') {
-        setActiveTab && setActiveTab('appearance_dark_mode');
-      } else if (draftTheme === 'light') {
-        setActiveTab && setActiveTab('appearance_light_mode');
-      } else {
-        const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setActiveTab && setActiveTab(prefersDark ? 'appearance_dark_mode' : 'appearance_light_mode');
-      }
-    }, 450);
+    }catch{toast.error(t('storage.saveFailed','Appearance preferences could not be saved.'));}
   };
 
   const handleReset = () => {
@@ -81,7 +73,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
   return (
     <>
       {/* Top Header Bar (Standardized: Back arrow on far left, clean title, no redundant icon or avatar) */}
-      <div className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex items-center justify-between px-5 pt-6 pb-2">
+      <MomentumGlassHeader isDarkMode={false}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -95,7 +87,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
             {t('appearance.appearance', 'Appearance')}
           </h1>
         </div>
-      </div>
+      </MomentumGlassHeader>
 
       <div className="flex-1 flex flex-col relative w-full px-4 pb-36">
         <div className="flex flex-col w-full space-y-4 pt-2">
@@ -527,6 +519,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 <button
                   type="button"
                   role="switch"
+                  data-testid="appearance-glass-toggle"
                   aria-checked={draftGlassEffects}
                   onClick={() => { const next = !draftGlassEffects; setDraftGlassEffects(next); applyPreferences({ glassEffects: next }); }}
                   className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 ease-in-out focus:outline-none shadow-sm ${
@@ -592,7 +585,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 {t('appearance.atmosphericCanvas', 'Atmospheric Canvas')}
               </h3>
               <span className="text-xs font-semibold text-slate-500">
-                {t('appearance.defaultAmbient', 'Default Ambient')}
+                {selectedWallpaper.isNone?t('wallpapers.none','No wallpaper'):t('common.active','Active')}
               </span>
             </div>
             <div
@@ -601,11 +594,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
             >
               <div className="flex items-center gap-3.5">
                 <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm">
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    alt="Serene Horizon Wallpaper"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDssiR26j8sTUNO43pGWN3KRoiha4FHhqKVhpQeOLpkTXcgXeeGOH3ie0QZfAReV8GDn2RYUMOXjdS-L0kcA_ltLvDbZIR0RzUqYmMy43fzZklx7JqVsfEVwFEKvm4o8MOodHYI4BrOwH_GM8bZHhNPAsHOnRPklY6JbAseRtsTwr6ipWPB1lcKqd7KGMtwGem9UBz8DhNMSlU6_ifnSTbgb7lTJhLCkexS5wx6pIgUNlpHmbbjpUE"
-                  />
+                  {selectedWallpaper.activeImage?<img className="w-full h-full object-cover" alt={wallpaperName} src={selectedWallpaper.activeImage}/>:<div className="w-full h-full bg-slate-200 dark:bg-slate-800"/>}
                   <div
                     className="absolute inset-0 transition-opacity duration-300"
                     style={{ backgroundColor: activeAuraPreset.hex + '20' }}
@@ -613,11 +602,11 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold text-slate-900 truncate">{t('wallpapers.sereneHorizon', 'Serene Horizon')}</span>
+                    <span className="text-sm font-bold text-slate-900 truncate">{wallpaperName}</span>
                     <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: activeAuraPreset.hex }} />
                   </div>
                   <p className="text-xs font-normal text-slate-500 mt-0.5 truncate">
-                    {t('wallpapers.sereneHorizonDesc', 'Pastel sky and mist with 32px diffuse glass refraction.')}
+                    {selectedWallpaper.isNone?t('wallpapers.noWallpaper','Plain background'):selectedWallpaper.bg?.description||t('appearance.customizeWallpaper','Customize Wallpaper')}
                   </p>
                   <div className="flex items-center gap-1 mt-1 font-semibold text-xs" style={{ color: activeAuraPreset.hex }}>
                     <span>{t('appearance.customizeWallpaper', 'Customize Wallpaper')}</span>
@@ -632,6 +621,7 @@ export default function AppearanceLightMode({ setActiveTab, goBack }) {
             <button
               type="button"
               onClick={handleApply}
+              data-testid="appearance-apply"
               className="w-full py-4 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer select-none shadow-lg hover:brightness-110"
               style={{
                 backgroundColor: activeAuraPreset.hex,

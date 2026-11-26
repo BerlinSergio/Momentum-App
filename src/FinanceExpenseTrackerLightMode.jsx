@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
 import { useFinanceStore, formatSingleCurrency, calculateGroupedTotals } from './store/useFinanceStore';
 import { useNavigationStore } from './store/useNavigationStore';
@@ -475,7 +476,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
   return (
     <div className="relative w-full pb-36 bg-slate-50 text-slate-900 font-sans min-h-screen">
       {/* Top Header Bar (Hidden on desktop since DesktopSidebar provides branding & navigation) */}
-      <header className="sticky top-0 z-[60] bg-transparent backdrop-blur-xl flex lg:hidden items-center justify-between px-5 pt-6 pb-2 pointer-events-auto">
+      <MomentumGlassHeader isDarkMode={false} className="lg:hidden">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/30">
             <Coins className="w-5 h-5 text-white" />
@@ -498,7 +499,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
             setActiveTab={setActiveTab} 
           />
         </div>
-      </header>
+      </MomentumGlassHeader>
 
       {/* Sleek Glassmorphic Local Navigation Tabs */}
       <div className="px-5 lg:px-0 pt-1 pb-2 relative z-50">
@@ -575,7 +576,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
               <ChevronDown className={`w-3.5 h-3.5 text-primary transition-transform ${isMonthOpen ? 'rotate-180' : ''}`}/>
             </button>
             {isMonthOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-44 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
+              <div className="absolute end-0 top-full mt-1.5 w-44 max-w-[calc(100vw-2rem)] rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
                 {MONTH_OPTIONS.map((m) => (
                   <button
                     key={m}
@@ -849,7 +850,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                     <ChevronDown className={`w-3 h-3 text-slate-500 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`}/>
                   </button>
                   {isCategoryOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 w-48 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto pointer-events-auto">
+                    <div className="absolute start-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-60 overflow-y-auto pointer-events-auto">
                       {CATEGORY_OPTIONS.map((cat) => (
                         <button
                           key={cat}
@@ -888,7 +889,7 @@ export default function FinanceExpenseTrackerLightMode({ setActiveTab, initialTa
                     <ChevronDown className={`w-3 h-3 text-slate-500 transition-transform ${isSortOpen ? 'rotate-180' : ''}`}/>
                   </button>
                   {isSortOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 w-48 rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
+                    <div className="absolute start-0 top-full mt-1.5 w-48 max-w-[calc(100vw-2rem)] rounded-2xl bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 pointer-events-auto">
                       {SORT_OPTIONS.map((s) => (
                         <button
                           key={s}

@@ -8,6 +8,7 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { isNativePlatform } from './nativeLifecycle';
 import { exportBackupToFile } from './backupService';
+import { assertBackupFileSize } from './backupLimits.js';
 
 /**
  * Export backup envelope natively or via browser download
@@ -26,6 +27,8 @@ import { exportBackupToFile } from './backupService';
  */
 export async function exportBackupNatively(envelope, customFilename = null) {
   const jsonString = typeof envelope === 'string' ? envelope : JSON.stringify(envelope, null, 2);
+  const sizeBytes = new Blob([jsonString]).size;
+  assertBackupFileSize(sizeBytes);
   const dateStr = new Date().toISOString().slice(0, 10);
   const timeStr = new Date().toISOString().slice(11, 16).replace(':', '');
   const fileName = customFilename || `momentum_backup_${dateStr}_${timeStr}.momentum-backup`;
@@ -59,6 +62,7 @@ export async function exportBackupNatively(envelope, customFilename = null) {
           success: true,
           method: 'native_share',
           fileName,
+          sizeBytes,
           uri: fileUri.uri,
         };
       }
@@ -67,6 +71,7 @@ export async function exportBackupNatively(envelope, customFilename = null) {
         success: true,
         method: 'native_filesystem',
         fileName,
+        sizeBytes,
         uri: writeResult.uri,
       };
     } catch (err) {
@@ -81,6 +86,7 @@ export async function exportBackupNatively(envelope, customFilename = null) {
     success: true,
     method: 'web_download',
     fileName: webResult.fileName,
+    sizeBytes: webResult.sizeBytes,
   };
 }
 
@@ -97,7 +103,11 @@ export async function readBackupFileNatively(pathOrUri) {
         path: pathOrUri,
         encoding: Encoding.UTF8,
       });
-      return typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
+      const content = typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
+      // Native plugin may have already allocated the string, but refuse
+      // an unbounded v1 JSON envelope before validation/decryption.
+      assertBackupFileSize(new Blob([content]).size);
+      return content;
     } catch (err) {
       console.error('[NativeBackup] Native readFile failed:', err);
       throw new Error(`Unable to read backup file from device: ${err.message}`, { cause: err });
