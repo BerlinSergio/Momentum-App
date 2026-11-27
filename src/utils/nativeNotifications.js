@@ -1,4 +1,5 @@
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 /**
  * Momentum Unified Notification Engine
  * Dual-adapter delivery for Windows Desktop (HTML5 Web Notifications)
@@ -163,6 +164,16 @@ export async function checkNotificationPermission() {
 /**
  * Request notification permissions (Must be called in response to a user gesture on Desktop Web)
  */
+export async function checkExactReminderPermission() {
+  if(Capacitor.getPlatform()!=='android')return 'not_applicable';
+  try{return (await LocalNotifications.checkExactNotificationSetting()).exact_alarm||'unknown';}catch{return 'unknown';}
+}
+export async function openExactReminderSettings() {
+  if(Capacitor.getPlatform()!=='android')return 'not_applicable';
+  await LocalNotifications.changeExactNotificationSetting();
+  return checkExactReminderPermission();
+}
+
 export async function requestNotificationPermission() {
   if (!isNativePlatform()) {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -243,9 +254,18 @@ export function registerNotificationTapListener() {
   isActionListenerRegistered = true;
 
   try {
+    const record=(notification)=>{
+      const extra=notification?.extra||{};
+      if(!extra.momentumManaged||!extra.key||!Number.isFinite(extra.at))return;
+      const id=occurrenceKey(extra.key,new Date(extra.at));
+      if(useNotificationStore.getState().notifications?.some(entry=>entry.id===id))return;
+      useNotificationStore.getState().addNotification({id,title:notification.title,body:notification.body,sourceType:extra.type,sourceId:extra.params?.taskId??extra.params?.routineId??extra.params?.eventId??extra.params?.prayer??null,targetScreen:extra.targetScreen,params:extra.params,timestamp:new Date().toISOString()});
+    };
+    LocalNotifications.addListener('localNotificationReceived', notification=>record(notification)).catch(err=>console.warn('[Notifications] Receipt listener failed',err));
     LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
+      record(notification);
       handleNotificationRoute(notification.extra || {});
-    });
+    }).catch(err=>{isActionListenerRegistered=false;console.warn('[Notifications] Tap listener failed',err);});
   } catch (err) {
     console.warn('[NativeNotifications] Action listener registration failed:', err.message);
   }
@@ -532,17 +552,21 @@ async function reconcileNativeReminders(){
   if(permission!=='granted')return {success:false,reason:'permission_not_granted',permission};
   await initializeNotificationChannels();
   registerNotificationTapListener();
-  const plan=buildNativeReminderPlan();
+  const exactPermission=await checkExactReminderPermission();
+  const exact=exactPermission==='granted';
+  // Never open system settings from automatic background reconciliation.
+  const plan=buildNativeReminderPlan().map(item=>({...item,isExactNotification:Capacitor.getPlatform()==='android'?exact:undefined,extra:{...item.extra,exact:Capacitor.getPlatform()==='android'?exact:null}}));
   const pending=(await LocalNotifications.getPending()).notifications||[];
   const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar','nudge'].includes(item.extra?.type));
   const wanted=new Map(plan.map(item=>[item.id,item]));
-  const same=(old,next)=>next&&old.extra?.key===next.extra.key&&old.extra?.at===next.extra.at&&old.title===next.title&&old.body===next.body&&old.channelId===next.channelId;
+  const same=(old,next)=>next&&old.extra?.key===next.extra.key&&old.extra?.at===next.extra.at&&old.extra?.exact===next.extra.exact&&old.title===next.title&&old.body===next.body&&old.channelId===next.channelId;
   const obsolete=managed.filter(item=>!same(item,wanted.get(item.id)));
   if(obsolete.length)await LocalNotifications.cancel({notifications:obsolete.map(({id})=>({id}))});
   const unchanged=new Set(managed.filter(item=>same(item,wanted.get(item.id))).map(item=>item.id));
   const changed=plan.filter(item=>!unchanged.has(item.id));
-  if(changed.length)await LocalNotifications.schedule({notifications:changed});
-  return {success:true,isNative:true,scheduledCount:plan.length};
+  let warning=null;
+  if(changed.length){const result=await LocalNotifications.schedule({notifications:changed});warning=result?.warning?.code||null;}
+  return {success:true,isNative:true,scheduledCount:plan.length,exactPermission,warning};
 }
 export function scheduleAllActiveNotifications(){
   if(!isNativePlatform()){
