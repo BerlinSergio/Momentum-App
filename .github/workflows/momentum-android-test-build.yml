@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/db-phase217-migration-recovery-20261125
+      - fix/unified-reminder-alarm-system-20261127
     paths:
       - '.github/workflows/momentum-android-test-build.yml'
       - 'src/**'
@@ -23,6 +24,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -33,6 +36,8 @@ jobs:
           java-version: '21'
       - name: Install locked dependencies
         run: npm ci --no-fund
+      - name: Verify reminder timing rules
+        run: node --test tests/notifications/reminderRules.test.mjs
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
