@@ -1,5 +1,6 @@
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
+import { getCommittedStoreRecord } from '../storage/db.js';
 /**
  * Momentum Unified Notification Engine
  * Dual-adapter delivery for Windows Desktop (HTML5 Web Notifications)
@@ -410,7 +411,8 @@ export async function tickNotificationScheduler() {
   try {
     const now=new Date();
     const run=async()=>{
-      const plan=buildNativeReminderPlan(now,{lookbackMs:15*60000,limit:Infinity});
+      const snapshot=await readReminderSnapshot();
+      const plan=buildNativeReminderPlan(now,{lookbackMs:15*60000,limit:Infinity,snapshot});
       for(const item of plan){
         if(item.schedule.at>now)continue;
         const key=occurrenceKey(item.extra.key,item.schedule.at);
@@ -484,8 +486,28 @@ const DAILY_NUDGES = [
   ['dailyHabitCheckin',20,30,'Daily habit check-in','Review your daily routines.','daily_routine_dark_mode'],
   ['eveningWinddown',21,30,'Evening wind-down','Take a moment for gratitude and reflection.','notes_main_dark_mode'],
 ];
-export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,lookbackMs=0,limit=60}={}) {
-  const settings=useSettingsStore.getState();
+const REMINDER_STORES=[
+  ['settings','momentum_settings_store',useSettingsStore],
+  ['tasks','momentum-task-storage',useTaskStore],
+  ['routines','momentum-routine-storage',useRoutineStore],
+  ['calendar','momentum-calendar-storage-v1',useCalendarStore],
+  ['location','momentum-location-storage',useLocationStore],
+  ['prayer','momentum-prayer-storage',usePrayerStore],
+];
+async function readReminderSnapshot(){
+  const entries=await Promise.all(REMINDER_STORES.map(async ([key,name,store])=>{
+    if(!store.persist.hasHydrated())throw Error('Reminder data not hydrated');
+    const record=await getCommittedStoreRecord(name);
+    const defaults=store.getInitialState();
+    if(!record)return [key,defaults];
+    const value=typeof record.value==='string'?JSON.parse(record.value):record.value;
+    if(!value?.state||typeof value.state!=='object')throw Error('Invalid committed reminder data');
+    return [key,{...defaults,...value.state}];
+  }));
+  return Object.fromEntries(entries);
+}
+export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,lookbackMs=0,limit=60,snapshot=null}={}) {
+  const settings=snapshot?.settings||useSettingsStore.getState();
   if (settings.masterEnabled === false) return [];
   const notifications=[];
   const add=(key,at,title,body,channelId,type,params,targetScreen)=>{
@@ -498,14 +520,14 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
     });
   };
   if(settings.dueTaskAlerts!==false) {
-    for(const task of useTaskStore.getState().tasks||[]) {
+    for(const task of (snapshot?.tasks||useTaskStore.getState()).tasks||[]) {
       if(task.completed||task.status==='done'||task.archived||task.isDeleted) continue;
-      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'tasks_reminders_dark_mode');
+      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'task_details');
     }
   }
-  const routines=useRoutineStore.getState().routines||[];
-  const loc=useLocationStore.getState().selectedCity;
-  const prayer=usePrayerStore.getState();
+  const routines=(snapshot?.routines||useRoutineStore.getState()).routines||[];
+  const loc=(snapshot?.location||useLocationStore.getState()).selectedCity;
+  const prayer=snapshot?.prayer||usePrayerStore.getState();
   const enabled=(settings.enabledPrayerAlerts||[]).map(value=>String(value).toLowerCase());
   for(let offset=lookbackMs>0?-1:0;offset<8;offset++){
     const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset,12);
@@ -517,7 +539,7 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
     }
     for(const routine of routines){
       if(settings.routineAlertsEnabled===false||routine.reminderEnabled===false||routine.reminder==='None'||!isRoutineScheduledForDate(routine,dateKey)||isRoutineCompletedForDate(routine,dateKey))continue;
-      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'daily_routine_dark_mode');
+      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'routine_details');
     }
     if(loc && Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude) && settings.prayerAlertsEnabled!==false && prayer.prayerAlertsEnabled!==false){
       const prayerDayKey=addCalendarDays(getLocalDateKey(now,loc.timezone),offset);
@@ -536,7 +558,7 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
       }
     }
   }
-  for(const event of settings.calendarAlertsEnabled===false?[]:(useCalendarStore.getState().events||[])){
+  for(const event of settings.calendarAlertsEnabled===false?[]:((snapshot?.calendar||useCalendarStore.getState()).events||[])){
     if(event.completed||!event.date||!event.time||event.reminderEnabled===false)continue;
     const at=calculateTaskTriggerDate({dueDate:event.date,startTime:String(event.time).split('–')[0].trim(),reminder:event.reminder??'10 minutes before',reminderOffsetMinutes:event.reminderOffsetMinutes});
     add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode');
@@ -555,7 +577,8 @@ async function reconcileNativeReminders(){
   const exactPermission=await checkExactReminderPermission();
   const exact=exactPermission==='granted';
   // Never open system settings from automatic background reconciliation.
-  const plan=buildNativeReminderPlan().map(item=>({...item,isExactNotification:Capacitor.getPlatform()==='android'?exact:undefined,extra:{...item.extra,exact:Capacitor.getPlatform()==='android'?exact:null}}));
+  const snapshot=await readReminderSnapshot();
+  const plan=buildNativeReminderPlan(new Date(),{snapshot}).map(item=>({...item,isExactNotification:Capacitor.getPlatform()==='android'?exact:undefined,extra:{...item.extra,exact:Capacitor.getPlatform()==='android'?exact:null}}));
   const pending=(await LocalNotifications.getPending()).notifications||[];
   const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar','nudge'].includes(item.extra?.type));
   const wanted=new Map(plan.map(item=>[item.id,item]));
