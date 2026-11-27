@@ -72,6 +72,7 @@ public final class MomentumAlarmEngine {
     /** Called on main thread. Returns only accepted occurrence keys; failed arms fall back to local notifications. */
     public static synchronized JSONArray sync(Context c,JSONArray plan) throws Exception {
         long now=System.currentTimeMillis();JSONObject old=read(c),next=new JSONObject();JSONArray covered=new JSONArray();
+        ensureVibrationChannel(c);
         boolean allowed=canRing(c);
         if(plan.length()>1000)throw new IllegalArgumentException("Alarm plan too large");
         if(allowed)for(int i=0;i<plan.length();i++){
@@ -144,6 +145,13 @@ public final class MomentumAlarmEngine {
             }catch(Exception ignored){/* Do not log reminder content. */}
         }
     }
+    private static void ensureVibrationChannel(Context c){
+        if(Build.VERSION.SDK_INT>=26){
+            NotificationChannel n=new NotificationChannel("momentum_vibration_v1","Momentum vibration reminders",NotificationManager.IMPORTANCE_HIGH);
+            n.setSound(null,null);n.enableVibration(true);n.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+            ((NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(n);
+        }
+    }
     private static void channel(Context c){
         if(Build.VERSION.SDK_INT>=26){
             NotificationChannel n=new NotificationChannel(CHANNEL,"Momentum ringing alarms",NotificationManager.IMPORTANCE_HIGH);
@@ -177,7 +185,7 @@ public final class MomentumAlarmEngine {
             if(player!=null)return;
             try{
                 Uri uri=RingtoneManager.getActualDefaultRingtoneUri(this,RingtoneManager.TYPE_ALARM);
-                if(uri==null)uri=RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                if(uri==null)return; // Respect the device owner's disabled alarm sound.
                 MediaPlayer p=new MediaPlayer();player=p;
                 p.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
                 p.setWakeMode(this,PowerManager.PARTIAL_WAKE_LOCK);p.setDataSource(this,uri);p.setLooping(true);

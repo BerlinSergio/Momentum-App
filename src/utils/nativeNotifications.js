@@ -286,6 +286,7 @@ export async function deliverNotification({
   targetScreen = null,
   params = {},
   channelId = CHANNELS.SYSTEM.id,
+  quiet = false,
 }) {
   const notifId = id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const settings = useSettingsStore.getState();
@@ -349,6 +350,7 @@ export async function deliverNotification({
           body,
           icon: '/logo.png',
           tag: notifId,
+          silent: quiet,
           data: { targetScreen, params, sourceType, sourceId },
         });
 
@@ -421,7 +423,7 @@ export async function tickNotificationScheduler() {
         if(isNotificationFired(key))continue;
         const result=await deliverNotification({id:key,title:item.title,body:item.body,
           sourceType:item.extra.type,sourceId:item.extra.params.taskId??item.extra.params.routineId??item.extra.params.eventId??item.extra.params.prayer??null,
-          targetScreen:item.extra.targetScreen,params:item.extra.params,channelId:item.channelId});
+          targetScreen:item.extra.targetScreen,params:item.extra.params,channelId:item.channelId,quiet:item.extra.ringEligible===false});
         if(result.success===true)recordNotificationFired(key);
       }
     };
@@ -516,7 +518,8 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
     if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at.getTime()<=now.getTime()-lookbackMs || (type!=='prayer' && isCivilQuiet(settings,at))) return;
     if(!includeAlarmOnly && settings.alarmOnlyOccurrences?.[key]===at.getTime())return;
     notifications.push({
-      id:hashStringToInt(occurrenceKey(key,at)),title,body,channelId,smallIcon:'ic_stat_momentum',
+      id:hashStringToInt(occurrenceKey(key,at)),title,body,channelId:options.ringEligible===false?'momentum_vibration_v1':channelId,smallIcon:'ic_stat_momentum',
+      ...(options.ringEligible===false?{sound:'momentum_silence.wav'}:{}),
       schedule:{at,allowWhileIdle:true},
       ongoing:options.persistent===true,autoCancel:options.persistent!==true,
       extra:{momentumManaged:true,key,type,params,targetScreen,at:at.getTime(),persistent:options.persistent===true,ringEligible:options.ringEligible!==false},
@@ -590,12 +593,14 @@ async function reconcileNativeReminders(){
   let covered=new Set();let ringWarning=null;
   if(android){
     const recent=buildNativeReminderPlan(now,{snapshot,lookbackMs:86400000,limit:Infinity});
-    const alarms=exact?selectRingingOccurrences(future,recent,snapshot.settings.ringingAlarmSources,useLocaleStore.getState().currentLocale,now):[];
+    const requested=selectRingingOccurrences(future,recent,snapshot.settings.ringingAlarmSources,useLocaleStore.getState().currentLocale,now);
+    const alarms=exact?requested:[];
+    if(!exact&&requested.some(a=>a.at>now.getTime()))ringWarning='exact_alarm_permission_required';
     try{const result=await AlarmDevice.syncRingingAlarms({alarms});covered=new Set(result.covered||[]);if(alarms.some(a=>a.at>now.getTime()&&!covered.has(a.key)))ringWarning='ringing_alarm_unavailable';}
     catch(error){ringWarning='ringing_alarm_sync_failed';console.warn('[Notifications] Ringing alarm synchronization failed');}
   }
   // Only suppress the ordinary notification if native scheduling accepted that occurrence.
-  const plan=future.filter(item=>!covered.has(occurrenceKey(item.extra.key,item.schedule.at))).map(item=>({...item,extra:{...item.extra,exact:android?exact:null}}));
+  const plan=future.filter(item=>!covered.has(occurrenceKey(item.extra.key,item.schedule.at))).map(item=>({...item,isExactNotification:android?exact:undefined,isExactMandatory:false,extra:{...item.extra,exact:android?exact:null}}));
   const pending=(await LocalNotifications.getPending()).notifications||[];
   const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar','nudge'].includes(item.extra?.type));
   const wanted=new Map(plan.map(item=>[item.id,item]));
