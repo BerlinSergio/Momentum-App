@@ -20,8 +20,8 @@ permissions:
 
 jobs:
   android-debug:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,22 +81,42 @@ jobs:
         run: bash ./gradlew :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: Android emulator delivery, stop, snooze and cancellation
         shell: bash
-        timeout-minutes: 15
+        timeout-minutes: 23
         run: |
           set -euo pipefail
           test -e /dev/kvm
           sudo chmod a+rw /dev/kvm
           sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"
-          echo no | avdmanager create avd --force -n momentum_ci -k "system-images;android-34;google_apis;x86_64"
-          "$ANDROID_HOME/emulator/emulator" -avd momentum_ci -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          echo no | avdmanager create avd --force -n momentum_ci -k "system-images;android-34;google_apis;x86_64" --device "pixel_2"
+          emulator="$ANDROID_HOME/emulator/emulator"
+          "$emulator" -version
+          "$emulator" -accel-check
+          adb start-server
+          "$emulator" -avd momentum_ci -port 5554 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-metrics -camera-back none -camera-front none -memory 2048 > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emulator_pid=$!
-          trap 'adb emu kill >/dev/null 2>&1 || true; kill "$emulator_pid" >/dev/null 2>&1 || true' EXIT
-          timeout 180 adb wait-for-device
-          for i in $(seq 1 90); do
-            if [[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == 1 ]]; then break; fi
+          cleanup() {
+            rc=$?
+            if [[ "$rc" != 0 ]]; then
+              echo "Emulator diagnostics (synthetic test device only):"
+              tail -n 100 "$RUNNER_TEMP/emulator.log" || true
+              adb devices -l || true
+              timeout 10 adb -s emulator-5554 logcat -d -t 200 || true
+            fi
+            adb -s emulator-5554 emu kill >/dev/null 2>&1 || true
+            kill "$emulator_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          export ANDROID_SERIAL=emulator-5554
+          booted=0
+          for i in $(seq 1 180); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then echo "Emulator exited before boot"; exit 1; fi
+            if [[ "$(timeout 5 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" == 1 ]]; then booted=1; break; fi
             sleep 3
           done
-          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+          test "$booted" = 1
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
           adb shell input keyevent 82
           adb install -r android/app/build/outputs/apk/debug/app-debug.apk
           adb install -r android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
