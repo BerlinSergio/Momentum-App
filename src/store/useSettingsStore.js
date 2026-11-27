@@ -9,6 +9,8 @@ export const INITIAL_NOTIFICATION_SETTINGS = {
   masterEnabled: true,
   alarmOnlyOccurrences: {},
   dueTaskAlerts: true,
+  routineAlertsEnabled: true,
+  calendarAlertsEnabled: true,
   dailyHabitCheckin: true,
   overdueMilestonePushes: false,
   morningIntention: true,
