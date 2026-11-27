@@ -1,5 +1,5 @@
 import {useState,useEffect} from 'react';
-import {registerPlugin} from '@capacitor/core';
+import {registerPlugin,Capacitor} from '@capacitor/core';
 import {AlarmClock} from 'lucide-react';
 import {useLocaleStore} from '../store/useLocaleStore.js';
 import {useSettingsStore} from '../store/useSettingsStore.js';
@@ -8,9 +8,10 @@ import {useRoutineStore} from '../store/useRoutineStore.js';
 import {usePrayerStore} from '../store/usePrayerStore.js';
 import {useCalendarStore} from '../store/useCalendarStore.js';
 import {useLocationStore} from '../store/useLocationStore.js';
-import {buildNativeReminderPlan,scheduleAllActiveNotifications} from '../utils/nativeNotifications.js';
+import {buildNativeReminderPlan,scheduleAllActiveNotifications,checkExactReminderPermission,openExactReminderSettings} from '../utils/nativeNotifications.js';
 import {toast} from './ui/toast/index.js';
 const Device=registerPlugin('MomentumDevice');
+const EXACT={en:['Exact reminder timing','Android may delay reminders until exact alarms are allowed.','Open alarms & reminders settings'],'fa-AF':['زمان دقیق یادآوری','اندروید ممکن است یادآوری‌ها را تا زمان صدور مجوز زنگ دقیق به تأخیر بیندازد.','باز کردن تنظیمات زنگ و یادآوری'],'ps-AF':['د یادونې دقیق وخت','تر دقیق الارم اجازې پورې Android ښايي یادونې وځنډوي.','د الارم او یادونو تنظیمات خلاص کړئ']};
 const COPY={
  en:{title:'Reminder schedule',intro:'Upcoming reminders from all sections, in time order. Android Clock alarms are separate and must be confirmed in Clock.',routine:'Routine reminders',calendar:'Calendar reminders',all:'All',task:'Tasks',prayer:'Prayers',nudge:'Daily check-ins',empty:'No upcoming reminders.',choose:'Choose a reminder',clock:'Open Android Clock',opened:'Clock opened. Confirm the alarm there; Momentum cannot verify it.',failed:'Could not open Android Clock.',saved:'Reminder preference saved.',error:'Could not update reminder scheduling.',restore:'Restore Momentum notification',external:'Notification disabled for this occurrence by an earlier Clock preference.',limited:'Android schedules the next 60 eligible reminders. The queue refreshes while Momentum is active.',clockHint:'Clock can only set a time within the next 24 hours. It is not managed or cancelled by Momentum.',enabled:'Enabled',disabled:'Disabled'},
  'fa-AF':{title:'برنامه یادآوری‌ها',intro:'یادآوری‌های همه بخش‌ها به ترتیب زمان. زنگ ساعت اندروید جداگانه است و باید در برنامه ساعت تأیید شود.',routine:'یادآوری برنامه روزانه',calendar:'یادآوری تقویم',all:'همه',task:'وظایف',prayer:'نمازها',nudge:'یادآوری روزانه',empty:'یادآوری آینده وجود ندارد.',choose:'انتخاب یادآوری',clock:'باز کردن ساعت اندروید',opened:'ساعت باز شد. زنگ را در آن تأیید کنید؛ ثبت آن قابل بررسی نیست.',failed:'باز کردن ساعت ممکن نشد.',saved:'تنظیم یادآوری ذخیره شد.',error:'تنظیم یادآوری انجام نشد.',restore:'فعال کردن دوباره اعلان Momentum',external:'اعلان این نوبت قبلاً برای زنگ ساعت خاموش شده است.',limited:'اندروید ۶۰ یادآوری بعدی را تنظیم می‌کند. فهرست هنگام فعال بودن برنامه به‌روز می‌شود.',clockHint:'ساعت فقط زمان ۲۴ ساعت آینده را تنظیم می‌کند و Momentum آن را مدیریت یا لغو نمی‌کند.',enabled:'فعال',disabled:'غیرفعال'},
@@ -30,6 +31,10 @@ export default function ReminderAlarmCard({isNative}) {
  const [selected,setSelected]=useState('');
  const [filter,setFilter]=useState('all');
  const [busy,setBusy]=useState(false);
+ const [exact,setExact]=useState('unknown');
+ const android=Capacitor.getPlatform()==='android';
+ const ec=EXACT[locale]||EXACT.en;
+ useEffect(()=>{if(!android)return;let active=true;const refresh=()=>checkExactReminderPermission().then(value=>{if(active)setExact(value);});refresh();window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{active=false;window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[android]);
  useEffect(()=>{const refresh=()=>setNow(new Date());const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);window.removeEventListener('focus',refresh);};},[]);
  const items=buildNativeReminderPlan(now,{includeAlarmOnly:true,limit:Infinity});
  const keyOf=x=>x.extra.key+'@'+x.extra.at;
@@ -46,7 +51,7 @@ export default function ReminderAlarmCard({isNative}) {
    if(!item||!suppressed||busy)return;setBusy(true);
    try{const saved=await settings.setAlarmOnlyOccurrence(item.extra.key,item.extra.at,false);if(saved===false)throw Error('Save failed');const result=await scheduleAllActiveNotifications();if(!result.success)throw Error('Schedule failed');toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
  };
- const canOpen=isNative&&item&&item.extra.at>Date.now()&&item.extra.at-Date.now()<86400000;
+ const canOpen=android&&item&&item.extra.at>Date.now()&&item.extra.at-Date.now()<86400000;
  const open=async()=>{
    if(!canOpen||busy)return;setBusy(true);
    try{const at=item.schedule.at;if(at<=new Date()||at-Date.now()>=86400000)throw Error('Expired reminder');const result=await Device.openAlarmEditor({hour:at.getHours(),minute:at.getMinutes(),label:'Momentum'});if(!result.opened)throw Error('Clock unavailable');toast.info(c.opened);}catch{toast.error(c.failed);}finally{setBusy(false);}
@@ -60,7 +65,8 @@ export default function ReminderAlarmCard({isNative}) {
    {!filtered.length&&<p className="text-xs opacity-75">{c.empty}</p>}
    {filtered.map(x=><button key={keyOf(x)} type="button" onClick={()=>setSelected(keyOf(x))} aria-pressed={selected===keyOf(x)} className={'w-full text-start rounded-xl p-2 border '+(selected===keyOf(x)?'border-indigo-500':'border-current/10')}><span className="block text-xs opacity-75">{label(x.extra.type)} · {format(x.schedule.at)}</span><span className="block text-sm break-words">{x.body}</span>{settings.alarmOnlyOccurrences?.[x.extra.key]===x.extra.at&&<span className="block text-xs opacity-75">{c.external}</span>}</button>)}
    </div>
-   {isNative&&<><p className="text-xs opacity-75">{c.limited}</p><p className="text-xs opacity-75">{c.clockHint}</p><button type="button" disabled={!canOpen||busy} onClick={open} className="w-full rounded-xl px-3 py-2 bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40">{c.clock}</button></>}
+   {android&&<div className="rounded-xl border border-current/15 p-3 space-y-2"><p className="text-sm font-semibold">{ec[0]} · {exact==='granted'?c.enabled:c.disabled}</p>{exact!=='granted'&&<><p className="text-xs opacity-75">{ec[1]}</p><button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{ec[2]}</button></>}</div>}
+   {isNative&&<p className="text-xs opacity-75">{c.limited}</p>}{android&&<><p className="text-xs opacity-75">{c.clockHint}</p><button type="button" disabled={!canOpen||busy} onClick={open} className="w-full rounded-xl px-3 py-2 bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40">{c.clock}</button></>}
    {suppressed&&<button type="button" disabled={busy} onClick={restore} className="w-full rounded-xl px-3 py-2 border border-primary/30 text-sm font-semibold text-primary disabled:opacity-40">{c.restore}</button>}
  </section>;
 }
