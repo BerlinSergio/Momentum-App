@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8c67cbf456a459b78989ef064a65a903151b4148
+          ref: f41d8c65035494889319a5fd57f8a1063078630e
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -31,7 +31,7 @@ jobs:
           npm run build
           test -s dist/index.html
       - name: Durable storage and navigation regression
-        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/storage/backupSizeLimits.test.mjs tests/navigation/themeNavigation.test.mjs
+        run: node --test tests/storage/dbDurability.test.mjs tests/storage/startupHydration.test.mjs tests/storage/dbConnectionLifecycle.test.mjs tests/storage/migrationIntegrity.test.mjs tests/storage/backupCryptoIntegrity.test.mjs tests/storage/backupServiceSafety.test.mjs tests/storage/wallpaperDurability.test.mjs tests/storage/backupSizeLimits.test.mjs tests/navigation/themeNavigation.test.mjs tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs
 
   dependency-audit:
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8c67cbf456a459b78989ef064a65a903151b4148
+          ref: f41d8c65035494889319a5fd57f8a1063078630e
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -76,48 +76,75 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Scan reachable branch and tag history without publishing findings
+      - name: Scan candidate and reachable history (encrypted metadata only)
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           test "$(git rev-parse --is-shallow-repository)" = false
-          printf 'Reachable commits: '
-          git rev-list --all --count
-          printf 'Remote branches: '
-          git for-each-ref --format='%(refname)' refs/remotes/origin | wc -l
-          printf 'Tags: '
-          git tag | wc -l
+          printf 'Reachable commits: '; git rev-list --all --count
+          printf 'Remote branches: '; git for-each-ref --format='%(refname)' refs/remotes/origin | wc -l
           docker pull ghcr.io/gitleaks/gitleaks:v8.24.2
-          report_dir="$(mktemp -d)"
-          trap 'rm -rf "$report_dir"' EXIT
-          chmod 777 "$report_dir"
-          status=0
-          docker run --rm --network none -v "$PWD:/repo:ro" -v "$report_dir:/report:rw" ghcr.io/gitleaks/gitleaks:v8.24.2 git --log-opts="--all" --redact=100 --no-banner --ignore-gitleaks-allow --exit-code 42 --report-format json --report-path /report/findings.json /repo > "$report_dir/scanner.log" 2>&1 || status=$?
-          case "$status" in
-            0) echo "No findings from Gitleaks in scanned reachable history." ;;
-            42)
-              # Emit only location metadata, never Match, Secret, Message or author details.
-              python3 - "$report_dir/findings.json" <<'PY'
-          import json, re, sys
-          with open(sys.argv[1], encoding="utf-8") as f:
-              findings = json.load(f)
-          if not isinstance(findings, list) or not findings:
-              raise SystemExit("Finding metadata unavailable")
-          print("Finding count:", len(findings))
-          for item in findings[:200]:
-              commit = item.get("Commit", "")
-              rule = item.get("RuleID", "")
-              if not re.fullmatch(r"[0-9a-f]{40,64}", commit):
-                  commit = "[unknown]"
-              if not re.fullmatch(r"[a-zA-Z0-9_-]{1,100}", rule):
-                  rule = "[unknown]"
-              path = item.get("File", "")
-              line = item.get("StartLine", 0)
-              print("Finding metadata:", json.dumps({"rule": rule, "commit": commit, "file": path, "line": line}, ensure_ascii=True))
-          if len(findings) > 200:
-              print("Metadata truncated at 200; remaining findings require private review.")
+          d="$(mktemp -d)"
+          trap 'rm -rf "$d"' EXIT
+          mkdir -p "$d/tree" "$d/reports" "$RUNNER_TEMP/momentum-encrypted-audit"
+          git archive f41d8c65035494889319a5fd57f8a1063078630e | tar -x -C "$d/tree"
+          cat > "$d/recipient.pem" <<'CERT'
+          -----BEGIN CERTIFICATE-----
+          MIIEJzCCAo+gAwIBAgIUGhUlJnOzz1yhYkFWGpGezbylgEAwDQYJKoZIhvcNAQEL
+          BQAwIzEhMB8GA1UEAwwYTW9tZW50dW0gYXVkaXQgcmVjaXBpZW50MB4XDTI2MTEy
+          NzExMzU0NVoXDTI2MTEyOTExMzU0NVowIzEhMB8GA1UEAwwYTW9tZW50dW0gYXVk
+          aXQgcmVjaXBpZW50MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAxloX
+          mDho59RsEisPprg0//++xEGX9GizuX91S0aqQvnrDbCBfmLJvyP0bB4M39gRs3TX
+          Rw8z/z6FJH5VtgdMnUbp6EFvB3/277CpIsvQ4vz6pJvA4vXRcn+5Ze5VHpgcbOwn
+          6RkR9TpWr7d003PGk8WKs8VVpVBjmwHZMKFqM284hdtOdzbgmLyXdwhhchJNb9N6
+          T6EEDJXMNCn9frkF/8ux1yNJlUD02MmpaBZFDt2jY6xE9I35j1+W3lqW1MUqetYi
+          Bd7GGmq+J5UYngEpdMQYFhmqXtaPrp+QoI2IPX5Hkw4LhvUVdhMOabOroyD6paod
+          lstnd1RV3IEOrzD3HtL1pBpK8go5RvtGfLY+el+2Y4mDgIQcls4ynjVXj9hxP3rR
+          TlzdvNkXZEMsmNAP2cbmMADgkbeDEOhaFOKwJCo5hNk3IJ7saxXHZu+xYS/OGkHU
+          s0sLNrV6JAxjotKlsPjMCSSSaePVtvqIpjh5SMrQgUiMHiynhkKUmpxtGsuxAgMB
+          AAGjUzBRMB0GA1UdDgQWBBRRinAdlabQLrHD8SwDcpaiFK0rNjAfBgNVHSMEGDAW
+          gBRRinAdlabQLrHD8SwDcpaiFK0rNjAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3
+          DQEBCwUAA4IBgQBjNNXoXns6cfFtQw295GcHGDKHXsnsBKonZ08KZMPc2PiDV9CW
+          YqGfpzzwK1KaQ5z0mxq6MgIhyCAysFoHsTqEwoej9ZZnaAqcCSPbqrnYv9UCp30R
+          jJdnUb+zCU0IohTzIjVVxjztEkjWjLXVe1tIsaTfDi1GnA/PmDXrVHpCovOOsaWs
+          WEqoubwjcaLplUXiq7LNK2HFTvqWOUwI1wm9WUIKyMJR8GUatqfpB/+Rg1H/6WiU
+          RKbctV2zG0xUSXDpj6VX0+GoK4AKTwCk4gIemMcxCkXstC3BjblXRsfTl1EuA3tC
+          gRLv4fnEEt4yqP/Lw+nY/x1N6JFIV/Gw2a4CLuSmk2QuP2vcRwinsqgxS6PT8yZV
+          JZ6i/vJTkepSoo/+ql3I0UVuiPh6kLnSGy6/hggY7fhwB3WExgvvPGe0ZTcGoMzx
+          gMOCzJI8s8sMInIqDRWsbjMO+HHgEf64XuzNW8FiWxo3ZuIXhsFKz68CFat6Je2c
+          mHISIWeGK+y9QyM=
+          -----END CERTIFICATE-----
+          CERT
+          history=0
+          current=0
+          docker run --rm --network none --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" -v "$d/reports:/report:rw" ghcr.io/gitleaks/gitleaks:v8.24.2 git --log-opts="--all" --redact=100 --no-banner --ignore-gitleaks-allow --exit-code 42 --report-format json --report-path /report/history.json /repo > "$d/history.log" 2>&1 || history=$?
+          docker run --rm --network none --user "$(id -u):$(id -g)" -v "$d/tree:/source:ro" -v "$d/reports:/report:rw" ghcr.io/gitleaks/gitleaks:v8.24.2 dir --redact=100 --no-banner --ignore-gitleaks-allow --exit-code 42 --report-format json --report-path /report/current.json /source > "$d/current.log" 2>&1 || current=$?
+          if [[ "$history" != 0 && "$history" != 42 ]] || [[ "$current" != 0 && "$current" != 42 ]]; then
+            echo "Scanner could not complete. No clean result claimed."
+            exit 1
+          fi
+          python3 - "$d" "$history" "$current" <<'PY'
+          import json, pathlib, sys
+          root=pathlib.Path(sys.argv[1])
+          result={}
+          for name,status in zip(("history","current"),sys.argv[2:]):
+              p=root/"reports"/(name+".json")
+              findings=json.loads(p.read_text()) if p.exists() else []
+              if status=="42" and not findings: raise SystemExit("Scanner report missing")
+              result[name]=[{"rule":x.get("RuleID"),"file":x.get("File"),"commit":x.get("Commit"),"line":x.get("StartLine")} for x in findings]
+              print(name+" findings count:",len(findings))
+          (root/"metadata.json").write_text(json.dumps(result))
           PY
-              echo "Potential secrets detected. Release gate remains blocked."
-              exit 1 ;;
-            *) echo "Scanner could not complete; no clean result claimed."; exit 1 ;;
-          esac
+          openssl cms -encrypt -binary -aes-256-gcm -in "$d/metadata.json" -out "$RUNNER_TEMP/momentum-encrypted-audit/metadata.cms" -outform DER "$d/recipient.pem"
+          if [[ "$history" != 0 || "$current" != 0 ]]; then
+            echo "Potential secrets detected. Public logs contain no locations or values."
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: momentum-encrypted-audit-${{ github.sha }}
+          path: ${{ runner.temp }}/momentum-encrypted-audit/metadata.cms
+          if-no-files-found: ignore
+          retention-days: 1
