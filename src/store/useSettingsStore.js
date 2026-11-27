@@ -56,7 +56,7 @@ export const useSettingsStore = create(
             }
           }
         } else {
-          set({ [key]: value });
+          return set({ [key]: value });
         }
       },
       setPrayerNotificationOffset: (offset) => {
