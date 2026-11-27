@@ -89,7 +89,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends libpulse0 libnss3 libx11-xcb1 libxcb-cursor0 libxcb-xinerama0 libxkbcommon-x11-0 libgl1 libegl1 libasound2
           sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"
-          echo no | avdmanager create avd --force -n momentum_ci -k "system-images;android-34;google_apis;x86_64" --device "pixel_2"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/momentum-android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd --force -n momentum_ci -p "$ANDROID_AVD_HOME/momentum_ci.avd" -k "system-images;android-34;google_apis;x86_64" --device "pixel_2"
+          test -s "$ANDROID_AVD_HOME/momentum_ci.avd/config.ini"
+          if [[ ! -s "$ANDROID_AVD_HOME/momentum_ci.ini" ]]; then
+            printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-34\n' "$ANDROID_AVD_HOME/momentum_ci.avd" > "$ANDROID_AVD_HOME/momentum_ci.ini"
+          fi
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx momentum_ci
           emulator="$ANDROID_HOME/emulator/emulator"
           ldd "$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64" | grep "not found" && exit 1 || true
           "$emulator" -version
