@@ -241,6 +241,7 @@ export default function AddEditTaskLightMode({ setActiveTab, goBack }) {
   };
 
   const reminderOptions = [
+    'None',
     'At time of event',
     '5 minutes before',
     '15 minutes before',
