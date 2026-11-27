@@ -1,4 +1,7 @@
 import { App } from '@capacitor/app';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { useLocaleStore } from '../store/useLocaleStore.js';
+import { getCommittedStoreRecord } from '../storage/db.js';
 /**
  * Momentum Unified Notification Engine
  * Dual-adapter delivery for Windows Desktop (HTML5 Web Notifications)
@@ -19,8 +22,11 @@ import { useNavigationStore } from '../store/useNavigationStore.js';
 import { useNotificationStore } from '../store/useNotificationStore.js';
 import useSecurityStore from '../store/useSecurityStore.js';
 import { calculatePrayerTimes } from './prayerTimes.js';
-import { getLocalDateKey } from './timeService.js';
+import { getLocalDateKey, getTimezoneOffsetMinutes, addCalendarDays } from './timeService.js';
+import { calculateTaskTriggerDate, calculateRoutineTriggerDate, occurrenceKey, isCivilQuiet, selectRingingOccurrences } from './reminderRules.js';
+export { calculateTaskTriggerDate, calculateRoutineTriggerDate } from './reminderRules.js';
 
+const AlarmDevice=registerPlugin('MomentumDevice');
 let areChannelsCreated = false;
 let isActionListenerRegistered = false;
 let webSchedulerIntervalId = null;
@@ -161,6 +167,16 @@ export async function checkNotificationPermission() {
 /**
  * Request notification permissions (Must be called in response to a user gesture on Desktop Web)
  */
+export async function checkExactReminderPermission() {
+  if(Capacitor.getPlatform()!=='android')return 'not_applicable';
+  try{return (await LocalNotifications.checkExactNotificationSetting()).exact_alarm||'unknown';}catch{return 'unknown';}
+}
+export async function openExactReminderSettings() {
+  if(Capacitor.getPlatform()!=='android')return 'not_applicable';
+  await LocalNotifications.changeExactNotificationSetting();
+  return checkExactReminderPermission();
+}
+
 export async function requestNotificationPermission() {
   if (!isNativePlatform()) {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -241,9 +257,18 @@ export function registerNotificationTapListener() {
   isActionListenerRegistered = true;
 
   try {
+    const record=(notification)=>{
+      const extra=notification?.extra||{};
+      if(!extra.momentumManaged||!extra.key||!Number.isFinite(extra.at))return;
+      const id=occurrenceKey(extra.key,new Date(extra.at));
+      if(useNotificationStore.getState().notifications?.some(entry=>entry.id===id))return;
+      useNotificationStore.getState().addNotification({id,title:notification.title,body:notification.body,sourceType:extra.type,sourceId:extra.params?.taskId??extra.params?.routineId??extra.params?.eventId??extra.params?.prayer??null,targetScreen:extra.targetScreen,params:extra.params,timestamp:new Date().toISOString()});
+    };
+    LocalNotifications.addListener('localNotificationReceived', notification=>record(notification)).catch(err=>console.warn('[Notifications] Receipt listener failed',err));
     LocalNotifications.addListener('localNotificationActionPerformed', ({ notification }) => {
+      record(notification);
       handleNotificationRoute(notification.extra || {});
-    });
+    }).catch(err=>{isActionListenerRegistered=false;console.warn('[Notifications] Tap listener failed',err);});
   } catch (err) {
     console.warn('[NativeNotifications] Action listener registration failed:', err.message);
   }
@@ -261,6 +286,7 @@ export async function deliverNotification({
   targetScreen = null,
   params = {},
   channelId = CHANNELS.SYSTEM.id,
+  quiet = false,
 }) {
   const notifId = id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const settings = useSettingsStore.getState();
@@ -324,6 +350,7 @@ export async function deliverNotification({
           body,
           icon: '/logo.png',
           tag: notifId,
+          silent: quiet,
           data: { targetScreen, params, sourceType, sourceId },
         });
 
@@ -380,240 +407,29 @@ export async function sendTestNotification() {
 /**
  * Parses task due time and reminder offset into a Date object
  */
-export function calculateTaskTriggerDate(task) {
-  if (!task || !task.dueDate || task.reminderEnabled === false || /^(none|off|no reminder)$/i.test(String(task.reminder || '').trim())) return null;
-  const dueDateStr = task.dueDate; // YYYY-MM-DD
-  const [year, month, day] = dueDateStr.split('-').map(Number);
-  if (!year || !month || !day) return null;
-
-  let hours = 9;
-  let minutes = 0;
-
-  if (task.startTime) {
-    const timeClean = task.startTime.trim();
-    const isPM = /pm/i.test(timeClean);
-    const isAM = /am/i.test(timeClean);
-    const nums = timeClean.replace(/[^0-9:]/g, '').split(':').map(Number);
-    if (nums.length >= 2) {
-      hours = nums[0];
-      minutes = nums[1];
-      if (isPM && hours < 12) hours += 12;
-      if (isAM && hours === 12) hours = 0;
-    }
-  }
-
-  if (!Number.isInteger(hours) || hours<0 || hours>23 || !Number.isInteger(minutes) || minutes<0 || minutes>59) return null;
-  const baseDate = new Date(year, month - 1, day, hours, minutes, 0);
-  if (baseDate.getFullYear()!==year || baseDate.getMonth()!==month-1 || baseDate.getDate()!==day) return null;
-
-  // Compute offset in minutes
-  let offsetMinutes = 0;
-  const rem = String(task.reminder || '').toLowerCase();
-  if (rem.includes('10')) offsetMinutes = 10;
-  else if (rem.includes('15')) offsetMinutes = 15;
-  else if (rem.includes('30')) offsetMinutes = 30;
-  else if (rem.includes('1 hour') || rem.includes('60')) offsetMinutes = 60;
-  else if (rem.includes('1 day') || rem.includes('day')) offsetMinutes = 1440;
-  else if (Number(task.reminderOffsetMinutes) > 0) offsetMinutes = Number(task.reminderOffsetMinutes);
-
-  return new Date(baseDate.getTime() - offsetMinutes * 60 * 1000);
-}
-
-/**
- * Parses routine scheduled time and reminder offset into a Date object for today
- */
-export function calculateRoutineTriggerDate(routine, baseDate = new Date()) {
-  if (!routine || routine.reminderEnabled === false || /^(none|off|no reminder)$/i.test(String(routine.reminder || '').trim()) || (!routine.targetTime && !routine.time)) return null;
-  const timeStr = routine.targetTime || routine.time;
-  const isPM = /pm/i.test(timeStr);
-  const isAM = /am/i.test(timeStr);
-  const parts = timeStr.replace(/[^0-9:]/g, '').split(':').map(Number);
-  if (parts.length < 2) return null;
-
-  let hours = parts[0];
-  let minutes = parts[1];
-  if (isPM && hours < 12) hours += 12;
-  if (isAM && hours === 12) hours = 0;
-
-  if (!Number.isInteger(hours) || hours<0 || hours>23 || !Number.isInteger(minutes) || minutes<0 || minutes>59) return null;
-  const routineDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hours, minutes, 0);
-  const offsetMin = Number(routine.reminderOffset ?? 0);
-  if (!Number.isFinite(offsetMin) || offsetMin<0 || offsetMin>1440) return null;
-  return new Date(routineDate.getTime() - offsetMin * 60 * 1000);
-}
-
-/**
- * Periodic Web/Desktop Scheduler Ticker
- * Evaluates active tasks, routines, prayers, and calendar reminders.
- */
+// Native and web use the same occurrence planner, including recurrence and quiet hours.
+let webTickRunning=false;
 export async function tickNotificationScheduler() {
-  const settings = useSettingsStore.getState();
-  if (settings.masterEnabled === false) return;
-
-  const now = new Date();
-  const todayKey = getLocalDateKey();
-  const WINDOW_MS = 15 * 60 * 1000; // 15-minute lookback window for missed/due triggers
-
-  // =========================================================================
-  // 1. EVALUATE TASK REMINDERS
-  // =========================================================================
-  if (settings.dueTaskAlerts !== false) {
-    const tasks = useTaskStore.getState().tasks || [];
-    for (const task of tasks) {
-      if (task.status === 'done' || task.completed) continue;
-      if (!task.dueDate) continue;
-
-      const triggerDate = calculateTaskTriggerDate(task);
-      if (!triggerDate) continue;
-
-      const diff = now.getTime() - triggerDate.getTime();
-      // If trigger is due now (within the past 15 mins and not future by > 10s)
-      if (diff >= -10000 && diff <= WINDOW_MS) {
-        const fireKey = `task-${task.id}-${task.dueDate}`;
-        if (!isNotificationFired(fireKey)) {
-          recordNotificationFired(fireKey);
-          deliverNotification({
-            id: fireKey,
-            title: `Task Reminder: ${task.title}`,
-            body: task.description || `Scheduled for ${task.startTime || 'today'}. Small steps every day.`,
-            sourceType: 'task',
-            sourceId: task.id,
-            targetScreen: 'tasks_reminders_light_mode',
-            params: { taskId: task.id },
-            channelId: CHANNELS.TASKS.id,
-          });
-        }
+  if(isNativePlatform()||webTickRunning)return;
+  webTickRunning=true;
+  try {
+    const now=new Date();
+    const run=async()=>{
+      const snapshot=await readReminderSnapshot();
+      const plan=buildNativeReminderPlan(now,{lookbackMs:15*60000,limit:Infinity,snapshot});
+      for(const item of plan){
+        if(item.schedule.at>now)continue;
+        const key=occurrenceKey(item.extra.key,item.schedule.at);
+        if(isNotificationFired(key))continue;
+        const result=await deliverNotification({id:key,title:item.title,body:item.body,
+          sourceType:item.extra.type,sourceId:item.extra.params.taskId??item.extra.params.routineId??item.extra.params.eventId??item.extra.params.prayer??null,
+          targetScreen:item.extra.targetScreen,params:item.extra.params,channelId:item.channelId,quiet:item.extra.ringEligible===false});
+        if(result.success===true)recordNotificationFired(key);
       }
-    }
-  }
-
-  // =========================================================================
-  // 2. EVALUATE ROUTINE REMINDERS
-  // =========================================================================
-  const routines = useRoutineStore.getState().routines || [];
-  for (const routine of routines) {
-    if (routine.reminderEnabled === false || routine.reminder === 'None') continue;
-    if (!isRoutineScheduledForDate(routine, todayKey)) continue;
-    if (isRoutineCompletedForDate(routine, todayKey)) continue; // Already completed today
-
-    const triggerDate = calculateRoutineTriggerDate(routine, now);
-    if (!triggerDate) continue;
-
-    const diff = now.getTime() - triggerDate.getTime();
-    if (diff >= -10000 && diff <= WINDOW_MS) {
-      const fireKey = `routine-${routine.id}-${todayKey}`;
-      if (!isNotificationFired(fireKey)) {
-        recordNotificationFired(fireKey);
-        deliverNotification({
-          id: fireKey,
-          title: `Daily Routine: ${routine.title}`,
-          body: routine.description || `Time for your daily mindfulness routine (${routine.targetTime || routine.time || 'now'}).`,
-          sourceType: 'routine',
-          sourceId: routine.id,
-          targetScreen: 'daily_routine_light_mode',
-          params: { routineId: routine.id, dateKey: todayKey },
-          channelId: CHANNELS.ROUTINES.id,
-        });
-      }
-    }
-  }
-
-  // =========================================================================
-  // 3. EVALUATE PRAYER TIME ALERTS
-  // Note: Prayer notification firing MUST NEVER mark the prayer as completed!
-  // =========================================================================
-  const prayerAlertsEnabled = settings.prayerAlertsEnabled !== false;
-  if (prayerAlertsEnabled) {
-    const loc = useLocationStore.getState().selectedCity;
-    const prayerSettings = usePrayerStore.getState();
-    const enabledPrayers = settings.enabledPrayerAlerts || ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-
-    if (loc && loc.latitude != null && loc.longitude != null) {
-      const dayCalc = calculatePrayerTimes({
-        baseDate: now,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        elevation: loc.elevationMeters || 0,
-        calculationMethod: prayerSettings.calculationMethod,
-        timezone:loc.timezone,
-        madhab: prayerSettings.madhab,
-        highLatitudeRule:prayerSettings.highLatitudeRule,
-        polarCircleResolution:prayerSettings.polarCircleResolution,
-        adjustments: prayerSettings.prayerAdjustments,
-      });
-
-      if (dayCalc?.pt) {
-        const offsetMin = Number(prayerSettings.adhanOffset ?? settings.adhanOffset ?? 0);
-
-        for (const [pName, pInstant] of Object.entries(dayCalc.pt)) {
-          if (!(pInstant instanceof Date) || !Number.isFinite(pInstant.getTime())) continue;
-          const capName = pName.charAt(0).toUpperCase() + pName.slice(1);
-          if (!enabledPrayers.includes(capName)) continue;
-
-          const triggerTime = new Date(pInstant.getTime() - offsetMin * 60 * 1000);
-          const diff = now.getTime() - triggerTime.getTime();
-
-          if (diff >= -10000 && diff <= WINDOW_MS) {
-            const fireKey = `prayer-${pName}-${todayKey}`;
-            if (!isNotificationFired(fireKey)) {
-              recordNotificationFired(fireKey);
-              const timeStr = pInstant.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              deliverNotification({
-                id: fireKey,
-                title: `Prayer Time: ${capName}`,
-                body: `It is now time for ${capName} prayer (${timeStr}) in ${loc.name || 'your area'}.`,
-                sourceType: 'prayer',
-                sourceId: pName,
-                targetScreen: 'prayer_times_light_mode',
-                params: { prayer: pName },
-                channelId: CHANNELS.PRAYERS.id,
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // =========================================================================
-  // 4. EVALUATE CALENDAR EVENT REMINDERS
-  // =========================================================================
-  const calendarEvents = useCalendarStore.getState().events || [];
-  for (const evt of calendarEvents) {
-    if (evt.completed || evt.date !== todayKey || !evt.time) continue;
-
-    const timeParts = evt.time.split('–')[0].trim();
-    const isPM = /pm/i.test(timeParts);
-    const isAM = /am/i.test(timeParts);
-    const nums = timeParts.replace(/[^0-9:]/g, '').split(':').map(Number);
-    if (nums.length >= 2) {
-      let h = nums[0];
-      let m = nums[1];
-      if (isPM && h < 12) h += 12;
-      if (isAM && h === 12) h = 0;
-
-      const eventDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
-      const triggerDate = new Date(eventDate.getTime() - 10 * 60 * 1000); // 10m before
-      const diff = now.getTime() - triggerDate.getTime();
-
-      if (diff >= -10000 && diff <= WINDOW_MS) {
-        const fireKey = `calendar-${evt.id}-${todayKey}`;
-        if (!isNotificationFired(fireKey)) {
-          recordNotificationFired(fireKey);
-          deliverNotification({
-            id: fireKey,
-            title: `Calendar Event: ${evt.title}`,
-            body: evt.note || `Upcoming event at ${evt.time}.`,
-            sourceType: 'calendar',
-            sourceId: evt.id,
-            targetScreen: 'calendars_main_light_mode',
-            params: { eventId: evt.id },
-            channelId: CHANNELS.TASKS.id,
-          });
-        }
-      }
-    }
-  }
+    };
+    if(typeof navigator!=='undefined'&&navigator.locks?.request)await navigator.locks.request('momentum-web-reminder-delivery',run);
+    else await run();
+  } finally {webTickRunning=false;}
 }
 
 /**
@@ -652,20 +468,10 @@ export function stopNotificationScheduler() {
  * Cancel a notification for a deleted or completed source item
  */
 export async function cancelNotificationForSource(sourceType, sourceId) {
-  if (!sourceId) return;
-
-  if (isNativePlatform()) {
-    try {
-      const notifId = hashStringToInt(`${sourceType}-${sourceId}`);
-      await LocalNotifications.cancel({ notifications: [{ id: notifId }] });
-    } catch (err) {
-      console.warn('[NotificationEngine] Cancel error:', err);
-    }
-  }
-
-  // Also mark fired key in web storage so scheduler ignores it
-  const todayKey = getLocalDateKey();
-  recordNotificationFired(`${sourceType}-${sourceId}-${todayKey}`);
+  if(!sourceId)return;
+  // Rebuild from the committed edit rather than marking a future occurrence as fired.
+  // Completing one routine occurrence must not cancel its future days.
+  if(isNativePlatform())return scheduleAllActiveNotifications();
 }
 
 /**
@@ -684,36 +490,52 @@ const DAILY_NUDGES = [
   ['dailyHabitCheckin',20,30,'Daily habit check-in','Review your daily routines.','daily_routine_dark_mode'],
   ['eveningWinddown',21,30,'Evening wind-down','Take a moment for gratitude and reflection.','notes_main_dark_mode'],
 ];
-function civilAlertsQuiet(settings,at) {
-  if(!settings.zenFocusDND)return false;
-  const minute=at.getHours()*60+at.getMinutes();
-  return minute>=22*60+30 || minute<4*60+30;
+const REMINDER_STORES=[
+  ['settings','momentum_settings_store',useSettingsStore],
+  ['tasks','momentum-task-storage',useTaskStore],
+  ['routines','momentum-routine-storage',useRoutineStore],
+  ['calendar','momentum-calendar-storage-v1',useCalendarStore],
+  ['location','momentum-location-storage',useLocationStore],
+  ['prayer','momentum-prayer-storage',usePrayerStore],
+];
+async function readReminderSnapshot(){
+  const entries=await Promise.all(REMINDER_STORES.map(async ([key,name,store])=>{
+    if(!store.persist.hasHydrated())throw Error('Reminder data not hydrated');
+    const record=await getCommittedStoreRecord(name);
+    const defaults=store.getInitialState();
+    if(!record)return [key,defaults];
+    const value=typeof record.value==='string'?JSON.parse(record.value):record.value;
+    if(!value?.state||typeof value.state!=='object')throw Error('Invalid committed reminder data');
+    return [key,{...defaults,...value.state}];
+  }));
+  return Object.fromEntries(entries);
 }
-
-export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false}={}) {
-  const settings=useSettingsStore.getState();
+export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,lookbackMs=0,limit=60,snapshot=null}={}) {
+  const settings=snapshot?.settings||useSettingsStore.getState();
   if (settings.masterEnabled === false) return [];
   const notifications=[];
-  const add=(key,at,title,body,channelId,type,params,targetScreen)=>{
-    if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at<=now || (type!=='prayer' && civilAlertsQuiet(settings,at))) return;
+  const add=(key,at,title,body,channelId,type,params,targetScreen,options={})=>{
+    if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at.getTime()<=now.getTime()-lookbackMs || (type!=='prayer' && isCivilQuiet(settings,at))) return;
     if(!includeAlarmOnly && settings.alarmOnlyOccurrences?.[key]===at.getTime())return;
     notifications.push({
-      id:hashStringToInt(key),title,body,channelId,smallIcon:'ic_stat_momentum',
+      id:hashStringToInt(occurrenceKey(key,at)),title,body,channelId:options.ringEligible===false?'momentum_vibration_v1':channelId,smallIcon:'ic_stat_momentum',
+      ...(options.ringEligible===false?{sound:'momentum_silence.wav'}:{}),
       schedule:{at,allowWhileIdle:true},
-      extra:{momentumManaged:true,key,type,params,targetScreen},
+      ongoing:options.persistent===true,autoCancel:options.persistent!==true,
+      extra:{momentumManaged:true,key,type,params,targetScreen,at:at.getTime(),persistent:options.persistent===true,ringEligible:options.ringEligible!==false},
     });
   };
   if(settings.dueTaskAlerts!==false) {
-    for(const task of useTaskStore.getState().tasks||[]) {
-      if(task.completed||task.status==='done') continue;
-      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'tasks_reminders_dark_mode');
+    for(const task of (snapshot?.tasks||useTaskStore.getState()).tasks||[]) {
+      if(task.completed||task.status==='done'||task.archived||task.isDeleted) continue;
+      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'task_details',{persistent:task.persistentAlert===true});
     }
   }
-  const routines=useRoutineStore.getState().routines||[];
-  const loc=useLocationStore.getState().selectedCity;
-  const prayer=usePrayerStore.getState();
+  const routines=(snapshot?.routines||useRoutineStore.getState()).routines||[];
+  const loc=(snapshot?.location||useLocationStore.getState()).selectedCity;
+  const prayer=snapshot?.prayer||usePrayerStore.getState();
   const enabled=(settings.enabledPrayerAlerts||[]).map(value=>String(value).toLowerCase());
-  for(let offset=0;offset<7;offset++){
+  for(let offset=lookbackMs>=86400000?-2:lookbackMs>0?-1:0;offset<8;offset++){
     const day=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offset,12);
     const dateKey=getLocalDateKey(day);
     for(const [flag,hour,minute,title,body,screen] of DAILY_NUDGES) {
@@ -722,43 +544,80 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false}=
       add('nudge-'+flag+'-'+dateKey,at,title,body,CHANNELS.ROUTINES.id,'nudge',{},screen);
     }
     for(const routine of routines){
-      if(routine.reminderEnabled===false||routine.reminder==='None'||!isRoutineScheduledForDate(routine,dateKey)||isRoutineCompletedForDate(routine,dateKey))continue;
-      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'daily_routine_dark_mode');
+      if(settings.routineAlertsEnabled===false||routine.reminderEnabled===false||routine.reminder==='None'||!isRoutineScheduledForDate(routine,dateKey)||isRoutineCompletedForDate(routine,dateKey))continue;
+      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'routine_details',{ringEligible:routine.reminderSound!=='Silent'});
     }
     if(loc && Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude) && settings.prayerAlertsEnabled!==false && prayer.prayerAlertsEnabled!==false){
-      const result=calculatePrayerTimes({baseDate:day,latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone,
+      const prayerDayKey=addCalendarDays(getLocalDateKey(now,loc.timezone),offset);
+      const [py,pm,pd]=prayerDayKey.split('-').map(Number);
+      const noonUtc=new Date(Date.UTC(py,pm-1,pd,12));
+      const prayerDay=new Date(noonUtc.getTime()-getTimezoneOffsetMinutes(loc.timezone,noonUtc)*60000);
+      const result=calculatePrayerTimes({baseDate:prayerDay,latitude:loc.latitude,longitude:loc.longitude,timezone:loc.timezone,
         calculationMethod:prayer.calculationMethod,madhab:prayer.madhab,highLatitudeRule:prayer.highLatitudeRule,
         polarCircleResolution:prayer.polarCircleResolution,adjustments:prayer.prayerAdjustments});
       if(result.status!=='unavailable') for(const entry of result.prayers){
         if(!enabled.includes(entry.id)||!(entry.prayerDate instanceof Date))continue;
         const minutes=Number(prayer.adhanOffset ?? settings.adhanOffset ?? 0);
+        if(!Number.isInteger(minutes)||minutes<0||minutes>1440)continue;
         const at=new Date(entry.prayerDate.getTime()-minutes*60000);
-        add('prayer-'+entry.id+'-'+result.civilDateKey,at,entry.name+' prayer',minutes?'Prayer reminder ('+minutes+' min before)':'It is time for prayer',CHANNELS.PRAYERS.id,'prayer',{prayer:entry.id},'prayer_times_dark_mode');
+        add('prayer-'+entry.id+'-'+result.civilDateKey,at,entry.name+' prayer',minutes?'Prayer reminder ('+minutes+' min before)':'It is time for prayer',CHANNELS.PRAYERS.id,'prayer',{prayer:entry.id},'prayer_times_dark_mode',{ringEligible:settings.adhanMode!=='vibration'});
       }
     }
   }
-  for(const event of useCalendarStore.getState().events||[]){
+  for(const event of settings.calendarAlertsEnabled===false?[]:((snapshot?.calendar||useCalendarStore.getState()).events||[])){
     if(event.completed||!event.date||!event.time||event.reminderEnabled===false)continue;
-    const at=calculateTaskTriggerDate({dueDate:event.date,startTime:String(event.time).split('–')[0].trim(),reminder:'10 minutes before'});
+    const at=calculateTaskTriggerDate({dueDate:event.date,startTime:String(event.time).split('–')[0].trim(),reminder:event.reminder??'10 minutes before',reminderOffsetMinutes:event.reminderOffsetMinutes});
     add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode');
   }
   // Android has a limited pending-alarm budget; retain the soonest 60.
-  return notifications.sort((a,b)=>a.schedule.at-b.schedule.at).slice(0,60);
+  // Allocate deterministic distinct native IDs even if two hashes collide.
+  const used=new Set();
+  return notifications.sort((a,b)=>a.schedule.at-b.schedule.at||a.extra.key.localeCompare(b.extra.key)).filter((item,index,all)=>index===0||item.extra.key!==all[index-1].extra.key||item.extra.at!==all[index-1].extra.at).slice(0,limit).map(item=>{while(used.has(item.id))item.id=item.id===0x7fffffff?1:item.id+1;used.add(item.id);return item;});
 }
 
 async function reconcileNativeReminders(){
   const permission=await checkNotificationPermission();
-  if(permission!=='granted')return {success:false,reason:'permission_not_granted',permission};
+  const android=Capacitor.getPlatform()==='android';
+  if(permission!=='granted'){
+    if(android)await AlarmDevice.syncRingingAlarms({alarms:[]});
+    return {success:false,reason:'permission_not_granted',permission};
+  }
   await initializeNotificationChannels();
   registerNotificationTapListener();
-  const plan=buildNativeReminderPlan();
+  const exactPermission=await checkExactReminderPermission();
+  const exact=exactPermission==='granted';
+  // Never open system settings from automatic background reconciliation.
+  const snapshot=await readReminderSnapshot();
+  const now=new Date();
+  const future=buildNativeReminderPlan(now,{snapshot});
+  let covered=new Set();let ringWarning=null;
+  if(android){
+    const recent=buildNativeReminderPlan(now,{snapshot,lookbackMs:86400000,limit:Infinity});
+    const requested=selectRingingOccurrences(future,recent,snapshot.settings.ringingAlarmSources,useLocaleStore.getState().currentLocale,now);
+    const alarms=exact?requested:[];
+    if(!exact&&requested.some(a=>a.at>now.getTime()))ringWarning='exact_alarm_permission_required';
+    try{const result=await AlarmDevice.syncRingingAlarms({alarms});covered=new Set(result.covered||[]);if(alarms.some(a=>a.at>now.getTime()&&!covered.has(a.key)))ringWarning='ringing_alarm_unavailable';}
+    catch(error){ringWarning='ringing_alarm_sync_failed';console.warn('[Notifications] Ringing alarm synchronization failed');}
+  }
+  // Only suppress the ordinary notification if native scheduling accepted that occurrence.
+  const plan=future.filter(item=>!covered.has(occurrenceKey(item.extra.key,item.schedule.at))).map(item=>({...item,isExactNotification:android?exact:undefined,isExactMandatory:false,extra:{...item.extra,exact:android?exact:null}}));
   const pending=(await LocalNotifications.getPending()).notifications||[];
   const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','prayer','calendar','nudge'].includes(item.extra?.type));
-  const wanted=new Set(plan.map(item=>item.id));
-  const obsolete=managed.filter(item=>!wanted.has(item.id));
+  const wanted=new Map(plan.map(item=>[item.id,item]));
+  const same=(old,next)=>next&&old.extra?.key===next.extra.key&&old.extra?.at===next.extra.at&&old.extra?.exact===next.extra.exact&&old.extra?.persistent===next.extra.persistent&&old.title===next.title&&old.body===next.body&&old.channelId===next.channelId;
+  const obsolete=managed.filter(item=>!same(item,wanted.get(item.id)));
   if(obsolete.length)await LocalNotifications.cancel({notifications:obsolete.map(({id})=>({id}))});
-  if(plan.length)await LocalNotifications.schedule({notifications:plan});
-  return {success:true,isNative:true,scheduledCount:plan.length};
+  const unchanged=new Set(managed.filter(item=>same(item,wanted.get(item.id))).map(item=>item.id));
+  const changed=plan.filter(item=>!unchanged.has(item.id));
+  let warning=null;
+  if(changed.length){const result=await LocalNotifications.schedule({notifications:changed});warning=result?.warning?.code||null;}
+  if(android){
+    const activeTasks=new Set((snapshot.tasks.tasks||[]).filter(t=>!t.completed&&t.status!=='done'&&!t.archived&&!t.isDeleted&&t.persistentAlert===true&&calculateTaskTriggerDate(t)).map(t=>String(t.id)));
+    const delivered=(await LocalNotifications.getDeliveredNotifications()).notifications||[];
+    const stale=delivered.filter(n=>n.extra?.momentumManaged&&n.extra?.persistent&&(snapshot.settings.masterEnabled===false||snapshot.settings.dueTaskAlerts===false||!activeTasks.has(String(n.extra.params?.taskId))));
+    if(stale.length)await LocalNotifications.removeDeliveredNotifications({notifications:stale});
+  }
+  return {success:true,isNative:true,scheduledCount:plan.length,ringingCount:covered.size,exactPermission,warning:ringWarning||warning};
 }
 export function scheduleAllActiveNotifications(){
   if(!isNativePlatform()){
@@ -787,8 +646,9 @@ export function startNativeReminderSynchronization(){
   watch(useRoutineStore,s=>s.routines);
   watch(useCalendarStore,s=>s.events);
   watch(useLocationStore,s=>s.selectedCity);
-  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND,s.alarmOnlyOccurrences]);
+  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.routineAlertsEnabled,s.calendarAlertsEnabled,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND,s.alarmOnlyOccurrences,s.ringingAlarmSources]);
   watch(usePrayerStore,s=>[s.prayerAlertsEnabled,s.adhanOffset,s.calculationMethod,s.madhab,s.highLatitudeRule,s.polarCircleResolution,s.prayerAdjustments]);
+  setInterval(sync,60000);
   App.addListener('appStateChange',state=>{if(state.isActive)sync();}).catch(error=>console.warn('[Notifications] Resume listener failed',error));
 }
 export const scheduleAllReminders = scheduleAllActiveNotifications;

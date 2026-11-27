@@ -8,7 +8,10 @@ const getSafeStorage = () => settingsStorage;
 export const INITIAL_NOTIFICATION_SETTINGS = {
   masterEnabled: true,
   alarmOnlyOccurrences: {},
+  ringingAlarmSources: {}, // Opt-in per source; existing reminders remain notifications.
   dueTaskAlerts: true,
+  routineAlertsEnabled: true,
+  calendarAlertsEnabled: true,
   dailyHabitCheckin: true,
   overdueMilestonePushes: false,
   morningIntention: true,
@@ -54,7 +57,7 @@ export const useSettingsStore = create(
             }
           }
         } else {
-          set({ [key]: value });
+          return set({ [key]: value });
         }
       },
       setPrayerNotificationOffset: (offset) => {

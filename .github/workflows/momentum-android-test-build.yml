@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/db-phase217-migration-recovery-20261125
+      - fix/unified-reminder-alarm-system-20261127
     paths:
       - '.github/workflows/momentum-android-test-build.yml'
       - 'src/**'
@@ -19,10 +20,12 @@ permissions:
 
 jobs:
   android-debug:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -33,6 +36,8 @@ jobs:
           java-version: '21'
       - name: Install locked dependencies
         run: npm ci --no-fund
+      - name: Verify reminder timing rules
+        run: node --test tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
@@ -49,6 +54,9 @@ jobs:
       - name: Assemble debug APK
         working-directory: android
         run: bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: Android unit tests
+        working-directory: android
+        run: bash ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
       - name: Verify package and record build provenance
         shell: bash
         run: |
@@ -68,3 +76,62 @@ jobs:
           path: test-artifacts/
           if-no-files-found: error
           retention-days: 14
+      - name: Build instrumented alarm tests
+        working-directory: android
+        run: bash ./gradlew :app:assembleDebugAndroidTest --no-daemon --stacktrace
+      - name: Android emulator delivery, stop, snooze and cancellation
+        shell: bash
+        timeout-minutes: 23
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod a+rw /dev/kvm
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libpulse0 libnss3 libx11-xcb1 libxcb-cursor0 libxcb-xinerama0 libxkbcommon-x11-0 libgl1 libegl1 libasound2
+          sdkmanager "emulator" "system-images;android-34;google_apis;x86_64"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/momentum-android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd --force -n momentum_ci -p "$ANDROID_AVD_HOME/momentum_ci.avd" -k "system-images;android-34;google_apis;x86_64" --device "pixel_2"
+          test -s "$ANDROID_AVD_HOME/momentum_ci.avd/config.ini"
+          if [[ ! -s "$ANDROID_AVD_HOME/momentum_ci.ini" ]]; then
+            printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-34\n' "$ANDROID_AVD_HOME/momentum_ci.avd" > "$ANDROID_AVD_HOME/momentum_ci.ini"
+          fi
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx momentum_ci
+          emulator="$ANDROID_HOME/emulator/emulator"
+          ldd "$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64" | grep "not found" && exit 1 || true
+          "$emulator" -version
+          "$emulator" -accel-check
+          adb start-server
+          "$emulator" -avd momentum_ci -port 5554 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -no-metrics -camera-back none -camera-front none -memory 2048 > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          emulator_pid=$!
+          cleanup() {
+            rc=$?
+            if [[ "$rc" != 0 ]]; then
+              echo "Emulator diagnostics (synthetic test device only):"
+              tail -n 100 "$RUNNER_TEMP/emulator.log" || true
+              adb devices -l || true
+              timeout 10 adb -s emulator-5554 logcat -d -t 200 || true
+            fi
+            adb -s emulator-5554 emu kill >/dev/null 2>&1 || true
+            kill "$emulator_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          export ANDROID_SERIAL=emulator-5554
+          booted=0
+          for i in $(seq 1 180); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then echo "Emulator exited before boot"; exit 1; fi
+            if [[ "$(timeout 5 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" == 1 ]]; then booted=1; break; fi
+            sleep 3
+          done
+          test "$booted" = 1
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell input keyevent 82
+          adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+          adb install -r android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          adb shell pm grant com.momentum.app android.permission.POST_NOTIFICATIONS
+          adb shell appops set com.momentum.app SCHEDULE_EXACT_ALARM allow
+          adb shell am instrument -w -r -e class com.momentum.app.MomentumAlarmInstrumentedTest com.momentum.app.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/alarm-instrumentation.txt"
+          grep -Eq '^OK \(3 tests\)' "$RUNNER_TEMP/alarm-instrumentation.txt"

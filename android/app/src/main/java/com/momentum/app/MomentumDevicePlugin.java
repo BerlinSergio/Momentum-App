@@ -133,6 +133,16 @@ public class MomentumDevicePlugin extends Plugin {
         });
     }
 
+    @PluginMethod
+    public void syncRingingAlarms(PluginCall call) {
+        com.getcapacitor.JSArray alarms=call.getArray("alarms");
+        if(alarms==null){call.reject("Alarm plan is required");return;}
+        getActivity().runOnUiThread(()->{
+            try{JSObject result=new JSObject();result.put("covered",MomentumAlarmEngine.sync(getContext(),alarms));call.resolve(result);}
+            catch(Exception error){call.reject("Unable to synchronize ringing alarms");}
+        });
+    }
+
     // Launch the system Clock's alarm editor; the user confirms there.
     // An accepted intent is not proof that the user saved an alarm.
     @PluginMethod
