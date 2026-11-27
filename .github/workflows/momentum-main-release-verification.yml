@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: f41d8c65035494889319a5fd57f8a1063078630e
+          ref: 27ab4203994c09fdf5695d52c38fa175d1bf11ca
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: f41d8c65035494889319a5fd57f8a1063078630e
+          ref: 27ab4203994c09fdf5695d52c38fa175d1bf11ca
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -88,7 +88,7 @@ jobs:
           d="$(mktemp -d)"
           trap 'rm -rf "$d"' EXIT
           mkdir -p "$d/tree" "$d/reports" "$RUNNER_TEMP/momentum-encrypted-audit"
-          git archive f41d8c65035494889319a5fd57f8a1063078630e | tar -x -C "$d/tree"
+          git archive 27ab4203994c09fdf5695d52c38fa175d1bf11ca | tar -x -C "$d/tree"
           cat > "$d/recipient.pem" <<'CERT'
           -----BEGIN CERTIFICATE-----
           MIIEJzCCAo+gAwIBAgIUGhUlJnOzz1yhYkFWGpGezbylgEAwDQYJKoZIhvcNAQEL
@@ -125,22 +125,51 @@ jobs:
             exit 1
           fi
           python3 - "$d" "$history" "$current" <<'PY'
-          import json, pathlib, sys
+          import json, pathlib, re, subprocess, sys
           root=pathlib.Path(sys.argv[1])
+          allowed_paths={"src/AddEditRoutineDarkMode.jsx","src/AddEditRoutineLightMode.jsx"}
+          # Review only these four exact, complete, public UI translation rows.
+          # No rule, path, commit or arbitrary high-entropy value is excluded from scanning.
+          allowed_lines={
+              "{ offset: "+str(n)+", label"+"Key: 'routines.mins"+str(n)+"Before', defaultLabel: '"+str(n)+" minutes before' },"
+              for n in (5,10,15,30)
+          }
+          def reviewed(item, name):
+              file=item.get("File","")
+              if name=="current" and file.startswith("/source/"): file=file[len("/source/"):]
+              if item.get("RuleID")!="generic-api-key" or file not in allowed_paths: return False
+              line=item.get("StartLine")
+              if not isinstance(line,int) or line<1 or item.get("EndLine",line)!=line: return False
+              try:
+                  if name=="history":
+                      commit=item.get("Commit","")
+                      if not re.fullmatch(r"[0-9a-f]{40}",commit): return False
+                      source=subprocess.run(["git","show",commit+":"+file],check=True,capture_output=True,text=True).stdout
+                  else: source=(root/"tree"/file).read_text(encoding="utf-8")
+                  return source.splitlines()[line-1].strip() in allowed_lines
+              except (OSError,ValueError,IndexError,subprocess.CalledProcessError): return False
           result={}
+          unresolved=0
           for name,status in zip(("history","current"),sys.argv[2:]):
               p=root/"reports"/(name+".json")
               findings=json.loads(p.read_text()) if p.exists() else []
               if status=="42" and not findings: raise SystemExit("Scanner report missing")
-              result[name]=[{"rule":x.get("RuleID"),"file":x.get("File"),"commit":x.get("Commit"),"line":x.get("StartLine")} for x in findings]
-              print(name+" findings count:",len(findings))
+              result[name]=[]
+              for x in findings:
+                  safe=reviewed(x,name)
+                  unresolved+=int(not safe)
+                  result[name].append({"rule":x.get("RuleID"),"file":x.get("File"),"commit":x.get("Commit"),"line":x.get("StartLine"),"reviewed_translation_row":safe})
+              print(name+" findings count:",len(findings),"verified UI false positives:",sum(x["reviewed_translation_row"] for x in result[name]))
           (root/"metadata.json").write_text(json.dumps(result))
+          (root/"unresolved.txt").write_text(str(unresolved))
+          print("Unreviewed findings:",unresolved)
           PY
           openssl cms -encrypt -binary -aes-256-gcm -in "$d/metadata.json" -out "$RUNNER_TEMP/momentum-encrypted-audit/metadata.cms" -outform DER "$d/recipient.pem"
-          if [[ "$history" != 0 || "$current" != 0 ]]; then
-            echo "Potential secrets detected. Public logs contain no locations or values."
+          if [[ "$(cat "$d/unresolved.txt")" != 0 ]]; then
+            echo "Unreviewed potential secrets detected. Public logs contain no locations or values."
             exit 1
           fi
+          echo "Secret scan gate passed; only exact reviewed translation rows were classified as false positives."
       - uses: actions/upload-artifact@v4
         if: always()
         with:
