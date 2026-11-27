@@ -37,7 +37,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-fund
       - name: Verify reminder timing rules
-        run: node --test tests/notifications/reminderRules.test.mjs
+        run: node --test tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
@@ -54,6 +54,9 @@ jobs:
       - name: Assemble debug APK
         working-directory: android
         run: bash ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: Android unit tests
+        working-directory: android
+        run: bash ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
       - name: Verify package and record build provenance
         shell: bash
         run: |

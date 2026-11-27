@@ -8,6 +8,7 @@ const getSafeStorage = () => settingsStorage;
 export const INITIAL_NOTIFICATION_SETTINGS = {
   masterEnabled: true,
   alarmOnlyOccurrences: {},
+  ringingAlarmSources: {}, // Opt-in per source; existing reminders remain notifications.
   dueTaskAlerts: true,
   routineAlertsEnabled: true,
   calendarAlertsEnabled: true,

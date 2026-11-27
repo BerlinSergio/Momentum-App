@@ -63,3 +63,17 @@ export function matchesReminderSource(item,type,id) {
   const field={task:'taskId',routine:'routineId',calendar:'eventId',prayer:'prayer'}[type];
   return Boolean(field)&&String(extra.params?.[field])===String(id);
 }
+
+// Recent occurrences retain native snooze state; only future items inside the
+// selected native queue may create new alarms.
+export function selectRingingOccurrences(future,recent,sources={},language='en',now=new Date()){
+  const futureKeys=new Set(future.map(item=>occurrenceKey(item.extra.key,item.schedule.at)));
+  const seen=new Set();
+  return recent.flatMap(item=>{
+    const key=occurrenceKey(item.extra.key,item.schedule.at);
+    if(sources?.[item.extra.type]!==true||item.extra.ringEligible===false||seen.has(key))return [];
+    if(item.schedule.at>now&&!futureKeys.has(key))return [];
+    seen.add(key);
+    return [{key,at:item.schedule.at.getTime(),title:item.body||item.title,language}];
+  }).slice(0,1000);
+}
