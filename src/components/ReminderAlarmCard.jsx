@@ -3,60 +3,64 @@ import {registerPlugin} from '@capacitor/core';
 import {AlarmClock} from 'lucide-react';
 import {useLocaleStore} from '../store/useLocaleStore.js';
 import {useSettingsStore} from '../store/useSettingsStore.js';
+import {useTaskStore} from '../store/useTaskStore.js';
+import {useRoutineStore} from '../store/useRoutineStore.js';
+import {usePrayerStore} from '../store/usePrayerStore.js';
+import {useCalendarStore} from '../store/useCalendarStore.js';
+import {useLocationStore} from '../store/useLocationStore.js';
 import {buildNativeReminderPlan,scheduleAllActiveNotifications} from '../utils/nativeNotifications.js';
 import {toast} from './ui/toast/index.js';
 const Device=registerPlugin('MomentumDevice');
-const EXTRA={en:['I saved this alarm — disable its notification','Use notification again','Alarm-only for this occurrence. If you edit or cancel it in Clock, enable the notification again here.','Reminder preference saved.','Could not update reminder scheduling.'], 'fa-AF':['زنگ را ذخیره کردم؛ اعلان آن خاموش شود','فعال کردن دوبارهٔ اعلان','فقط برای همین نوبت. اگر زنگ را در ساعت تغییر یا لغو کردید، اعلان را دوباره فعال کنید.','ترجیح یادآوری ذخیره شد.','تنظیم یادآوری انجام نشد.'], 'ps-AF':['الارم مې خوندي کړ؛ خبرتیا یې بنده کړئ','خبرتیا بیا فعاله کړئ','یوازې د همدې وخت لپاره. که په ساعت کې الارم بدل یا لغوه کړئ، دلته خبرتیا بیا فعاله کړئ.','د یادونې انتخاب خوندي شو.','یادونه تنظیم نه شوه.']};
 const COPY={
- en:['Alarm clock','Choose an upcoming reminder, then confirm the alarm in your Android Clock app. Alarms are managed separately from notifications.','Choose a reminder','Open alarm editor','No eligible reminders in the next 24 hours','Android Clock opened. Confirm the alarm there.','Unable to open Android Clock.'],
- 'fa-AF':['زنگ هشدار','یک یادآوری آینده را انتخاب کنید و زنگ را در برنامه ساعت اندروید تأیید نمایید. زنگ‌ها جدا از اعلان‌ها مدیریت می‌شوند.','انتخاب یادآوری','باز کردن ساعت','در ۲۴ ساعت آینده یادآوری مناسب وجود ندارد','ساعت باز شد. زنگ را در آن تأیید کنید.','باز کردن ساعت اندروید ممکن نشد.'],
- 'ps-AF':['الارم','راتلونکې یادونه وټاکئ او د Android ساعت په اپلکېشن کې الارم تایید کړئ. الارمونه له خبرتیاوو جلا اداره کېږي.','یادونه وټاکئ','د ساعت خلاصول','په راتلونکو ۲۴ ساعتونو کې مناسبه یادونه نشته','ساعت خلاص شو. الارم هلته تایید کړئ.','د Android ساعت خلاص نه شو.']
+ en:{title:'Reminder schedule',intro:'Upcoming reminders from all sections, in time order. Android Clock alarms are separate and must be confirmed in Clock.',routine:'Routine reminders',calendar:'Calendar reminders',all:'All',task:'Tasks',prayer:'Prayers',nudge:'Daily check-ins',empty:'No upcoming reminders.',choose:'Choose a reminder',clock:'Open Android Clock',opened:'Clock opened. Confirm the alarm there; Momentum cannot verify it.',failed:'Could not open Android Clock.',saved:'Reminder preference saved.',error:'Could not update reminder scheduling.',restore:'Restore Momentum notification',external:'Notification disabled for this occurrence by an earlier Clock preference.',limited:'Android schedules the next 60 eligible reminders. The queue refreshes while Momentum is active.',clockHint:'Clock can only set a time within the next 24 hours. It is not managed or cancelled by Momentum.',enabled:'Enabled',disabled:'Disabled'},
+ 'fa-AF':{title:'برنامه یادآوری‌ها',intro:'یادآوری‌های همه بخش‌ها به ترتیب زمان. زنگ ساعت اندروید جداگانه است و باید در برنامه ساعت تأیید شود.',routine:'یادآوری برنامه روزانه',calendar:'یادآوری تقویم',all:'همه',task:'وظایف',prayer:'نمازها',nudge:'یادآوری روزانه',empty:'یادآوری آینده وجود ندارد.',choose:'انتخاب یادآوری',clock:'باز کردن ساعت اندروید',opened:'ساعت باز شد. زنگ را در آن تأیید کنید؛ ثبت آن قابل بررسی نیست.',failed:'باز کردن ساعت ممکن نشد.',saved:'تنظیم یادآوری ذخیره شد.',error:'تنظیم یادآوری انجام نشد.',restore:'فعال کردن دوباره اعلان Momentum',external:'اعلان این نوبت قبلاً برای زنگ ساعت خاموش شده است.',limited:'اندروید ۶۰ یادآوری بعدی را تنظیم می‌کند. فهرست هنگام فعال بودن برنامه به‌روز می‌شود.',clockHint:'ساعت فقط زمان ۲۴ ساعت آینده را تنظیم می‌کند و Momentum آن را مدیریت یا لغو نمی‌کند.',enabled:'فعال',disabled:'غیرفعال'},
+ 'ps-AF':{title:'د یادونو مهال‌وېش',intro:'د ټولو برخو راتلونکې یادونې د وخت په ترتیب. د Android ساعت الارم جلا دی او هلته باید تایید شي.',routine:'د ورځنیو روټینونو یادونې',calendar:'د کلیزې یادونې',all:'ټولې',task:'تاسکونه',prayer:'لمونځونه',nudge:'ورځنۍ یادونې',empty:'راتلونکې یادونه نشته.',choose:'یادونه وټاکئ',clock:'د Android ساعت خلاص کړئ',opened:'ساعت خلاص شو. الارم هلته تایید کړئ؛ Momentum یې ثبت نه شي تاییدولی.',failed:'ساعت خلاص نه شو.',saved:'د یادونې تنظیم خوندي شو.',error:'یادونه تنظیم نه شوه.',restore:'د Momentum خبرتیا بېرته فعاله کړئ',external:'د دې نوبت خبرتیا مخکې د ساعت الارم لپاره بنده شوې.',limited:'Android راتلونکې ۶۰ وړ یادونې تنظیموي. لېست د اپلېکېشن د فعالېدو پر مهال تازه کېږي.',clockHint:'ساعت یوازې د راتلونکو ۲۴ ساعتونو وخت ټاکي؛ Momentum یې نه اداره کوي او نه لغوه کوي.',enabled:'فعال',disabled:'بند'}
 };
 export default function ReminderAlarmCard({isNative}) {
  const locale=useLocaleStore(s=>s.currentLocale);
  const system=useLocaleStore(s=>s.numberSystem);
  const c=COPY[locale]||COPY.en;
- const e=EXTRA[locale]||EXTRA.en;
- const alarmOnly=useSettingsStore(s=>s.alarmOnlyOccurrences)||{};
- const [openedOccurrence,setOpenedOccurrence]=useState('');
- const [items,setItems]=useState([]);
+ const settings=useSettingsStore();
+ useTaskStore(s=>s.tasks);
+ useRoutineStore(s=>s.routines);
+ usePrayerStore();
+ useCalendarStore(s=>s.events);
+ useLocationStore(s=>s.selectedCity);
+ const [now,setNow]=useState(()=>new Date());
  const [selected,setSelected]=useState('');
+ const [filter,setFilter]=useState('all');
  const [busy,setBusy]=useState(false);
- useEffect(()=>{
-   if(!isNative)return;
-   const refresh=()=>{
-     const now=new Date();
-     setItems(buildNativeReminderPlan(now,{includeAlarmOnly:true}).filter(x=>x.schedule.at-now<86400000));
-   };
-   refresh();const id=setInterval(refresh,60000);
-   return ()=>clearInterval(id);
- },[isNative]);
- if(!isNative)return null;
- const item=items.find(x=>String(x.id)===selected);
- const occurrence=item?item.extra.key+':'+item.schedule.at.getTime():'';
- const suppressed=item&&alarmOnly[item.extra.key]===item.schedule.at.getTime();
- const changeMode=async enabled=>{
-   if(!item||busy)return;setBusy(true);
-   try {const saved=await useSettingsStore.getState().setAlarmOnlyOccurrence(item.extra.key,item.schedule.at.getTime(),enabled);if(saved===false)throw Error('Save failed');const result=await scheduleAllActiveNotifications();if(!result.success)throw Error('Schedule failed');toast.info(e[3]);}catch{toast.error(e[4]);}finally{setBusy(false);}
+ useEffect(()=>{const refresh=()=>setNow(new Date());const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);window.removeEventListener('focus',refresh);};},[]);
+ const items=buildNativeReminderPlan(now,{includeAlarmOnly:true,limit:Infinity});
+ const keyOf=x=>x.extra.key+'@'+x.extra.at;
+ const filtered=items.filter(x=>filter==='all'||x.extra.type===filter);
+ const item=items.find(x=>keyOf(x)===selected);
+ const suppressed=item&&settings.alarmOnlyOccurrences?.[item.extra.key]===item.extra.at;
+ const label=type=>({task:c.task,routine:c.routine,prayer:c.prayer,calendar:c.calendar,nudge:c.nudge}[type]||type);
+ const format=at=>new Intl.DateTimeFormat(locale,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',numberingSystem:system}).format(at);
+ const toggle=async key=>{
+   if(busy)return;setBusy(true);
+   try{await settings.setSetting(key,settings[key]===false);const result=await scheduleAllActiveNotifications();if(!result.success)throw Error('Schedule failed');toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
  };
+ const restore=async()=>{
+   if(!item||!suppressed||busy)return;setBusy(true);
+   try{const saved=await settings.setAlarmOnlyOccurrence(item.extra.key,item.extra.at,false);if(saved===false)throw Error('Save failed');const result=await scheduleAllActiveNotifications();if(!result.success)throw Error('Schedule failed');toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
+ };
+ const canOpen=isNative&&item&&item.extra.at>Date.now()&&item.extra.at-Date.now()<86400000;
  const open=async()=>{
-   if(!item||busy)return;
-   setBusy(true);
-   try {
-     const at=item.schedule.at;
-     if(at<=new Date()||at-Date.now()>=86400000)throw Error('Expired reminder');
-     const result=await Device.openAlarmEditor({hour:at.getHours(),minute:at.getMinutes(),label:'Momentum'});
-     if(result.opened){setOpenedOccurrence(occurrence);toast.info(c[5]);}else throw Error('Clock unavailable');
-   }catch{toast.error(c[6]);}finally{setBusy(false);}
+   if(!canOpen||busy)return;setBusy(true);
+   try{const at=item.schedule.at;if(at<=new Date()||at-Date.now()>=86400000)throw Error('Expired reminder');const result=await Device.openAlarmEditor({hour:at.getHours(),minute:at.getMinutes(),label:'Momentum'});if(!result.opened)throw Error('Clock unavailable');toast.info(c.opened);}catch{toast.error(c.failed);}finally{setBusy(false);}
  };
  return <section className="rounded-3xl p-5 border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 space-y-3">
-   <h3 className="font-semibold text-sm flex gap-2 items-center"><AlarmClock className="w-5 h-5 text-primary"/>{c[0]}</h3>
-   <p className="text-xs opacity-75">{c[1]}</p>
-   <select aria-label={c[2]} value={selected} onChange={e=>setSelected(e.target.value)} className="w-full min-w-0 rounded-xl p-2 bg-white dark:bg-slate-800 border border-current/15 text-sm">
-     <option value="">{items.length?c[2]:c[4]}</option>
-     {items.map(x=><option key={x.id} value={x.id}>{x.body} — {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',numberingSystem:system}).format(x.schedule.at)}</option>)}
-   </select>
-   <button type="button" disabled={!item||busy} onClick={open} className="w-full rounded-xl px-3 py-2 bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40">{c[3]}</button>
-   {item&&(suppressed||openedOccurrence===occurrence)&&<div className="space-y-2"><p className="text-xs opacity-75">{e[2]}</p><button type="button" disabled={busy} onClick={()=>changeMode(!suppressed)} className="w-full rounded-xl px-3 py-2 border border-primary/30 text-sm font-semibold text-primary disabled:opacity-40">{suppressed?e[1]:e[0]}</button></div>}
+   <h3 className="font-semibold text-sm flex gap-2 items-center"><AlarmClock className="w-5 h-5 text-primary"/>{c.title}</h3>
+   <p className="text-xs opacity-75">{c.intro}</p>
+   {[['routineAlertsEnabled',c.routine],['calendarAlertsEnabled',c.calendar]].map(([key,name])=><label key={key} className="flex items-center justify-between gap-3 text-sm"><span>{name}</span><input type="checkbox" checked={settings[key]!==false} disabled={busy} onChange={()=>toggle(key)}/></label>)}
+   <div className="flex flex-wrap gap-2">{['all','task','routine','prayer','calendar','nudge'].map(type=><button key={type} type="button" aria-pressed={filter===type} onClick={()=>setFilter(type)} className={'rounded-full px-3 py-1 text-xs border '+(filter===type?'bg-indigo-600 text-white border-indigo-600':'border-current/20')}>{type==='all'?c.all:label(type)}</button>)}</div>
+   <div className="max-h-64 overflow-auto space-y-1">
+   {!filtered.length&&<p className="text-xs opacity-75">{c.empty}</p>}
+   {filtered.map(x=><button key={keyOf(x)} type="button" onClick={()=>setSelected(keyOf(x))} aria-pressed={selected===keyOf(x)} className={'w-full text-start rounded-xl p-2 border '+(selected===keyOf(x)?'border-indigo-500':'border-current/10')}><span className="block text-xs opacity-75">{label(x.extra.type)} · {format(x.schedule.at)}</span><span className="block text-sm break-words">{x.body}</span>{settings.alarmOnlyOccurrences?.[x.extra.key]===x.extra.at&&<span className="block text-xs opacity-75">{c.external}</span>}</button>)}
+   </div>
+   {isNative&&<><p className="text-xs opacity-75">{c.limited}</p><p className="text-xs opacity-75">{c.clockHint}</p><button type="button" disabled={!canOpen||busy} onClick={open} className="w-full rounded-xl px-3 py-2 bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40">{c.clock}</button></>}
+   {suppressed&&<button type="button" disabled={busy} onClick={restore} className="w-full rounded-xl px-3 py-2 border border-primary/30 text-sm font-semibold text-primary disabled:opacity-40">{c.restore}</button>}
  </section>;
 }
