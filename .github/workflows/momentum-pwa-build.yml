@@ -57,8 +57,9 @@ jobs:
             await page.goto('http://127.0.0.1:4173/Momentum-App/',{waitUntil:'load',timeout:90000});
             await page.waitForSelector('[data-app-startup-ready=true]',{timeout:90000});
             await page.waitForFunction(()=>navigator.serviceWorker.controller!==null,{timeout:90000});
-            const online=await page.evaluate(async()=>{const m=await fetch('manifest.json').then(r=>r.json());return {scope:m.scope,icons:m.icons.length,secure:isSecureContext,db:!!indexedDB,crypto:!!crypto.subtle};});
+            const online=await page.evaluate(async()=>{const m=await fetch('/Momentum-App/manifest.json').then(r=>r.json());return {scope:m.scope,icons:m.icons.length,secure:isSecureContext,db:!!indexedDB,crypto:!!crypto.subtle};});
             assert.deepEqual(online,{scope:'/Momentum-App/',icons:2,secure:true,db:true,crypto:true});
+            assert.ok(new URL(page.url()).pathname.startsWith('/Momentum-App/'),'Navigation escaped PWA scope');
             await page.setOfflineMode(true);
             await page.reload({waitUntil:'domcontentloaded',timeout:90000});
             await page.waitForSelector('[data-app-startup-ready=true]',{timeout:90000});
