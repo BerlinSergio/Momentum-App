@@ -1,3 +1,6 @@
+import ReminderTypePicker from './components/ReminderTypePicker.jsx';
+import {useSettingsStore as useReminderSettings} from './store/useSettingsStore.js';
+import {resolveReminderType,defaultReminderType,reminderDisabled} from './utils/reminderRules.js';
 import React, { useState, useEffect, useRef } from 'react';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import UserAvatar from './components/UserAvatar';
@@ -118,6 +121,8 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
   const [startTime, setStartTime] = useState(() => existingTask?.startTime || getCurrentDisplayTime());
   const [estimate, setEstimate] = useState(existingTask?.estimate || '45 mins');
   const [reminder, setReminder] = useState(existingTask?.reminder || '15 minutes before');
+  const initialReminderType = task => task ? resolveReminderType(useReminderSettings.getState(),'task',task.reminderType,{taskId:task.id}) : defaultReminderType(useReminderSettings.getState(),'task');
+  const [reminderType,setReminderType]=useState(()=>initialReminderType(existingTask));
   const [persistentAlert, setPersistentAlert] = useState(() => Boolean(existingTask?.persistentAlert));
   const [description, setDescription] = useState(existingTask?.description || '');
   const [subTasks, setSubTasks] = useState(existingTask?.subTasks ? [...existingTask.subTasks] : []);
@@ -145,6 +150,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
       setStartTime(existingTask.startTime || getCurrentDisplayTime());
       setEstimate(existingTask.estimate || '45 mins');
       setReminder(existingTask.reminder || '15 minutes before');
+      setReminderType(initialReminderType(existingTask));
       setPersistentAlert(Boolean(existingTask.persistentAlert));
       setDescription(existingTask.description || '');
       setSubTasks(existingTask.subTasks ? [...existingTask.subTasks] : []);
@@ -156,6 +162,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
       setStartTime(getCurrentDisplayTime());
       setEstimate('45 mins');
       setReminder('15 minutes before');
+      setReminderType(initialReminderType(null));
       setPersistentAlert(false);
       setDescription('');
       setSubTasks([]);
@@ -319,6 +326,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
         startTime: startTime || getCurrentDisplayTime(),
         estimate,
         reminder,
+        reminderType,
         persistentAlert: Boolean(persistentAlert),
         description,
         subTasks,
@@ -342,7 +350,7 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
   };
 
   const isDirty = isEditing
-    ? (title !== (existingTask?.title || '') || description !== (existingTask?.description || '') || subTasks.length !== (existingTask?.subTasks?.length || 0))
+    ? (reminderType !== initialReminderType(existingTask) || title !== (existingTask?.title || '') || description !== (existingTask?.description || '') || subTasks.length !== (existingTask?.subTasks?.length || 0))
     : (title.trim() !== '' || description.trim() !== '' || subTasks.length > 0);
 
   const handleCancel = async () => {
@@ -726,7 +734,8 @@ export default function AddEditTaskDarkMode({ setActiveTab, goBack }) {
               </button>
             </div>
           </div>
-              {/* Card: Description & Notes Field */}
+              <ReminderTypePicker value={reminderType} onChange={setReminderType} disabled={reminderDisabled({reminder})||isMutating}/>
+          {/* Card: Description & Notes Field */}
           <div className="rounded-3xl p-5 space-y-4 bg-black/40 backdrop-blur-xl border border-white/10 shadow-xl">
             <label className="text-sm font-semibold tracking-wide text-white flex items-center justify-between mb-2.5" htmlFor="task-desc">
               <span>{t('tasks.descriptionNotes', 'Description & Notes')}</span>
