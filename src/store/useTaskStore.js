@@ -190,6 +190,7 @@ export const useTaskStore = create(
               startTime: taskData.startTime || '12:00 PM',
               estimate: taskData.estimate || '30 mins',
               reminder: taskData.reminder || '15 minutes before',
+              ...(taskData.reminderType==='alarm'||taskData.reminderType==='notification'?{reminderType:taskData.reminderType}:{}),
               persistentAlert: Boolean(taskData.persistentAlert),
               description: taskData.description || '',
               subTasks: Array.isArray(taskData.subTasks) ? taskData.subTasks : [],
