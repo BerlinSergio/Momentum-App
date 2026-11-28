@@ -1,3 +1,6 @@
+import ReminderTypePicker from './components/ReminderTypePicker.jsx';
+import {useSettingsStore as useReminderSettings} from './store/useSettingsStore.js';
+import {defaultReminderType} from './utils/reminderRules.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
@@ -30,6 +33,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
+  const [reminderType,setReminderType]=useState(()=>defaultReminderType(useReminderSettings.getState(),'calendar'));
   const [formCategory, setFormCategory] = useState('Spiritual');
   const [formHijriDay, setFormHijriDay] = useState(() => todayHijri.hd || 13);
   const [formTime, setFormTime] = useState('04:45 PM – 05:45 PM');
@@ -207,6 +211,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
     if (!formTitle.trim()) return;
     addCalendarEvent({
       title: formTitle.trim(),
+      reminderType,
       category: formCategory,
       hijriYear: viewHijriYear,
       hijriMonth: viewHijriMonth,
@@ -216,6 +221,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
       completed: false,
     });
     setFormTitle('');
+    setReminderType(defaultReminderType(useReminderSettings.getState(),'calendar'));
     setFormNote('');
     setIsAddModalOpen(false);
     toast.success(t('toasts.eventAdded', 'Event added to calendar'));
@@ -429,6 +435,7 @@ export default function IslamicHijriCalendarDarkMode({ setActiveTab, goBack }) {
               </button>
             </div>
             <form onSubmit={handleSaveEvent} className="space-y-3">
+              <ReminderTypePicker value={reminderType} onChange={setReminderType}/>
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
                 <input type="text" required value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder={t('calendar.ayyamAlBeedPlaceholder', 'e.g. Ayyam al-Beed Fasting')} className="w-full px-3 py-2 rounded-xl text-xs bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-primary" />

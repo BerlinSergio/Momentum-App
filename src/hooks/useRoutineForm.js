@@ -1,3 +1,5 @@
+import {useSettingsStore} from '../store/useSettingsStore.js';
+import {resolveReminderType,defaultReminderType} from '../utils/reminderRules.js';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   useRoutineStore,
@@ -81,6 +83,9 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
   const [reminderOffset, setReminderOffset] = useState(
     existingRoutine && existingRoutine.reminderOffset !== undefined ? Number(existingRoutine.reminderOffset) : 0
   );
+  const initialType = routine => routine ? resolveReminderType(useSettingsStore.getState(),'routine',routine.reminderType,{routineId:routine.id},routine.reminderSound!=='Silent') : defaultReminderType(useSettingsStore.getState(),'routine');
+  const [reminderType,setReminderType]=useState(()=>initialType(existingRoutine));
+  const handleReminderTypeChange=value=>{setReminderType(value);setIsDirty(true);};
   const [reminderSound, setReminderSound] = useState(
     existingRoutine?.reminderSound || 'Serenity Bell'
   );
@@ -133,6 +138,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
       setReminderEnabled(hasReminder);
       setReminderOffset(existingRoutine.reminderOffset !== undefined ? Number(existingRoutine.reminderOffset) : 0);
       setReminderSound(existingRoutine.reminderSound || 'Serenity Bell');
+      setReminderType(initialType(existingRoutine));
       setNotes(existingRoutine.notes || '');
       setIsDirty(false);
       setErrorMessage('');
@@ -149,6 +155,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
       setReminderEnabled(true);
       setReminderOffset(0);
       setReminderSound('Serenity Bell');
+      setReminderType(initialType(null));
       setNotes('');
       setIsDirty(false);
       setErrorMessage('');
@@ -373,6 +380,7 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
         weekdays,
         targetDays: weekdays.map((w) => WEEKDAY_TOKENS[w]),
         reminderEnabled,
+        reminderType,
         reminderOffset,
         reminderSound,
         reminder: reminderEnabled
@@ -469,6 +477,8 @@ export function useRoutineForm({ setActiveTab, goBack, defaultFallbackRoute = 'd
     frequency,
     weekdays,
     reminderEnabled,
+    reminderType,
+    handleReminderTypeChange,
     reminderOffset,
     reminderSound,
     notes,

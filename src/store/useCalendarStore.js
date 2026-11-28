@@ -509,12 +509,18 @@ export const useCalendarStore = create(
               category: event.category || 'Spiritual',
               note: event.note || '',
               completed: !!event.completed,
+              ...(event.reminderType==='alarm'||event.reminderType==='notification'?{reminderType:event.reminderType}:{}),
             };
             created = newEvt;
             state.events.unshift(newEvt);
           })
         );
         return created;
+      },
+
+      setEventReminderType: (eventId,reminderType) => {
+        if(reminderType!=='alarm'&&reminderType!=='notification')return false;
+        return set(produce(state=>{const event=state.events.find(e=>e.id===eventId);if(event)event.reminderType=reminderType;}));
       },
 
       toggleEvent: (eventId) =>

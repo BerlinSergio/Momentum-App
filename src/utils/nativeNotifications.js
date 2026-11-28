@@ -23,7 +23,7 @@ import { useNotificationStore } from '../store/useNotificationStore.js';
 import useSecurityStore from '../store/useSecurityStore.js';
 import { calculatePrayerTimes } from './prayerTimes.js';
 import { getLocalDateKey, getTimezoneOffsetMinutes, addCalendarDays } from './timeService.js';
-import { calculateTaskTriggerDate, calculateRoutineTriggerDate, occurrenceKey, isCivilQuiet, selectRingingOccurrences } from './reminderRules.js';
+import { calculateTaskTriggerDate, calculateRoutineTriggerDate, occurrenceKey, isCivilQuiet, selectRingingOccurrences, resolveReminderType, reminderPreferenceKey } from './reminderRules.js';
 export { calculateTaskTriggerDate, calculateRoutineTriggerDate } from './reminderRules.js';
 
 const AlarmDevice=registerPlugin('MomentumDevice');
@@ -517,18 +517,20 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
   const add=(key,at,title,body,channelId,type,params,targetScreen,options={})=>{
     if (!(at instanceof Date) || !Number.isFinite(at.getTime()) || at.getTime()<=now.getTime()-lookbackMs || (type!=='prayer' && isCivilQuiet(settings,at))) return;
     if(!includeAlarmOnly && settings.alarmOnlyOccurrences?.[key]===at.getTime())return;
+    const reminderType=resolveReminderType(settings,type,options.reminderType,params,options.ringEligible!==false);
+    const quiet=reminderType!=='alarm'&&options.ringEligible===false;
     notifications.push({
-      id:hashStringToInt(occurrenceKey(key,at)),title,body,channelId:options.ringEligible===false?'momentum_vibration_v1':channelId,smallIcon:'ic_stat_momentum',
-      ...(options.ringEligible===false?{sound:'momentum_silence.wav'}:{}),
+      id:hashStringToInt(occurrenceKey(key,at)),title,body,channelId:quiet?'momentum_vibration_v1':channelId,smallIcon:'ic_stat_momentum',
+      ...(quiet?{sound:'momentum_silence.wav'}:{}),
       schedule:{at,allowWhileIdle:true},
       ongoing:options.persistent===true,autoCancel:options.persistent!==true,
-      extra:{momentumManaged:true,key,type,params,targetScreen,at:at.getTime(),persistent:options.persistent===true,ringEligible:options.ringEligible!==false},
+      extra:{momentumManaged:true,key,type,params,targetScreen,at:at.getTime(),persistent:options.persistent===true,ringEligible:!quiet,reminderType,preferenceKey:reminderPreferenceKey(type,params)},
     });
   };
   if(settings.dueTaskAlerts!==false) {
     for(const task of (snapshot?.tasks||useTaskStore.getState()).tasks||[]) {
       if(task.completed||task.status==='done'||task.archived||task.isDeleted) continue;
-      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'task_details',{persistent:task.persistentAlert===true});
+      add('task-'+task.id,calculateTaskTriggerDate(task),'Task reminder',task.title||'Upcoming task',CHANNELS.TASKS.id,'task',{taskId:task.id},'task_details',{persistent:task.persistentAlert===true,reminderType:task.reminderType});
     }
   }
   const routines=(snapshot?.routines||useRoutineStore.getState()).routines||[];
@@ -541,11 +543,11 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
     for(const [flag,hour,minute,title,body,screen] of DAILY_NUDGES) {
       if(settings[flag]!==true)continue;
       const at=new Date(day.getFullYear(),day.getMonth(),day.getDate(),hour,minute);
-      add('nudge-'+flag+'-'+dateKey,at,title,body,CHANNELS.ROUTINES.id,'nudge',{},screen);
+      add('nudge-'+flag+'-'+dateKey,at,title,body,CHANNELS.ROUTINES.id,'nudge',{nudgeId:flag},screen);
     }
     for(const routine of routines){
       if(settings.routineAlertsEnabled===false||routine.reminderEnabled===false||routine.reminder==='None'||!isRoutineScheduledForDate(routine,dateKey)||isRoutineCompletedForDate(routine,dateKey))continue;
-      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'routine_details',{ringEligible:routine.reminderSound!=='Silent'});
+      add('routine-'+routine.id+'-'+dateKey,calculateRoutineTriggerDate(routine,day),'Daily routine',routine.title||'Scheduled routine',CHANNELS.ROUTINES.id,'routine',{routineId:routine.id,dateKey},'routine_details',{ringEligible:routine.reminderSound!=='Silent',reminderType:routine.reminderType});
     }
     if(loc && Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude) && settings.prayerAlertsEnabled!==false && prayer.prayerAlertsEnabled!==false){
       const prayerDayKey=addCalendarDays(getLocalDateKey(now,loc.timezone),offset);
@@ -567,7 +569,7 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
   for(const event of settings.calendarAlertsEnabled===false?[]:((snapshot?.calendar||useCalendarStore.getState()).events||[])){
     if(event.completed||!event.date||!event.time||event.reminderEnabled===false)continue;
     const at=calculateTaskTriggerDate({dueDate:event.date,startTime:String(event.time).split('–')[0].trim(),reminder:event.reminder??'10 minutes before',reminderOffsetMinutes:event.reminderOffsetMinutes});
-    add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode');
+    add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode',{reminderType:event.reminderType});
   }
   // Android has a limited pending-alarm budget; retain the soonest 60.
   // Allocate deterministic distinct native IDs even if two hashes collide.
@@ -580,6 +582,9 @@ async function reconcileNativeReminders(){
   const android=Capacitor.getPlatform()==='android';
   if(permission!=='granted'){
     if(android)await AlarmDevice.syncRingingAlarms({alarms:[]});
+    const pending=(await LocalNotifications.getPending()).notifications||[];
+    const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','calendar','prayer','nudge'].includes(item.extra?.type));
+    if(managed.length)await LocalNotifications.cancel({notifications:managed.map(({id})=>({id}))});
     return {success:false,reason:'permission_not_granted',permission};
   }
   await initializeNotificationChannels();
@@ -646,7 +651,7 @@ export function startNativeReminderSynchronization(){
   watch(useRoutineStore,s=>s.routines);
   watch(useCalendarStore,s=>s.events);
   watch(useLocationStore,s=>s.selectedCity);
-  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.routineAlertsEnabled,s.calendarAlertsEnabled,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND,s.alarmOnlyOccurrences,s.ringingAlarmSources]);
+  watch(useSettingsStore,s=>[s.masterEnabled,s.dueTaskAlerts,s.routineAlertsEnabled,s.calendarAlertsEnabled,s.prayerAlertsEnabled,s.enabledPrayerAlerts,s.adhanOffset,s.adhanMode,s.morningIntention,s.dailyRadianceQuote,s.middayPause,s.dailyHabitCheckin,s.eveningWinddown,s.zenFocusDND,s.alarmOnlyOccurrences,s.ringingAlarmSources,s.reminderTypes,s.defaultReminderType,s.reminderSourceDefaults]);
   watch(usePrayerStore,s=>[s.prayerAlertsEnabled,s.adhanOffset,s.calculationMethod,s.madhab,s.highLatitudeRule,s.polarCircleResolution,s.prayerAdjustments]);
   setInterval(sync,60000);
   App.addListener('appStateChange',state=>{if(state.isActive)sync();}).catch(error=>console.warn('[Notifications] Resume listener failed',error));

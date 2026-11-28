@@ -9,65 +9,77 @@ import {usePrayerStore} from '../store/usePrayerStore.js';
 import {useCalendarStore} from '../store/useCalendarStore.js';
 import {useLocationStore} from '../store/useLocationStore.js';
 import {buildNativeReminderPlan,scheduleAllActiveNotifications,checkExactReminderPermission,openExactReminderSettings} from '../utils/nativeNotifications.js';
+import {defaultReminderType,reminderPreferenceKey,resolveReminderType,reminderDisabled} from '../utils/reminderRules.js';
+import ReminderTypePicker from './ReminderTypePicker.jsx';
 import {toast} from './ui/toast/index.js';
-const RING={en:['Momentum ringing alarms','Choose categories that should ring with the phone alarm sound. Stop or snooze from the alarm notification. Silent routines and vibration-only prayers keep normal notifications.','Ringing alarms need notification and exact-alarm permission.','Sound stops automatically after two minutes. Snooze is five minutes.'], 'fa-AF':['زنگ‌های Momentum','بخش‌هایی را که با صدای زنگ گوشی هشدار بدهند انتخاب کنید. توقف یا تعویق در اعلان زنگ امکان دارد. برنامه‌های بی‌صدا و نمازهای لرزشی اعلان عادی دارند.','برای زنگ، مجوز اعلان و زمان دقیق لازم است.','صدا پس از دو دقیقه قطع می‌شود؛ تعویق پنج دقیقه است.'], 'ps-AF':['د Momentum خپل الارمونه','هغه برخې وټاکئ چې د موبایل د الارم غږ وکړي. زنګ د خبرتیا له لارې بند یا وځنډوئ. خاموش روټینونه او یوازې رپېدونکي لمونځونه عادي خبرتیا لري.','الارم د خبرتیا او دقیق وخت اجازې ته اړتیا لري.','غږ دوه دقیقې وروسته درېږي؛ ځنډ پنځه دقیقې دی.']};
-const EXACT={en:['Exact reminder timing','Android may delay reminders until exact alarms are allowed.','Open alarms & reminders settings'],'fa-AF':['زمان دقیق یادآوری','اندروید ممکن است یادآوری‌ها را تا زمان صدور مجوز زنگ دقیق به تأخیر بیندازد.','باز کردن تنظیمات زنگ و یادآوری'],'ps-AF':['د یادونې دقیق وخت','تر دقیق الارم اجازې پورې Android ښايي یادونې وځنډوي.','د الارم او یادونو تنظیمات خلاص کړئ']};
 const COPY={
- en:{title:'Reminder schedule',intro:'Upcoming reminders from all sections, in time order. Choose ringing alarms below or keep normal notifications.',routine:'Routine reminders',calendar:'Calendar reminders',all:'All',task:'Tasks',prayer:'Prayers',nudge:'Daily check-ins',empty:'No upcoming reminders.',choose:'Choose a reminder',clock:'Open Android Clock',opened:'Clock opened. Confirm the alarm there; Momentum cannot verify it.',failed:'Could not open Android Clock.',saved:'Reminder preference saved.',error:'Could not update reminder scheduling.',restore:'Restore Momentum notification',external:'Notification disabled for this occurrence by an earlier Clock preference.',limited:'Android schedules the next 60 eligible reminders. The queue refreshes while Momentum is active.',clockHint:'Clock can only set a time within the next 24 hours. It is not managed or cancelled by Momentum.',enabled:'Enabled',disabled:'Disabled'},
- 'fa-AF':{title:'برنامه یادآوری‌ها',intro:'یادآوری‌های همه بخش‌ها به ترتیب زمان. در پایین زنگ یا اعلان عادی را انتخاب کنید.',routine:'یادآوری برنامه روزانه',calendar:'یادآوری تقویم',all:'همه',task:'وظایف',prayer:'نمازها',nudge:'یادآوری روزانه',empty:'یادآوری آینده وجود ندارد.',choose:'انتخاب یادآوری',clock:'باز کردن ساعت اندروید',opened:'ساعت باز شد. زنگ را در آن تأیید کنید؛ ثبت آن قابل بررسی نیست.',failed:'باز کردن ساعت ممکن نشد.',saved:'تنظیم یادآوری ذخیره شد.',error:'تنظیم یادآوری انجام نشد.',restore:'فعال کردن دوباره اعلان Momentum',external:'اعلان این نوبت قبلاً برای زنگ ساعت خاموش شده است.',limited:'اندروید ۶۰ یادآوری بعدی را تنظیم می‌کند. فهرست هنگام فعال بودن برنامه به‌روز می‌شود.',clockHint:'ساعت فقط زمان ۲۴ ساعت آینده را تنظیم می‌کند و Momentum آن را مدیریت یا لغو نمی‌کند.',enabled:'فعال',disabled:'غیرفعال'},
- 'ps-AF':{title:'د یادونو مهال‌وېش',intro:'د ټولو برخو راتلونکې یادونې د وخت په ترتیب. لاندې زنګ یا عادي خبرتیا غوره کړئ.',routine:'د ورځنیو روټینونو یادونې',calendar:'د کلیزې یادونې',all:'ټولې',task:'تاسکونه',prayer:'لمونځونه',nudge:'ورځنۍ یادونې',empty:'راتلونکې یادونه نشته.',choose:'یادونه وټاکئ',clock:'د Android ساعت خلاص کړئ',opened:'ساعت خلاص شو. الارم هلته تایید کړئ؛ Momentum یې ثبت نه شي تاییدولی.',failed:'ساعت خلاص نه شو.',saved:'د یادونې تنظیم خوندي شو.',error:'یادونه تنظیم نه شوه.',restore:'د Momentum خبرتیا بېرته فعاله کړئ',external:'د دې نوبت خبرتیا مخکې د ساعت الارم لپاره بنده شوې.',limited:'Android راتلونکې ۶۰ وړ یادونې تنظیموي. لېست د اپلېکېشن د فعالېدو پر مهال تازه کېږي.',clockHint:'ساعت یوازې د راتلونکو ۲۴ ساعتونو وخت ټاکي؛ Momentum یې نه اداره کوي او نه لغوه کوي.',enabled:'فعال',disabled:'بند'}
+ en:{title:'Reminders',intro:'Choose Notification or Alarm for each item. Repeated reminders keep the same choice.',types:['Tasks','Routines','Prayers','Calendar','Daily check-ins'],empty:'No reminders in this section.',defaults:'Default for new items',advanced:'Section defaults',active:'Enabled',exact:'Exact alarm permission',open:'Open Android alarm settings',fallback:'Without exact alarm permission, Momentum uses an ordinary notification. Android settings may affect delivery.',web:'Ringing alarms are available on Android. On this device reminders use notifications while Momentum is active.',sound:'Alarm: phone alarm sound · Stop · 5-minute Snooze · stops after 2 minutes. Notification sound and vibration follow Android notification settings.',saved:'Reminder preference saved.',error:'Could not save reminder preference.',warning:'Saved, but delivery needs attention. Check device permissions.',restore:'Restore this previously suppressed occurrence',limited:'Android queues the next 60 eligible reminders; the queue refreshes while Momentum is active.',quiet:'Quiet hours and section switches still apply.'},
+ 'fa-AF':{title:'یادآوری‌ها',intro:'برای هر مورد اعلان یا زنگ را انتخاب کنید. انتخاب برای نوبت‌های تکراری حفظ می‌شود.',types:['وظایف','برنامه‌های روزانه','نمازها','تقویم','یادآوری‌های روزانه'],empty:'در این بخش یادآوری وجود ندارد.',defaults:'پیش‌فرض موارد جدید',advanced:'پیش‌فرض بخش‌ها',active:'فعال',exact:'مجوز زنگ دقیق',open:'تنظیمات زنگ اندروید',fallback:'بدون مجوز زنگ دقیق، اعلان عادی استفاده می‌شود. تنظیمات اندروید بر دریافت اثر دارد.',web:'زنگ صوتی در اندروید در دسترس است. در این دستگاه اعلان هنگام فعال بودن Momentum ارائه می‌شود.',sound:'زنگ: صدای زنگ گوشی، توقف، تعویق پنج دقیقه، قطع خودکار پس از دو دقیقه. صدا و لرزش اعلان تابع تنظیمات اندروید است.',saved:'تنظیم یادآوری ذخیره شد.',error:'ذخیره یادآوری انجام نشد.',warning:'ذخیره شد، اما مجوزهای دستگاه را بررسی کنید.',restore:'فعال کردن دوباره این نوبت قبلاً خاموش‌شده',limited:'اندروید ۶۰ یادآوری بعدی را تنظیم می‌کند؛ فهرست هنگام فعال بودن برنامه تازه می‌شود.',quiet:'ساعات سکوت و کلیدهای بخش‌ها همچنان اعمال می‌شوند.'},
+ 'ps-AF':{title:'یادونې',intro:'د هرې یادونې لپاره خبرتیا یا الارم وټاکئ. تکراري یادونې خپل انتخاب ساتي.',types:['تاسکونه','روټینونه','لمونځونه','کلیزه','ورځنۍ یادونې'],empty:'په دې برخه کې یادونه نشته.',defaults:'د نویو یادونو اصلي ډول',advanced:'د برخو اصلي ډول',active:'فعال',exact:'د دقیق الارم اجازه',open:'د Android الارم تنظیمات خلاص کړئ',fallback:'له دقیق الارم اجازې پرته عادي خبرتیا کارول کېږي. د Android تنظیمات په رسېدو اغېز لري.',web:'غږیز الارم په Android کې شته. په دې وسیله کې خبرتیا د Momentum د فعالېدو پر مهال رسېږي.',sound:'الارم: د موبایل غږ، بندول، پنځه دقیقې ځنډ، دوه دقیقې وروسته درېدل. د خبرتیا غږ او رپېدل د Android تنظیماتو پورې اړه لري.',saved:'د یادونې انتخاب خوندي شو.',error:'د یادونې انتخاب خوندي نه شو.',warning:'انتخاب خوندي شو، خو د وسیلې اجازې وګورئ.',restore:'دا پخوانۍ بنده شوې یادونه بېرته فعاله کړئ',limited:'Android راتلونکې ۶۰ وړ یادونې تنظیموي؛ لېست د اپلېکېشن د فعالېدو پر مهال تازه کېږي.',quiet:'د خاموشۍ ساعتونه او د برخو سویچونه لا هم پلي کېږي.'}
 };
-export default function ReminderAlarmCard({isNative}) {
+const TYPES=['task','routine','prayer','calendar','nudge'];
+const NUDGES=['morningIntention','dailyRadianceQuote','middayPause','dailyHabitCheckin','eveningWinddown'];
+const NUDGE_NAMES={
+ en:['Morning intention','Daily radiance','Midday pause','Daily habit check-in','Evening wind-down'],
+ 'fa-AF':['نیت صبح','الهام روزانه','وقفه ظهر','بررسی عادت‌ها','آرامش شام'],
+ 'ps-AF':['د سهار نیت','ورځنی الهام','د غرمې وقفه','د عادتونو کتنه','د ماښام آرامتیا']
+};
+export default function ReminderAlarmCard(){
  const locale=useLocaleStore(s=>s.currentLocale);
- const system=useLocaleStore(s=>s.numberSystem);
  const c=COPY[locale]||COPY.en;
  const settings=useSettingsStore();
- useTaskStore(s=>s.tasks);
- useRoutineStore(s=>s.routines);
+ const tasks=useTaskStore(s=>s.tasks);
+ const routines=useRoutineStore(s=>s.routines);
+ const events=useCalendarStore(s=>s.events);
  usePrayerStore();
- useCalendarStore(s=>s.events);
  useLocationStore(s=>s.selectedCity);
- const [now,setNow]=useState(()=>new Date());
- const [selected,setSelected]=useState('');
- const [filter,setFilter]=useState('all');
+ const [type,setType]=useState('task');
  const [busy,setBusy]=useState(false);
  const [exact,setExact]=useState('unknown');
  const android=Capacitor.getPlatform()==='android';
- const ec=EXACT[locale]||EXACT.en;
- const rc=RING[locale]||RING.en;
- const toggleRing=async type=>{
-   if(busy)return;setBusy(true);
-   try{await settings.setSetting('ringingAlarmSources',{...settings.ringingAlarmSources,[type]:settings.ringingAlarmSources?.[type]!==true});const result=await scheduleAllActiveNotifications();if(!result.success||result.warning)throw Error('Schedule failed');toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
- };
+ const flags={task:'dueTaskAlerts',routine:'routineAlertsEnabled',prayer:'prayerAlertsEnabled',calendar:'calendarAlertsEnabled'};
  useEffect(()=>{if(!android)return;let active=true;const refresh=()=>checkExactReminderPermission().then(value=>{if(active)setExact(value);});refresh();window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{active=false;window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[android]);
- useEffect(()=>{const refresh=()=>setNow(new Date());const timer=setInterval(refresh,15000);window.addEventListener('focus',refresh);return()=>{clearInterval(timer);window.removeEventListener('focus',refresh);};},[]);
- const items=buildNativeReminderPlan(now,{includeAlarmOnly:true,limit:Infinity});
- const keyOf=x=>x.extra.key+'@'+x.extra.at;
- const filtered=items.filter(x=>filter==='all'||x.extra.type===filter);
- const item=items.find(x=>keyOf(x)===selected);
- const suppressed=item&&settings.alarmOnlyOccurrences?.[item.extra.key]===item.extra.at;
- const label=type=>({task:c.task,routine:c.routine,prayer:c.prayer,calendar:c.calendar,nudge:c.nudge}[type]||type);
- const format=at=>new Intl.DateTimeFormat(locale,{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',numberingSystem:system}).format(at);
- const toggle=async key=>{
+ const entries={
+ task:(tasks||[]).filter(t=>!t.completed&&t.status!=='done'&&!t.archived&&!t.isDeleted&&!reminderDisabled(t)).map(t=>({id:t.id,title:t.title,params:{taskId:t.id},value:t.reminderType})),
+ routine:(routines||[]).filter(t=>!reminderDisabled(t)).map(t=>({id:t.id,title:t.title,params:{routineId:t.id},value:t.reminderType,eligible:t.reminderSound!=='Silent'})),
+ calendar:(events||[]).filter(t=>!t.completed&&!reminderDisabled(t)).map(t=>({id:t.id,title:t.title,params:{eventId:t.id},value:t.reminderType})),
+ prayer:['fajr','dhuhr','asr','maghrib','isha'].map(id=>({id,title:id.charAt(0).toUpperCase()+id.slice(1),params:{prayer:id},eligible:settings.adhanMode!=='vibration'})),
+ nudge:NUDGES.map((id,i)=>({id,title:(NUDGE_NAMES[locale]||NUDGE_NAMES.en)[i],params:{nudgeId:id}}))
+ };
+ const save=async action=>{
    if(busy)return;setBusy(true);
-   try{await settings.setSetting(key,settings[key]===false);const result=await scheduleAllActiveNotifications();if(!result.success)throw Error('Schedule failed');toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
+   try{const result=await action();if(result===false)throw Error('Save failed');const plan=await scheduleAllActiveNotifications();if(!plan.success||plan.warning)toast.info(c.warning);else toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
  };
- const restore=async()=>{
-   if(!item||!suppressed||busy)return;setBusy(true);
-   try{const saved=await settings.setAlarmOnlyOccurrence(item.extra.key,item.extra.at,false);if(saved===false)throw Error('Save failed');const result=await scheduleAllActiveNotifications();if(!result.success)throw Error('Schedule failed');toast.info(c.saved);}catch{toast.error(c.error);}finally{setBusy(false);}
- };
- return <section className="rounded-3xl p-5 border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 space-y-3">
-   <h3 className="font-semibold text-sm flex gap-2 items-center"><AlarmClock className="w-5 h-5 text-primary"/>{c.title}</h3>
-   <p className="text-xs opacity-75">{c.intro}</p>
-   {[['routineAlertsEnabled',c.routine],['calendarAlertsEnabled',c.calendar]].map(([key,name])=><label key={key} className="flex items-center justify-between gap-3 text-sm"><span>{name}</span><input type="checkbox" checked={settings[key]!==false} disabled={busy} onChange={()=>toggle(key)}/></label>)}
-   <div className="flex flex-wrap gap-2">{['all','task','routine','prayer','calendar','nudge'].map(type=><button key={type} type="button" aria-pressed={filter===type} onClick={()=>setFilter(type)} className={'rounded-full px-3 py-1 text-xs border '+(filter===type?'bg-indigo-600 text-white border-indigo-600':'border-current/20')}>{type==='all'?c.all:label(type)}</button>)}</div>
-   <div className="max-h-64 overflow-auto space-y-1">
-   {!filtered.length&&<p className="text-xs opacity-75">{c.empty}</p>}
-   {filtered.map(x=><button key={keyOf(x)} type="button" onClick={()=>setSelected(keyOf(x))} aria-pressed={selected===keyOf(x)} className={'w-full text-start rounded-xl p-2 border '+(selected===keyOf(x)?'border-indigo-500':'border-current/10')}><span className="block text-xs opacity-75">{label(x.extra.type)} · {format(x.schedule.at)}</span><span className="block text-sm break-words">{x.body}</span>{android&&settings.ringingAlarmSources?.[x.extra.type]===true&&x.extra.ringEligible!==false&&exact==='granted'&&<span className="block text-xs text-indigo-500">{locale==='ps-AF'?'الارم':locale==='fa-AF'?'زنگ':'Ringing alarm'}</span>}{settings.alarmOnlyOccurrences?.[x.extra.key]===x.extra.at&&<span className="block text-xs opacity-75">{c.external}</span>}</button>)}
-   </div>
-   {android&&<section className="rounded-xl border border-current/15 p-3 space-y-2"><p className="text-sm font-semibold">{rc[0]}</p><p className="text-xs opacity-75">{rc[1]}</p>{['task','routine','prayer','calendar','nudge'].map(type=><label key={type} className="flex items-center justify-between gap-3 text-sm"><span>{label(type)}</span><input type="checkbox" checked={settings.ringingAlarmSources?.[type]===true} disabled={busy} onChange={()=>toggleRing(type)}/></label>)}<p className="text-xs opacity-75">{rc[2]} {rc[3]}</p></section>}
-   {android&&<div className="rounded-xl border border-current/15 p-3 space-y-2"><p className="text-sm font-semibold">{ec[0]} · {exact==='granted'?c.enabled:c.disabled}</p>{exact!=='granted'&&<><p className="text-xs opacity-75">{ec[1]}</p><button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{ec[2]}</button></>}</div>}
-   {isNative&&<p className="text-xs opacity-75">{c.limited}</p>}
-   {suppressed&&<button type="button" disabled={busy} onClick={restore} className="w-full rounded-xl px-3 py-2 border border-primary/30 text-sm font-semibold text-primary disabled:opacity-40">{c.restore}</button>}
+ const setValue=(entry,value)=>save(()=>{
+   if(type==='task')return useTaskStore.getState().updateTask(entry.id,{reminderType:value});
+   if(type==='routine')return useRoutineStore.getState().updateRoutine(entry.id,{reminderType:value});
+   if(type==='calendar')return useCalendarStore.getState().setEventReminderType(entry.id,value);
+   const key=reminderPreferenceKey(type,entry.params);
+   return settings.setSetting('reminderTypes',{...useSettingsStore.getState().reminderTypes,[key]:value});
+ });
+ const suppressed=buildNativeReminderPlan(new Date(),{includeAlarmOnly:true,limit:Infinity}).filter(x=>settings.alarmOnlyOccurrences?.[x.extra.key]===x.extra.at);
+ return <section className="rounded-3xl p-4 border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-slate-900/80 space-y-4">
+ <h3 className="font-semibold text-sm flex gap-2 items-center"><AlarmClock className="w-5 h-5 text-primary"/>{c.title}</h3>
+ <p className="text-xs opacity-75">{c.intro}</p>
+ <div className="flex flex-wrap gap-1.5">{TYPES.map((key,i)=><button key={key} type="button" aria-pressed={type===key} onClick={()=>setType(key)} className={'rounded-full px-3 py-1.5 text-xs border '+(type===key?'bg-indigo-600 text-white border-indigo-600':'border-current/20')}>{c.types[i]}</button>)}</div>
+ {flags[type]&&<label className="flex items-center justify-between gap-2 text-sm"><span>{c.active}</span><input type="checkbox" disabled={busy} checked={settings[flags[type]]!==false} onChange={()=>save(()=>settings.setSetting(flags[type],settings[flags[type]]===false))}/></label>}
+ <div className="space-y-2 max-h-96 overflow-auto">
+ {!entries[type].length&&<p className="text-xs opacity-70">{c.empty}</p>}
+ {entries[type].map(entry=><div key={entry.id} className="rounded-xl border border-current/10 p-2 space-y-1">
+ <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium break-words">{entry.title}</p>
+ {type==='prayer'&&<input aria-label={entry.title+' '+c.active} type="checkbox" disabled={busy} checked={(settings.enabledPrayerAlerts||[]).some(n=>String(n).toLowerCase()===entry.id)} onChange={()=>save(()=>settings.togglePrayerAlert(entry.id))}/>}
+ {type==='nudge'&&<input aria-label={entry.title+' '+c.active} type="checkbox" disabled={busy} checked={settings[entry.id]===true} onChange={()=>save(()=>settings.setSetting(entry.id,settings[entry.id]!==true))}/>}</div>
+ <ReminderTypePicker compact value={resolveReminderType(settings,type,entry.value,entry.params,entry.eligible!==false)} onChange={value=>setValue(entry,value)} disabled={busy}/>
+ </div>)}</div>
+ <details className="rounded-xl border border-current/10 p-3 space-y-2"><summary className="text-sm font-semibold cursor-pointer">{c.defaults}</summary>
+ <ReminderTypePicker compact value={defaultReminderType(settings,'')} disabled={busy} onChange={value=>save(()=>settings.setSetting('defaultReminderType',value))}/>
+ <p className="text-xs opacity-70">{c.advanced}</p>
+ {TYPES.filter(t=>['task','routine','calendar'].includes(t)).map(t=><div key={t}><p className="text-xs">{c.types[TYPES.indexOf(t)]}</p><ReminderTypePicker compact value={defaultReminderType(settings,t)} disabled={busy} onChange={value=>save(()=>settings.setSetting('reminderSourceDefaults',{...useSettingsStore.getState().reminderSourceDefaults,[t]:value}))}/></div>)}
+ </details>
+ <details className="rounded-xl border border-current/10 p-3 space-y-2"><summary className="text-sm font-semibold cursor-pointer">{c.exact}</summary>
+ {android?<><p className="text-xs opacity-75">{c.fallback}</p>{exact!=='granted'&&<button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{c.open}</button>}<p className="text-xs opacity-75">{c.sound} {c.limited}</p></>:<p className="text-xs opacity-75">{c.web}</p>}
+ <p className="text-xs opacity-75">{c.quiet}</p>
+ {suppressed.map(x=><button type="button" key={x.extra.key} disabled={busy} className="block text-xs underline" onClick={()=>save(()=>settings.setAlarmOnlyOccurrence(x.extra.key,x.extra.at,false))}>{x.body}: {c.restore}</button>)}
+ </details>
  </section>;
 }

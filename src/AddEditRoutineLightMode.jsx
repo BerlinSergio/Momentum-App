@@ -1,3 +1,4 @@
+import ReminderTypePicker from './components/ReminderTypePicker.jsx';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState } from 'react';
@@ -341,6 +342,7 @@ export default function AddEditRoutineLightMode({ setActiveTab, goBack }) {
             </button>
           </div>
 
+          <ReminderTypePicker value={form.reminderType} onChange={form.handleReminderTypeChange} disabled={!form.reminderEnabled||form.isSubmitting}/>
           {/* Timing & Sound Selectors */}
           <div className="grid grid-cols-2 gap-3 pt-1">
             {/* Notify Timing */}
