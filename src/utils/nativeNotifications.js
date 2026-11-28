@@ -569,7 +569,7 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
   for(const event of settings.calendarAlertsEnabled===false?[]:((snapshot?.calendar||useCalendarStore.getState()).events||[])){
     if(event.completed||!event.date||!event.time||event.reminderEnabled===false)continue;
     const at=calculateTaskTriggerDate({dueDate:event.date,startTime:String(event.time).split('–')[0].trim(),reminder:event.reminder??'10 minutes before',reminderOffsetMinutes:event.reminderOffsetMinutes});
-    add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode');
+    add('calendar-'+event.id+'-'+event.date,at,'Calendar reminder',event.title||'Upcoming event',CHANNELS.TASKS.id,'calendar',{eventId:event.id},'calendars_main_dark_mode',{reminderType:event.reminderType});
   }
   // Android has a limited pending-alarm budget; retain the soonest 60.
   // Allocate deterministic distinct native IDs even if two hashes collide.
