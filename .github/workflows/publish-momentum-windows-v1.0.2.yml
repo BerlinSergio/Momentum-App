@@ -1,0 +1,91 @@
+name: Publish tested Momentum Windows v1.0.2
+on:
+  push:
+    branches: [release/publish-windows-v1.0.2-20261128]
+    paths: ['.github/workflows/publish-momentum-windows-v1.0.2.yml']
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: momentum-publish-windows-v1-0-2
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.repository == 'BerlinSergio/Momentum-App' && github.ref == 'refs/heads/release/publish-windows-v1.0.2-20261128'
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: BerlinSergio/Momentum-App
+      TARGET: a9e80ff4e57f7e0d25790c85ea7926ae23a3bed3
+      TAG: v1.0.2-windows
+      ZIP_SHA: 17fea17c33d9a5702662cbd027c28a0f2d38e411bead6df76f5f84a752830cb8
+    steps:
+      - name: Verify exact owner-tested Windows artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$REPO/actions/runs/46121051334" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/46121051334" --jq .head_sha)" = "$TARGET"
+          test "$(gh api "repos/$REPO/actions/artifacts/15254295142" --jq .expired)" = false
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/actions/artifacts/15254295142/zip" -o windows.zip
+          printf '%s  windows.zip\n' "$ZIP_SHA" | sha256sum -c -
+          unzip -tq windows.zip
+          mkdir verified
+          unzip -q windows.zip -d verified
+          cd verified
+          test "$(tr -d '\r\n' < commit.txt)" = "$TARGET"
+          sha256sum -c SHA256SUMS.txt
+          python - <<'PY'
+          import json, pathlib, struct
+          for name in ('Momentum-1.0.2-Windows-Portable.exe','Momentum-1.0.2-Windows-Setup.exe'):
+              p=pathlib.Path(name)
+              assert p.stat().st_size>1000000
+              with p.open('rb') as f:
+                  assert f.read(2)==b'MZ'
+                  f.seek(60)
+                  offset=struct.unpack('<I',f.read(4))[0]
+                  f.seek(offset)
+                  assert f.read(4)==b'PE\0\0'
+          data=json.loads(pathlib.Path('momentum-smoke.json').read_text(encoding='utf-8-sig'))
+          assert all(data[k] is True for k in ('ready','secure','db','crypto','bridge'))
+          PY
+          cat signature-status.txt
+      - name: Publish draft only after downloaded assets match exact tested files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then echo "Release already exists; refusing overwrite."; exit 1; fi
+          if gh api "repos/$REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then echo "Tag already exists; refusing overwrite."; exit 1; fi
+          cat > notes.md <<'NOTES'
+          # Momentum for Windows v1.0.2
+          Official project release for Windows 10/11 x64. Tested by the owner on Windows 11 Pro.
+
+          ## Download
+          - Portable EXE: run without installing; designed for a standard Windows user account.
+          - Setup EXE: per-user installation; designed not to request administrator elevation.
+
+          ## Features
+          - Momentum desktop layout and approved launcher logo.
+          - Offline local storage, encrypted backup/restore and App Lock.
+          - Independent notification or ringing alarm per reminder; Stop and five-minute Snooze.
+          - Closing the window keeps Momentum running in the system tray. Use the tray menu to exit.
+
+          ## Verification and limits
+          - 19 automated reminder/alarm tests passed, as did packaged application startup and secure storage checks.
+          - Owner confirmed the Windows practical acceptance checklist passed.
+          - Both executable files are the exact tested artifact; SHA-256 checksums are provided.
+          - Windows executables are not Authenticode-signed. SmartScreen may display a warning; do not bypass organizational device security policy.
+          - Alarms require Momentum to be running and the computer awake. No guarantee of delivery when the computer is asleep, shut down or the app has exited.
+          - Portable and installed versions use the same local user data directory; portable means no installation, not a self-contained data folder.
+          - This is a separate Windows release; the Android v1.0.2 APK release remains unchanged.
+
+          Source commit: a9e80ff4e57f7e0d25790c85ea7926ae23a3bed3
+          NOTES
+          gh release create "$TAG" --repo "$REPO" --target "$TARGET" --title "Momentum for Windows v1.0.2" --notes-file notes.md --draft verified/Momentum-1.0.2-Windows-Portable.exe verified/Momentum-1.0.2-Windows-Setup.exe verified/SHA256SUMS.txt verified/signature-status.txt verified/commit.txt verified/momentum-smoke.json verified/desktop-package-lock.json
+          mkdir downloaded
+          gh release download "$TAG" --repo "$REPO" --pattern '*.exe' --dir downloaded
+          cp verified/SHA256SUMS.txt downloaded/
+          (cd downloaded && sha256sum -c SHA256SUMS.txt)
+          gh release edit "$TAG" --repo "$REPO" --draft=false --latest=false
+          gh release view "$TAG" --repo "$REPO" --json url,tagName,isDraft,assets
