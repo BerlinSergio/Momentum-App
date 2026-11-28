@@ -548,6 +548,8 @@ export default function NotificationsSettingsDarkMode({
               </div>
             </div>
 
+            <details className="rounded-2xl border border-current/10 p-3 space-y-3">
+              <summary className="text-sm font-semibold cursor-pointer">{t('common.advanced', 'Advanced settings')}</summary>
             {/* PRAYER & ADHAN ALERTS CARD */}
             <div className="p-5 rounded-3xl space-y-4 bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
               <div className="flex items-center justify-between">
@@ -673,89 +675,6 @@ export default function NotificationsSettingsDarkMode({
               </div>
             </div>
 
-            {/* TASKS & HABIT REMINDERS CARD */}
-            <div className="p-5 rounded-3xl space-y-4 bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-primary" />
-                <h3 className="text-xs font-bold text-white">
-                  {t('prayer.tasksHabitReminders', 'Tasks & Habit Reminders')}
-                </h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">
-                      {t('prayer.dueTaskAlerts', 'Due Task Alerts')}
-                    </p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.dueTaskOffset', '15 mins before due')}</p>
-                  </div>
-                  <Toggle checked={dueTaskAlerts} onChange={() => toggleSetting('dueTaskAlerts')} />
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">{t('prayer.dailyHabitCheckin', 'Daily Habit Check-in')}</p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.dailyHabitCheckinTime', 'Everyday at 08:30 PM')}</p>
-                  </div>
-                  <Toggle checked={dailyHabitCheckin} onChange={() => toggleSetting('dailyHabitCheckin')} />
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">
-                      {t('prayer.overdueMilestonePushes', 'Overdue Milestone Pushes')}
-                    </p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.gentleNudgesGoals', 'Gentle nudges for pending target goals')}</p>
-                  </div>
-                  <Toggle checked={overdueMilestonePushes} onChange={() => toggleSetting('overdueMilestonePushes')} />
-                </div>
-              </div>
-            </div>
-
-            {/* MINDFULNESS & ROUTINES CARD */}
-            <div className="p-5 rounded-3xl space-y-4 bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-teal-400" />
-                <h3 className="text-xs font-bold text-white">
-                  {t('prayer.mindfulnessRoutines', 'Mindfulness & Routines')}
-                </h3>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">
-                      {t('prayer.morningIntention', 'Morning Intention & Fajr')}
-                    </p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.softMorningRise', '05:00 AM • Soft morning rise')}</p>
-                  </div>
-                  <Toggle checked={morningIntention} onChange={() => toggleSetting('morningIntention')} />
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">
-                      {t('prayer.middayPause', 'Midday Pause & Hydration')}
-                    </p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.deepBreathsChime', '01:00 PM • 3 deep breaths chime')}</p>
-                  </div>
-                  <Toggle checked={middayPause} onChange={() => toggleSetting('middayPause')} />
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">
-                      {t('prayer.eveningWindDown', 'Evening Wind-down & Murāqabah')}
-                    </p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.gratitudeAlert', '09:30 PM • Gratitude journaling alert')}</p>
-                  </div>
-                  <Toggle checked={eveningWinddown} onChange={() => toggleSetting('eveningWinddown')} />
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-white">{t('prayer.dailyRadianceQuote', 'Daily Radiance Quote')}</p>
-                    <p className="text-[11px] font-normal text-slate-400 mt-0.5">{t('prayer.curatedWisdom', '08:00 AM • Curated wisdom nugget')}</p>
-                  </div>
-                  <Toggle checked={dailyRadianceQuote} onChange={() => toggleSetting('dailyRadianceQuote')} />
-                </div>
-              </div>
-            </div>
-
             {/* ZEN FOCUS / DO NOT DISTURB CARD */}
             <div className="p-5 rounded-3xl flex items-center justify-between gap-3.5 text-white bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-sm">
               <div className="flex items-center gap-3.5">
@@ -773,6 +692,8 @@ export default function NotificationsSettingsDarkMode({
               </div>
               <Toggle size="lg" checked={zenFocusDND} onChange={() => toggleSetting('zenFocusDND')} />
             </div>
+
+            </details>
 
             {/* SAVE BUTTON */}
             <div className="pt-2 pb-10 text-center space-y-2.5">
