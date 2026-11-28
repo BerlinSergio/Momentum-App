@@ -8,7 +8,7 @@ import {useRoutineStore} from '../store/useRoutineStore.js';
 import {usePrayerStore} from '../store/usePrayerStore.js';
 import {useCalendarStore} from '../store/useCalendarStore.js';
 import {useLocationStore} from '../store/useLocationStore.js';
-import {buildNativeReminderPlan,scheduleAllActiveNotifications,checkExactReminderPermission,openExactReminderSettings} from '../utils/nativeNotifications.js';
+import {buildNativeReminderPlan,scheduleAllActiveNotifications,checkExactReminderPermission,openExactReminderSettings,checkIOSAlarmPermission,requestIOSAlarmPermission} from '../utils/nativeNotifications.js';
 import {defaultReminderType,reminderPreferenceKey,resolveReminderType,reminderDisabled} from '../utils/reminderRules.js';
 import ReminderTypePicker from './ReminderTypePicker.jsx';
 import {toast} from './ui/toast/index.js';
@@ -37,6 +37,10 @@ export default function ReminderAlarmCard(){
  const [busy,setBusy]=useState(false);
  const [exact,setExact]=useState('unknown');
  const android=Capacitor.getPlatform()==='android';
+ const ios=Capacitor.getPlatform()==='ios';
+ const [iosPermission,setIOSPermission]=useState('unknown');
+ const iosCopy=locale==='ps-AF'?{title:'د iPhone الارم',enable:'د الارم اجازه فعاله کړه',info:'په iOS 26 او پورته کې د سیسټم الارم او Stop کارول کېږي. که اجازه نه وي یا iOS زوړ وي، عادي خبرتیا کارول کېږي. Snooze لا نه شته.'}:locale==='fa-AF'?{title:'زنگ آیفون',enable:'فعال کردن مجوز زنگ',info:'در iOS 26 و بالاتر زنگ سیستمی و توقف در دسترس است. بدون مجوز یا در نسخه‌های قدیمی اعلان عادی استفاده می‌شود. تعویق هنوز در دسترس نیست.'}:{title:'iPhone alarms',enable:'Allow alarms',info:'iOS 26+ uses the system alarm with Stop. Older iOS or unavailable permission uses a standard notification. Snooze is not yet supported.'};
+ useEffect(()=>{if(!ios)return;let active=true;const refresh=()=>checkIOSAlarmPermission().then(v=>{if(active)setIOSPermission(v);});refresh();window.addEventListener('focus',refresh);return()=>{active=false;window.removeEventListener('focus',refresh);};},[ios]);
  const flags={task:'dueTaskAlerts',routine:'routineAlertsEnabled',prayer:'prayerAlertsEnabled',calendar:'calendarAlertsEnabled'};
  useEffect(()=>{if(!android)return;let active=true;const refresh=()=>checkExactReminderPermission().then(value=>{if(active)setExact(value);});refresh();window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{active=false;window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[android]);
  const entries={
@@ -76,8 +80,8 @@ export default function ReminderAlarmCard(){
  <p className="text-xs opacity-70">{c.advanced}</p>
  {TYPES.filter(t=>['task','routine','calendar'].includes(t)).map(t=><div key={t}><p className="text-xs">{c.types[TYPES.indexOf(t)]}</p><ReminderTypePicker compact value={defaultReminderType(settings,t)} disabled={busy} onChange={value=>save(()=>settings.setSetting('reminderSourceDefaults',{...useSettingsStore.getState().reminderSourceDefaults,[t]:value}))}/></div>)}
  </details>
- <details className="rounded-xl border border-current/10 p-3 space-y-2"><summary className="text-sm font-semibold cursor-pointer">{c.exact}</summary>
- {android?<><p className="text-xs opacity-75">{c.fallback}</p>{exact!=='granted'&&<button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{c.open}</button>}<p className="text-xs opacity-75">{c.sound} {c.limited}</p></>:<p className="text-xs opacity-75">{c.web}</p>}
+ <details className="rounded-xl border border-current/10 p-3 space-y-2"><summary className="text-sm font-semibold cursor-pointer">{ios?iosCopy.title:c.exact}</summary>
+ {android?<><p className="text-xs opacity-75">{c.fallback}</p>{exact!=='granted'&&<button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{c.open}</button>}<p className="text-xs opacity-75">{c.sound} {c.limited}</p></>:ios?<><p className="text-xs opacity-75">{iosCopy.info}</p>{iosPermission==='prompt'&&<button type="button" className="text-xs underline" onClick={async()=>{setIOSPermission(await requestIOSAlarmPermission());await scheduleAllActiveNotifications();}}>{iosCopy.enable}</button>}</>:<p className="text-xs opacity-75">{c.web}</p>}
  <p className="text-xs opacity-75">{c.quiet}</p>
  {suppressed.map(x=><button type="button" key={x.extra.key} disabled={busy} className="block text-xs underline" onClick={()=>save(()=>settings.setAlarmOnlyOccurrence(x.extra.key,x.extra.at,false))}>{x.body}: {c.restore}</button>)}
  </details>
