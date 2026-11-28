@@ -1,0 +1,33 @@
+appId: com.momentum.app
+productName: Momentum
+asar: true
+directories:
+  output: output
+files:
+  - main.cjs
+  - preload.cjs
+  - alarm.html
+  - alarm.cjs
+  - dist/**/*
+  - icon.ico
+  - package.json
+win:
+  icon: icon.ico
+  target:
+    - target: portable
+      arch: [x64]
+    - target: nsis
+      arch: [x64]
+  artifactName: Momentum-${version}-${arch}-${ext}
+portable:
+  artifactName: Momentum-${version}-Windows-Portable.exe
+  requestExecutionLevel: user
+nsis:
+  artifactName: Momentum-${version}-Windows-Setup.exe
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+publish: null
