@@ -582,6 +582,9 @@ async function reconcileNativeReminders(){
   const android=Capacitor.getPlatform()==='android';
   if(permission!=='granted'){
     if(android)await AlarmDevice.syncRingingAlarms({alarms:[]});
+    const pending=(await LocalNotifications.getPending()).notifications||[];
+    const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','calendar','prayer','nudge'].includes(item.extra?.type));
+    if(managed.length)await LocalNotifications.cancel({notifications:managed.map(({id})=>({id}))});
     return {success:false,reason:'permission_not_granted',permission};
   }
   await initializeNotificationChannels();
