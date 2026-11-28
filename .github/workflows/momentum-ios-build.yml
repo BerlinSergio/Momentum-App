@@ -1,0 +1,100 @@
+name: Momentum iOS candidate
+on:
+  push:
+    branches: [feat/ios-v1.0.2]
+    paths: ['ios/**','src/**','.github/workflows/momentum-ios-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: momentum-ios-candidate
+  cancel-in-progress: true
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test reminder rules and build shared application
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild -showsdks
+          npm ci --no-fund
+          node --test tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs tests/notifications/perReminderDelivery.test.mjs
+          npm run build
+          npx cap sync ios
+      - name: Generate iPhone icon from approved original
+        run: |
+          set -euo pipefail
+          python -m pip install Pillow==11.3.0
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import hashlib
+          source=Path('public/logo.png')
+          assert hashlib.sha256(source.read_bytes()).hexdigest()=='3c5882560d81298cc24418cacc4e4ccee836bdd8500e6c9c5886e3956b9aa6e8'
+          Image.open(source).convert('RGB').crop((60,60,1186,1186)).resize((1024,1024),Image.Resampling.LANCZOS).save('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png')
+          PY
+          plutil -lint ios/App/App/Info.plist
+      - name: Build unsigned physical-device application
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/device" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build > "$RUNNER_TEMP/device-build.log" 2>&1 || { tail -n 200 "$RUNNER_TEMP/device-build.log"; exit 1; }
+          tail -n 20 "$RUNNER_TEMP/device-build.log"
+      - name: Build iOS simulator application
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/simulator" CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/simulator-build.log" 2>&1 || { tail -n 200 "$RUNNER_TEMP/simulator-build.log"; exit 1; }
+          tail -n 20 "$RUNNER_TEMP/simulator-build.log"
+      - name: Launch application on iPhone simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/devices.json"
+          DEVICE=$(python - "$RUNNER_TEMP/devices.json" <<'PY'
+          import json,sys
+          devices=json.load(open(sys.argv[1]))['devices']
+          for runtime, entries in sorted(devices.items(),reverse=True):
+              if 'iOS-26' in runtime:
+                  for item in entries:
+                      if item['isAvailable'] and item['name'].startswith('iPhone'):
+                          print(item['udid']);sys.exit(0)
+          sys.exit('No available iOS 26 iPhone simulator')
+          PY
+          )
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" "$RUNNER_TEMP/simulator/Build/Products/Debug-iphonesimulator/App.app"
+          xcrun simctl launch "$DEVICE" com.momentum.app
+          sleep 15
+          mkdir -p ios-artifacts
+          xcrun simctl io "$DEVICE" screenshot ios-artifacts/simulator-startup.png
+          xcrun simctl terminate "$DEVICE" com.momentum.app
+      - name: Package unsigned device build and record provenance
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/device/Build/Products/Release-iphoneos/App.app"
+          test -d "$APP"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")" = com.momentum.app
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Info.plist")" = 1.0.2
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Info.plist")" = 3
+          mkdir -p ios-artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$APP" ios-artifacts/Momentum-1.0.2-iOS-unsigned-app.zip
+          git rev-parse HEAD > ios-artifacts/commit.txt
+          cp "$RUNNER_TEMP/device-build.log" "$RUNNER_TEMP/simulator-build.log" ios-artifacts/
+          (cd ios-artifacts && shasum -a 256 Momentum-1.0.2-iOS-unsigned-app.zip > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: momentum-ios-candidate-${{ github.sha }}
+          path: ios-artifacts/
+          if-no-files-found: error
+          retention-days: 30
