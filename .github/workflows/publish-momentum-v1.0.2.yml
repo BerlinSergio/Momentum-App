@@ -1,0 +1,97 @@
+name: Publish verified Momentum v1.0.2
+on:
+  push:
+    branches: [release/publish-v1.0.2-20261128]
+    paths: ['.github/workflows/publish-momentum-v1.0.2.yml']
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: momentum-publish-v1-0-2
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.repository == 'BerlinSergio/Momentum-App' && github.ref == 'refs/heads/release/publish-v1.0.2-20261128'
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: BerlinSergio/Momentum-App
+      TARGET: 3d1e1efb5384fc26d7459b96b6ceed695d3511a5
+      TAG: v1.0.2
+      APK_SHA: 549a392d555ff8ebc49432e05de41cc41ba98975c28df3034e03420097fe393d
+      ZIP_SHA: 02dcf17d080372b27320c4cd8a80b30513e37159e30ab0576fd947be76ced067
+      CERT_SHA: d4d294ba28e1133bdc5d961e492397d5a10b1561a7f0e5797e02447f3a0ecb46
+    steps:
+      - name: Verify exact tested signed artifact and release target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$REPO/branches/main" --jq .commit.sha)" = "$TARGET"
+          test "$(gh api "repos/$REPO/actions/runs/46118858916" --jq .conclusion)" = success
+          test "$(gh api "repos/$REPO/actions/runs/46118858916" --jq .head_sha)" = "$TARGET"
+          test "$(gh api "repos/$REPO/actions/artifacts/15252693315" --jq .expired)" = false
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/actions/artifacts/15252693315/zip" -o signed.zip
+          printf '%s  signed.zip\n' "$ZIP_SHA" | sha256sum -c -
+          unzip -tq signed.zip
+          mkdir verified
+          unzip -q signed.zip Momentum-1.0-release.apk SHA256SUMS.txt signature.txt commit.txt source-tree.txt -d verified
+          cd verified
+          test "$(cat commit.txt)" = "$TARGET"
+          test "$(cat source-tree.txt)" = c1d1c18a5b3737049b54d26ccf70ae673994b356
+          sha256sum -c SHA256SUMS.txt
+          printf '%s  Momentum-1.0-release.apk\n' "$APK_SHA" | sha256sum -c -
+          grep -Fx "Signer #1 certificate SHA-256 digest: $CERT_SHA" signature.txt
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Independently verify release APK signature
+        run: |
+          set -euo pipefail
+          sdkmanager "build-tools;36.0.0"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs verified/Momentum-1.0-release.apk | tee verified/signature-recheck.txt
+          grep -Fx "Signer #1 certificate SHA-256 digest: $CERT_SHA" verified/signature-recheck.txt
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 verified/Momentum-1.0-release.apk
+      - name: Create and verify release draft, then publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then echo "Release already exists; refusing to overwrite."; exit 1; fi
+          if gh api "repos/$REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then echo "Tag already exists; refusing to overwrite."; exit 1; fi
+          cat > notes.md <<'NOTES'
+          # Momentum v1.0.2
+          Simplified per-item reminders and corrected Android launcher icon.
+
+          ## Changes
+          - Choose Notification or Alarm independently for each task, routine, calendar event, prayer and daily check-in.
+          - Shared reminder controls in light and dark modes; English, Dari and Pashto.
+          - Default choices for new items; existing reminder preferences retained as fallback.
+          - Approved Momentum launcher logo in all Android icon densities.
+          - Native ringing with Stop and five-minute Snooze.
+
+          ## Update
+          Install Momentum-1.0.2-release.apk over the existing production-signed installation. Back up data first. Package ID and production certificate are unchanged; versionCode is 3.
+
+          ## Verification
+          - 16 reminder tests, Android unit tests and 3 emulator alarm tests passed.
+          - Owner confirmed final signed APK mobile acceptance tests passed.
+          - Certificate and SHA-256 independently checked before publication.
+
+          ## Limits
+          Default device alarm tone, fixed five-minute Snooze and two-minute ringing cutoff. Exact alarm and notification permissions are required for native ringing. Quiet hours and section switches apply. The next 60 eligible reminders are queued and refreshed while the app is active.
+
+          Source commit: 3d1e1efb5384fc26d7459b96b6ceed695d3511a5
+          NOTES
+          mv verified/Momentum-1.0-release.apk verified/Momentum-1.0.2-release.apk
+          (cd verified && sha256sum Momentum-1.0.2-release.apk > SHA256SUMS.txt)
+          gh release create "$TAG" --repo "$REPO" --target "$TARGET" --title "Momentum v1.0.2" --notes-file notes.md --draft verified/Momentum-1.0.2-release.apk verified/SHA256SUMS.txt verified/signature.txt verified/commit.txt verified/source-tree.txt
+          mkdir downloaded
+          gh release download "$TAG" --repo "$REPO" --pattern Momentum-1.0.2-release.apk --dir downloaded
+          printf '%s  downloaded/Momentum-1.0.2-release.apk\n' "$APK_SHA" | sha256sum -c -
+          gh release edit "$TAG" --repo "$REPO" --draft=false --latest
+          gh release view "$TAG" --repo "$REPO" --json url,tagName,isDraft,assets
