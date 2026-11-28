@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('momentumDesktop',Object.freeze({
     if(typeof callback!=='function')return;
     ipcRenderer.on('momentum:notification-click',(_event,data)=>callback(data));
   },
+  onAppStateChange:(callback)=>{if(typeof callback==='function')ipcRenderer.on('momentum:app-state',(_event,active)=>callback(active===true));},
   alarmAction:(action)=>ipcRenderer.invoke('momentum:alarm-action',action),
 }));
