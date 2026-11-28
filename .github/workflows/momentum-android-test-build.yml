@@ -5,6 +5,7 @@ on:
     branches:
       - fix/db-phase217-migration-recovery-20261125
       - fix/unified-reminder-alarm-system-20261127
+      - fix/per-reminder-delivery-v1.0.2
     paths:
       - '.github/workflows/momentum-android-test-build.yml'
       - 'src/**'
@@ -37,7 +38,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-fund
       - name: Verify reminder timing rules
-        run: node --test tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs
+        run: node --test tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs tests/notifications/perReminderDelivery.test.mjs
       - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
