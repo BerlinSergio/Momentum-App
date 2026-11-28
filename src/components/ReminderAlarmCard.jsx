@@ -37,6 +37,8 @@ export default function ReminderAlarmCard(){
  const [busy,setBusy]=useState(false);
  const [exact,setExact]=useState('unknown');
  const android=Capacitor.getPlatform()==='android';
+ const desktop=typeof window!=='undefined'&&window.momentumDesktop?.platform==='windows';
+ const desktopInfo=locale==='ps-AF'?'په Windows کې الارم تر هغه کار کوي چې Momentum په System Tray کې روان وي او کمپیوټر ویښ وي. غږ دوه دقیقې، ځنډ پنځه دقیقې دی.':locale==='fa-AF'?'زنگ ویندوز تا زمانی کار می‌کند که Momentum در System Tray اجرا شود و رایانه بیدار باشد. زنگ دو دقیقه و تعویق پنج دقیقه است.':'Windows alarms work while Momentum is running (including in the system tray) and the computer is awake. Ringing lasts two minutes; snooze is five minutes.';
  const flags={task:'dueTaskAlerts',routine:'routineAlertsEnabled',prayer:'prayerAlertsEnabled',calendar:'calendarAlertsEnabled'};
  useEffect(()=>{if(!android)return;let active=true;const refresh=()=>checkExactReminderPermission().then(value=>{if(active)setExact(value);});refresh();window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{active=false;window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[android]);
  const entries={
@@ -77,7 +79,7 @@ export default function ReminderAlarmCard(){
  {TYPES.filter(t=>['task','routine','calendar'].includes(t)).map(t=><div key={t}><p className="text-xs">{c.types[TYPES.indexOf(t)]}</p><ReminderTypePicker compact value={defaultReminderType(settings,t)} disabled={busy} onChange={value=>save(()=>settings.setSetting('reminderSourceDefaults',{...useSettingsStore.getState().reminderSourceDefaults,[t]:value}))}/></div>)}
  </details>
  <details className="rounded-xl border border-current/10 p-3 space-y-2"><summary className="text-sm font-semibold cursor-pointer">{c.exact}</summary>
- {android?<><p className="text-xs opacity-75">{c.fallback}</p>{exact!=='granted'&&<button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{c.open}</button>}<p className="text-xs opacity-75">{c.sound} {c.limited}</p></>:<p className="text-xs opacity-75">{c.web}</p>}
+ {android?<><p className="text-xs opacity-75">{c.fallback}</p>{exact!=='granted'&&<button type="button" className="text-xs underline" onClick={async()=>{try{setExact(await openExactReminderSettings());await scheduleAllActiveNotifications();}catch{toast.error(c.error);}}}>{c.open}</button>}<p className="text-xs opacity-75">{c.sound} {c.limited}</p></>:<p className="text-xs opacity-75">{desktop?desktopInfo:c.web}</p>}
  <p className="text-xs opacity-75">{c.quiet}</p>
  {suppressed.map(x=><button type="button" key={x.extra.key} disabled={busy} className="block text-xs underline" onClick={()=>save(()=>settings.setAlarmOnlyOccurrence(x.extra.key,x.extra.at,false))}>{x.body}: {c.restore}</button>)}
  </details>
