@@ -1,0 +1,91 @@
+name: Momentum final master backup
+on:
+  push:
+    branches: [backup/final-master-20261128]
+    paths: ['.github/workflows/momentum-final-master-backup.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: momentum-final-master-backup
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Archive exact sources and reachable history
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p master/{sources,packages,verification,docs}
+          git clone --mirror "https://github.com/$GITHUB_REPOSITORY.git" "$RUNNER_TEMP/momentum.git"
+          git -C "$RUNNER_TEMP/momentum.git" bundle create "$GITHUB_WORKSPACE/master/sources/momentum-full.bundle" --all
+          git -C "$RUNNER_TEMP/momentum.git" bundle verify "$GITHUB_WORKSPACE/master/sources/momentum-full.bundle"
+          git -C "$RUNNER_TEMP/momentum.git" show-ref > master/sources/refs.txt
+          git -C "$RUNNER_TEMP/momentum.git" fsck --full
+          while read -r name sha; do
+            git -C "$RUNNER_TEMP/momentum.git" cat-file -e "$sha^{commit}"
+            git -C "$RUNNER_TEMP/momentum.git" archive --format=tar.gz --prefix="Momentum-$name/" -o "$GITHUB_WORKSPACE/master/sources/$name.tar.gz" "$sha"
+          done <<'REFS'
+          android 3d1e1efb5384fc26d7459b96b6ceed695d3511a5
+          windows a9e80ff4e57f7e0d25790c85ea7926ae23a3bed3
+          ios e7b7ba18d0ba0e40acc67d67e06c42bda92525eb
+          ios-ipa 7f74b167cfa4c470de3281f35fc2ab1f68073f1d
+          pwa b27167facc8a5843cbc0817187268fc651f8824d
+          pwa-deployed e3abda05c5019100c9f382ce730d91b2ef2c3d5a
+          REFS
+          cp docs/FINAL_MASTER_BACKUP.md master/docs/
+          git -C "$RUNNER_TEMP/momentum.git" archive 3d1e1efb5384fc26d7459b96b6ceed695d3511a5 docs src/storage src/utils/backupService.js src/utils/backupCrypto.js tests/storage .github/workflows | tar -xf - -C master/docs
+      - name: Download and verify released packages and candidate archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for tag in v1.0.0 v1.0.2 v1.0.2-windows; do
+            mkdir -p "master/packages/$tag"
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "master/verification/$tag-release.json"
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "master/packages/$tag"
+            (cd "master/packages/$tag" && sha256sum -c SHA256SUMS.txt)
+          done
+          fetch_artifact() {
+            local id="$1" expected="$2" filename="$3"
+            curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" -o "master/packages/$filename"
+            printf '%s  %s\n' "$expected" "master/packages/$filename" | sha256sum -c -
+            unzip -tq "master/packages/$filename"
+          }
+          fetch_artifact 15256229921 3f4548be1d2e179a0f53e45cd171805907dc4cc95cb4ee9ee826ac77772c1c70 ios-unsigned-ipa.zip
+          fetch_artifact 15256509760 3190b6e5c7da8a7ac5822582213c97aa8b415ac526e0e55f0d94782efc771f25 ios-device-and-simulator.zip
+          fetch_artifact 15260314377 1037d3cc1f6fc361213ff1d2295bc34ed0da9cfeaf2330b944cbb1701fe402e2 pwa-tested-build.zip
+          mkdir -p "$RUNNER_TEMP/ipa-verify"
+          unzip -q master/packages/ios-unsigned-ipa.zip -d "$RUNNER_TEMP/ipa-verify"
+          (cd "$RUNNER_TEMP/ipa-verify" && sha256sum -c SHA256SUMS.txt && unzip -tq Momentum-1.0.2-unsigned.ipa)
+          for id in 46117605035 46118858916 46119582857 46121051334 46128950820 46129254095 46129973790 46138511352 46139038625; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" > "master/verification/run-$id.json"
+          done
+      - name: Verify complete master archive and recovery
+        run: |
+          set -euo pipefail
+          git clone --mirror master/sources/momentum-full.bundle "$RUNNER_TEMP/recovery-test.git"
+          for sha in 3d1e1efb5384fc26d7459b96b6ceed695d3511a5 a9e80ff4e57f7e0d25790c85ea7926ae23a3bed3 e7b7ba18d0ba0e40acc67d67e06c42bda92525eb 7f74b167cfa4c470de3281f35fc2ab1f68073f1d b27167facc8a5843cbc0817187268fc651f8824d e3abda05c5019100c9f382ce730d91b2ef2c3d5a; do
+            git -C "$RUNNER_TEMP/recovery-test.git" cat-file -e "$sha^{commit}"
+          done
+          (cd master && find . -type f ! -name SHA256-MASTER.txt -print0 | sort -z | xargs -0 sha256sum > SHA256-MASTER.txt && sha256sum -c SHA256-MASTER.txt)
+          mkdir -p output
+          tar -czf output/Momentum-Final-Master-2026-11-28.tar.gz -C master .
+          (cd output && sha256sum Momentum-Final-Master-2026-11-28.tar.gz > SHA256SUMS.txt)
+          mkdir -p "$RUNNER_TEMP/extracted"
+          tar -xzf output/Momentum-Final-Master-2026-11-28.tar.gz -C "$RUNNER_TEMP/extracted"
+          (cd "$RUNNER_TEMP/extracted" && sha256sum -c SHA256-MASTER.txt)
+          cp master/docs/FINAL_MASTER_BACKUP.md output/README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Final-Master-2026-11-28
+          path: output/
+          if-no-files-found: error
+          retention-days: 90
