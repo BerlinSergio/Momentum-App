@@ -254,6 +254,8 @@ export function initializeNativeLifecycle() {
     console.warn('[NativeLifecycle] BackButton listener unavailable:', err.message);
   }
 
+  if(window.momentumDesktop?.platform==='windows')window.momentumDesktop.onAppStateChange(isActive=>handleAppStateChange({isActive}));
+
   // 2. App State Changes (Foreground / Background)
   try {
     App.addListener('appStateChange', (state) => {
