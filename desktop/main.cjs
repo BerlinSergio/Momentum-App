@@ -77,6 +77,10 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
   session.defaultSession.setPermissionCheckHandler(()=>false);
   win=new BrowserWindow({width:1150,height:760,minWidth:740,minHeight:540,show:!smoke,autoHideMenuBar:true,icon,backgroundColor:'#151326',webPreferences:prefs()});
   guard(win);
+  let active=true;
+  const state=value=>{if(active===value||win.isDestroyed())return;active=value;win.webContents.send('momentum:app-state',value);};
+  win.on('blur',()=>state(false));win.on('focus',()=>state(true));win.on('hide',()=>state(false));win.on('minimize',()=>state(false));
+  powerMonitor.on('lock-screen',()=>state(false));powerMonitor.on('unlock-screen',()=>{if(win.isFocused())state(true);});
   win.on('close',e=>{if(!quitting&&!smoke){e.preventDefault();win.hide();}});
   win.webContents.on('render-process-gone',()=>{if(smoke)app.exit(1);});
   if(!smoke){
