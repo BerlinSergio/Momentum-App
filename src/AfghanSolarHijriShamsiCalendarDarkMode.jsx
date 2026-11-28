@@ -1,3 +1,6 @@
+import ReminderTypePicker from './components/ReminderTypePicker.jsx';
+import {useSettingsStore as useReminderSettings} from './store/useSettingsStore.js';
+import {defaultReminderType} from './utils/reminderRules.js';
 import {useDisplayDigits} from './hooks/useDisplayDigits.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
@@ -33,6 +36,7 @@ export default function AfghanSolarHijriShamsiCalendarDarkMode({ setActiveTab, g
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [reminderType,setReminderType]=useState(()=>defaultReminderType(useReminderSettings.getState(),'calendar'));
   const [newTime, setNewTime] = useState('10:00 AM');
   const [newCategory, setNewCategory] = useState('Reminder');
   const [newNote, setNewNote] = useState('');
@@ -66,6 +70,7 @@ export default function AfghanSolarHijriShamsiCalendarDarkMode({ setActiveTab, g
   };
 
   const handleOpenAddModal = () => {
+    setReminderType(defaultReminderType(useReminderSettings.getState(),'calendar'));
     setNewDay(selectedDay);
     setNewMonth(viewMonth);
     setNewTitle('');
@@ -80,6 +85,7 @@ export default function AfghanSolarHijriShamsiCalendarDarkMode({ setActiveTab, g
     if (!newTitle.trim()) return;
     addEvent({
       title: newTitle.trim(),
+      reminderType,
       shamsiYear: viewYear,
       shamsiMonth: Number(newMonth) || viewMonth,
       shamsiDay: Number(newDay) || selectedDay,
@@ -395,6 +401,7 @@ export default function AfghanSolarHijriShamsiCalendarDarkMode({ setActiveTab, g
             </div>
 
             <form onSubmit={handleCreateEvent} className="space-y-3">
+              <ReminderTypePicker value={reminderType} onChange={setReminderType}/>
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
                 <input
