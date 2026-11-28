@@ -177,13 +177,13 @@ export const useNavigationStore = create(
           try {
             const url = new URL(window.location);
             if (nextScreen.includes('finance_dashboard') || nextScreen === '/finance/dashboard') {
-              url.pathname = '/finance/dashboard';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/dashboard';
             } else if (nextScreen.includes('income_management') || nextScreen === '/finance/income') {
-              url.pathname = '/finance/income';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/income';
             } else if (nextScreen.includes('finance_expense_tracker') || nextScreen === '/finance/expenses') {
-              url.pathname = '/finance/expenses';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/expenses';
             } else {
-              url.pathname = '/';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/';
             }
             url.searchParams.set('screen', nextScreen);
             if (params?.taskId) url.searchParams.set('taskId', params.taskId);
@@ -267,13 +267,13 @@ export const useNavigationStore = create(
             try {
               const url = new URL(window.location);
               if (previousScreen.includes('finance_dashboard') || previousScreen === '/finance/dashboard') {
-                url.pathname = '/finance/dashboard';
+                url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/dashboard';
               } else if (previousScreen.includes('income_management') || previousScreen === '/finance/income') {
-                url.pathname = '/finance/income';
+                url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/income';
               } else if (previousScreen.includes('finance_expense_tracker') || previousScreen === '/finance/expenses') {
-                url.pathname = '/finance/expenses';
+                url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/expenses';
               } else {
-                url.pathname = '/';
+                url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/';
               }
               url.searchParams.set('screen', previousScreen);
               if (backState.routeParams?.taskId) url.searchParams.set('taskId', backState.routeParams.taskId);
@@ -321,13 +321,13 @@ export const useNavigationStore = create(
           try {
             const url = new URL(window.location);
             if (targetFallback.includes('finance_dashboard') || targetFallback === '/finance/dashboard') {
-              url.pathname = '/finance/dashboard';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/dashboard';
             } else if (targetFallback.includes('income_management') || targetFallback === '/finance/income') {
-              url.pathname = '/finance/income';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/income';
             } else if (targetFallback.includes('finance_expense_tracker') || targetFallback === '/finance/expenses') {
-              url.pathname = '/finance/expenses';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/finance/expenses';
             } else {
-              url.pathname = '/';
+              url.pathname = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') + '/';
             }
             url.searchParams.set('screen', targetFallback);
             window.history.replaceState(
