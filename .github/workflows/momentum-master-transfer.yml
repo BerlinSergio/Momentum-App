@@ -1,0 +1,116 @@
+name: Momentum master backup transfer parts
+on:
+  push:
+    branches: [backup/final-master-20261128]
+    paths: ['.github/workflows/momentum-master-transfer.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download original verified archive and split without changing bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p parts
+          curl --fail --silent --show-error --location -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/15260972662/zip" -o Momentum-Final-Master-2026-11-28.zip
+          echo "07b0d7ba175d5c23ec67fab30bd00f0bcb7f1ed21affe776262b6cdab59f4bf0  Momentum-Final-Master-2026-11-28.zip" | sha256sum -c -
+          split -b 80M -d -a 2 Momentum-Final-Master-2026-11-28.zip parts/Momentum-Final-Master-2026-11-28.zip.part
+          cat parts/*.part?? | sha256sum | grep '^07b0d7ba175d5c23ec67fab30bd00f0bcb7f1ed21affe776262b6cdab59f4bf0 '
+          (cd parts && sha256sum *.part?? > SHA256-PARTS.txt)
+          cat > parts/README.txt <<'EOF'
+          Momentum final master backup, exact original ZIP in 8 parts.
+          Download and extract all eight part artifact ZIP files to the same folder.
+          Windows PowerShell (from that folder):
+          $out = [IO.File]::Create((Join-Path (Get-Location) 'Momentum-Final-Master-2026-11-28.zip'))
+          try { Get-ChildItem 'Momentum-Final-Master-2026-11-28.zip.part??' | Sort-Object Name | ForEach-Object { $in = $_.OpenRead(); try { $in.CopyTo($out) } finally { $in.Dispose() } } } finally { $out.Dispose() }
+          Get-FileHash Momentum-Final-Master-2026-11-28.zip -Algorithm SHA256
+          Expected SHA256: 07b0d7ba175d5c23ec67fab30bd00f0bcb7f1ed21affe776262b6cdab59f4bf0
+          Linux/macOS: cat Momentum-Final-Master-2026-11-28.zip.part?? > Momentum-Final-Master-2026-11-28.zip
+          Extract the original ZIP after verifying the SHA256. No admin required.
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-01-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part00
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-02-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part01
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-03-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part02
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-04-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part03
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-05-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part04
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-06-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part05
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-07-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part06
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Momentum-Master-Part-08-of-08
+          path: |
+            parts/Momentum-Final-Master-2026-11-28.zip.part07
+            parts/README.txt
+            parts/SHA256-PARTS.txt
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
