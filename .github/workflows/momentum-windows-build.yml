@@ -92,7 +92,7 @@ jobs:
           $hashes | Set-Content windows-artifacts/SHA256SUMS.txt -Encoding ascii
           $signatures | Set-Content windows-artifacts/signature-status.txt -Encoding ascii
           git rev-parse HEAD | Set-Content windows-artifacts/commit.txt -Encoding ascii
-          Copy-Item $env:MOMENTUM_SMOKE_REPORT windows-artifacts/
+          Copy-Item (Join-Path $env:RUNNER_TEMP 'momentum-smoke.json') windows-artifacts/
           Copy-Item desktop/package-lock.json windows-artifacts/desktop-package-lock.json
       - uses: actions/upload-artifact@v4
         with:
