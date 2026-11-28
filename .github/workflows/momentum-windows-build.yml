@@ -1,0 +1,102 @@
+name: Momentum Windows candidate
+on:
+  push:
+    branches: [feat/windows-desktop-v1.0.2]
+    paths: ['desktop/**','src/**','.github/workflows/momentum-windows-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: momentum-windows-candidate
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install application dependencies and test reminder logic
+        shell: pwsh
+        run: |
+          npm ci --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test tests/notifications/reminderRules.test.mjs tests/notifications/ringingAlarmPlan.test.mjs tests/notifications/perReminderDelivery.test.mjs desktop/alarm.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check desktop/main.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check desktop/preload.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item dist desktop/dist -Recurse
+      - name: Create Windows ICO from approved logo
+        shell: bash
+        run: |
+          python -m pip install Pillow==11.3.0
+          python - <<'PY'
+          from PIL import Image,ImageDraw
+          import hashlib
+          from pathlib import Path
+          source=Path('public/logo.png')
+          assert hashlib.sha256(source.read_bytes()).hexdigest()=='3c5882560d81298cc24418cacc4e4ccee836bdd8500e6c9c5886e3956b9aa6e8'
+          image=Image.open(source).convert('RGBA').crop((60,60,1186,1186))
+          mask=Image.new('L',image.size)
+          ImageDraw.Draw(mask).rounded_rectangle((0,0,1125,1125),radius=290,fill=255)
+          image.putalpha(mask)
+          image.resize((256,256),Image.Resampling.LANCZOS).save('desktop/icon.ico',sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+          PY
+      - name: Build unsigned Windows portable and per-user installer
+        working-directory: desktop
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm install --no-fund --no-audit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run pack
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Launch packaged desktop app and verify secure local storage startup
+        shell: pwsh
+        run: |
+          $env:MOMENTUM_SMOKE_REPORT = Join-Path $env:RUNNER_TEMP 'momentum-smoke.json'
+          $p = Start-Process -FilePath 'desktop/output/win-unpacked/Momentum.exe' -ArgumentList '--momentum-smoke-test' -PassThru
+          if (-not $p.WaitForExit(120000)) { Stop-Process -Id $p.Id -Force; throw 'Desktop startup timed out' }
+          if ($p.ExitCode -ne 0) { throw "Desktop startup exit code $($p.ExitCode)" }
+          $result = Get-Content $env:MOMENTUM_SMOKE_REPORT -Raw | ConvertFrom-Json
+          foreach ($key in @('ready','secure','db','crypto','bridge')) { if ($result.$key -ne $true) { throw "Missing smoke check $key" } }
+          Get-Content $env:MOMENTUM_SMOKE_REPORT
+      - name: Record package hashes and provenance
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path windows-artifacts | Out-Null
+          $names = @('Momentum-1.0.2-Windows-Portable.exe','Momentum-1.0.2-Windows-Setup.exe')
+          $hashes = @()
+          $signatures = @()
+          foreach ($name in $names) {
+            $file = Join-Path 'desktop/output' $name
+            if (-not (Test-Path $file)) { throw "Missing package $name" }
+            if ((Get-Item $file).Length -lt 1000000) { throw 'Unexpectedly small package' }
+            Copy-Item $file windows-artifacts/
+            $hashes += ((Get-FileHash $file -Algorithm SHA256).Hash.ToLower() + '  ' + $name)
+            $signatures += ($name + ': ' + (Get-AuthenticodeSignature $file).Status)
+          }
+          $hashes | Set-Content windows-artifacts/SHA256SUMS.txt -Encoding ascii
+          $signatures | Set-Content windows-artifacts/signature-status.txt -Encoding ascii
+          git rev-parse HEAD | Set-Content windows-artifacts/commit.txt -Encoding ascii
+          Copy-Item $env:MOMENTUM_SMOKE_REPORT windows-artifacts/
+          Copy-Item desktop/package-lock.json windows-artifacts/desktop-package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: momentum-windows-candidate-${{ github.sha }}
+          path: windows-artifacts/
+          if-no-files-found: error
+          retention-days: 30
