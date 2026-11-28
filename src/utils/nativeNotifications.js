@@ -27,6 +27,9 @@ import { calculateTaskTriggerDate, calculateRoutineTriggerDate, occurrenceKey, i
 export { calculateTaskTriggerDate, calculateRoutineTriggerDate } from './reminderRules.js';
 
 const AlarmDevice=registerPlugin('MomentumDevice');
+const desktopBridge=()=>typeof window!=='undefined'&&window.momentumDesktop?.platform==='windows'?window.momentumDesktop:null;
+const desktopRoutes=new Map();
+let desktopRouteBound=false;
 let areChannelsCreated = false;
 let isActionListenerRegistered = false;
 let webSchedulerIntervalId = null;
@@ -146,6 +149,7 @@ export function isNotificationSupported() {
  * Returns 'granted' | 'denied' | 'prompt' | 'unsupported'
  */
 export async function checkNotificationPermission() {
+  if(desktopBridge())return 'granted';
   if (!isNativePlatform()) {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'granted') return 'granted';
@@ -178,6 +182,7 @@ export async function openExactReminderSettings() {
 }
 
 export async function requestNotificationPermission() {
+  if(desktopBridge())return 'granted';
   if (!isNativePlatform()) {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       try {
@@ -287,6 +292,7 @@ export async function deliverNotification({
   params = {},
   channelId = CHANNELS.SYSTEM.id,
   quiet = false,
+  reminderType = 'notification',
 }) {
   const notifId = id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   const settings = useSettingsStore.getState();
@@ -340,6 +346,18 @@ export async function deliverNotification({
       console.warn('[NotificationEngine] Native delivery error:', err);
       return { success: false, error: err.message };
     }
+  }
+
+  const desktop=desktopBridge();
+  if(desktop){
+    try{
+      if(!desktopRouteBound){desktop.onNotificationClick(id=>{const route=desktopRoutes.get(id);if(route)handleNotificationRoute(route);});desktopRouteBound=true;}
+      desktopRoutes.set(notifId,{targetScreen,params});
+      if(desktopRoutes.size>500)desktopRoutes.delete(desktopRoutes.keys().next().value);
+      if(reminderType==='alarm'&&await desktop.ring({id:notifId,language:useLocaleStore.getState().currentLocale}))return {success:true,platform:'windows_alarm'};
+      const sent=await desktop.notify({id:notifId,title,body,quiet});
+      return sent?{success:true,platform:'windows'}:{success:false,reason:'desktop_delivery_unavailable'};
+    }catch{return {success:false,reason:'desktop_delivery_failed'};}
   }
 
   // Desktop Web / Windows Notification Delivery
@@ -417,13 +435,15 @@ export async function tickNotificationScheduler() {
     const run=async()=>{
       const snapshot=await readReminderSnapshot();
       const plan=buildNativeReminderPlan(now,{lookbackMs:15*60000,limit:Infinity,snapshot});
+      const desktop=desktopBridge();
+      if(desktop){const recent=buildNativeReminderPlan(now,{lookbackMs:86400000,limit:Infinity,snapshot});await desktop.reconcile(recent.filter(item=>item.extra.reminderType==='alarm').map(item=>occurrenceKey(item.extra.key,item.schedule.at)).slice(0,5000));}
       for(const item of plan){
         if(item.schedule.at>now)continue;
         const key=occurrenceKey(item.extra.key,item.schedule.at);
         if(isNotificationFired(key))continue;
         const result=await deliverNotification({id:key,title:item.title,body:item.body,
           sourceType:item.extra.type,sourceId:item.extra.params.taskId??item.extra.params.routineId??item.extra.params.eventId??item.extra.params.prayer??null,
-          targetScreen:item.extra.targetScreen,params:item.extra.params,channelId:item.channelId,quiet:item.extra.ringEligible===false});
+          targetScreen:item.extra.targetScreen,params:item.extra.params,channelId:item.channelId,quiet:item.extra.ringEligible===false,reminderType:item.extra.reminderType});
         if(result.success===true)recordNotificationFired(key);
       }
     };
