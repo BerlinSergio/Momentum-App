@@ -330,6 +330,7 @@ export function normalizeRoutine(data = {}) {
     reminderEnabled: hasReminder,
     reminderOffset: offsetVal,
     reminderSound: soundVal,
+    ...(data.reminderType==='alarm'||data.reminderType==='notification'?{reminderType:data.reminderType}:{}),
     reminder: reminderLabel,
     notes: (data.notes || '').trim(),
     active: data.active !== false,
