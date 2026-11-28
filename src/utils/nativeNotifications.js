@@ -27,6 +27,9 @@ import { calculateTaskTriggerDate, calculateRoutineTriggerDate, occurrenceKey, i
 export { calculateTaskTriggerDate, calculateRoutineTriggerDate } from './reminderRules.js';
 
 const AlarmDevice=registerPlugin('MomentumDevice');
+const IOSAlarm=registerPlugin('MomentumIOSAlarm');
+export async function checkIOSAlarmPermission(){if(Capacitor.getPlatform()!=='ios')return 'unavailable';try{return (await IOSAlarm.permission()).status;}catch{return 'unavailable';}}
+export async function requestIOSAlarmPermission(){if(Capacitor.getPlatform()!=='ios')return 'unavailable';try{return (await IOSAlarm.requestPermission()).status;}catch{return 'unavailable';}}
 let areChannelsCreated = false;
 let isActionListenerRegistered = false;
 let webSchedulerIntervalId = null;
@@ -580,7 +583,9 @@ export function buildNativeReminderPlan(now=new Date(),{includeAlarmOnly=false,l
 async function reconcileNativeReminders(){
   const permission=await checkNotificationPermission();
   const android=Capacitor.getPlatform()==='android';
+  const ios=Capacitor.getPlatform()==='ios';
   if(permission!=='granted'){
+    if(ios)await IOSAlarm.sync({alarms:[]}).catch(()=>{});
     if(android)await AlarmDevice.syncRingingAlarms({alarms:[]});
     const pending=(await LocalNotifications.getPending()).notifications||[];
     const managed=pending.filter(item=>item.extra?.momentumManaged||['task','routine','calendar','prayer','nudge'].includes(item.extra?.type));
@@ -603,6 +608,15 @@ async function reconcileNativeReminders(){
     if(!exact&&requested.some(a=>a.at>now.getTime()))ringWarning='exact_alarm_permission_required';
     try{const result=await AlarmDevice.syncRingingAlarms({alarms});covered=new Set(result.covered||[]);if(alarms.some(a=>a.at>now.getTime()&&!covered.has(a.key)))ringWarning='ringing_alarm_unavailable';}
     catch(error){ringWarning='ringing_alarm_sync_failed';console.warn('[Notifications] Ringing alarm synchronization failed');}
+  }
+  if(ios){
+    const recent=buildNativeReminderPlan(now,{snapshot,lookbackMs:86400000,limit:Infinity});
+    const requested=selectRingingOccurrences(future,recent,snapshot.settings.ringingAlarmSources,useLocaleStore.getState().currentLocale,now);
+    try{
+      const result=await IOSAlarm.sync({alarms:requested});
+      covered=new Set(result.covered||[]);
+      if(requested.some(a=>a.at>now.getTime()&&!covered.has(a.key)))ringWarning='ios_alarm_unavailable_notification_fallback';
+    }catch{if(requested.length)ringWarning='ios_alarm_unavailable_notification_fallback';}
   }
   // Only suppress the ordinary notification if native scheduling accepted that occurrence.
   const plan=future.filter(item=>!covered.has(occurrenceKey(item.extra.key,item.schedule.at))).map(item=>({...item,isExactNotification:android?exact:undefined,isExactMandatory:false,extra:{...item.extra,exact:android?exact:null}}));
