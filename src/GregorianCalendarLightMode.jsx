@@ -1,3 +1,6 @@
+import ReminderTypePicker from './components/ReminderTypePicker.jsx';
+import {useSettingsStore as useReminderSettings} from './store/useSettingsStore.js';
+import {defaultReminderType} from './utils/reminderRules.js';
 import { useTranslation } from 'react-i18next';
 import MomentumGlassHeader from './components/MomentumGlassHeader';
 import { useState, useMemo } from 'react';
@@ -48,6 +51,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const [formTitle, setFormTitle] = useState('');
+  const [reminderType,setReminderType]=useState(()=>defaultReminderType(useReminderSettings.getState(),'calendar'));
   const [formCategory, setFormCategory] = useState('Work');
   const [formDate, setFormDate] = useState('');
   const [formTime, setFormTime] = useState('10:00 AM – 11:00 AM');
@@ -317,6 +321,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
   };
 
   const handleOpenAddModal = () => {
+    setReminderType(defaultReminderType(useReminderSettings.getState(),'calendar'));
     const mStr = String(viewMonth + 1).padStart(2, '0');
     const dStr = String(selectedDay).padStart(2, '0');
     setFormDate(`${viewYear}-${mStr}-${dStr}`);
@@ -343,6 +348,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
     }
     addCalendarEvent({
       title: formTitle.trim(),
+      reminderType,
       date: formDate,
       gregorianYear: targetYear,
       gregorianMonth: targetMonth,
@@ -588,6 +594,7 @@ export default function GregorianCalendarLightMode({ setActiveTab, goBack }) {
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors"><X className="w-4 h-4" /></button>
               </div>
             <form onSubmit={handleSaveEvent} className="space-y-3.5">
+              <ReminderTypePicker value={reminderType} onChange={setReminderType}/>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">{t('calendar.eventTitle', 'Event Title')}</label>
                 <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder={t('calendar.eventTitlePlaceholder', 'e.g. Quarterly Investment Review')} required autoFocus className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-primary" />
