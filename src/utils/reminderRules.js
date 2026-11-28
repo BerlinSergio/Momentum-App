@@ -64,6 +64,25 @@ export function matchesReminderSource(item,type,id) {
   return Boolean(field)&&String(extra.params?.[field])===String(id);
 }
 
+// Stable preferences follow the source item, not an individual occurrence date.
+export function reminderPreferenceKey(type,params={}) {
+  const id=({task:params.taskId,routine:params.routineId,calendar:params.eventId,prayer:params.prayer,nudge:params.nudgeId})[type];
+  return id===undefined||id===null?null:type+':'+String(id);
+}
+export function validReminderType(value){return value==='notification'||value==='alarm';}
+export function resolveReminderType(settings={},type,itemType,params={},ringEligible=true) {
+  const key=reminderPreferenceKey(type,params);
+  const override=key?settings.reminderTypes?.[key]:undefined;
+  if(validReminderType(itemType))return itemType;
+  if(validReminderType(override))return override;
+  // Legacy category choices and silent/vibration preferences are preserved.
+  if(settings.ringingAlarmSources?.[type]===true&&ringEligible)return 'alarm';
+  return 'notification';
+}
+export function defaultReminderType(settings={},type){
+  const value=settings.reminderSourceDefaults?.[type]??settings.defaultReminderType;
+  return validReminderType(value)?value:'notification';
+}
 // Recent occurrences retain native snooze state; only future items inside the
 // selected native queue may create new alarms.
 export function selectRingingOccurrences(future,recent,sources={},language='en',now=new Date()){
@@ -71,7 +90,8 @@ export function selectRingingOccurrences(future,recent,sources={},language='en',
   const seen=new Set();
   return recent.flatMap(item=>{
     const key=occurrenceKey(item.extra.key,item.schedule.at);
-    if(sources?.[item.extra.type]!==true||item.extra.ringEligible===false||seen.has(key))return [];
+    const explicit=item.extra.reminderType;
+    if((validReminderType(explicit)?explicit!=='alarm':sources?.[item.extra.type]!==true||item.extra.ringEligible===false)||seen.has(key))return [];
     if(item.schedule.at>now&&!futureKeys.has(key))return [];
     seen.add(key);
     return [{key,at:item.schedule.at.getTime(),title:item.body||item.title,language}];
